@@ -1,0 +1,26 @@
+- status: 200
+  headers:
+    Link: |
+      <http://github.localhost/orgs/testorg/teams?page=2>; rel="next",
+      <http://github.localhost/orgs/testorg/teams?page=2>; rel="last"
+  body: |
+    [
+      {
+        "id": 123,
+        "name": "Yes Team",
+        "slug": "yes-team"
+      }
+    ]
+- status: 200
+  headers:
+    Link: |
+      <http://github.localhost/orgs/testorg/teams?page=1>; rel="prev",
+      <http://github.localhost/orgs/testorg/teams?page=1>; rel="first"
+  body: |
+    [
+      {
+        "id": 456,
+        "name": "No Team",
+        "slug": "no-team"
+      }
+    ]

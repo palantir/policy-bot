@@ -1,0 +1,15 @@
+plugins:
+  resolvers:
+    - https://palantir.bintray.com/releases/{{GroupPath}}/{{Product}}/{{Version}}/{{Product}}-{{Version}}-{{OS}}-{{Arch}}.tgz
+  plugins:
+    - locator:
+        id: "com.palantir.godel-dep-plugin:dep-plugin:1.1.0"
+        checksums:
+          darwin-amd64: 946b0def510a7e94b46bb635a67f00c05243505e2a2ef9b0b7dab45b0437be1f
+          linux-amd64: cc2729e7f25c0121f841e237238c11514ee4c1376c458a1c4997ee86de17b209
+exclude:
+  names:
+  - \..+
+  - vendor
+  paths:
+  - godel

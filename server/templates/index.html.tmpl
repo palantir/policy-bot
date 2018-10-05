@@ -1,0 +1,39 @@
+{{/* templatetree:extends page.html.tmpl */}}
+{{define "body-class"}}text-dark-gray1 flex flex-col items-center min-h-screen hero{{end}}
+{{define "body"}}
+{{ $appURL := printf "%s/github-apps/%s" .GitHubURL .AppName }}
+{{ $docsURL := printf "https://github.com/palantir/policy-bot/blob/%s/README.md" .Version }}
+<header class="p-4 mb-8 text-white flex flex-col items-center">
+  <div class="logo mb-4 drop-shadow-sm"></div>
+  <h1 class="mb-4 text-5xl">PolicyBot</h1>
+  <p class="mb-8 text-light-gray1">Enforce approval and disapproval policies on pull requests</p>
+  <a class="block px-4 py-2 bg-blue3 hover:bg-blue2 bg-highlight border border-blue2 rounded text-lg text-white hover:text-white no-underline" href="{{$appURL}}">Install</a>
+</header>
+<div class="max-w-lg">
+  <section class="bg-white py-4 px-8 mb-8 rounded shadow-sm">
+    <h2 class="mb-2">Getting Started</h2>
+    <ol class="list-numbers">
+      <li><a href="{{$appURL}}">Install <code>{{.AppName}}</code></a> on your repository</li>
+      <li>Add a <code>{{.PolicyPath}}</code> file on the default branch (<a href="{{$docsURL}}#configuration">docs</a>):
+        <pre class="p-2 text-sm bg-light-gray3">policy:
+  approval:
+    - one approval from palantir
+
+approval_rules:
+  - name: one approval from palantir
+    requires:
+      count: 1
+      organizations: ["palantir"]</pre>
+      </li>
+      <li>Open a pull request and watch the status change based on the policy!</li>
+    </ol>
+  </section>
+  <section class="bg-white py-4 px-8 rounded shadow-sm">
+    <h2 class="mb-2">Learn More</h2>
+    <ul class="pl-4">
+      <li><a href="{{$docsURL}}">Documentation</a></li>
+      <li><a href="https://github.com/palantir/policy-bot">GitHub</a></li>
+    </ul>
+  </section>
+</div>
+{{end}}

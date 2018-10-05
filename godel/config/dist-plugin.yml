@@ -1,0 +1,43 @@
+product-defaults:
+  publish:
+    group-id: com.palantir.policy-bot
+
+products:
+  policy-bot:
+    build:
+      output-dir: build
+      main-pkg: .
+      version-var: github.com/palantir/policy-bot/version.version
+      environment:
+        CGO_ENABLED: "0"
+      os-archs:
+      - os: linux
+        arch: amd64
+    dist:
+      output-dir: build
+      disters:
+        bin:
+          type: bin
+          script: |
+            #!/usr/bin/env bash
+            set -eu
+            if [ ! -d ./build/static ]; then
+                echo "[ERROR] missing frontend asset directory: ./build/static" 1>&2
+                exit 1
+            fi
+            cp -R ./server/templates ${DIST_WORK_DIR}
+            cp -R ./build/static ${DIST_WORK_DIR}
+    docker:
+      docker-builders:
+        policy-bot:
+          type: default
+          context-dir: build/docker
+          dockerfile-path: Dockerfile
+          input-products-dir: .
+          script: |
+            #!/usr/bin/env bash
+            cp -R docker/* ${CONTEXT_DIR}
+          tag-templates:
+            - "{{Repository}}palantirtechnologies/policy-bot:latest"
+            - "{{Repository}}palantirtechnologies/policy-bot:{{Version}}"
+    publish: {}

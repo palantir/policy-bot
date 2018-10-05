@@ -1,0 +1,230 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# Version and checksums for godel. Values are populated by the godel "dist" task.
+VERSION=2.10.0
+DARWIN_CHECKSUM=2f2d8a62e598f8a7784c92a0e6325251efa347d3550187a290ab72a9ed44917c
+LINUX_CHECKSUM=36f963816d8e06ab6f41711fd66a75706d3ddb376de4edef80e4fd09688c97f5
+
+# Downloads file at URL to destination path using wget or curl. Prints an error and exits if wget or curl is not present.
+function download {
+    local url=$1
+    local dst=$2
+
+    # determine whether wget, curl or both are present
+    set +e
+    command -v wget >/dev/null 2>&1
+    local wget_exists=$?
+    command -v curl >/dev/null 2>&1
+    local curl_exists=$?
+    set -e
+
+    # if one of wget or curl is not present, exit with error
+    if [ "$wget_exists" -ne 0 -a "$curl_exists" -ne 0 ]; then
+        echo "wget or curl must be present to download distribution. Install one of these programs and try again or install the distribution manually."
+        exit 1
+    fi
+
+    if [ "$wget_exists" -eq 0 ]; then
+        # attempt download using wget
+        echo "Downloading $url to $dst..."
+        local progress_opt=""
+        if wget --help | grep -q '\--show-progress'; then
+            progress_opt="-q --show-progress"
+        fi
+        set +e
+        wget -O "$dst" $progress_opt "$url"
+        rv=$?
+        set -e
+        if [ "$rv" -eq 0 ]; then
+            # success
+            return
+        fi
+
+        echo "Download failed using command: wget -O $dst $progress_opt $url"
+
+        # curl does not exist, so nothing more to try: exit
+        if [ "$curl_exists" -ne 0 ]; then
+            echo "Download failed using wget and curl was not found. Verify that the distribution URL is correct and try again or install the distribution manually."
+            exit 1
+        fi
+        # curl exists, notify that download will be attempted using curl
+        echo "Attempting download using curl..."
+    fi
+
+    # attempt download using curl
+    echo "Downloading $url to $dst..."
+    set +e
+    curl -f -L -o "$dst" "$url"
+    rv=$?
+    set -e
+    if [ "$rv" -ne 0 ]; then
+        echo "Download failed using command: curl -f -L -o $dst $url"
+        if [ "$wget_exists" -eq 0 ]; then
+            echo "Download failed using wget and curl. Verify that the distribution URL is correct and try again or install the distribution manually."
+        else
+            echo "Download failed using curl and wget was not found. Verify that the distribution URL is correct and try again or install the distribution manually."
+        fi
+        exit 1
+    fi
+}
+
+# verifies that the provided checksum matches the computed SHA-256 checksum of the specified file. If not, echoes an
+# error and exits.
+function verify_checksum {
+    local file=$1
+    local expected_checksum=$2
+    local computed_checksum=$(compute_sha256 $file)
+    if [ "$expected_checksum" != "$computed_checksum" ]; then
+        echo "SHA-256 checksum for $file did not match expected value."
+        echo "Expected: $expected_checksum"
+        echo "Actual:   $computed_checksum"
+        exit 1
+    fi
+}
+
+# computes the SHA-256 hash of the provided file. Uses openssl, shasum or sha1sum program.
+function compute_sha256 {
+    local file=$1
+    if command -v openssl >/dev/null 2>&1; then
+        # print SHA-256 hash using openssl
+        openssl dgst -sha256 "$file" | sed -E 's/SHA256\(.*\)= //'
+    elif command -v shasum >/dev/null 2>&1; then
+        # Darwin systems ship with "shasum" utility
+        shasum -a 256 "$file" | sed -E 's/[[:space:]]+.+//'
+    elif command -v sha256sum >/dev/null 2>&1; then
+        # Most Linux systems ship with sha256sum utility
+        sha256sum "$file" | sed -E 's/[[:space:]]+.+//'
+    else
+        echo "Could not find program to calculate SHA-256 checksum for file"
+        exit 1
+    fi
+}
+
+# Verifies that the tgz file at the provided path contains the paths/files that would be expected in a valid gödel
+# distribution with the provided version.
+function verify_dist_tgz_valid {
+    local tgz_path=$1
+    local version=$2
+
+    local expected_paths=("godel-$version/" "godel-$version/bin/darwin-amd64/godel" "godel-$version/bin/linux-amd64/godel" "godel-$version/wrapper/godelw" "godel-$version/wrapper/godel/config/")
+    local files=($(tar -tf "$tgz_path"))
+
+    # this is a double-for loop, but fine since $expected_paths is small and bash doesn't have good primitives for set/map/list manipulation
+    for curr_line in "${files[@]}"; do
+        # if all expected paths have been found, terminate
+        if [[ ${#expected_paths[*]} == 0 ]]; then
+            break
+        fi
+
+        # check for expected path and splice out if match is found
+        idx=0
+        for curr_expected in "${expected_paths[@]}"; do
+            if [ "$curr_expected" = "$curr_line" ]; then
+                expected_paths=(${expected_paths[@]:0:idx} ${expected_paths[@]:$(($idx + 1))})
+                break
+            fi
+            idx=$idx+1
+        done
+    done
+
+    # if any expected paths still remain, raise error and exit
+    if [[ ${#expected_paths[*]} > 0 ]]; then
+        echo "Required paths were not present in $tgz_path: ${expected_paths[@]}"
+        exit 1
+    fi
+}
+
+# Verifies that the gödel binary in the distribution reports the expected version when called with the "version"
+# argument. Assumes that a valid gödel distribution directory for the given version exists in the provided directory.
+function verify_godel_version {
+    local base_dir=$1
+    local version=$2
+    local os=$3
+
+    local expected_output="godel version $version"
+    local version_output=$($base_dir/godel-$version/bin/$os-amd64/godel version)
+
+    if [ "$expected_output" != "$version_output" ]; then
+        echo "Version reported by godel executable did not match expected version: expected \"$expected_output\", was \"$version_output\""
+        exit 1
+    fi
+}
+
+# directory of godelw script
+SCRIPT_HOME=$(cd "$(dirname "$0")" && pwd)
+
+# use $GODEL_HOME or default value
+GODEL_BASE_DIR=${GODEL_HOME:-$HOME/.godel}
+
+# determine OS
+OS=""
+EXPECTED_CHECKSUM=""
+case "$(uname)" in
+  Darwin*)
+    OS=darwin
+    EXPECTED_CHECKSUM=$DARWIN_CHECKSUM
+    ;;
+  Linux*)
+    OS=linux
+    EXPECTED_CHECKSUM=$LINUX_CHECKSUM
+    ;;
+  *)
+    echo "Unsupported operating system: $(uname)"
+    exit 1
+    ;;
+esac
+
+# path to godel binary
+CMD=$GODEL_BASE_DIR/dists/godel-$VERSION/bin/$OS-amd64/godel
+
+# godel binary is not present -- download distribution
+if [ ! -f "$CMD" ]; then
+    # get download URL
+    PROPERTIES_FILE=$SCRIPT_HOME/godel/config/godel.properties
+    if [ ! -f "$PROPERTIES_FILE" ]; then
+        echo "Properties file must exist at $PROPERTIES_FILE"
+        exit 1
+    fi
+    DOWNLOAD_URL=$(cat "$PROPERTIES_FILE" | sed -E -n "s/^distributionURL=//p")
+    if [ -z "$DOWNLOAD_URL" ]; then
+        echo "Value for property \"distributionURL\" was empty in $PROPERTIES_FILE"
+        exit 1
+    fi
+    DOWNLOAD_CHECKSUM=$(cat "$PROPERTIES_FILE" | sed -E -n "s/^distributionSHA256=//p")
+
+    # create downloads directory if it does not already exist
+    mkdir -p "$GODEL_BASE_DIR/downloads"
+
+    # download tgz and verify its contents
+    DOWNLOAD_DST=$GODEL_BASE_DIR/downloads/godel-$VERSION.tgz
+    download "$DOWNLOAD_URL" "$DOWNLOAD_DST"
+    if [ -n "$DOWNLOAD_CHECKSUM" ]; then
+        verify_checksum "$DOWNLOAD_DST" "$DOWNLOAD_CHECKSUM"
+    fi
+    verify_dist_tgz_valid "$DOWNLOAD_DST" "$VERSION"
+
+    # create temporary directory for unarchiving, unarchive downloaded file and verify directory
+    TMP_DIST_DIR=$(mktemp -d "$GODEL_BASE_DIR/tmp_XXXXXX" 2>/dev/null || mktemp -d -t "$GODEL_BASE_DIR/tmp_XXXXXX")
+    trap 'rm -rf "$TMP_DIST_DIR"' EXIT
+    tar zxvf "$DOWNLOAD_DST" -C "$TMP_DIST_DIR" >/dev/null 2>&1
+    verify_godel_version "$TMP_DIST_DIR" "$VERSION" "$OS"
+
+    # if destination directory for distribution already exists, remove it
+    if [ -d "$GODEL_BASE_DIR/dists/godel-$VERSION" ]; then
+          rm -rf "$GODEL_BASE_DIR/dists/godel-$VERSION"
+    fi
+
+    # ensure that parent directory of destination exists
+    mkdir -p "$GODEL_BASE_DIR/dists"
+
+    # move expanded distribution directory to destination location. The location of the unarchived directory is known to
+    # be in the same directory tree as the destination, so "mv" should always work.
+    mv "$TMP_DIST_DIR/godel-$VERSION" "$GODEL_BASE_DIR/dists/godel-$VERSION"
+fi
+
+verify_checksum "$CMD" "$EXPECTED_CHECKSUM"
+
+# execute command
+$CMD --wrapper "$SCRIPT_HOME/$(basename "$0")" "$@"

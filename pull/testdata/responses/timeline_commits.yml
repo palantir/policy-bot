@@ -1,0 +1,46 @@
+- status: 200
+  headers:
+    Link: |
+      <http://github.localhost/repos/testorg/testrepo/issues/123/timeline?page=2>; rel="next",
+      <http://github.localhost/repos/testorg/testrepo/issues/123/timeline?page=2>; rel="last"
+  body: |
+    [
+      {
+        "sha": "a6f3f69b64eaafece5a0d854eb4af11c0d64394c",
+        "author": {
+            "name": "will be ignored"
+        },
+        "committer": {
+            "name": "will be ignored too"
+        },
+        "event": "committed"
+      },
+      {
+        "sha": "1fc89f1cedf8e3f3ce516ab75b5952295c8ea5e9",
+        "author": {
+            "name": "mhaypenny - nope"
+        },
+        "committer": {
+            "name": "mhaypenny - not me"
+        },
+        "event": "committed"
+      }
+    ]
+- status: 200
+  headers:
+    Link: |
+      <http://github.localhost/repos/testorg/testrepo/issues/123/timeline?page=1>; rel="prev",
+      <http://github.localhost/repos/testorg/testrepo/issues/123/timeline?page=1>; rel="first"
+  body: |
+    [
+      {
+        "sha": "e05fcae367230ee709313dd2720da527d178ce43",
+        "author": {
+            "name": "ttest - not me"
+        },
+        "committer": {
+            "name": "mhaypenny - not it"
+        },
+        "event": "committed"
+      }
+    ]

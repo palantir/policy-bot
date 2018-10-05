@@ -1,0 +1,142 @@
+@tailwind preflight;
+@tailwind components;
+
+/* custom components */
+
+a, a:visited {
+  color: config('colors.blue3');
+}
+
+a:hover {
+  color: config('colors.blue4');
+}
+
+.tree {
+  @apply list-reset;
+  @apply pl-4;
+}
+
+.tree > li {
+  @apply relative;
+  @apply pl-8 pt-4 border-l border-gray5;
+}
+
+.tree > li::before {
+  content: "";
+  @apply block;
+  @apply absolute pin-l pin-t;
+
+  @apply w-8;
+  height: 2.2rem; /* pt-4 (li) + 1.20 (positioning) */
+
+  @apply border-b border-gray5;
+}
+
+.tree > li:last-child {
+  border-left: none;
+}
+
+.tree > li:last-child:before {
+  @apply border-l;
+}
+
+.tripart {
+  display: grid;
+
+  grid-template-columns: 1fr fit-content(50%) 1fr;
+  grid-column-gap: config('padding.2');
+  align-items: center;
+}
+
+.tripart > *:first-child {
+  justify-self: start;
+}
+
+.tripart > *:last-child {
+  justify-self: end;
+}
+
+.status-badge {
+  @apply px-2 py-0.5 ml-2 text-xs text-white rounded-sm;
+}
+.status-badge.approved { @apply bg-green3; }
+.status-badge.disapproved { @apply bg-red3; }
+.status-badge.pending { @apply bg-orange3; }
+.status-badge.skipped { @apply bg-gray3; }
+.status-badge.error { @apply bg-red3; }
+
+.status-banner {
+  @apply w-full p-4 border-b shadow-sm text-white text-shadow-sm;
+}
+.status-banner.approved { @apply bg-green3 border-green2; }
+.status-banner.disapproved { @apply bg-red3 border-red2; }
+.status-banner.pending { @apply bg-orange3 border-orange2; }
+.status-banner.skipped { @apply bg-gray3 border-gray2; }
+.status-banner.error { @apply bg-red3 border-red2; }
+
+.status-stripe {
+  @apply border-l-8;
+}
+.status-stripe.approved { @apply border-green3; }
+.status-stripe.disapproved { @apply border-red3; }
+.status-stripe.pending { @apply border-orange3; }
+.status-stripe.skipped { @apply border-gray3; }
+.status-stripe.error { @apply border-red3; }
+
+.hero {
+  @apply p-8 bg-dark-gray5;
+  background-image:
+    /* from http://www.heropatterns.com/ */
+    url("data:image/svg+xml,%3Csvg width='6' height='6' viewBox='0 0 6 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.1' fill-rule='evenodd'%3E%3Cpath d='M5 0h1L0 6V5zM6 5v1H5z'/%3E%3C/g%3E%3C/svg%3E"),
+    linear-gradient(
+      hsla(0, 0%, 0%, 0.15),
+      hsla(0, 0%, 0%, 0) 25%, 
+      hsla(0, 0%, 100%, 0.1)
+    );
+}
+
+.logo {
+  background-image: url("/static/img/logo.svg");
+  @apply w-24 h-24;
+}
+
+.list-numbers {
+  @apply list-reset;
+  @apply ml-10;
+
+  counter-reset: index;
+}
+
+.list-numbers > li {
+  counter-increment: index;
+  @apply py-2;
+}
+
+.list-numbers > li:before {
+  content: counter(index);
+  display: inline-block;
+
+  @apply w-8 h-8 mr-2 -ml-10 py-2;
+  @apply bg-light-gray3 rounded-full;
+  @apply text-center;
+}
+
+/* end custom components */
+
+@tailwind utilities;
+
+/* custom utilities */
+
+.text-shadow-sm {
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.2);
+}
+
+.drop-shadow-sm {
+  filter: drop-shadow(1px 1px 1px rgba(0, 0, 0, 0.2));
+}
+
+.bg-highlight {
+  background-image: linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,0));
+}
+
+/* end custom utilities */

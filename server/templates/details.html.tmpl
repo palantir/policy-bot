@@ -1,0 +1,58 @@
+{{/* templatetree:extends page.html.tmpl */}}
+{{define "title"}}{{.PullRequest.GetBase.GetRepo.GetFullName}}#{{.PullRequest.GetNumber}} - Details | PolicyBot{{end}}
+
+{{define "body-class"}}bg-light-gray5 text-dark-gray1 flex flex-col h-screen{{end}}
+{{define "body"}}
+  <header class="w-full tripart p-4 bg-white shadow-sm z-10 relative">
+    <span class="px-2 py-1 text-xs text-dark-gray3 bg-light-gray3 border border-light-gray2 rounded-sm truncate max-w-full">
+      {{.PullRequest.GetBase.GetRepo.GetFullName}}
+    </span>
+    <h1 class="text-xl font-normal tracking-tight text-center">
+      <a class="text-blue3 hover:text-blue4 no-underline" href="{{.PullRequest.GetHTMLURL}}">#{{.PullRequest.GetNumber}}</a>:
+      {{.PullRequest.GetTitle}}
+    </h1>
+    <span class="text-xs text-dark-gray3 truncate max-w-full">
+      {{.User}}
+    </span>
+  </header>
+  {{if .Error}}
+    <div class="status-banner error">
+      <h2 class="mb-1 text-lg">Error</h2>
+      <p>{{.Error}}<p>
+    </div>
+  {{else}}
+    {{ $s := (or (and .Result.Error "error") (.Result.Status | print)) }}
+    <div class="status-banner {{$s}}">
+      <h2 class="mb-1 text-lg">Status: {{$s | titlecase}}</h2>
+      <p>{{or .Result.Error .Result.Description}}</p>
+    </div>
+    <div class="pl-8 overflow-auto flex-grow">
+      <ul class="tree px-4 pb-4">
+          {{range .Result.Children}}{{template "result" .}}{{end}}
+      </ul>
+    </div>
+  {{end}}
+{{end}}
+
+{{define "result"}}
+{{ $s := (or (and .Error "error") (.Status | print)) }}
+<li>
+  <div class="bg-white p-2 shadow-sm max-w-sm status-stripe {{$s}}">
+    {{template "result-details" .}}
+  </div>
+  {{if .Children}}
+  <ul class="tree">
+    {{range .Children}}{{template "result" .}}{{end}}
+  </ul>
+  {{end}}
+</li>
+{{end}}
+
+{{define "result-details"}}
+  {{ $s := (or (and .Error "error") (.Status | print)) }}
+  <p class="mb-2 flex items-center">
+    <b class="font-bold">{{.Name}}</b>
+    <span class="flex-none status-badge {{$s}}">{{$s | titlecase}}</span>
+  </p>
+  <p class="text-dark-gray3 text-sm">{{or .Error .Description}}</p>
+{{end}}

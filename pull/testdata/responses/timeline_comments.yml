@@ -1,0 +1,16 @@
+- status: 200
+  body: |
+    [
+      {
+        "user": {
+          "login": "bkeyes"
+        },
+        "created_at": "2018-06-27T20:28:22Z",
+        "updated_at": "2018-06-27T20:28:22Z",
+        "body": ":+1:",
+        "event": "commented",
+        "actor": {
+          "login": "bkeyes"
+        }
+      }
+    ]

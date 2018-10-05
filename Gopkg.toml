@@ -1,0 +1,9 @@
+ignored = [
+  "google.golang.org/appengine*",
+  "github.com/golang/protobuf/proto"
+]
+
+[prune]
+  non-go = true
+  go-tests = true
+  unused-packages = true

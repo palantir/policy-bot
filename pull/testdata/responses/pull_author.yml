@@ -1,0 +1,7 @@
+- status: 200
+  body: |
+    {
+      "user": {
+        "login": "mhaypenny"
+      } 
+    }

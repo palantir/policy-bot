@@ -1,0 +1,55 @@
+# Options for the http server
+server:
+  # The listen address and port
+  address: "0.0.0.0"
+  port: 8080
+  # The public URL, used for URL generation when the server is behind a proxy
+  public_url: http://localhost:8080
+
+# Options for logging output
+logging:
+  # If true, logs are printed in human-readable form. We recommend using
+  # "false" to output JSON-formatted logs in production
+  text: true
+
+# Options for connecting to GitHub
+github:
+  # The URL of the GitHub homepage
+  web_url: "https://github.com"
+  # The base URL for v3 (REST) API requests
+  v3_api_url: "https://api.github.com"
+  # The base URL for v4 (GraphQL) API requests
+  v4_api_url: "https://api.github.com"
+  app:
+    # The integration ID of the GitHub app
+    integration_id: 1
+    # A random string used to validate webhooks
+    webhook_secret: "app_secret"
+    # The private key of the GitHub app
+    private_key: "app_private_key"
+  oauth:
+    # The client ID of the OAuth app associated with the GitHub app
+    client_id: "client_id"
+    # The client secret of the OAuth app associated with the GitHub app
+    client_secret: "client_secret"
+
+# Options for user sessions
+sessions:
+  # A random string used to sign session cookies
+  key: "secretsessionkey"
+
+# Options for application behavior
+options:
+  # The path within repositories to find the policy.yml file
+  policy_path: .policy.yml
+  # The context for status checks created by the bot
+  status_check_context: policy-bot
+  # The name of the application as registered with GitHub
+  app_name: policy-bot
+
+# Options for frontend assets
+files:
+  # The filesystem path to static CSS and JS assets
+  static: build/static
+  # The filesystem path to HTML template files
+  templates: server/templates

@@ -1,0 +1,14 @@
+/build/
+
+coverage.out
+gotest.out
+/var/log/*
+
+# IDEA project files
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# frontend files
+/node_modules/

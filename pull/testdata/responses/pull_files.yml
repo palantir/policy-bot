@@ -1,0 +1,37 @@
+- status: 200
+  headers:
+    Link: |
+      <http://github.localhost/repos/testorg/testrepo/pull/123/files?page=2>; rel="next",
+      <http://github.localhost/repos/testorg/testrepo/pull/123/files?page=2>; rel="last"
+  body: |
+    [
+      {
+        "filename": "path/foo.txt",
+        "status": "added",
+        "additions": 103,
+        "deletions": 0,
+        "changes": 103
+      },
+      {
+        "filename": "path/bar.txt",
+        "status": "deleted",
+        "additions": 0,
+        "deletions": 21,
+        "changes": 21
+      }
+    ]
+- status: 200
+  headers:
+    Link: |
+      <http://github.localhost/repos/testorg/testrepo/pull/123/files?page=1>; rel="prev",
+      <http://github.localhost/repos/testorg/testrepo/pull/123/files?page=1>; rel="first"
+  body: |
+    [
+      {
+        "filename": "README.md",
+        "status": "modified",
+        "additions": 103,
+        "deletions": 21,
+        "changes": 124
+      }
+    ]
