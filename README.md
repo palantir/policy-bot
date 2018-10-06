@@ -99,7 +99,7 @@ if:
   changed_files:
     paths:
       - "config/.*"
-      - "server/views/.*\.tmpl"
+      - "server/views/.*\\.tmpl"
 
   # "only_changed_files" is satisfied if all files changed by the pull request
   # match at least one regular expression in the list.
