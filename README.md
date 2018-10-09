@@ -82,6 +82,25 @@ approval_rules:
       count: 0
 ```
 
+#### Remote Policy Configuration
+You can also define a remote policy, by specifying a repository, path, and
+reference (only repository is required). Instead of defining a `policy` key, you
+would define a `remote` key.
+
+```yaml
+# The remote repository to read the policy file from. This is required, and must
+# be in the form of "org/repo-name".
+remote: org/repo-name
+
+# The path to the policy config file in the remote repository. If none is
+# specified, the default path is used.
+path: path/to/policy.yml
+
+# The branch that should be used on the remote repository. If none is specified,
+# the default branch of the repository is used.
+ref: master
+```  
+
 ### Approval Rules
 
 Each list entry in `approval_rules` has the following specification:

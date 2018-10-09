@@ -97,24 +97,27 @@ func (cf *ConfigFetcher) ConfigForPR(ctx context.Context, client *github.Client,
 }
 
 func (cf *ConfigFetcher) fetchConfig(ctx context.Context, client *github.Client, owner, repo, ref string) ([]byte, error) {
-	policyBytes, err := cf.fetchConfigContents(ctx, client, owner, repo, ref, cf.PolicyPath)
+	logger := zerolog.Ctx(ctx)
+
+	configBytes, err := cf.fetchConfigContents(ctx, client, owner, repo, ref, cf.PolicyPath)
 	if err != nil {
 		return nil, err
 	}
 
 	var checkRemoteConfig map[string]interface{}
-	_ = yaml.Unmarshal(policyBytes, &checkRemoteConfig)
+	_ = yaml.Unmarshal(configBytes, &checkRemoteConfig)
 
 	if _, remote := checkRemoteConfig["remote"]; !remote {
-		return policyBytes, nil
+		logger.Debug().Msgf("Found local policy config in %s/%s@%s", owner, repo, ref)
+		return configBytes, nil
 	}
+	logger.Debug().Msgf("Found reference to remote policy in %s/%s@%s", owner, repo, ref)
 
 	var remoteConfig policy.RemoteConfig
-	if err := yaml.UnmarshalStrict(policyBytes, &remoteConfig); err != nil {
+	if err := yaml.UnmarshalStrict(configBytes, &remoteConfig); err != nil {
 		return nil, errors.Wrapf(err, "failed to unmarshall reference to remote policy")
 	}
 
-	logger := zerolog.Ctx(ctx)
 	logger.Debug().Msgf("Fetching remote config from %s", remoteConfig.Remote)
 
 	if remoteConfig.Path == "" {
@@ -155,7 +158,7 @@ func (cf *ConfigFetcher) fetchConfigContents(ctx context.Context, client *github
 		if rerr, ok := err.(*github.ErrorResponse); ok && rerr.Response.StatusCode == http.StatusNotFound {
 			return nil, nil
 		}
-		return nil, errors.Wrapf(err, "failed to fetch content of %s/%s#%s/%s", owner, repo, ref, path)
+		return nil, errors.Wrapf(err, "failed to fetch content of %s/%s@%s/%s", owner, repo, ref, path)
 	}
 
 	// file will be nil if the ref contains a directory at the expected file path
@@ -165,7 +168,7 @@ func (cf *ConfigFetcher) fetchConfigContents(ctx context.Context, client *github
 
 	content, err := file.GetContent()
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to decode content of %s/%s#%s/%s", owner, repo, ref, path)
+		return nil, errors.Wrapf(err, "failed to decode content of %s/%s@%s/%s", owner, repo, ref, path)
 	}
 
 	return []byte(content), nil
