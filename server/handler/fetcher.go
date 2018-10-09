@@ -100,13 +100,17 @@ func (cf *ConfigFetcher) ConfigForPR(ctx context.Context, client *github.Client,
 }
 
 func (cf *ConfigFetcher) fetchConfig(ctx context.Context, client *github.Client, owner, repo, ref string) ([]byte, error) {
-	policyBytes, err := cf.fetchConfigContents(ctx, client, owner, repo, ref)
+	policyBytes, err := cf.fetchConfigContents(ctx, client, owner, repo, ref, cf.PolicyPath)
 	if err != nil {
 		return nil, err
 	}
 
 	var remoteConfig policy.RemoteConfig
 	if err = yaml.Unmarshal(policyBytes, &remoteConfig); err == nil {
+		if remoteConfig.Path == "" {
+			remoteConfig.Path = cf.PolicyPath
+		}
+
 		logger := zerolog.Ctx(ctx)
 		logger.Debug().Msgf("Fetching remote config from %s", remoteConfig.Remote)
 
@@ -127,7 +131,7 @@ func (cf *ConfigFetcher) fetchConfig(ctx context.Context, client *github.Client,
 			return nil, errors.Wrapf(err, "failed to get installation client for remote config %q", remoteConfig.Remote)
 		}
 
-		remotePolicyBytes, err := cf.fetchConfigContents(ctx, remoteClient, remoteOwner, remoteRepo, "")
+		remotePolicyBytes, err := cf.fetchConfigContents(ctx, remoteClient, remoteOwner, remoteRepo, remoteConfig.Ref, remoteConfig.Path)
 		if err != nil {
 			return nil, err
 		}
@@ -139,20 +143,25 @@ func (cf *ConfigFetcher) fetchConfig(ctx context.Context, client *github.Client,
 }
 
 // fetchConfigContents returns a nil slice if there is no policy
-func (cf *ConfigFetcher) fetchConfigContents(ctx context.Context, client *github.Client, owner, repo, ref string) ([]byte, error) {
+func (cf *ConfigFetcher) fetchConfigContents(ctx context.Context, client *github.Client, owner, repo, ref, path string) ([]byte, error) {
 	logger := zerolog.Ctx(ctx)
-	logger.Debug().Str("path", cf.PolicyPath).Str("ref", ref).Msg("attempting to fetch policy definition")
+	logger.Debug().
+		Str("org", owner).
+		Str("repo", repo).
+		Str("ref", ref).
+		Str("path", path).
+		Msg("attempting to fetch policy definition")
 
 	opts := &github.RepositoryContentGetOptions{
 		Ref: ref,
 	}
 
-	file, _, _, err := client.Repositories.GetContents(ctx, owner, repo, cf.PolicyPath, opts)
+	file, _, _, err := client.Repositories.GetContents(ctx, owner, repo, path, opts)
 	if err != nil {
 		if rerr, ok := err.(*github.ErrorResponse); ok && rerr.Response.StatusCode == http.StatusNotFound {
 			return nil, nil
 		}
-		return nil, errors.Wrapf(err, "failed to fetch content of %q", cf.PolicyPath)
+		return nil, errors.Wrapf(err, "failed to fetch content of %s/%s#%s/%s", owner, repo, ref, path)
 	}
 
 	// file will be nil if the ref contains a directory at the expected file path
@@ -162,7 +171,7 @@ func (cf *ConfigFetcher) fetchConfigContents(ctx context.Context, client *github
 
 	content, err := file.GetContent()
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to decode content of %q", cf.PolicyPath)
+		return nil, errors.Wrapf(err, "failed to decode content of %s/%s#%s/%s", owner, repo, ref, path)
 	}
 
 	return []byte(content), nil

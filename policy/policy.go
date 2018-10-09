@@ -26,10 +26,13 @@ import (
 )
 
 // RemoteConfig allows the use of a remote policy file, rather than a local one. The Remote value
-// should follow the format `org/repo`. An example: `palantir/policy-bot`. It will use the default
-// branch when fetching the contents.
+// should follow the format `org/repo`. An example: `palantir/policy-bot`. The Path is optional,
+// with the default value being the configured default policy file location. The Ref is optional,
+// and the default branch of the Remote repository will be used.
 type RemoteConfig struct {
 	Remote string `yaml:"remote"`
+	Path   string `yaml:"path"`
+	Ref    string `yaml:"ref"`
 }
 
 type Config struct {
