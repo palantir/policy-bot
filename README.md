@@ -83,9 +83,9 @@ approval_rules:
 ```
 
 #### Remote Policy Configuration
-You can also define a remote policy, by specifying a repository, path, and
-reference (only repository is required). Instead of defining a `policy` key, you
-would define a `remote` key.
+You can also define a remote policy by specifying a repository, path, and ref
+(only repository is required). Instead of defining a `policy` key, you would
+define a `remote` key.
 
 ```yaml
 # The remote repository to read the policy file from. This is required, and must
