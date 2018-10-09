@@ -105,41 +105,48 @@ func (cf *ConfigFetcher) fetchConfig(ctx context.Context, client *github.Client,
 		return nil, err
 	}
 
-	var remoteConfig policy.RemoteConfig
-	if err = yaml.Unmarshal(policyBytes, &remoteConfig); err == nil {
-		if remoteConfig.Path == "" {
-			remoteConfig.Path = cf.PolicyPath
-		}
+	var checkRemoteConfig map[string]interface{}
+	_ = yaml.Unmarshal(policyBytes, &checkRemoteConfig)
 
-		logger := zerolog.Ctx(ctx)
-		logger.Debug().Msgf("Fetching remote config from %s", remoteConfig.Remote)
-
-		remoteParts := strings.Split(remoteConfig.Remote, "/")
-		if len(remoteParts) != 2 {
-			return nil, errors.Errorf("failed to parse remote config location from %q", remoteConfig.Remote)
-		}
-
-		remoteOwner, remoteRepo := remoteParts[0], remoteParts[1]
-
-		installation, err := cf.Installations.GetByOwner(ctx, remoteOwner)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get installation for remote config %q", remoteConfig.Remote)
-		}
-
-		remoteClient, err := cf.ClientCreator.NewInstallationClient(installation.ID)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get installation client for remote config %q", remoteConfig.Remote)
-		}
-
-		remotePolicyBytes, err := cf.fetchConfigContents(ctx, remoteClient, remoteOwner, remoteRepo, remoteConfig.Ref, remoteConfig.Path)
-		if err != nil {
-			return nil, err
-		}
-
-		return remotePolicyBytes, nil
+	if _, remote := checkRemoteConfig["remote"]; !remote {
+		return policyBytes, nil
 	}
 
-	return policyBytes, nil
+	var remoteConfig policy.RemoteConfig
+	if err := yaml.UnmarshalStrict(policyBytes, &remoteConfig); err != nil {
+		return nil, errors.Wrapf(err, "failed to unmarshall reference to remote policy")
+	}
+
+	logger := zerolog.Ctx(ctx)
+	logger.Debug().Msgf("Fetching remote config from %s", remoteConfig.Remote)
+
+	if remoteConfig.Path == "" {
+		remoteConfig.Path = cf.PolicyPath
+	}
+
+	remoteParts := strings.Split(remoteConfig.Remote, "/")
+	if len(remoteParts) != 2 {
+		return nil, errors.Errorf("failed to parse remote config location from %q", remoteConfig.Remote)
+	}
+
+	remoteOwner, remoteRepo := remoteParts[0], remoteParts[1]
+
+	installation, err := cf.Installations.GetByOwner(ctx, remoteOwner)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get installation for remote config %q", remoteConfig.Remote)
+	}
+
+	remoteClient, err := cf.ClientCreator.NewInstallationClient(installation.ID)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get installation client for remote config %q", remoteConfig.Remote)
+	}
+
+	remotePolicyBytes, err := cf.fetchConfigContents(ctx, remoteClient, remoteOwner, remoteRepo, remoteConfig.Ref, remoteConfig.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	return remotePolicyBytes, nil
 }
 
 // fetchConfigContents returns a nil slice if there is no policy
