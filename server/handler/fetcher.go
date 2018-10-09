@@ -108,11 +108,11 @@ func (cf *ConfigFetcher) fetchConfig(ctx context.Context, client *github.Client,
 	var remoteConfig policy.RemoteConfig
 	if err = yaml.Unmarshal(policyBytes, &remoteConfig); err == nil {
 		logger := zerolog.Ctx(ctx)
-		logger.Debug().Msgf("fetching remote config from %s", remoteConfig.Remote)
+		logger.Debug().Msgf("Fetching remote config from %s", remoteConfig.Remote)
 
 		remoteParts := strings.Split(remoteConfig.Remote, "/")
 		if len(remoteParts) != 2 {
-			return nil, errors.Errorf("failed to get remote config location of %q", remoteConfig.Remote)
+			return nil, errors.Errorf("failed to parse remote config location from %q", remoteConfig.Remote)
 		}
 
 		remoteOwner, remoteRepo := remoteParts[0], remoteParts[1]
