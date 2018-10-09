@@ -25,6 +25,13 @@ import (
 	"github.com/palantir/policy-bot/pull"
 )
 
+// RemoteConfig allows the use of a remote policy file, rather than a local one. The Remote value
+// should follow the format `org/repo`. An example: `palantir/policy-bot`. It will use the default
+// branch when fetching the contents.
+type RemoteConfig struct {
+	Remote string `yaml:"remote"`
+}
+
 type Config struct {
 	Policy        Policy           `yaml:"policy"`
 	ApprovalRules []*approval.Rule `yaml:"approval_rules"`

@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
@@ -63,6 +64,8 @@ func (fc FetchedConfig) Description() string {
 
 type ConfigFetcher struct {
 	PolicyPath string
+
+	// TODO: add an installation client generator, so we can fetch remote ones
 }
 
 // ConfigForPR fetches the policy configuration for a PR. It returns an error
@@ -76,16 +79,16 @@ func (cf *ConfigFetcher) ConfigForPR(ctx context.Context, client *github.Client,
 		Ref:   pr.GetBase().GetRef(),
 	}
 
-	policyBytes, err := cf.fetchConfigContents(ctx, client, fc.Owner, fc.Repo, fc.Ref)
+	configBytes, err := cf.fetchConfig(ctx, client, fc.Owner, fc.Repo, fc.Ref)
 	if err != nil {
 		return fc, err
 	}
 
-	if policyBytes == nil {
+	if configBytes == nil {
 		return fc, nil
 	}
 
-	config, err := cf.unmarshalConfig(policyBytes)
+	config, err := cf.unmarshalConfig(configBytes)
 	if err != nil {
 		fc.Error = err
 		return fc, nil
@@ -93,6 +96,35 @@ func (cf *ConfigFetcher) ConfigForPR(ctx context.Context, client *github.Client,
 
 	fc.Config = config
 	return fc, nil
+}
+
+func (cf *ConfigFetcher) fetchConfig(ctx context.Context, client *github.Client, owner, repo, ref string) ([]byte, error) {
+	policyBytes, err := cf.fetchConfigContents(ctx, client, owner, repo, ref)
+	if err != nil {
+		return nil, err
+	}
+
+	var remoteConfig policy.RemoteConfig
+	if err = yaml.Unmarshal(policyBytes, &remoteConfig); err == nil {
+		logger := zerolog.Ctx(ctx)
+		logger.Debug().Msgf("fetching remote config from %s", remoteConfig.Remote)
+
+		remoteParts := strings.Split(remoteConfig.Remote, "/")
+		if len(remoteParts) != 2 {
+			return nil, errors.Errorf("failed to get remote config location of %q", remoteConfig.Remote)
+		}
+
+		remoteOwner, remoteRepo := remoteParts[0], remoteParts[1]
+
+		remotePolicyBytes, err := cf.fetchConfigContents(ctx, client, remoteOwner, remoteRepo, "")
+		if err != nil {
+			return nil, err
+		}
+
+		return remotePolicyBytes, nil
+	}
+
+	return policyBytes, nil
 }
 
 // fetchConfigContents returns a nil slice if there is no policy
