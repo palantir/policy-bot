@@ -96,18 +96,14 @@ func New(c *Config) (*Server, error) {
 		return nil, errors.Wrap(err, "failed to initialize Github app client")
 	}
 
-	installations := githubapp.NewInstallationClient(appClient)
-
 	basePolicyHandler := handler.Base{
 		BaseHandler:   baseHandler,
 		BaseConfig:    &c.Server,
-		Installations: installations,
+		Installations: githubapp.NewInstallationClient(appClient),
 
 		PullOpts: &c.Options,
 		ConfigFetcher: &handler.ConfigFetcher{
-			PolicyPath:    c.Options.PolicyPath,
-			Installations: installations,
-			ClientCreator: baseHandler.ClientCreator,
+			PolicyPath: c.Options.PolicyPath,
 		},
 	}
 
