@@ -17,6 +17,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"github.com/palantir/go-githubapp/githubapp"
 	"net/http"
 	"strings"
 
@@ -63,9 +64,9 @@ func (fc FetchedConfig) Description() string {
 }
 
 type ConfigFetcher struct {
-	PolicyPath string
-
-	// TODO: add an installation client generator, so we can fetch remote ones
+	PolicyPath    string
+	Installations githubapp.InstallationClient
+	ClientCreator githubapp.ClientCreator
 }
 
 // ConfigForPR fetches the policy configuration for a PR. It returns an error
@@ -116,7 +117,17 @@ func (cf *ConfigFetcher) fetchConfig(ctx context.Context, client *github.Client,
 
 		remoteOwner, remoteRepo := remoteParts[0], remoteParts[1]
 
-		remotePolicyBytes, err := cf.fetchConfigContents(ctx, client, remoteOwner, remoteRepo, "")
+		installation, err := cf.Installations.GetByOwner(ctx, remoteOwner)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get installation for remote config %q", remoteConfig.Remote)
+		}
+
+		remoteClient, err := cf.ClientCreator.NewInstallationClient(installation.ID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get installation client for remote config %q", remoteConfig.Remote)
+		}
+
+		remotePolicyBytes, err := cf.fetchConfigContents(ctx, remoteClient, remoteOwner, remoteRepo, "")
 		if err != nil {
 			return nil, err
 		}
