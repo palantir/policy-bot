@@ -17,11 +17,11 @@ package handler
 import (
 	"context"
 	"fmt"
-	"github.com/palantir/go-githubapp/githubapp"
 	"net/http"
 	"strings"
 
 	"github.com/google/go-github/github"
+	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"gopkg.in/yaml.v2"
