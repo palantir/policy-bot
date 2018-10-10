@@ -104,10 +104,10 @@ func (cf *ConfigFetcher) fetchConfig(ctx context.Context, client *github.Client,
 		return nil, err
 	}
 
-	var checkRemoteConfig map[string]interface{}
-	_ = yaml.Unmarshal(configBytes, &checkRemoteConfig)
+	var rawConfig map[string]interface{}
+	_ = yaml.Unmarshal(configBytes, &rawConfig)
 
-	if _, remote := checkRemoteConfig["remote"]; !remote {
+	if _, isRemote := rawConfig["remote"]; !isRemote {
 		logger.Debug().Msgf("Found local policy config in %s/%s@%s", owner, repo, ref)
 		return configBytes, nil
 	}
@@ -115,10 +115,8 @@ func (cf *ConfigFetcher) fetchConfig(ctx context.Context, client *github.Client,
 
 	var remoteConfig policy.RemoteConfig
 	if err := yaml.UnmarshalStrict(configBytes, &remoteConfig); err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshall reference to remote policy")
+		return nil, errors.Wrap(err, "failed to unmarshal reference to remote policy")
 	}
-
-	logger.Debug().Msgf("Fetching remote config from %s", remoteConfig.Remote)
 
 	if remoteConfig.Path == "" {
 		remoteConfig.Path = cf.PolicyPath
@@ -142,12 +140,7 @@ func (cf *ConfigFetcher) fetchConfig(ctx context.Context, client *github.Client,
 // fetchConfigContents returns a nil slice if there is no policy
 func (cf *ConfigFetcher) fetchConfigContents(ctx context.Context, client *github.Client, owner, repo, ref, path string) ([]byte, error) {
 	logger := zerolog.Ctx(ctx)
-	logger.Debug().
-		Str("org", owner).
-		Str("repo", repo).
-		Str("ref", ref).
-		Str("path", path).
-		Msg("attempting to fetch policy definition")
+	logger.Debug().Msgf("attempting to fetch policy definition for %s/%s@%s/%s", owner, repo, ref, path)
 
 	opts := &github.RepositoryContentGetOptions{
 		Ref: ref,

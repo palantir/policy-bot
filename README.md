@@ -93,7 +93,7 @@ define a `remote` key.
 remote: org/repo-name
 
 # The path to the policy config file in the remote repository. If none is
-# specified, the default path is used.
+# specified, the default path in the server config is used.
 path: path/to/policy.yml
 
 # The branch that should be used on the remote repository. If none is specified,
