@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
@@ -76,16 +77,16 @@ func (cf *ConfigFetcher) ConfigForPR(ctx context.Context, client *github.Client,
 		Ref:   pr.GetBase().GetRef(),
 	}
 
-	policyBytes, err := cf.fetchConfigContents(ctx, client, fc.Owner, fc.Repo, fc.Ref)
+	configBytes, err := cf.fetchConfig(ctx, client, fc.Owner, fc.Repo, fc.Ref)
 	if err != nil {
 		return fc, err
 	}
 
-	if policyBytes == nil {
+	if configBytes == nil {
 		return fc, nil
 	}
 
-	config, err := cf.unmarshalConfig(policyBytes)
+	config, err := cf.unmarshalConfig(configBytes)
 	if err != nil {
 		fc.Error = err
 		return fc, nil
@@ -95,21 +96,62 @@ func (cf *ConfigFetcher) ConfigForPR(ctx context.Context, client *github.Client,
 	return fc, nil
 }
 
-// fetchConfigContents returns a nil slice if there is no policy
-func (cf *ConfigFetcher) fetchConfigContents(ctx context.Context, client *github.Client, owner, repo, ref string) ([]byte, error) {
+func (cf *ConfigFetcher) fetchConfig(ctx context.Context, client *github.Client, owner, repo, ref string) ([]byte, error) {
 	logger := zerolog.Ctx(ctx)
-	logger.Debug().Str("path", cf.PolicyPath).Str("ref", ref).Msg("attempting to fetch policy definition")
+
+	configBytes, err := cf.fetchConfigContents(ctx, client, owner, repo, ref, cf.PolicyPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var rawConfig map[string]interface{}
+	_ = yaml.Unmarshal(configBytes, &rawConfig)
+
+	if _, isRemote := rawConfig["remote"]; !isRemote {
+		logger.Debug().Msgf("Found local policy config in %s/%s@%s", owner, repo, ref)
+		return configBytes, nil
+	}
+	logger.Debug().Msgf("Found reference to remote policy in %s/%s@%s", owner, repo, ref)
+
+	var remoteConfig policy.RemoteConfig
+	if err := yaml.UnmarshalStrict(configBytes, &remoteConfig); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal reference to remote policy")
+	}
+
+	if remoteConfig.Path == "" {
+		remoteConfig.Path = cf.PolicyPath
+	}
+
+	remoteParts := strings.Split(remoteConfig.Remote, "/")
+	if len(remoteParts) != 2 {
+		return nil, errors.Errorf("failed to parse remote config location from %q", remoteConfig.Remote)
+	}
+
+	remoteOwner, remoteRepo := remoteParts[0], remoteParts[1]
+
+	remotePolicyBytes, err := cf.fetchConfigContents(ctx, client, remoteOwner, remoteRepo, remoteConfig.Ref, remoteConfig.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	return remotePolicyBytes, nil
+}
+
+// fetchConfigContents returns a nil slice if there is no policy
+func (cf *ConfigFetcher) fetchConfigContents(ctx context.Context, client *github.Client, owner, repo, ref, path string) ([]byte, error) {
+	logger := zerolog.Ctx(ctx)
+	logger.Debug().Msgf("attempting to fetch policy definition for %s/%s@%s/%s", owner, repo, ref, path)
 
 	opts := &github.RepositoryContentGetOptions{
 		Ref: ref,
 	}
 
-	file, _, _, err := client.Repositories.GetContents(ctx, owner, repo, cf.PolicyPath, opts)
+	file, _, _, err := client.Repositories.GetContents(ctx, owner, repo, path, opts)
 	if err != nil {
 		if rerr, ok := err.(*github.ErrorResponse); ok && rerr.Response.StatusCode == http.StatusNotFound {
 			return nil, nil
 		}
-		return nil, errors.Wrapf(err, "failed to fetch content of %q", cf.PolicyPath)
+		return nil, errors.Wrapf(err, "failed to fetch content of %s/%s@%s/%s", owner, repo, ref, path)
 	}
 
 	// file will be nil if the ref contains a directory at the expected file path
@@ -119,7 +161,7 @@ func (cf *ConfigFetcher) fetchConfigContents(ctx context.Context, client *github
 
 	content, err := file.GetContent()
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to decode content of %q", cf.PolicyPath)
+		return nil, errors.Wrapf(err, "failed to decode content of %s/%s@%s/%s", owner, repo, ref, path)
 	}
 
 	return []byte(content), nil
