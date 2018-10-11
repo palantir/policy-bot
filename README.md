@@ -338,7 +338,8 @@ To develop `policy-bot`, you will need a [Go installation](https://golang.org/do
 
     docker run --rm -v "$(pwd)/config:/secrets/" -p 8080:8080 palantirtechnologies/policy-bot:latest
 
-- This will mount the path containing the config so it can be found in `./config/policy-bot.yml`
+- This will mount the path relative path `config/` which should contain the
+  modified config file `policy-bot.yml`
 - The server is available at `http://localhost:8080/`
 
 ## Contributing
