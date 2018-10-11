@@ -28,6 +28,7 @@ products:
             cp -R ./server/templates ${DIST_WORK_DIR}
             cp -R ./build/static ${DIST_WORK_DIR}
     docker:
+      repository: hub.docker.com
       docker-builders:
         policy-bot:
           type: default
