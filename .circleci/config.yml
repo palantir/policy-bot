@@ -90,6 +90,11 @@ jobs:
             if [[ -n "${CIRCLE_TAG}" ]] || [[ "${CIRCLE_BRANCH}" == "develop" ]]; then
               docker login -u "${DOCKERHUB_USERNAME}" -p "${DOCKERHUB_PASSWORD}"
               ./godelw docker push
+              ./godelw publish bintray \
+                  --url https://api.bintray.com \
+                  --subject palantir --repository releases --product policy-bot \
+                  --username "${BINTRAY_USERNAME}" --password "${BINTRAY_PASSWORD}" \
+                  --downloads-list --publish policy-bot
             fi
 
 ### Workflows ###
