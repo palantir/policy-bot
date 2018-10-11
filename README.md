@@ -299,7 +299,7 @@ other than GitHub. It is also safe to run multiple instances of the server,
 making it a good fit for container schedulers like Nomad or Kubernetes.
 
 We provide both a Docker container and a binary distribution of the server. A
-sample configuration file is provided at `config/policy-bot.yml`. We
+sample configuration file is provided at `config/policy-bot.example.yml`. We
 recommend deploying the application behind a reverse proxy or load balancer
 that terminates TLS connections.
 
@@ -325,6 +325,7 @@ To develop `policy-bot`, you will need a [Go installation](https://golang.org/do
 
     ./godelw run policy-bot server
 
+- `config/policy-bot.yml` is used as the default configuration file
 - The server is available at `http://localhost:8080/`
 
 **Running the server via docker**
