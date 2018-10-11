@@ -1,0 +1,13 @@
+# This policy requires an approval from a member on a specific team,
+# in this case, `palantir/devtools`.
+
+policy:
+  approval:
+  - the devtools team has approved
+
+approval_rules:
+- name: the devtools team has approved
+  requires:
+    count: 1
+    teams:
+    - "palantir/devtools"
