@@ -1,0 +1,6 @@
+# This policy will use the remote policy configuration found here:
+# https://github.com/palantir/policy-bot/blob/develop/config/policy-examples/approve-everything.yml
+
+remote: palantir/policy-bot
+path: config/policy-examples/approve-everything.yml
+ref: develop

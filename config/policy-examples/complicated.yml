@@ -1,0 +1,24 @@
+# This policy allows the `palantir/catskills` team to approve anything,
+# and the `palantir/devtools` team can approve changes to staging.
+
+policy:
+  approval:
+  - or:
+    - catskills can approve
+    - devtools can approve changes to staging
+
+approval_rules:
+
+- name: catskills can approve
+  requires:
+    count: 1
+    teams: ["palantir/catskills"]
+
+- name: devtools can approve changes to staging
+  if:
+    only_changed_files:
+      paths:
+      - '^staging\.palantir\.com/.*'
+  requires:
+    count: 1
+    teams: ["palantir/devtools"]
