@@ -87,7 +87,7 @@ jobs:
       - deploy:
           name: Publish
           command: |
-            if [[ -n "${CIRCLE_TAG}" ]] || [[ "${CIRCLE_BRANCH}" == "develop" ]]; then
+            if [[ -n "${CIRCLE_TAG}" ]] ; then
               docker login -u "${DOCKERHUB_USERNAME}" -p "${DOCKERHUB_PASSWORD}"
               ./godelw docker push
               ./godelw publish bintray \
