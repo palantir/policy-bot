@@ -28,6 +28,7 @@ products:
             cp -R ./server/templates ${DIST_WORK_DIR}
             cp -R ./build/static ${DIST_WORK_DIR}
     docker:
+      repository: hub.docker.com
       docker-builders:
         policy-bot:
           type: default
@@ -40,4 +41,5 @@ products:
           tag-templates:
             - "{{Repository}}palantirtechnologies/policy-bot:latest"
             - "{{Repository}}palantirtechnologies/policy-bot:{{Version}}"
-    publish: {}
+    publish:
+      group-id: com.palantir.policy-bot
