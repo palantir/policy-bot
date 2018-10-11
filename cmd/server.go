@@ -79,5 +79,5 @@ func serverCmd(cmd *cobra.Command, args []string) error {
 func init() {
 	RootCmd.AddCommand(ServerCmd)
 
-	ServerCmd.Flags().StringVarP(&serverCmdConfig.Path, "config", "c", "var/conf/policy-bot.yml", "configuration file for policy-bot")
+	ServerCmd.Flags().StringVarP(&serverCmdConfig.Path, "config", "c", "config/policy-bot.yml", "configuration file for policy-bot")
 }
