@@ -325,6 +325,9 @@ To develop `policy-bot`, you will need a [Go installation](https://golang.org/do
 - `var/conf/policy-bot.yml` is used as the default configuration file
 - The server is available at `http://localhost:8080/`
 
+### Example Policy Files
+Example policy files can be found in [`config/policy-examples`](https://github.com/palantir/policy-bot/tree/develop/config/policy-examples)./
+
 ## Contributing
 
 Contributions and issues are welcome. For new features or large contributions,
