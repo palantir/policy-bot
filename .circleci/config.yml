@@ -85,6 +85,17 @@ jobs:
       - run: ./godelw dist
       - run: ./godelw docker build --verbose
 
+  publish:
+    working_directory: /go/src/github.com/palantir/policy-bot
+    docker:
+      - image: nmiyake/go:go-darwin-linux-1.11-docker-17.06.0-ce-bsdtar-unzip-t134
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: docker login -u "${DOCKERHUB_USERNAME}" -p "${DOCKERHUB_PASSWORD}"
+      - run: ./godelw docker build --verbose
+      - run: ./godelw docker push
+
 ### Workflows ###
 
 workflows:
@@ -100,3 +111,8 @@ workflows:
           requires:
             - build
             - build-frontend
+      - publish:
+          requires: [ dist ]
+          filters:
+            tags: { only: "/^v?[0-9]+(\.[0-9]+)+(-rc[0-9]+)?(-alpha[0-9]+)?$/" }
+            branches: { ignore: "/.*/" }
