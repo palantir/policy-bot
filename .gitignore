@@ -12,3 +12,6 @@ gotest.out
 
 # frontend files
 /node_modules/
+
+# default config location
+config/policy-bot.yml
