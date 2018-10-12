@@ -37,9 +37,9 @@ const (
 )
 
 type Base struct {
-	githubapp.BaseHandler
+	githubapp.ClientCreator
 
-	Installations githubapp.InstallationClient
+	Installations githubapp.InstallationsService
 	PullOpts      *PullEvaluationOptions
 	ConfigFetcher *ConfigFetcher
 	BaseConfig    *baseapp.HTTPConfig

@@ -16,40 +16,55 @@ package githubapp
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 )
 
-// Installation is a minimal representation of
-// an installation ID and it's corresponding
-// owner.
+// Installation is a minimal representation of a GitHub app installation.
 type Installation struct {
 	ID      int64
 	Owner   string
 	OwnerID int64
 }
 
-// InstallationClient is used to retrieve the installation ID from Github
-// for a given App. It is an implementation detail how results are
-// sourced, stored, and cached (or not).
-// This is useful for apps that have background processes
-// that do not responding directly to webhooks, since the webhooks
-// otherwise provide the installation ID in their payloads.
-type InstallationClient interface {
+// InstallationSource is implemented by GitHub webhook event payload types.
+type InstallationSource interface {
+	GetInstallation() *github.Installation
+}
+
+// GetInstallationIDFromEvent returns the installation ID from a GitHub webhook
+// event payload.
+func GetInstallationIDFromEvent(event InstallationSource) int64 {
+	return event.GetInstallation().GetID()
+}
+
+// InstallationsService retrieves installation information for a given app.
+// Implementations may chose how to retrieve, store, or cache these values.
+//
+// This service is useful for background processes that do not respond directly
+// to webhooks, since webhooks provide installation IDs in their payloads.
+type InstallationsService interface {
+	// ListAll returns all installations for this app.
 	ListAll(ctx context.Context) ([]Installation, error)
+
+	// GetByOwner returns the installation for an owner (user or organization).
+	// It returns an InstallationNotFound error if no installation exists for
+	// the owner.
 	GetByOwner(ctx context.Context, owner string) (Installation, error)
 }
 
-type DefaultInstallationClient struct {
-	appClient *github.Client
+type defaultInstallationsService struct {
+	*github.Client
 }
 
-func NewInstallationClient(appClient *github.Client) *DefaultInstallationClient {
-	return &DefaultInstallationClient{
-		appClient: appClient,
-	}
+// NewInstallationsService returns an InstallationsService that always queries
+// GitHub. It should be created with a client that authenticates as the target
+// application.
+func NewInstallationsService(appClient *github.Client) InstallationsService {
+	return defaultInstallationsService{appClient}
 }
 
 func toInstallation(from *github.Installation) Installation {
@@ -65,14 +80,14 @@ func isNotFound(err error) bool {
 	return ok && rerr.Response.StatusCode == http.StatusNotFound
 }
 
-func (i *DefaultInstallationClient) ListAll(ctx context.Context) ([]Installation, error) {
+func (i defaultInstallationsService) ListAll(ctx context.Context) ([]Installation, error) {
 	opt := github.ListOptions{
 		PerPage: 100,
 	}
 
 	var allInstallations []Installation
 	for {
-		installations, res, err := i.appClient.Apps.ListInstallations(ctx, &opt)
+		installations, res, err := i.Apps.ListInstallations(ctx, &opt)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to list installations")
 		}
@@ -88,11 +103,11 @@ func (i *DefaultInstallationClient) ListAll(ctx context.Context) ([]Installation
 	return allInstallations, nil
 }
 
-func (i *DefaultInstallationClient) GetByOwner(ctx context.Context, owner string) (Installation, error) {
-	installation, _, err := i.appClient.Apps.FindOrganizationInstallation(ctx, owner)
+func (i defaultInstallationsService) GetByOwner(ctx context.Context, owner string) (Installation, error) {
+	installation, _, err := i.Apps.FindOrganizationInstallation(ctx, owner)
 	if err != nil {
 		if isNotFound(err) {
-			return Installation{}, errors.Errorf("no installation found for owner %q", owner)
+			return Installation{}, InstallationNotFound(owner)
 		}
 		return Installation{}, errors.Wrapf(err, "failed to list installation for owner %q", owner)
 	}
@@ -100,5 +115,10 @@ func (i *DefaultInstallationClient) GetByOwner(ctx context.Context, owner string
 	return toInstallation(installation), nil
 }
 
-// type assertion
-var _ InstallationClient = &DefaultInstallationClient{}
+// InstallationNotFound is returned when no installation exists for a
+// specific owner or repository.
+type InstallationNotFound string
+
+func (err InstallationNotFound) Error() string {
+	return fmt.Sprintf("no installation found for %q", string(err))
+}

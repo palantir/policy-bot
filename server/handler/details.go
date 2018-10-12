@@ -22,6 +22,7 @@ import (
 	"github.com/alexedwards/scs"
 	"github.com/bluekeyes/templatetree"
 	"github.com/google/go-github/github"
+	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/pkg/errors"
 	"goji.io/pat"
 
@@ -98,11 +99,7 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	data.PullRequest = pr
 	data.User = user
 
-	// TODO(bkeyes): the only thing we use this for is to configure logging
-	ctx, client, err = h.PreparePRContext(ctx, installation.ID, pr.GetBase().GetRepo(), number)
-	if err != nil {
-		return err
-	}
+	ctx, _ = githubapp.PreparePRContext(ctx, installation.ID, pr.GetBase().GetRepo(), number)
 
 	config, err := h.ConfigFetcher.ConfigForPR(ctx, client, pr)
 	if err != nil {
