@@ -38,7 +38,8 @@ products:
             #!/usr/bin/env bash
             cp -R docker/* ${CONTEXT_DIR}
           tag-templates:
-            - "{{Repository}}palantirtechnologies/policy-bot:latest"
-            - "{{Repository}}palantirtechnologies/policy-bot:{{Version}}"
+            version: "{{Repository}}palantirtechnologies/policy-bot:{{Version}}"
+            latest: "{{Repository}}palantirtechnologies/policy-bot:latest"
+            snapshot: "{{Repository}}palantirtechnologies/policy-bot:snapshot"
     publish:
       group-id: com.palantir.policy-bot
