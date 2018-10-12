@@ -93,7 +93,7 @@ jobs:
             fi
             if [[ -n "${CIRCLE_TAG}" ]] ; then
               docker login -u "${DOCKERHUB_USERNAME}" -p "${DOCKERHUB_PASSWORD}"
-              ./godelw docker push
+              ./godelw docker push --tags=latest
               ./godelw publish bintray \
                   --url https://api.bintray.com \
                   --subject palantir --repository releases --product policy-bot \
