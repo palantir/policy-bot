@@ -89,7 +89,7 @@ jobs:
           command: |
             if [[ "${CIRCLE_BRANCH}" == "develop" ]]; then
               docker login -u "${DOCKERHUB_USERNAME}" -p "${DOCKERHUB_PASSWORD}"
-              ./godelw docker push --tags=snapshot,version
+              ./godelw docker push --tags=snapshot
             fi
             if [[ -n "${CIRCLE_TAG}" ]] ; then
               docker login -u "${DOCKERHUB_USERNAME}" -p "${DOCKERHUB_PASSWORD}"
