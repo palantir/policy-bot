@@ -20,8 +20,8 @@ import (
 	"fmt"
 
 	"github.com/google/go-github/github"
+	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog"
 )
 
 type Status struct {
@@ -41,13 +41,13 @@ func (h *Status) Handle(ctx context.Context, eventType, deliveryID string, paylo
 	repo := event.GetRepo()
 	ownerName := repo.GetOwner().GetLogin()
 	repoName := repo.GetName()
-	installationID := h.GetInstallationIDFromEvent(&event)
+	installationID := githubapp.GetInstallationIDFromEvent(&event)
 
-	ctx, client, err := h.PrepareRepoContext(ctx, installationID, repo)
+	ctx, logger := githubapp.PrepareRepoContext(ctx, installationID, repo)
+	client, err := h.NewInstallationClient(installationID)
 	if err != nil {
 		return err
 	}
-	logger := zerolog.Ctx(ctx)
 
 	// Ignore contexts that are not ours
 	if event.GetContext() != h.PullOpts.StatusCheckContext {
