@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 
 	"github.com/google/go-github/github"
+	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/pkg/errors"
 )
 
@@ -36,11 +37,14 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 		return errors.Wrap(err, "failed to parse pull request review event payload")
 	}
 
-	installationID := h.GetInstallationIDFromEvent(&event)
-	ctx, client, err := h.PreparePRContext(ctx, installationID, event.GetRepo(), event.GetPullRequest().GetNumber())
+	installationID := githubapp.GetInstallationIDFromEvent(&event)
+
+	client, err := h.NewInstallationClient(installationID)
 	if err != nil {
 		return err
 	}
+
+	ctx, _ = githubapp.PreparePRContext(ctx, installationID, event.GetRepo(), event.GetPullRequest().GetNumber())
 
 	mbrCtx := NewCrossOrgMembershipContext(ctx, client, event.GetRepo().GetOwner().GetLogin(), h.Installations, h.ClientCreator)
 	return h.Evaluate(ctx, mbrCtx, client, event.GetPullRequest())

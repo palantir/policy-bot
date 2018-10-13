@@ -27,6 +27,19 @@ const (
 	DefaultCachingClientCapacity = 64
 )
 
+// NewDefaultCachingClientCreator returns a ClientCreator using values from the
+// configuration or other defaults.
+func NewDefaultCachingClientCreator(c Config, opts ...ClientOption) (ClientCreator, error) {
+	delegate := NewClientCreator(
+		c.V3APIURL,
+		c.V4APIURL,
+		c.App.IntegrationID,
+		[]byte(c.App.PrivateKey),
+		opts...,
+	)
+	return NewCachingClientCreator(delegate, DefaultCachingClientCapacity)
+}
+
 // NewCachingClientCreator returns a ClientCreator that creates a GitHub client for installations of the app specified
 // by the provided arguments. It uses an LRU cache of the provided capacity to store clients created for installations
 // and returns cached clients when a cache hit exists.

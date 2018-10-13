@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"github.com/google/go-github/github"
+	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 
@@ -36,23 +37,23 @@ func (h *IssueComment) Handles() []string { return []string{"issue_comment"} }
 // Handle issue_comment
 // See https://developer.github.com/v3/activity/events/types/#issuecommentevent
 func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string, payload []byte) error {
-	logger := zerolog.Ctx(ctx)
-
 	var event github.IssueCommentEvent
 	if err := json.Unmarshal(payload, &event); err != nil {
 		return errors.Wrap(err, "failed to parse issue comment event payload")
 	}
+
+	repo := event.GetRepo()
+	number := event.GetIssue().GetNumber()
+	installationID := githubapp.GetInstallationIDFromEvent(&event)
+
+	ctx, logger := githubapp.PreparePRContext(ctx, installationID, event.GetRepo(), number)
 
 	if !event.GetIssue().IsPullRequest() {
 		logger.Debug().Msg("Issue comment event is not for a pull request")
 		return nil
 	}
 
-	repo := event.GetRepo()
-	number := event.GetIssue().GetNumber()
-	installationID := h.GetInstallationIDFromEvent(&event)
-
-	ctx, client, err := h.PreparePRContext(ctx, installationID, event.GetRepo(), number)
+	client, err := h.NewInstallationClient(installationID)
 	if err != nil {
 		return err
 	}
