@@ -10,15 +10,15 @@
   version = "2.1.0"
 
 [[projects]]
-  digest = "1:4cbe55f096a604d401cb62fbc74c0f63c0ac3aa5a7d6891d96a34de009282fdc"
+  digest = "1:52a8efd8a7ddb4a3e0144541474335359f49836de8daf56b6ba0dd9c047d3d9b"
   name = "github.com/alexedwards/scs"
   packages = [
     ".",
     "stores/cookiestore",
   ]
   pruneopts = "NUT"
-  revision = "a01923edcb7f83c0c6ae7e70ad03f293e6ec9e26"
-  version = "v1.3.0"
+  revision = "cac921d76a577e6c80f3f6bc0857b8eeb650669e"
+  version = "v1.4.0"
 
 [[projects]]
   branch = "master"
@@ -109,14 +109,14 @@
 
 [[projects]]
   branch = "develop"
-  digest = "1:f2f06118369eaf04a4c5ed26fc69e7cd4b9cc08005b2563bed09b7e9d3482bd6"
+  digest = "1:1048ae62b445c06fc3f0ce2347f4440410eaea67e71e827f09e49d4e5b066ea8"
   name = "github.com/palantir/go-githubapp"
   packages = [
     "githubapp",
     "oauth2",
   ]
   pruneopts = "NUT"
-  revision = "4d8777909d19fd60d5e3e7a6027a45beb37d3317"
+  revision = "9cd091d20a9e9f3b7c43280e1ff5fa596fe7bba4"
 
 [[projects]]
   digest = "1:5cf3f025cbee5951a4ee961de067c8a89fc95a5adabead774f82822efabab121"
@@ -259,7 +259,7 @@
     "salsa20/salsa",
   ]
   pruneopts = "NUT"
-  revision = "e3636079e1a4c1f337f212cc5cd2aca108f6c900"
+  revision = "a92615f3c49003920a58dedcf32cf55022cefb8d"
 
 [[projects]]
   branch = "master"
@@ -270,7 +270,7 @@
     "context/ctxhttp",
   ]
   pruneopts = "NUT"
-  revision = "146acd28ed5894421fb5aac80ca93bc1b1f46f87"
+  revision = "49bb7cea24b1df9410e1712aa6433dae904ff66a"
 
 [[projects]]
   branch = "master"

@@ -28,13 +28,13 @@ import (
 type CrossOrgMembershipContext struct {
 	ctx           context.Context
 	lookupClient  *github.Client
-	installations githubapp.InstallationClient
+	installations githubapp.InstallationsService
 	clientCreator githubapp.ClientCreator
 
 	mbrCtxs map[string]pull.MembershipContext
 }
 
-func NewCrossOrgMembershipContext(ctx context.Context, client *github.Client, orgName string, installations githubapp.InstallationClient, clientCreator githubapp.ClientCreator) *CrossOrgMembershipContext {
+func NewCrossOrgMembershipContext(ctx context.Context, client *github.Client, orgName string, installations githubapp.InstallationsService, clientCreator githubapp.ClientCreator) *CrossOrgMembershipContext {
 	mbrCtx := &CrossOrgMembershipContext{
 		ctx:           ctx,
 		lookupClient:  client,

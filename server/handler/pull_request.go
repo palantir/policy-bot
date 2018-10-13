@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 
 	"github.com/google/go-github/github"
+	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/pkg/errors"
 )
 
@@ -36,8 +37,9 @@ func (h *PullRequest) Handle(ctx context.Context, eventType, deliveryID string, 
 		return errors.Wrap(err, "failed to parse pull request event payload")
 	}
 
-	installationID := h.GetInstallationIDFromEvent(&event)
-	ctx, client, err := h.PreparePRContext(ctx, installationID, event.GetRepo(), event.GetNumber())
+	installationID := githubapp.GetInstallationIDFromEvent(&event)
+	ctx, _ = githubapp.PreparePRContext(ctx, installationID, event.GetRepo(), event.GetNumber())
+	client, err := h.NewInstallationClient(installationID)
 	if err != nil {
 		return err
 	}

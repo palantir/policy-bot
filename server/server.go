@@ -80,26 +80,27 @@ func New(c *Config) (*Server, error) {
 	}
 
 	userAgent := fmt.Sprintf("%s/%s", c.Options.AppName, version.GetVersion())
-	baseHandler, err := githubapp.NewDefaultBaseHandler(
+	clientCreator, err := githubapp.NewDefaultCachingClientCreator(
 		c.Github,
 		githubapp.WithClientUserAgent(userAgent),
 		githubapp.WithClientMiddleware(
 			githubapp.ClientMetrics(base.Registry()),
+			githubapp.ClientLogging(zerolog.DebugLevel),
 		),
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to initialize base webhook handler")
+		return nil, errors.Wrap(err, "failed to Github client creator")
 	}
 
-	appClient, err := baseHandler.ClientCreator.NewAppClient()
+	appClient, err := clientCreator.NewAppClient()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to initialize Github app client")
 	}
 
 	basePolicyHandler := handler.Base{
-		BaseHandler:   baseHandler,
+		ClientCreator: clientCreator,
 		BaseConfig:    &c.Server,
-		Installations: githubapp.NewInstallationClient(appClient),
+		Installations: githubapp.NewInstallationsService(appClient),
 
 		PullOpts: &c.Options,
 		ConfigFetcher: &handler.ConfigFetcher{
