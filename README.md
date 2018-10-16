@@ -270,7 +270,7 @@ disapproval:
 There are several additional behaviors that follow from the rules above that
 are worth mentioning.
 
-### Disapproval is Disabled by Default
+#### Disapproval is Disabled by Default
 
 You must set at least one of the `disapproval.requires` fields to enable
 disapproval. Without setting one of these fields, GitHub reviews that request
