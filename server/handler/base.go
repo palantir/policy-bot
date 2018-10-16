@@ -72,8 +72,9 @@ func (b *Base) MakeStatus(state, message string, pr *github.PullRequest) *github
 		details = fmt.Sprintf("%s/details/%s/%d", publicURL, pr.GetBase().GetRepo().GetFullName(), pr.GetNumber())
 	}
 
+	contextWithBranch := fmt.Sprintf("%s: %s", b.PullOpts.StatusCheckContext, pr.GetBase().GetLabel())
 	return &github.RepoStatus{
-		Context:     &b.PullOpts.StatusCheckContext,
+		Context:     &contextWithBranch,
 		State:       &state,
 		Description: &message,
 		TargetURL:   &details,
