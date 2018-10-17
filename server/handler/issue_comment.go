@@ -111,8 +111,7 @@ func (h *IssueComment) detectAndLogTampering(ctx context.Context, client *github
 		repo := pr.GetBase().GetRepo()
 		srcSHA := pr.GetHead().GetSHA()
 
-		s := h.MakeStatus("failure", msg, nil)
-		_, _, err := client.Repositories.CreateStatus(ctx, repo.GetOwner().GetLogin(), repo.GetName(), srcSHA, s)
+		err := h.PostStatus(ctx, client, repo.GetOwner().GetLogin(), repo.GetName(), srcSHA, "failure", msg, nil)
 		return true, err
 	}
 

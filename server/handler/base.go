@@ -46,9 +46,17 @@ type Base struct {
 }
 
 type PullEvaluationOptions struct {
-	PolicyPath         string `yaml:"policy_path"`
+	AppName    string `yaml:"app_name"`
+	PolicyPath string `yaml:"policy_path"`
+
+	// StatusCheckContext will be used to create the status context. It will be used in the following
+	// pattern: <StatusCheckContext>: <Base Branch Name>
 	StatusCheckContext string `yaml:"status_check_context"`
-	AppName            string `yaml:"app_name"`
+
+	// PostInsecureStatusChecks enables the sending of a second status using just StatusCheckContext as the context,
+	// no templating. This is turned off by default. This is to support legacy workflows that depend on the original
+	// context behaviour, and will be removed in 2.0
+	PostInsecureStatusChecks bool `yaml:"post_insecure_status_checks"`
 }
 
 func (p *PullEvaluationOptions) FillDefaults() {
@@ -65,19 +73,40 @@ func (p *PullEvaluationOptions) FillDefaults() {
 	}
 }
 
-func (b *Base) MakeStatus(state, message string, pr *github.PullRequest) *github.RepoStatus {
-	var details string
+func (b *Base) PostStatus(ctx context.Context, client *github.Client, owner, repo, ref string, state, message string, pr *github.PullRequest) error {
+	var detailsURL string
 	if pr != nil {
 		publicURL := strings.TrimSuffix(b.BaseConfig.PublicURL, "/")
-		details = fmt.Sprintf("%s/details/%s/%d", publicURL, pr.GetBase().GetRepo().GetFullName(), pr.GetNumber())
+		detailsURL = fmt.Sprintf("%s/details/%s/%d", publicURL, pr.GetBase().GetRepo().GetFullName(), pr.GetNumber())
 	}
 
-	return &github.RepoStatus{
-		Context:     &b.PullOpts.StatusCheckContext,
+	contextWithBranch := fmt.Sprintf("%s: %s", b.PullOpts.StatusCheckContext, pr.GetBase().GetLabel())
+	status := &github.RepoStatus{
+		Context:     &contextWithBranch,
 		State:       &state,
 		Description: &message,
-		TargetURL:   &details,
+		TargetURL:   &detailsURL,
 	}
+
+	if err := b.postGitHubRepoStatus(ctx, client, owner, repo, ref, status); err != nil {
+		return err
+	}
+
+	if b.PullOpts.PostInsecureStatusChecks {
+		status.Context = &b.PullOpts.StatusCheckContext
+		if err := b.postGitHubRepoStatus(ctx, client, owner, repo, ref, status); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (b *Base) postGitHubRepoStatus(ctx context.Context, client *github.Client, owner, repo, ref string, status *github.RepoStatus) error {
+	logger := zerolog.Ctx(ctx)
+	logger.Info().Msgf("Setting status context=%s state=%s description=%s target_url=%s", status.GetContext(), status.GetState(), status.GetDescription(), status.GetTargetURL())
+	_, _, err := client.Repositories.CreateStatus(ctx, owner, repo, ref, status)
+	return err
 }
 
 func (b *Base) Evaluate(ctx context.Context, mbrCtx pull.MembershipContext, client *github.Client, pr *github.PullRequest) error {
@@ -100,9 +129,7 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, mbrCtx pull.Membership
 
 	if fetchedConfig.Invalid() {
 		logger.Warn().Err(fetchedConfig.Error).Msgf("invalid policy: %s", fetchedConfig)
-
-		s := b.MakeStatus("error", fetchedConfig.Description(), pr)
-		_, _, err := client.Repositories.CreateStatus(ctx, fetchedConfig.Owner, fetchedConfig.Repo, srcSHA, s)
+		err := b.PostStatus(ctx, client, fetchedConfig.Owner, fetchedConfig.Repo, srcSHA, "error", fetchedConfig.Description(), pr)
 		return err
 	}
 
@@ -110,9 +137,7 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, mbrCtx pull.Membership
 	if err != nil {
 		statusMessage := fmt.Sprintf("Invalid policy defined by %s", fetchedConfig)
 		logger.Debug().Err(err).Msg(statusMessage)
-
-		s := b.MakeStatus("error", statusMessage, pr)
-		_, _, err := client.Repositories.CreateStatus(ctx, fetchedConfig.Owner, fetchedConfig.Repo, srcSHA, s)
+		err := b.PostStatus(ctx, client, fetchedConfig.Owner, fetchedConfig.Repo, srcSHA, "error", statusMessage, pr)
 		return err
 	}
 
@@ -122,9 +147,7 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, mbrCtx pull.Membership
 	if result.Error != nil {
 		statusMessage := fmt.Sprintf("Error evaluating policy defined by %s", fetchedConfig)
 		logger.Warn().Err(result.Error).Msg(statusMessage)
-
-		s := b.MakeStatus("error", statusMessage, pr)
-		_, _, err := client.Repositories.CreateStatus(ctx, fetchedConfig.Owner, fetchedConfig.Repo, srcSHA, s)
+		err := b.PostStatus(ctx, client, fetchedConfig.Owner, fetchedConfig.Repo, srcSHA, "error", statusMessage, pr)
 		return err
 	}
 
@@ -144,8 +167,6 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, mbrCtx pull.Membership
 		return errors.Errorf("evaluation resulted in unexpected state: %s", result.Status)
 	}
 
-	s := b.MakeStatus(statusState, statusDescription, pr)
-	logger.Info().Msgf("Setting status context=%v state=%v description=%v target_url=%v", s.Context, s.State, s.Description, "")
-	_, _, err = client.Repositories.CreateStatus(ctx, fetchedConfig.Owner, fetchedConfig.Repo, srcSHA, s)
+	err = b.PostStatus(ctx, client, fetchedConfig.Owner, fetchedConfig.Repo, srcSHA, statusState, statusDescription, pr)
 	return err
 }
