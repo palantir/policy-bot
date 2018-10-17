@@ -66,10 +66,10 @@ func (p *PullEvaluationOptions) FillDefaults() {
 }
 
 func (b *Base) MakeStatus(state, message string, pr *github.PullRequest) *github.RepoStatus {
-	var details string
+	var detailsURL string
 	if pr != nil {
 		publicURL := strings.TrimSuffix(b.BaseConfig.PublicURL, "/")
-		details = fmt.Sprintf("%s/details/%s/%d", publicURL, pr.GetBase().GetRepo().GetFullName(), pr.GetNumber())
+		detailsURL = fmt.Sprintf("%s/details/%s/%d", publicURL, pr.GetBase().GetRepo().GetFullName(), pr.GetNumber())
 	}
 
 	contextWithBranch := fmt.Sprintf("%s: %s", b.PullOpts.StatusCheckContext, pr.GetBase().GetLabel())
@@ -77,7 +77,7 @@ func (b *Base) MakeStatus(state, message string, pr *github.PullRequest) *github
 		Context:     &contextWithBranch,
 		State:       &state,
 		Description: &message,
-		TargetURL:   &details,
+		TargetURL:   &detailsURL,
 	}
 }
 
