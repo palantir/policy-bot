@@ -49,12 +49,13 @@ type PullEvaluationOptions struct {
 	AppName    string `yaml:"app_name"`
 	PolicyPath string `yaml:"policy_path"`
 
-	// StatusCheckContext will be used to create the status context.
-	// It will be used in the following pattern: <StatusCheckContext>: <Branch Name>
+	// StatusCheckContext will be used to create the status context. It will be used in the following
+	// pattern: <StatusCheckContext>: <Base Branch Name>
 	StatusCheckContext string `yaml:"status_check_context"`
 
-	// StatusCheckLegacyContext enables the sending of a second status using just StatusCheckContext, no templating.
-	// This is to support legacy workflows that depend on the legacy context behaviour. This is turned off by default.
+	// StatusCheckLegacyContext enables the sending of a second status using just StatusCheckContext as the context,
+	// no templating. This is to support legacy workflows that depend on the original context behaviour. This is turned
+	// off by default.
 	StatusCheckLegacyContext bool `yaml:"status_check_legacy_context"`
 }
 
