@@ -53,10 +53,10 @@ type PullEvaluationOptions struct {
 	// pattern: <StatusCheckContext>: <Base Branch Name>
 	StatusCheckContext string `yaml:"status_check_context"`
 
-	// StatusCheckLegacyContext enables the sending of a second status using just StatusCheckContext as the context,
+	// PostInsecureStatusChecks enables the sending of a second status using just StatusCheckContext as the context,
 	// no templating. This is turned off by default. This is to support legacy workflows that depend on the original
 	// context behaviour, and will be removed in 2.0
-	StatusCheckLegacyContext bool `yaml:"status_check_legacy_context"`
+	PostInsecureStatusChecks bool `yaml:"post_insecure_status_checks"`
 }
 
 func (p *PullEvaluationOptions) FillDefaults() {
@@ -95,7 +95,7 @@ func (b *Base) PostStatus(ctx context.Context, client *github.Client, owner, rep
 		return err
 	}
 
-	if !b.PullOpts.StatusCheckLegacyContext {
+	if !b.PullOpts.PostInsecureStatusChecks {
 		return nil
 	}
 
