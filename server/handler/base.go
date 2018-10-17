@@ -74,8 +74,6 @@ func (p *PullEvaluationOptions) FillDefaults() {
 }
 
 func (b *Base) PostStatus(ctx context.Context, client *github.Client, owner, repo, ref string, state, message string, pr *github.PullRequest) error {
-	logger := zerolog.Ctx(ctx)
-
 	var detailsURL string
 	if pr != nil {
 		publicURL := strings.TrimSuffix(b.BaseConfig.PublicURL, "/")
@@ -90,28 +88,25 @@ func (b *Base) PostStatus(ctx context.Context, client *github.Client, owner, rep
 		TargetURL:   &detailsURL,
 	}
 
-	logger.Info().Msgf("Setting status context=%s state=%s description=%s target_url=%s", contextWithBranch, state, message, detailsURL)
-	if _, _, err := client.Repositories.CreateStatus(ctx, owner, repo, ref, status); err != nil {
+	if err := b.postGitHubRepoStatus(ctx, client, status, owner, repo, ref); err != nil {
 		return err
 	}
 
-	if !b.PullOpts.PostInsecureStatusChecks {
-		return nil
-	}
-
-	legacyStatus := &github.RepoStatus{
-		Context:     &b.PullOpts.StatusCheckContext,
-		State:       &state,
-		Description: &message,
-		TargetURL:   &detailsURL,
-	}
-
-	logger.Info().Msgf("Setting status context=%s state=%s description=%s target_url=%s", b.PullOpts.StatusCheckContext, state, message, detailsURL)
-	if _, _, err := client.Repositories.CreateStatus(ctx, owner, repo, ref, legacyStatus); err != nil {
-		return err
+	if b.PullOpts.PostInsecureStatusChecks {
+		status.Context = &b.PullOpts.StatusCheckContext
+		if err := b.postGitHubRepoStatus(ctx, client, status, owner, repo, ref); err != nil {
+			return err
+		}
 	}
 
 	return nil
+}
+
+func (b *Base) postGitHubRepoStatus(ctx context.Context, client *github.Client, status *github.RepoStatus, owner, repo, ref string) error {
+	logger := zerolog.Ctx(ctx)
+	logger.Info().Msgf("Setting status context=%s state=%s description=%s target_url=%s", status.GetContext(), status.GetState(), status.GetDescription(), status.GetTargetURL())
+	_, _, err := client.Repositories.CreateStatus(ctx, owner, repo, ref, status)
+	return err
 }
 
 func (b *Base) Evaluate(ctx context.Context, mbrCtx pull.MembershipContext, client *github.Client, pr *github.PullRequest) error {
