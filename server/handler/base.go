@@ -88,13 +88,13 @@ func (b *Base) PostStatus(ctx context.Context, client *github.Client, owner, rep
 		TargetURL:   &detailsURL,
 	}
 
-	if err := b.postGitHubRepoStatus(ctx, client, status, owner, repo, ref); err != nil {
+	if err := b.postGitHubRepoStatus(ctx, client, owner, repo, ref, status); err != nil {
 		return err
 	}
 
 	if b.PullOpts.PostInsecureStatusChecks {
 		status.Context = &b.PullOpts.StatusCheckContext
-		if err := b.postGitHubRepoStatus(ctx, client, status, owner, repo, ref); err != nil {
+		if err := b.postGitHubRepoStatus(ctx, client, owner, repo, ref, status); err != nil {
 			return err
 		}
 	}
@@ -102,7 +102,7 @@ func (b *Base) PostStatus(ctx context.Context, client *github.Client, owner, rep
 	return nil
 }
 
-func (b *Base) postGitHubRepoStatus(ctx context.Context, client *github.Client, status *github.RepoStatus, owner, repo, ref string) error {
+func (b *Base) postGitHubRepoStatus(ctx context.Context, client *github.Client, owner, repo, ref string, status *github.RepoStatus) error {
 	logger := zerolog.Ctx(ctx)
 	logger.Info().Msgf("Setting status context=%s state=%s description=%s target_url=%s", status.GetContext(), status.GetState(), status.GetDescription(), status.GetTargetURL())
 	_, _, err := client.Repositories.CreateStatus(ctx, owner, repo, ref, status)
