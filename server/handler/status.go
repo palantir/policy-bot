@@ -64,8 +64,7 @@ func (h *Status) Handle(ctx context.Context, eventType, deliveryID string, paylo
 		logger.Warn().Str(LogKeyAudit, eventType).Msg(auditMessage)
 
 		logger.Info().Msgf("Setting status context=%s state=%s description=%s target_url=%s", h.PullOpts.StatusCheckContext, "failure", auditMessage, "")
-		status := h.MakeStatus("failure", auditMessage, nil)
-		_, _, err = client.Repositories.CreateStatus(ctx, ownerName, repoName, commitSHA, status)
+		err := h.PostStatus(ctx, client, ownerName, repoName, commitSHA, "failure", auditMessage, nil)
 		return err
 	}
 
