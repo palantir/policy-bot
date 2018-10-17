@@ -46,9 +46,16 @@ type Base struct {
 }
 
 type PullEvaluationOptions struct {
-	PolicyPath         string `yaml:"policy_path"`
+	AppName    string `yaml:"app_name"`
+	PolicyPath string `yaml:"policy_path"`
+
+	// StatusCheckContext will be used to create the status context.
+	// It will be used in the following pattern: <StatusCheckContext>: <Branch Name>
 	StatusCheckContext string `yaml:"status_check_context"`
-	AppName            string `yaml:"app_name"`
+
+	// StatusCheckLegacyContext enables the sending of a second status using just StatusCheckContext, no templating.
+	// This is to support legacy workflows that depend on the legacy context behaviour. This is turned off by default.
+	StatusCheckLegacyContext bool `yaml:"status_check_legacy_context"`
 }
 
 func (p *PullEvaluationOptions) FillDefaults() {
@@ -66,6 +73,8 @@ func (p *PullEvaluationOptions) FillDefaults() {
 }
 
 func (b *Base) PostStatus(ctx context.Context, client *github.Client, owner, repo, ref string, state, message string, pr *github.PullRequest) error {
+	logger := zerolog.Ctx(ctx)
+
 	var detailsURL string
 	if pr != nil {
 		publicURL := strings.TrimSuffix(b.BaseConfig.PublicURL, "/")
@@ -73,16 +82,35 @@ func (b *Base) PostStatus(ctx context.Context, client *github.Client, owner, rep
 	}
 
 	contextWithBranch := fmt.Sprintf("%s: %s", b.PullOpts.StatusCheckContext, pr.GetBase().GetLabel())
-	s := &github.RepoStatus{
+	status := &github.RepoStatus{
 		Context:     &contextWithBranch,
 		State:       &state,
 		Description: &message,
 		TargetURL:   &detailsURL,
 	}
 
-	// TODO: do a info log here
-	_, _, err := client.Repositories.CreateStatus(ctx, owner, repo, ref, s)
-	return err
+	logger.Info().Msgf("Setting status context=%s state=%s description=%s target_url=%s", contextWithBranch, state, message, detailsURL)
+	if _, _, err := client.Repositories.CreateStatus(ctx, owner, repo, ref, status); err != nil {
+		return err
+	}
+
+	if !b.PullOpts.StatusCheckLegacyContext {
+		return nil
+	}
+
+	legacyStatus := &github.RepoStatus{
+		Context:     &b.PullOpts.StatusCheckContext,
+		State:       &state,
+		Description: &message,
+		TargetURL:   &detailsURL,
+	}
+
+	logger.Info().Msgf("Setting status context=%s state=%s description=%s target_url=%s", b.PullOpts.StatusCheckContext, state, message, detailsURL)
+	if _, _, err := client.Repositories.CreateStatus(ctx, owner, repo, ref, legacyStatus); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (b *Base) Evaluate(ctx context.Context, mbrCtx pull.MembershipContext, client *github.Client, pr *github.PullRequest) error {
