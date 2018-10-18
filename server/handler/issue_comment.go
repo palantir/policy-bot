@@ -108,10 +108,7 @@ func (h *IssueComment) detectAndLogTampering(ctx context.Context, client *github
 		msg := fmt.Sprintf("Entity %s edited approval comment by %s", eventAuthor, commentAuthor)
 		logger.Warn().Str(LogKeyAudit, "issue_comment").Msg(msg)
 
-		repo := pr.GetBase().GetRepo()
-		srcSHA := pr.GetHead().GetSHA()
-
-		err := h.PostStatus(ctx, client, repo.GetOwner().GetLogin(), repo.GetName(), srcSHA, "failure", msg, nil)
+		err := h.PostStatus(ctx, client, pr, "failure", msg)
 		return true, err
 	}
 

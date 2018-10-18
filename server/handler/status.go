@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/google/go-github/github"
 	"github.com/palantir/go-githubapp/githubapp"
@@ -50,8 +51,8 @@ func (h *Status) Handle(ctx context.Context, eventType, deliveryID string, paylo
 
 	ctx, logger := githubapp.PrepareRepoContext(ctx, installationID, repo)
 
-	// Ignore contexts that are not ours
-	if event.GetContext() != h.PullOpts.StatusCheckContext {
+	// ignore contexts that are not ours
+	if !strings.HasPrefix(event.GetContext(), h.PullOpts.StatusCheckContext) {
 		logger.Debug().Msgf("Ignoring context event for '%s'", event.GetContext())
 		return nil
 	}
@@ -60,10 +61,27 @@ func (h *Status) Handle(ctx context.Context, eventType, deliveryID string, paylo
 	commitSHA := event.GetCommit().GetSHA()
 
 	if sender.GetLogin() != h.PullOpts.AppName+"[bot]" {
-		auditMessage := fmt.Sprintf("Entity '%s' overwrote status check '%s' on ref=%s to status='%s' description='%s' targetURL='%s'", sender.GetLogin(), h.PullOpts.StatusCheckContext, commitSHA, event.GetState(), event.GetDescription(), event.GetTargetURL())
+		auditMessage := fmt.Sprintf(
+			"Entity '%s' overwrote status check '%s' on ref=%s to status='%s' description='%s' targetURL='%s'",
+			sender.GetLogin(),
+			event.GetContext(),
+			commitSHA,
+			event.GetState(),
+			event.GetDescription(),
+			event.GetTargetURL(),
+		)
 		logger.Warn().Str(LogKeyAudit, eventType).Msg(auditMessage)
 
-		err := h.PostStatus(ctx, client, ownerName, repoName, commitSHA, "failure", auditMessage, nil)
+		// unlike in other code, use a single context here because we want to
+		// replace a forged context with a failure, not post a general status
+		// if multiple contexts are forged, we will handle multiple events
+		status := &github.RepoStatus{
+			Context:     event.Context,
+			State:       github.String("failure"),
+			Description: &auditMessage,
+		}
+
+		_, _, err := client.Repositories.CreateStatus(ctx, ownerName, repoName, commitSHA, status)
 		return err
 	}
 
