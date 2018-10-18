@@ -303,7 +303,7 @@ sample configuration file is provided at `config/policy-bot.example.yml`. We
 recommend deploying the application behind a reverse proxy or load balancer
 that terminates TLS connections.
 
-### GitHub App Permissions
+### GitHub App Configuration
 
 `policy-bot` requires the following permissions as a GitHub app:
 
