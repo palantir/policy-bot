@@ -303,6 +303,24 @@ sample configuration file is provided at `config/policy-bot.example.yml`. We
 recommend deploying the application behind a reverse proxy or load balancer
 that terminates TLS connections.
 
+### GitHub App Permissions
+
+`policy-bot` requires the following permissions as a GitHub app:
+
+* Issues - read-only
+* Repository metadata - read-only
+* Pull requests - read-only
+* Single file - read-only, with the file matching the server configuration
+* Commit status - read & write
+* Organization members - read-only
+
+It should be subscribed to the following events:
+
+* Issue comment
+* Pull request
+* Status
+* Pull request review
+
 ### Operations
 
 `policy-bot` uses [go-baseapp](https://github.com/palantir/go-baseapp) and
