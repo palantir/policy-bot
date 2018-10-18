@@ -73,12 +73,13 @@ func (p *PullEvaluationOptions) FillDefaults() {
 	}
 }
 
-func (b *Base) PostStatus(ctx context.Context, client *github.Client, owner, repo, ref string, state, message string, pr *github.PullRequest) error {
-	var detailsURL string
-	if pr != nil {
-		publicURL := strings.TrimSuffix(b.BaseConfig.PublicURL, "/")
-		detailsURL = fmt.Sprintf("%s/details/%s/%d", publicURL, pr.GetBase().GetRepo().GetFullName(), pr.GetNumber())
-	}
+func (b *Base) PostStatus(ctx context.Context, client *github.Client, pr *github.PullRequest, state, message string) error {
+	owner := pr.GetBase().GetRepo().GetOwner().GetLogin()
+	repo := pr.GetBase().GetRepo().GetName()
+	sha := pr.GetHead().GetSHA()
+
+	publicURL := strings.TrimSuffix(b.BaseConfig.PublicURL, "/")
+	detailsURL := fmt.Sprintf("%s/details/%s/%d", publicURL, pr.GetBase().GetRepo().GetFullName(), pr.GetNumber())
 
 	contextWithBranch := fmt.Sprintf("%s: %s", b.PullOpts.StatusCheckContext, pr.GetBase().GetLabel())
 	status := &github.RepoStatus{
@@ -88,13 +89,13 @@ func (b *Base) PostStatus(ctx context.Context, client *github.Client, owner, rep
 		TargetURL:   &detailsURL,
 	}
 
-	if err := b.postGitHubRepoStatus(ctx, client, owner, repo, ref, status); err != nil {
+	if err := b.postGitHubRepoStatus(ctx, client, owner, repo, sha, status); err != nil {
 		return err
 	}
 
 	if b.PullOpts.PostInsecureStatusChecks {
 		status.Context = &b.PullOpts.StatusCheckContext
-		if err := b.postGitHubRepoStatus(ctx, client, owner, repo, ref, status); err != nil {
+		if err := b.postGitHubRepoStatus(ctx, client, owner, repo, sha, status); err != nil {
 			return err
 		}
 	}
@@ -125,11 +126,9 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, mbrCtx pull.Membership
 		return nil
 	}
 
-	srcSHA := pr.GetHead().GetSHA()
-
 	if fetchedConfig.Invalid() {
 		logger.Warn().Err(fetchedConfig.Error).Msgf("invalid policy: %s", fetchedConfig)
-		err := b.PostStatus(ctx, client, fetchedConfig.Owner, fetchedConfig.Repo, srcSHA, "error", fetchedConfig.Description(), pr)
+		err := b.PostStatus(ctx, client, pr, "error", fetchedConfig.Description())
 		return err
 	}
 
@@ -137,7 +136,7 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, mbrCtx pull.Membership
 	if err != nil {
 		statusMessage := fmt.Sprintf("Invalid policy defined by %s", fetchedConfig)
 		logger.Debug().Err(err).Msg(statusMessage)
-		err := b.PostStatus(ctx, client, fetchedConfig.Owner, fetchedConfig.Repo, srcSHA, "error", statusMessage, pr)
+		err := b.PostStatus(ctx, client, pr, "error", statusMessage)
 		return err
 	}
 
@@ -147,7 +146,7 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, mbrCtx pull.Membership
 	if result.Error != nil {
 		statusMessage := fmt.Sprintf("Error evaluating policy defined by %s", fetchedConfig)
 		logger.Warn().Err(result.Error).Msg(statusMessage)
-		err := b.PostStatus(ctx, client, fetchedConfig.Owner, fetchedConfig.Repo, srcSHA, "error", statusMessage, pr)
+		err := b.PostStatus(ctx, client, pr, "error", statusMessage)
 		return err
 	}
 
@@ -167,6 +166,6 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, mbrCtx pull.Membership
 		return errors.Errorf("evaluation resulted in unexpected state: %s", result.Status)
 	}
 
-	err = b.PostStatus(ctx, client, fetchedConfig.Owner, fetchedConfig.Repo, srcSHA, statusState, statusDescription, pr)
+	err = b.PostStatus(ctx, client, pr, statusState, statusDescription)
 	return err
 }
