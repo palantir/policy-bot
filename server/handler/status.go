@@ -72,6 +72,9 @@ func (h *Status) Handle(ctx context.Context, eventType, deliveryID string, paylo
 		)
 		logger.Warn().Str(LogKeyAudit, eventType).Msg(auditMessage)
 
+		// unlike in other code, use a single context here because we want to
+		// replace a forged context with a failure, not post a general status
+		// if multiple contexts are forged, we will handle multiple events
 		status := &github.RepoStatus{
 			Context:     event.Context,
 			State:       github.String("failure"),
