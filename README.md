@@ -323,7 +323,7 @@ It should be subscribed to the following events:
 
 There is a [`logo.png`](https://github.com/palantir/policy-bot/blob/develop/logo.png)
 provided if you'd like to use it as the GitHub application logo. The background
-color is `#4d4d4d`
+color is `#4d4d4d`.
 
 ### Operations
 
