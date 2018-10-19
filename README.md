@@ -51,28 +51,28 @@ The overall policy is expressed by:
 - A set of policies that combine the rules or define additional options
 
 Consider the following example, which allows changes to certain paths without
-review, but all other changes require review from the `devtools/infrastructure`.
-Any member of the `devtools` organization can also disapprove changes.
+review, but all other changes require review from the `palantir/devtools`.
+Any member of the `palantir` organization can also disapprove changes.
 
 ```yaml
 # the high level policy
 policy:
   approval:
     - or:
-      - the infrastructure team has approved
+      - the devtools team has approved
       - only staging files have changed
   disapproval:
     requires:
       organizations:
-        - "devtools"
+        - "palantir"
 
 # the list of rules
 approval_rules:
-  - name: the infrastructure team has approved
+  - name: the devtools team has approved
     requires:
       count: 1
       teams:
-        - "devtools/infrastructure"
+        - "palantir/devtools"
   - name: only staging files have changed
     if:
       only_changed_files:
