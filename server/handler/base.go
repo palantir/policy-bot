@@ -81,7 +81,7 @@ func (b *Base) PostStatus(ctx context.Context, client *github.Client, pr *github
 	publicURL := strings.TrimSuffix(b.BaseConfig.PublicURL, "/")
 	detailsURL := fmt.Sprintf("%s/details/%s/%s/%d", publicURL, owner, repo, pr.GetNumber())
 
-	contextWithBranch := fmt.Sprintf("%s: %s", b.PullOpts.StatusCheckContext, pr.GetBase().GetLabel())
+	contextWithBranch := fmt.Sprintf("%s: %s", b.PullOpts.StatusCheckContext, pr.GetBase().GetRef())
 	status := &github.RepoStatus{
 		Context:     &contextWithBranch,
 		State:       &state,
