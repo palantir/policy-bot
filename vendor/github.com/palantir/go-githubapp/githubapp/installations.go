@@ -105,14 +105,22 @@ func (i defaultInstallationsService) ListAll(ctx context.Context) ([]Installatio
 
 func (i defaultInstallationsService) GetByOwner(ctx context.Context, owner string) (Installation, error) {
 	installation, _, err := i.Apps.FindOrganizationInstallation(ctx, owner)
-	if err != nil {
-		if isNotFound(err) {
-			return Installation{}, InstallationNotFound(owner)
-		}
-		return Installation{}, errors.Wrapf(err, "failed to list installation for owner %q", owner)
+	if err == nil {
+		return toInstallation(installation), nil
 	}
 
-	return toInstallation(installation), nil
+	// owner is not an organization, try to find as a user
+	if isNotFound(err) {
+		installation, _, err = i.Apps.FindUserInstallation(ctx, owner)
+		if err == nil {
+			return toInstallation(installation), nil
+		}
+	}
+
+	if isNotFound(err) {
+		return Installation{}, InstallationNotFound(owner)
+	}
+	return Installation{}, errors.Wrapf(err, "failed to get installation for owner %q", owner)
 }
 
 // InstallationNotFound is returned when no installation exists for a
