@@ -162,8 +162,10 @@ func New(c *Config) (*Server, error) {
 
 // Start is blocking and long-running
 func (s *Server) Start() error {
-	if err := datadog.StartEmitter(s.base, s.config.Datadog); err != nil {
-		return err
+	if s.config.Datadog.Address != "" {
+		if err := datadog.StartEmitter(s.base, s.config.Datadog); err != nil {
+			return err
+		}
 	}
 	return s.base.Start()
 }
