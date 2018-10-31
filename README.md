@@ -1,5 +1,7 @@
 # policy-bot
 
+[![Download](https://api.bintray.com/packages/palantir/releases/policy-bot/images/download.svg)](https://bintray.com/palantir/releases/policy-bot/_latestVersion) [![Docker Pulls](https://img.shields.io/docker/pulls/palantirtechnologies/policy-bot.svg)](https://hub.docker.com/r/palantirtechnologies/policy-bot/)
+
 `policy-bot` is a [GitHub App](https://developer.github.com/apps/) for enforcing
 approval policies on pull requests. It does this by creating a status check,
 which can be configured as a [required status check][].
@@ -298,8 +300,12 @@ this case, `policy-bot` must be installed on all referenced organizations.
 other than GitHub. It is also safe to run multiple instances of the server,
 making it a good fit for container schedulers like Nomad or Kubernetes.
 
-We provide both a Docker container and a binary distribution of the server. A
-sample configuration file is provided at `config/policy-bot.example.yml`. We
+We provide both a Docker container and a binary distribution of the server:
+
+- Binaries: https://bintray.com/palantir/releases/policy-bot
+- Docker Images: https://hub.docker.com/r/palantirtechnologies/policy-bot/
+
+A sample configuration file is provided at `config/policy-bot.example.yml`. We
 recommend deploying the application behind a reverse proxy or load balancer
 that terminates TLS connections.
 
