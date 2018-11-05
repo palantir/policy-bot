@@ -42,7 +42,7 @@ running your own instance of the server.
 
 - If the file does not exist, the `policy-bot` status check is not posted. This
   means it is safe to enable `policy-bot` on all repositories in an organization.
-- The `.policy.yml` file is read from most recent commit on the target branch
+- The `.policy.yml` file is read from the most recent commit on the target branch
   of each pull request.
 
 ### policy.yml Specification
