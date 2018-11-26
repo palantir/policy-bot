@@ -18,6 +18,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
@@ -32,52 +33,61 @@ func TestIsApproved(t *testing.T) {
 	logger := zerolog.New(os.Stdout)
 	ctx := logger.WithContext(context.Background())
 
+	now := time.Now()
 	prctx := &pulltest.Context{
 		AuthorValue: "mhaypenny",
 		CommentsValue: []*pull.Comment{
 			{
-				Order:  10,
-				Author: "other-user",
-				Body:   "Why did you do this?",
+				Order:        10,
+				Author:       "other-user",
+				Body:         "Why did you do this?",
+				LastModified: now.Add(1 * time.Second),
 			},
 			{
-				Order:  20,
-				Author: "comment-approver",
-				Body:   "LGTM :+1: :shipit:",
+				Order:        20,
+				Author:       "comment-approver",
+				Body:         "LGTM :+1: :shipit:",
+				LastModified: now.Add(2 * time.Second),
 			},
 			{
-				Order:  30,
-				Author: "disapprover",
-				Body:   "I don't like things! :-1:",
+				Order:        30,
+				Author:       "disapprover",
+				Body:         "I don't like things! :-1:",
+				LastModified: now.Add(3 * time.Second),
 			},
 			{
-				Order:  40,
-				Author: "mhaypenny",
-				Body:   ":+1: my stuff is cool",
+				Order:        40,
+				Author:       "mhaypenny",
+				Body:         ":+1: my stuff is cool",
+				LastModified: now.Add(4 * time.Second),
 			},
 			{
-				Order:  50,
-				Author: "contributor-author",
-				Body:   ":+1: I added to this PR",
+				Order:        50,
+				Author:       "contributor-author",
+				Body:         ":+1: I added to this PR",
+				LastModified: now.Add(5 * time.Second),
 			},
 			{
-				Order:  60,
-				Author: "contributor-committer",
-				Body:   ":+1: I also added to this PR",
+				Order:        60,
+				Author:       "contributor-committer",
+				Body:         ":+1: I also added to this PR",
+				LastModified: now.Add(6 * time.Second),
 			},
 		},
 		ReviewsValue: []*pull.Review{
 			{
-				Order:  70,
-				Author: "disapprover",
-				State:  pull.ReviewChangesRequested,
-				Body:   "I _really_ don't like things!",
+				Order:        70,
+				Author:       "disapprover",
+				State:        pull.ReviewChangesRequested,
+				Body:         "I _really_ don't like things!",
+				LastModified: now.Add(7 * time.Second),
 			},
 			{
-				Order:  80,
-				Author: "review-approver",
-				State:  pull.ReviewApproved,
-				Body:   "I LIKE THIS",
+				Order:        80,
+				Author:       "review-approver",
+				State:        pull.ReviewApproved,
+				Body:         "I LIKE THIS",
+				LastModified: now.Add(8 * time.Second),
 			},
 		},
 		CommitsValue: []*pull.Commit{

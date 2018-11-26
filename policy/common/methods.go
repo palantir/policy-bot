@@ -46,6 +46,10 @@ func (cs CandidatesByModifiedTime) Less(i, j int) bool {
 	return cs[i].LastModified.Before(cs[j].LastModified)
 }
 
+// Candidates returns a list of user candidates based on the configured
+// methods. A given user will appear at most once in the list. If that user has
+// taken multiple actions that match the methods, only the most recent by event
+// order is included. The order of the candidates is unspecified.
 func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candidate, error) {
 	var candidates []*Candidate
 
@@ -83,7 +87,24 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 		}
 	}
 
-	return candidates, nil
+	return deduplicateCandidates(candidates), nil
+}
+
+func deduplicateCandidates(all []*Candidate) []*Candidate {
+	users := make(map[string]*Candidate)
+	for _, c := range all {
+		last, ok := users[c.User]
+		if !ok || last.Order < c.Order {
+			users[c.User] = c
+		}
+	}
+
+	candidates := make([]*Candidate, 0, len(users))
+	for _, c := range users {
+		candidates = append(candidates, c)
+	}
+
+	return candidates
 }
 
 func (m *Methods) CommentMatches(commentBody string) bool {
