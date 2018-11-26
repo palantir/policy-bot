@@ -34,28 +34,34 @@ func TestCandidates(t *testing.T) {
 			{
 				Body:   "I like to comment!",
 				Author: "rrandom",
+				Order:  0,
 			},
 			{
 				Body:   "Looks good to me :+1:",
 				Author: "mhaypenny",
+				Order:  2,
 			},
 			{
 				Body:   ":lgtm:",
 				Author: "ttest",
+				Order:  4,
 			},
 		},
 		ReviewsValue: []*pull.Review{
 			{
 				Author: "rrandom",
 				State:  pull.ReviewCommented,
+				Order:  1,
 			},
 			{
 				Author: "mhaypenny",
 				State:  pull.ReviewChangesRequested,
+				Order:  3,
 			},
 			{
 				Author: "ttest",
 				State:  pull.ReviewApproved,
+				Order:  5,
 			},
 		},
 	}
@@ -84,6 +90,21 @@ func TestCandidates(t *testing.T) {
 
 		require.Len(t, cs, 1, "incorrect number of candidates found")
 		assert.Equal(t, "mhaypenny", cs[0].User)
+	})
+
+	t.Run("deduplicate", func(t *testing.T) {
+		m := &Methods{
+			Comments:          []string{":+1:", ":lgtm:"},
+			GithubReview:      true,
+			GithubReviewState: pull.ReviewApproved,
+		}
+
+		cs, err := m.Candidates(ctx, prctx)
+		require.NoError(t, err)
+
+		require.Len(t, cs, 2, "incorrect number of candidates found")
+		assert.Equal(t, "mhaypenny", cs[0].User)
+		assert.Equal(t, "ttest", cs[1].User)
 	})
 }
 
