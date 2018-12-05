@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/google/go-github/github"
+	"github.com/shurcooL/githubv4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -269,6 +270,7 @@ func TestIsOrgMember(t *testing.T) {
 func makeContext(rp *ResponsePlayer) Context {
 	ctx := context.Background()
 	client := github.NewClient(&http.Client{Transport: rp})
+	v4client := githubv4.NewClient(&http.Client{Transport: rp})
 
 	base, _ := url.Parse("http://github.localhost/")
 	client.BaseURL = base
@@ -292,5 +294,5 @@ func makeContext(rp *ResponsePlayer) Context {
 		},
 	}
 
-	return NewGitHubContext(ctx, mbrCtx, client, pr)
+	return NewGitHubContext(ctx, mbrCtx, client, v4client, pr)
 }

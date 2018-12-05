@@ -58,6 +58,11 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 		return err
 	}
 
+	v4client, err := h.NewInstallationV4Client(installationID)
+	if err != nil {
+		return err
+	}
+
 	pr, _, err := client.PullRequests.Get(ctx, repo.GetOwner().GetLogin(), repo.GetName(), number)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get pull request %s/%s#%d", repo.GetOwner().GetLogin(), repo.GetName(), number)
@@ -80,7 +85,7 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 	}
 
 	mbrCtx := NewCrossOrgMembershipContext(ctx, client, repo.GetOwner().GetLogin(), h.Installations, h.ClientCreator)
-	return h.EvaluateFetchedConfig(ctx, mbrCtx, client, pr, fetchedConfig)
+	return h.EvaluateFetchedConfig(ctx, mbrCtx, client, v4client, pr, fetchedConfig)
 }
 
 func (h *IssueComment) detectAndLogTampering(ctx context.Context, client *github.Client, event github.IssueCommentEvent, pr *github.PullRequest, config *policy.Config) (bool, error) {
