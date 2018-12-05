@@ -24,19 +24,44 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type ResponsePlayer struct {
-	// Responses maps a URL path to a file name container response objects
-	Responses map[string]string
-
-	// Requests counts the number of requests receieve on each path
-	Requests map[string]int
+type RequestMatcher interface {
+	Matches(r *http.Request, body []byte) bool
 }
 
-func NewResponsePlayer(responses map[string]string) *ResponsePlayer {
-	return &ResponsePlayer{
-		Responses: responses,
-		Requests:  make(map[string]int),
+type ExactPathMatcher string
+
+func (m ExactPathMatcher) Matches(r *http.Request, body []byte) bool {
+	return r.URL.Path == string(m)
+}
+
+type Rule struct {
+	Matcher RequestMatcher
+	Count   int
+
+	responses []SavedResponse
+	err       error
+}
+
+type ResponsePlayer struct {
+	Rules []*Rule
+}
+
+func (rp *ResponsePlayer) AddRule(matcher RequestMatcher, file string) *Rule {
+	rule := &Rule{Matcher: matcher}
+	rp.Rules = append(rp.Rules, rule)
+
+	d, err := ioutil.ReadFile(file)
+	if err != nil {
+		rule.err = errors.Wrapf(err, "failed to read response file: %s", file)
+		return rule
 	}
+
+	if err := yaml.Unmarshal(d, &rule.responses); err != nil {
+		rule.err = errors.Wrapf(err, "failed to unmarshal response file: %s", file)
+		return rule
+	}
+
+	return rule
 }
 
 type SavedResponse struct {
@@ -68,35 +93,41 @@ func (r *SavedResponse) Response(req *http.Request) *http.Response {
 	}
 }
 
-func (rp *ResponsePlayer) RoundTrip(req *http.Request) (*http.Response, error) {
-	path := req.URL.Path
+func (rp *ResponsePlayer) findMatch(req *http.Request) *Rule {
+	var body []byte
 	if req.Body != nil {
+		body, _ = ioutil.ReadAll(req.Body)
 		_ = req.Body.Close()
 	}
 
-	resFile, ok := rp.Responses[path]
-	if !ok {
-		return errorResponse(req, http.StatusNotFound, fmt.Sprintf("no saved response for path %s", path))
+	for _, rule := range rp.Rules {
+		if rule.Matcher.Matches(req, body) {
+			return rule
+		}
+	}
+	return nil
+}
+
+func (rp *ResponsePlayer) RoundTrip(req *http.Request) (*http.Response, error) {
+	rule := rp.findMatch(req)
+	if rule == nil {
+		return errorResponse(req, http.StatusNotFound, fmt.Sprintf("no matching rule for \"%s %s\"", req.Method, req.URL.Path))
 	}
 
-	d, err := ioutil.ReadFile(resFile)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to read response file")
+	// report any error encountered during loading
+	if rule.err != nil {
+		return nil, rule.err
 	}
 
-	var responses []SavedResponse
-	if err := yaml.Unmarshal(d, &responses); err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal response file")
+	// fail if there are no responses
+	if len(rule.responses) == 0 {
+		return errorResponse(req, http.StatusNotFound, fmt.Sprintf("no responses for \"%s %s\"", req.Method, req.URL.Path))
 	}
 
-	if len(responses) == 0 {
-		return errorResponse(req, http.StatusNotFound, fmt.Sprintf("no saved response for path %s", path))
-	}
+	index := rule.Count % len(rule.responses)
+	rule.Count++
 
-	index := rp.Requests[path] % len(responses)
-	rp.Requests[path]++
-
-	return responses[index].Response(req), nil
+	return rule.responses[index].Response(req), nil
 }
 
 func errorResponse(req *http.Request, code int, msg string) (*http.Response, error) {

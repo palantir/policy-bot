@@ -1,14 +1,28 @@
 - status: 200
   body: |
-    [
-      {
-        "user": {
-          "login": "bkeyes"
-        },
-        "body": "the body",
-        "commit_id": "62e907b044e365119ee9310f8dda1927a316d70d",
-        "submitted_at": "2018-06-27T20:33:26Z",
-        "state": "approved",
-        "event": "reviewed"
+    {
+      "errors": [],
+      "data": {
+        "repository": {
+          "pullRequest": {
+            "timeline": {
+              "pageInfo": {
+                "endCursor": null,
+                "hasNextPage": false
+              },
+              "nodes": [
+                {
+                  "__typename": "PullRequestReview",
+                  "author": {
+                    "login": "bkeyes"
+                  },
+                  "state": "APPROVED",
+                  "body": "the body",
+                  "submittedAt": "2018-06-27T20:33:26Z"
+                }
+              ]
+            }
+          }
+        }
       }
-    ]
+    }

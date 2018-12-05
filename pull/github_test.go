@@ -28,40 +28,42 @@ import (
 )
 
 func TestAuthor(t *testing.T) {
-	endpoint := "/repos/testorg/testrepo/pulls/123"
+	rp := &ResponsePlayer{}
+	pullsRule := rp.AddRule(
+		ExactPathMatcher("/repos/testorg/testrepo/pulls/123"),
+		"testdata/responses/pull_author.yml",
+	)
 
-	rp := NewResponsePlayer(map[string]string{
-		endpoint: "testdata/responses/pull_author.yml",
-	})
 	ctx := makeContext(rp)
 
 	author, err := ctx.Author()
 	require.NoError(t, err)
 
 	assert.Equal(t, "mhaypenny", author)
-	assert.Equal(t, 1, rp.Requests[endpoint], "no http request was made")
+	assert.Equal(t, 1, pullsRule.Count, "no http request was made")
 
 	author, err = ctx.Author()
 	require.NoError(t, err)
 
 	// verify that the pull request is cached
 	assert.Equal(t, "mhaypenny", author)
-	assert.Equal(t, 1, rp.Requests[endpoint], "cached pull request was not used")
+	assert.Equal(t, 1, pullsRule.Count, "cached pull request was not used")
 }
 
 func TestChangedFiles(t *testing.T) {
-	endpoint := "/repos/testorg/testrepo/pulls/123/files"
+	rp := &ResponsePlayer{}
+	filesRule := rp.AddRule(
+		ExactPathMatcher("/repos/testorg/testrepo/pulls/123/files"),
+		"testdata/responses/pull_files.yml",
+	)
 
-	rp := NewResponsePlayer(map[string]string{
-		endpoint: "testdata/responses/pull_files.yml",
-	})
 	ctx := makeContext(rp)
 
 	files, err := ctx.ChangedFiles()
 	require.NoError(t, err)
 
 	require.Len(t, files, 3, "incorrect number of files")
-	assert.Equal(t, 2, rp.Requests[endpoint], "no http request was made")
+	assert.Equal(t, 2, filesRule.Count, "no http request was made")
 
 	assert.Equal(t, "path/foo.txt", files[0].Filename)
 	assert.Equal(t, FileAdded, files[0].Status)
@@ -77,25 +79,23 @@ func TestChangedFiles(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, files, 3, "incorrect number of files")
-	assert.Equal(t, 2, rp.Requests[endpoint], "cached files were not used")
+	assert.Equal(t, 2, filesRule.Count, "cached files were not used")
 }
 
 func TestCommits(t *testing.T) {
-	endpointTimeline := "/repos/testorg/testrepo/issues/123/timeline"
-	endpointCommits := "/repos/testorg/testrepo/pulls/123/commits"
+	rp := &ResponsePlayer{}
+	timelineRule := rp.AddRule(
+		GraphQLNodePrefixMatcher("repository.pullRequest.timeline"),
+		"testdata/responses/timeline_commits.yml",
+	)
 
-	rp := NewResponsePlayer(map[string]string{
-		endpointTimeline: "testdata/responses/timeline_commits.yml",
-		endpointCommits:  "testdata/responses/pull_commits.yml",
-	})
 	ctx := makeContext(rp)
 
 	commits, err := ctx.Commits()
 	require.NoError(t, err)
 
 	require.Len(t, commits, 3, "incorrect number of commits")
-	assert.Equal(t, 2, rp.Requests[endpointTimeline], "no http request was made to timeline")
-	assert.Equal(t, 2, rp.Requests[endpointCommits], "no http request was made to commits")
+	assert.Equal(t, 2, timelineRule.Count, "no http request was made to timeline")
 
 	assert.Equal(t, "a6f3f69b64eaafece5a0d854eb4af11c0d64394c", commits[0].SHA)
 	assert.Equal(t, "mhaypenny", commits[0].Author)
@@ -117,23 +117,23 @@ func TestCommits(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, commits, 3, "incorrect number of commits")
-	assert.Equal(t, 2, rp.Requests[endpointTimeline], "cached commits were not used for timeline")
-	assert.Equal(t, 2, rp.Requests[endpointCommits], "cached commits were not used for commits")
+	assert.Equal(t, 2, timelineRule.Count, "cached commits were not used for timeline")
 }
 
 func TestReviews(t *testing.T) {
-	endpoint := "/repos/testorg/testrepo/issues/123/timeline"
+	rp := &ResponsePlayer{}
+	timelineRule := rp.AddRule(
+		GraphQLNodePrefixMatcher("repository.pullRequest.timeline"),
+		"testdata/responses/timeline_review.yml",
+	)
 
-	rp := NewResponsePlayer(map[string]string{
-		endpoint: "testdata/responses/timeline_review.yml",
-	})
 	ctx := makeContext(rp)
 
 	reviews, err := ctx.Reviews()
 	require.NoError(t, err)
 
 	require.Len(t, reviews, 1, "incorrect number of reviews")
-	assert.Equal(t, 1, rp.Requests[endpoint], "no http request was made")
+	assert.Equal(t, 1, timelineRule.Count, "no http request was made")
 
 	expectedTime, err := time.Parse(time.RFC3339, "2018-06-27T20:33:26Z")
 	assert.NoError(t, err)
@@ -149,22 +149,23 @@ func TestReviews(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, reviews, 1, "incorrect number of reviews")
-	assert.Equal(t, 1, rp.Requests[endpoint], "cached reviews were not used")
+	assert.Equal(t, 1, timelineRule.Count, "cached reviews were not used")
 }
 
 func TestComments(t *testing.T) {
-	endpoint := "/repos/testorg/testrepo/issues/123/timeline"
+	rp := &ResponsePlayer{}
+	timelineRule := rp.AddRule(
+		GraphQLNodePrefixMatcher("repository.pullRequest.timeline"),
+		"testdata/responses/timeline_comments.yml",
+	)
 
-	rp := NewResponsePlayer(map[string]string{
-		endpoint: "testdata/responses/timeline_comments.yml",
-	})
 	ctx := makeContext(rp)
 
 	comments, err := ctx.Comments()
 	require.NoError(t, err)
 
 	require.Len(t, comments, 1, "incorrect number of comments")
-	assert.Equal(t, 1, rp.Requests[endpoint], "no http request was made")
+	assert.Equal(t, 1, timelineRule.Count, "no http request was made")
 
 	expectedTime, err := time.Parse(time.RFC3339, "2018-06-27T20:28:22Z")
 	assert.NoError(t, err)
@@ -179,92 +180,104 @@ func TestComments(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, comments, 1, "incorrect number of comments")
-	assert.Equal(t, 1, rp.Requests[endpoint], "cached comments were not used")
+	assert.Equal(t, 1, timelineRule.Count, "cached comments were not used")
 }
 
 func TestIsTeamMember(t *testing.T) {
-	endpointTeams := "/orgs/testorg/teams"
-	endpointYes1 := "/teams/123/memberships/mhaypenny"
-	endpointYes2 := "/teams/123/memberships/ttest"
-	endpointNo1 := "/teams/456/memberships/mhaypenny"
-	endpointNo2 := "/teams/456/memberships/ttest"
+	rp := &ResponsePlayer{}
+	teamsRule := rp.AddRule(
+		ExactPathMatcher("/orgs/testorg/teams"),
+		"testdata/responses/teams_testorg.yml",
+	)
+	yesRule1 := rp.AddRule(
+		ExactPathMatcher("/teams/123/memberships/mhaypenny"),
+		"testdata/responses/membership_team123_mhaypenny.yml",
+	)
+	yesRule2 := rp.AddRule(
+		ExactPathMatcher("/teams/123/memberships/ttest"),
+		"testdata/responses/membership_team123_ttest.yml",
+	)
+	noRule1 := rp.AddRule(
+		ExactPathMatcher("/teams/456/memberships/mhaypenny"),
+		"testdata/responses/membership_team456_mhaypenny.yml",
+	)
+	noRule2 := rp.AddRule(
+		ExactPathMatcher("/teams/456/memberships/ttest"),
+		"testdata/responses/membership_team456_ttest.yml",
+	)
 
-	rp := NewResponsePlayer(map[string]string{
-		endpointTeams: "testdata/responses/teams_testorg.yml",
-		endpointYes1:  "testdata/responses/membership_team123_mhaypenny.yml",
-		endpointYes2:  "testdata/responses/membership_team123_ttest.yml",
-		endpointNo1:   "testdata/responses/membership_team456_mhaypenny.yml",
-		endpointNo2:   "testdata/responses/membership_team456_ttest.yml",
-	})
 	ctx := makeContext(rp)
 
 	isMember, err := ctx.IsTeamMember("testorg/yes-team", "mhaypenny")
 	require.NoError(t, err)
 
 	assert.True(t, isMember, "user is not a member")
-	assert.Equal(t, 2, rp.Requests[endpointTeams], "no http request was made for teams")
-	assert.Equal(t, 1, rp.Requests[endpointYes1], "no http request was made")
+	assert.Equal(t, 2, teamsRule.Count, "no http request was made for teams")
+	assert.Equal(t, 1, yesRule1.Count, "no http request was made")
 
 	isMember, err = ctx.IsTeamMember("testorg/yes-team", "ttest")
 	require.NoError(t, err)
 
 	assert.True(t, isMember, "user is not a member")
-	assert.Equal(t, 2, rp.Requests[endpointTeams], "cached team IDs were not used")
-	assert.Equal(t, 1, rp.Requests[endpointYes2], "no http request was made")
+	assert.Equal(t, 2, teamsRule.Count, "cached team IDs were not used")
+	assert.Equal(t, 1, yesRule2.Count, "no http request was made")
 
 	// not a member because missing from team
 	isMember, err = ctx.IsTeamMember("testorg/no-team", "mhaypenny")
 	require.NoError(t, err)
 
 	assert.False(t, isMember, "user is a member")
-	assert.Equal(t, 2, rp.Requests[endpointTeams], "cached team IDs were not used")
-	assert.Equal(t, 1, rp.Requests[endpointNo1], "no http request was made")
+	assert.Equal(t, 2, teamsRule.Count, "cached team IDs were not used")
+	assert.Equal(t, 1, noRule1.Count, "no http request was made")
 
 	// not a member because membership state is pending
 	isMember, err = ctx.IsTeamMember("testorg/no-team", "ttest")
 	require.NoError(t, err)
 
 	assert.False(t, isMember, "user is a member")
-	assert.Equal(t, 2, rp.Requests[endpointTeams], "cached team IDs were not used")
-	assert.Equal(t, 1, rp.Requests[endpointNo2], "no http request was made")
+	assert.Equal(t, 2, teamsRule.Count, "cached team IDs were not used")
+	assert.Equal(t, 1, noRule2.Count, "no http request was made")
 
 	// verify that team membership is cached
 	isMember, err = ctx.IsTeamMember("testorg/yes-team", "mhaypenny")
 	require.NoError(t, err)
 
 	assert.True(t, isMember, "user is not a member")
-	assert.Equal(t, 2, rp.Requests[endpointTeams], "cached team IDs were not used")
-	assert.Equal(t, 1, rp.Requests[endpointYes1], "cached membership was not used")
+	assert.Equal(t, 2, teamsRule.Count, "cached team IDs were not used")
+	assert.Equal(t, 1, yesRule1.Count, "cached membership was not used")
 }
 
 func TestIsOrgMember(t *testing.T) {
-	endpointYes := "/orgs/testorg/members/mhaypenny"
-	endpointNo := "/orgs/testorg/members/ttest"
+	rp := &ResponsePlayer{}
+	yesRule := rp.AddRule(
+		ExactPathMatcher("/orgs/testorg/members/mhaypenny"),
+		"testdata/responses/membership_testorg_mhaypenny.yml",
+	)
+	noRule := rp.AddRule(
+		ExactPathMatcher("/orgs/testorg/members/ttest"),
+		"testdata/responses/membership_testorg_ttest.yml",
+	)
 
-	rp := NewResponsePlayer(map[string]string{
-		endpointYes: "testdata/responses/membership_testorg_mhaypenny.yml",
-		endpointNo:  "testdata/responses/membership_testorg_ttest.yml",
-	})
 	ctx := makeContext(rp)
 
 	isMember, err := ctx.IsOrgMember("testorg", "mhaypenny")
 	require.NoError(t, err)
 
 	assert.True(t, isMember, "user is not a member")
-	assert.Equal(t, 1, rp.Requests[endpointYes], "no http request was made")
+	assert.Equal(t, 1, yesRule.Count, "no http request was made")
 
 	isMember, err = ctx.IsOrgMember("testorg", "ttest")
 	require.NoError(t, err)
 
 	assert.False(t, isMember, "user is a member")
-	assert.Equal(t, 1, rp.Requests[endpointNo], "no http request was made")
+	assert.Equal(t, 1, noRule.Count, "no http request was made")
 
 	// verify that org membership is cached
 	isMember, err = ctx.IsOrgMember("testorg", "mhaypenny")
 	require.NoError(t, err)
 
 	assert.True(t, isMember, "user is not a member")
-	assert.Equal(t, 1, rp.Requests[endpointYes], "cached membership was not used")
+	assert.Equal(t, 1, yesRule.Count, "cached membership was not used")
 }
 
 func makeContext(rp *ResponsePlayer) Context {
