@@ -207,7 +207,7 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 		return false, msg, nil
 	}
 
-	msg := fmt.Sprintf("%s needed", numberOfApprovals(remaining))
+	msg := fmt.Sprintf("%s needed (of required %d)", numberOfApprovals(remaining), r.Requires.Count)
 	return false, msg, nil
 }
 
