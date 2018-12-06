@@ -105,10 +105,6 @@ func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
 			opt.Page = res.NextPage
 		}
 
-		if len(allFiles) >= MaxPullRequestFiles {
-			return nil, errors.Errorf("too many files in pull request, maximum is %d", MaxPullRequestFiles)
-		}
-
 		for _, f := range allFiles {
 			var status FileStatus
 			switch f.GetStatus() {
@@ -128,6 +124,9 @@ func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
 			})
 		}
 	}
+	if len(ghc.files) >= MaxPullRequestFiles {
+		return nil, errors.Errorf("too many files in pull request, maximum is %d", MaxPullRequestFiles)
+	}
 	return ghc.files, nil
 }
 
@@ -136,9 +135,9 @@ func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 		if err := ghc.loadTimeline(); err != nil {
 			return nil, errors.Wrap(err, "failed to fetch commits")
 		}
-		if len(ghc.commits) >= MaxPullRequestCommits {
-			return nil, errors.Errorf("too many commits in pull request, maximum is %d", MaxPullRequestCommits)
-		}
+	}
+	if len(ghc.commits) >= MaxPullRequestCommits {
+		return nil, errors.Errorf("too many commits in pull request, maximum is %d", MaxPullRequestCommits)
 	}
 	return ghc.commits, nil
 }
