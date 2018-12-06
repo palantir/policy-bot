@@ -110,7 +110,7 @@ func TestCommits(t *testing.T) {
 	assert.Equal(t, "e05fcae367230ee709313dd2720da527d178ce43", commits[2].SHA)
 	assert.Equal(t, "ttest", commits[2].Author)
 	assert.Equal(t, "mhaypenny", commits[2].Committer)
-	assert.Equal(t, 2, commits[2].Order)
+	assert.Equal(t, 3, commits[2].Order)
 
 	// verify that the commit list is cached
 	commits, err = ctx.Commits()

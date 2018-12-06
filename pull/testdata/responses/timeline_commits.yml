@@ -29,7 +29,7 @@
                 {
                   "__typename": "Commit",
                   "oid": "1fc89f1cedf8e3f3ce516ab75b5952295c8ea5e9",
-                  "pushedDate": null,
+                  "pushedDate": "2018-12-04T12:34:56Z",
                   "author": {
                     "user": {
                       "login": "mhaypenny"
@@ -63,7 +63,7 @@
                 {
                   "__typename": "Commit",
                   "oid": "e05fcae367230ee709313dd2720da527d178ce43",
-                  "pushedDate": null,
+                  "pushedDate": "2018-12-06T12:34:56Z",
                   "author": {
                     "user": {
                       "login": "ttest"
@@ -74,6 +74,14 @@
                       "login": "mhaypenny"
                     }
                   }
+                },
+                {
+                  "__typename": "IssueComment",
+                  "author": {
+                    "login": "bkeyes"
+                  },
+                  "body": ":+1:",
+                  "createdAt": "2018-12-05T12:34:56Z"
                 }
               ]
             }
