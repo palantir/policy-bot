@@ -76,6 +76,8 @@ func TestCandidates(t *testing.T) {
 		cs, err := m.Candidates(ctx, prctx)
 		require.NoError(t, err)
 
+		sort.Sort(CandidatesByCreationTime(cs))
+
 		require.Len(t, cs, 2, "incorrect number of candidates found")
 		assert.Equal(t, "mhaypenny", cs[0].User)
 		assert.Equal(t, "ttest", cs[1].User)
@@ -90,6 +92,8 @@ func TestCandidates(t *testing.T) {
 		cs, err := m.Candidates(ctx, prctx)
 		require.NoError(t, err)
 
+		sort.Sort(CandidatesByCreationTime(cs))
+
 		require.Len(t, cs, 1, "incorrect number of candidates found")
 		assert.Equal(t, "mhaypenny", cs[0].User)
 	})
@@ -103,6 +107,8 @@ func TestCandidates(t *testing.T) {
 
 		cs, err := m.Candidates(ctx, prctx)
 		require.NoError(t, err)
+
+		sort.Sort(CandidatesByCreationTime(cs))
 
 		require.Len(t, cs, 2, "incorrect number of candidates found")
 		assert.Equal(t, "mhaypenny", cs[0].User)
@@ -130,7 +136,7 @@ func TestCandidatesByCreationTime(t *testing.T) {
 		},
 	}
 
-	sort.Stable(CandidatesByCreationTime(cs))
+	sort.Sort(CandidatesByCreationTime(cs))
 
 	for i, u := range []string{"a", "b", "c", "d"} {
 		assert.Equalf(t, u, cs[i].User, "candidate at position %d is incorrect", i)
