@@ -148,7 +148,7 @@ func TestIsApproved(t *testing.T) {
 				Count: 1,
 			},
 		}
-		assertPending(t, r, "1 approval needed. Ignored 5 approvals from disqualified users")
+		assertPending(t, r, "0/1 approvals required. Ignored 5 approvals from disqualified users")
 	})
 
 	t.Run("authorCannotApprove", func(t *testing.T) {
@@ -215,7 +215,7 @@ func TestIsApproved(t *testing.T) {
 				},
 			},
 		}
-		assertPending(t, r, "1 approval needed. Ignored 5 approvals from disqualified users")
+		assertPending(t, r, "0/1 approvals required. Ignored 5 approvals from disqualified users")
 	})
 
 	t.Run("specificOrgApproves", func(t *testing.T) {
@@ -237,7 +237,7 @@ func TestIsApproved(t *testing.T) {
 				},
 			},
 		}
-		assertPending(t, r, "1 approval needed. Ignored 5 approvals from disqualified users")
+		assertPending(t, r, "0/1 approvals required. Ignored 5 approvals from disqualified users")
 	})
 
 	t.Run("specificOrgsOrUserApproves", func(t *testing.T) {
@@ -276,7 +276,7 @@ func TestIsApproved(t *testing.T) {
 
 		// set the commit after the comment
 		prctx.CommitsValue[0].Order = 25
-		assertPending(t, r, "1 approval needed. Ignored 4 approvals from disqualified users")
+		assertPending(t, r, "0/1 approvals required. Ignored 4 approvals from disqualified users")
 
 		// set the commit before the comment
 		prctx.CommitsValue[0].Order = 15
@@ -306,7 +306,7 @@ func TestIsApproved(t *testing.T) {
 
 		// set the commit after the review
 		prctx.CommitsValue[0].Order = 85
-		assertPending(t, r, "1 approval needed")
+		assertPending(t, r, "0/1 approvals required")
 
 		// set the commit before the review
 		prctx.CommitsValue[0].Order = 75
