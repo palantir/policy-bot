@@ -306,7 +306,7 @@ func TestIsApproved(t *testing.T) {
 
 		// set the commit after the review
 		prctx.CommitsValue[0].Order = 85
-		assertPending(t, r, "1 approval needed (of required 1)")
+		assertPending(t, r, "0/1 approvals required")
 
 		// set the commit before the review
 		prctx.CommitsValue[0].Order = 75
