@@ -45,9 +45,10 @@ type Rule struct {
 }
 
 type Options struct {
-	AllowAuthor      bool `yaml:"allow_author"`
-	AllowContributor bool `yaml:"allow_contributor"`
-	InvalidateOnPush bool `yaml:"invalidate_on_push"`
+	AllowAuthor        bool `yaml:"allow_author"`
+	AllowContributor   bool `yaml:"allow_contributor"`
+	InvalidateOnPush   bool `yaml:"invalidate_on_push"`
+	IgnoreUpdateMerges bool `yaml:"ignore_update_merges"`
 
 	Methods *common.Methods `yaml:"methods"`
 }
@@ -123,9 +124,9 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 	sort.Stable(common.CandidatesByCreationTime(candidates))
 
 	if r.Options.InvalidateOnPush {
-		commits, err := prctx.Commits()
+		commits, err := r.filteredCommits(prctx)
 		if err != nil {
-			return false, "", errors.Wrap(err, "failed to get commits")
+			return false, "", err
 		}
 
 		lastCommitTime := commits[len(commits)-1].CreatedAt
@@ -157,7 +158,7 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 
 	// "contributor" is any user who added a commit to the PR
 	if !r.Options.AllowContributor {
-		commits, err := prctx.Commits()
+		commits, err := r.filteredCommits(prctx)
 		if err != nil {
 			return false, "", err
 		}
@@ -211,10 +212,61 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 	return false, msg, nil
 }
 
+func (r *Rule) filteredCommits(prctx pull.Context) ([]*pull.Commit, error) {
+	commits, err := prctx.Commits()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list commits")
+	}
+
+	needsFiltering := r.Options.IgnoreUpdateMerges
+	if !needsFiltering {
+		return commits, nil
+	}
+
+	var filtered []*pull.Commit
+	for _, c := range commits {
+		isUpdate, err := isUpdateMerge(prctx, c)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to detemine update merge status")
+		}
+
+		switch {
+		case isUpdate:
+		default:
+			filtered = append(filtered, c)
+		}
+	}
+	return filtered, nil
+}
+
+func isUpdateMerge(prctx pull.Context, c *pull.Commit) (bool, error) {
+	// must be a simple merge commit (exactly 2 parents)
+	if len(c.Parents) != 2 {
+		return false, nil
+	}
+
+	// must be created via the UI or the API (no local merges)
+	if !c.CommittedViaWeb {
+		return false, nil
+	}
+
+	// one parent must exist in recent history on the target branch
+	targets, err := prctx.TargetCommits()
+	if err != nil {
+		return false, err
+	}
+	for _, target := range targets {
+		if c.Parents[0] == target.SHA || c.Parents[1] == target.SHA {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 func numberOfApprovals(count int) string {
 	if count == 1 {
 		return "1 approval"
 	}
-
 	return fmt.Sprintf("%d approvals", count)
 }
