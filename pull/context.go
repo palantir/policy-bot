@@ -125,4 +125,7 @@ type Review struct {
 	Author    string
 	State     ReviewState
 	Body      string
+
+	// ID is the GitHub node ID of the review, used to resolve dismissals
+	ID string
 }
