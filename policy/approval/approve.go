@@ -201,7 +201,7 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 	}
 
 	if len(candidates) > 0 && len(approvers) == 0 {
-		msg := fmt.Sprintf("%d/%d approvals needed. Ignored %s from disqualified users",
+		msg := fmt.Sprintf("%d/%d approvals required. Ignored %s from disqualified users",
 			len(approvers),
 			r.Requires.Count,
 			numberOfApprovals(len(candidates)))
