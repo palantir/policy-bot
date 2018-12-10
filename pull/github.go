@@ -231,11 +231,11 @@ func (ghc *GitHubContext) loadTimeline() error {
 	ghc.reviews = make([]*Review, 0)
 	ghc.comments = make([]*Comment, 0)
 
-	for i, event := range allEvents {
+	for _, event := range allEvents {
 		switch event.Type {
 		case "Commit":
 			ghc.commits = append(ghc.commits, &Commit{
-				Order:     i,
+				CreatedAt: event.CreatedAt(),
 				SHA:       event.Commit.OID,
 				Author:    event.Commit.Author.GetLogin(),
 				Committer: event.Commit.Committer.GetLogin(),
@@ -243,18 +243,16 @@ func (ghc *GitHubContext) loadTimeline() error {
 		case "PullRequestReview":
 			state := ReviewState(strings.ToLower(event.PullRequestReview.State))
 			ghc.reviews = append(ghc.reviews, &Review{
-				Order:        i,
-				Author:       event.PullRequestReview.Author.Login,
-				LastModified: event.PullRequestReview.SubmittedAt,
-				State:        state,
-				Body:         event.PullRequestReview.Body,
+				CreatedAt: event.CreatedAt(),
+				Author:    event.PullRequestReview.Author.Login,
+				State:     state,
+				Body:      event.PullRequestReview.Body,
 			})
 		case "IssueComment":
 			ghc.comments = append(ghc.comments, &Comment{
-				Order:        i,
-				Author:       event.IssueComment.Author.Login,
-				LastModified: event.IssueComment.CreatedAt,
-				Body:         event.IssueComment.Body,
+				CreatedAt: event.CreatedAt(),
+				Author:    event.IssueComment.Author.Login,
+				Body:      event.IssueComment.Body,
 			})
 		}
 	}

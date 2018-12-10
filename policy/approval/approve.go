@@ -120,7 +120,7 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 	if err != nil {
 		return false, "", errors.Wrap(err, "failed to get approval candidates")
 	}
-	sort.Sort(common.CandidatesByModifiedTime(candidates))
+	sort.Stable(common.CandidatesByCreationTime(candidates))
 
 	if r.Options.InvalidateOnPush {
 		commits, err := prctx.Commits()
@@ -128,15 +128,14 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 			return false, "", errors.Wrap(err, "failed to get commits")
 		}
 
-		lastCommitOrder := commits[len(commits)-1].Order
+		lastCommitTime := commits[len(commits)-1].CreatedAt
 
 		var allowedCandidates []*common.Candidate
 		for _, candidate := range candidates {
-			if candidate.Order > lastCommitOrder {
+			if candidate.CreatedAt.After(lastCommitTime) {
 				allowedCandidates = append(allowedCandidates, candidate)
 			}
 		}
-
 		candidates = allowedCandidates
 	}
 

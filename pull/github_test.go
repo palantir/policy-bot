@@ -100,17 +100,14 @@ func TestCommits(t *testing.T) {
 	assert.Equal(t, "a6f3f69b64eaafece5a0d854eb4af11c0d64394c", commits[0].SHA)
 	assert.Equal(t, "mhaypenny", commits[0].Author)
 	assert.Equal(t, "mhaypenny", commits[0].Committer)
-	assert.Equal(t, 0, commits[0].Order)
 
 	assert.Equal(t, "1fc89f1cedf8e3f3ce516ab75b5952295c8ea5e9", commits[1].SHA)
 	assert.Equal(t, "mhaypenny", commits[1].Author)
 	assert.Equal(t, "mhaypenny", commits[1].Committer)
-	assert.Equal(t, 1, commits[1].Order)
 
 	assert.Equal(t, "e05fcae367230ee709313dd2720da527d178ce43", commits[2].SHA)
 	assert.Equal(t, "ttest", commits[2].Author)
 	assert.Equal(t, "mhaypenny", commits[2].Committer)
-	assert.Equal(t, 3, commits[2].Order)
 
 	// verify that the commit list is cached
 	commits, err = ctx.Commits()
@@ -138,9 +135,8 @@ func TestReviews(t *testing.T) {
 	expectedTime, err := time.Parse(time.RFC3339, "2018-06-27T20:33:26Z")
 	assert.NoError(t, err)
 
-	assert.Equal(t, 0, reviews[0].Order)
 	assert.Equal(t, "bkeyes", reviews[0].Author)
-	assert.Equal(t, expectedTime, reviews[0].LastModified)
+	assert.Equal(t, expectedTime, reviews[0].CreatedAt)
 	assert.Equal(t, ReviewApproved, reviews[0].State)
 	assert.Equal(t, "the body", reviews[0].Body)
 
@@ -170,9 +166,8 @@ func TestComments(t *testing.T) {
 	expectedTime, err := time.Parse(time.RFC3339, "2018-06-27T20:28:22Z")
 	assert.NoError(t, err)
 
-	assert.Equal(t, 0, comments[0].Order)
 	assert.Equal(t, "bkeyes", comments[0].Author)
-	assert.Equal(t, expectedTime, comments[0].LastModified)
+	assert.Equal(t, expectedTime, comments[0].CreatedAt)
 	assert.Equal(t, ":+1:", comments[0].Body)
 
 	// verify that the commit list is cached
