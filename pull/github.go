@@ -35,6 +35,11 @@ const (
 	// MaxPullRequestCommits is the max number of commits returned by GitHub
 	// https://developer.github.com/v3/pulls/#list-commits-on-a-pull-request
 	MaxPullRequestCommits = 250
+
+	// TargetCommitLimit is the max number of commits to retrieve from the
+	// target branch of a pull request. 100 items is the maximum that can be
+	// retrieved from the GitHub API without paging.
+	TargetCommitLimit = 100
 )
 
 // GitHubContext is a Context implementation that gets information from GitHub.
@@ -51,12 +56,13 @@ type GitHubContext struct {
 	pr     *github.PullRequest
 
 	// cached fields
-	files      []*File
-	commits    []*Commit
-	comments   []*Comment
-	reviews    []*Review
-	teamIDs    map[string]int64
-	membership map[string]bool
+	files         []*File
+	commits       []*Commit
+	targetCommits []*Commit
+	comments      []*Comment
+	reviews       []*Review
+	teamIDs       map[string]int64
+	membership    map[string]bool
 }
 
 func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *github.Client, v4client *githubv4.Client, pr *github.PullRequest) Context {
@@ -174,6 +180,51 @@ func (ghc *GitHubContext) Branches() (base string, head string, err error) {
 	return
 }
 
+func (ghc *GitHubContext) TargetCommits() ([]*Commit, error) {
+	if ghc.targetCommits == nil {
+		var q struct {
+			Repository struct {
+				Ref struct {
+					Target struct {
+						Commit struct {
+							History struct {
+								Nodes []*v4Commit
+							} `graphql:"history(first: $limit)"`
+						} `graphql:"... on Commit"`
+					}
+				} `graphql:"ref(qualifiedName: $ref)"`
+			} `graphql:"repository(owner: $owner, name: $name)"`
+		}
+		qvars := map[string]interface{}{
+			"owner": githubv4.String(ghc.owner),
+			"name":  githubv4.String(ghc.repo),
+			"ref":   githubv4.String(ghc.pr.GetBase().GetRef()),
+			"limit": githubv4.Int(TargetCommitLimit),
+		}
+
+		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
+			return nil, errors.Wrap(err, "failed to list target commits")
+		}
+
+		commits := q.Repository.Ref.Target.Commit.History.Nodes
+		ghc.targetCommits = make([]*Commit, len(commits))
+
+		// GitHub only records pushedDate for the HEAD commit in a batch push
+		// Backfill this to all other commits for the purpose of sorting
+		var lastPushed *time.Time
+		for i := len(commits) - 1; i >= 0; i-- {
+			if commits[i].PushedDate != nil {
+				lastPushed = commits[i].PushedDate
+			} else {
+				commits[i].PushedDate = lastPushed
+			}
+
+			ghc.targetCommits[i] = commits[i].ToCommit()
+		}
+	}
+	return ghc.targetCommits, nil
+}
+
 func (ghc *GitHubContext) loadTimeline() error {
 	var q struct {
 		Repository struct {
@@ -183,7 +234,7 @@ func (ghc *GitHubContext) loadTimeline() error {
 						EndCursor   githubv4.String
 						HasNextPage bool
 					}
-					Nodes []*timelineEvent
+					Nodes []*v4TimelineEvent
 				} `graphql:"timeline(first: 100, after: $cursor)"`
 			} `graphql:"pullRequest(number: $number)"`
 		} `graphql:"repository(owner: $owner, name: $name)"`
@@ -195,7 +246,7 @@ func (ghc *GitHubContext) loadTimeline() error {
 		"cursor": (*githubv4.String)(nil),
 	}
 
-	var allEvents []*timelineEvent
+	var allEvents []*v4TimelineEvent
 	for {
 		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
 			return errors.Wrap(err, "failed to list pull request timeline")
@@ -234,12 +285,7 @@ func (ghc *GitHubContext) loadTimeline() error {
 	for _, event := range allEvents {
 		switch event.Type {
 		case "Commit":
-			ghc.commits = append(ghc.commits, &Commit{
-				CreatedAt: event.CreatedAt(),
-				SHA:       event.Commit.OID,
-				Author:    event.Commit.Author.GetLogin(),
-				Committer: event.Commit.Committer.GetLogin(),
-			})
+			ghc.commits = append(ghc.commits, event.Commit.ToCommit())
 		case "PullRequestReview":
 			state := ReviewState(strings.ToLower(event.PullRequestReview.State))
 			ghc.reviews = append(ghc.reviews, &Review{
@@ -260,31 +306,26 @@ func (ghc *GitHubContext) loadTimeline() error {
 	return nil
 }
 
-type timelineEvent struct {
+type v4TimelineEvent struct {
 	Type string `graphql:"__typename"`
 
-	Commit struct {
-		OID        string
-		PushedDate *time.Time
-		Author     gitActor
-		Committer  gitActor
-	} `graphql:"... on Commit"`
+	Commit v4Commit `graphql:"... on Commit"`
 
 	PullRequestReview struct {
-		Author      actor
+		Author      v4Actor
 		State       string
 		Body        string
 		SubmittedAt time.Time
 	} `graphql:"... on PullRequestReview"`
 
 	IssueComment struct {
-		Author    actor
+		Author    v4Actor
 		Body      string
 		CreatedAt time.Time
 	} `graphql:"... on IssueComment"`
 }
 
-func (event *timelineEvent) CreatedAt() (t time.Time) {
+func (event *v4TimelineEvent) CreatedAt() (t time.Time) {
 	switch event.Type {
 	case "Commit":
 		if event.Commit.PushedDate != nil {
@@ -298,15 +339,49 @@ func (event *timelineEvent) CreatedAt() (t time.Time) {
 	return
 }
 
-type actor struct {
+type v4Commit struct {
+	OID             string
+	PushedDate      *time.Time
+	Author          v4GitActor
+	Committer       v4GitActor
+	CommittedViaWeb bool
+	Parents         struct {
+		Nodes []struct {
+			OID string
+		}
+	} `graphql:"parents(first: 10)"`
+}
+
+func (c *v4Commit) ToCommit() *Commit {
+	var parents []string
+	for _, p := range c.Parents.Nodes {
+		parents = append(parents, p.OID)
+	}
+
+	var createdAt time.Time
+	if c.PushedDate != nil {
+		createdAt = *c.PushedDate
+	}
+
+	return &Commit{
+		CreatedAt:       createdAt,
+		SHA:             c.OID,
+		Parents:         parents,
+		CommittedViaWeb: c.CommittedViaWeb,
+		Author:          c.Author.GetLogin(),
+		Committer:       c.Committer.GetLogin(),
+	}
+}
+
+type v4Actor struct {
 	Login string
 }
 
-type gitActor struct {
-	User *actor
+type v4GitActor struct {
+	User *v4Actor
 }
 
-func (ga gitActor) GetLogin() string {
+func (ga v4GitActor) GetLogin() string {
 	if ga.User != nil {
 		return ga.User.Login
 	}
