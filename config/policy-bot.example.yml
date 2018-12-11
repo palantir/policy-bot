@@ -19,7 +19,7 @@ github:
   # The base URL for v3 (REST) API requests
   v3_api_url: "https://api.github.com"
   # The base URL for v4 (GraphQL) API requests
-  v4_api_url: "https://api.github.com"
+  v4_api_url: "https://api.github.com/graphql"
   app:
     # The integration ID of the GitHub app
     integration_id: 1
