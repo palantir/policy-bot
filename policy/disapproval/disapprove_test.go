@@ -35,41 +35,41 @@ func TestIsDisapproved(t *testing.T) {
 	prctx := &pulltest.Context{
 		CommentsValue: []*pull.Comment{
 			{
-				Author:       "disapprover-1",
-				Body:         "me no like :-1:",
-				LastModified: date(0),
+				Author:    "disapprover-1",
+				Body:      "me no like :-1:",
+				CreatedAt: date(0),
 			},
 			{
-				Author:       "disapprover-1",
-				Body:         "nah, is fine :+1:",
-				LastModified: date(1),
+				Author:    "disapprover-1",
+				Body:      "nah, is fine :+1:",
+				CreatedAt: date(1),
 			},
 			{
-				Author:       "disapprover-2",
-				Body:         "me also no like :-1:",
-				LastModified: date(2),
+				Author:    "disapprover-2",
+				Body:      "me also no like :-1:",
+				CreatedAt: date(2),
 			},
 			{
-				Author:       "disapprover-3",
-				Body:         "and me :-1:",
-				LastModified: date(3),
+				Author:    "disapprover-3",
+				Body:      "and me :-1:",
+				CreatedAt: date(3),
 			},
 			{
-				Author:       "revoker-1",
-				Body:         "you all wrong :+1:",
-				LastModified: date(4),
+				Author:    "revoker-1",
+				Body:      "you all wrong :+1:",
+				CreatedAt: date(4),
 			},
 		},
 		ReviewsValue: []*pull.Review{
 			{
-				Author:       "disapprover-4",
-				State:        pull.ReviewChangesRequested,
-				LastModified: date(5),
+				Author:    "disapprover-4",
+				State:     pull.ReviewChangesRequested,
+				CreatedAt: date(5),
 			},
 			{
-				Author:       "revoker-2",
-				State:        pull.ReviewApproved,
-				LastModified: date(6),
+				Author:    "revoker-2",
+				State:     pull.ReviewApproved,
+				CreatedAt: date(6),
 			},
 		},
 	}

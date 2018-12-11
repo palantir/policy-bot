@@ -228,6 +228,19 @@
   revision = "defd050220648a3021b2bccfa09d15bcdffeea27"
 
 [[projects]]
+  digest = "1:8fa8b9ab39372cb2c9fc2a0c8a252b9688800828baa9abb6c743de067ba7465f"
+  name = "github.com/vektah/gqlparser"
+  packages = [
+    "ast",
+    "gqlerror",
+    "lexer",
+    "parser",
+  ]
+  pruneopts = "NUT"
+  revision = "e805d08bb209b1accdea76bd2327811858d81985"
+  version = "v1.0.0"
+
+[[projects]]
   digest = "1:f23222558887a5919f8e9021ecb205395de463f031dd0c049e6e8e547b57c3f4"
   name = "github.com/zenazn/goji"
   packages = ["web/mutil"]
@@ -299,7 +312,6 @@
     "github.com/bluekeyes/hatpear",
     "github.com/bluekeyes/templatetree",
     "github.com/google/go-github/github",
-    "github.com/google/go-querystring/query",
     "github.com/palantir/go-baseapp/baseapp",
     "github.com/palantir/go-baseapp/baseapp/datadog",
     "github.com/palantir/go-baseapp/pkg/errfmt",
@@ -307,9 +319,12 @@
     "github.com/palantir/go-githubapp/oauth2",
     "github.com/pkg/errors",
     "github.com/rs/zerolog",
+    "github.com/shurcooL/githubv4",
     "github.com/spf13/cobra",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/require",
+    "github.com/vektah/gqlparser/ast",
+    "github.com/vektah/gqlparser/parser",
     "goji.io",
     "goji.io/pat",
     "gopkg.in/yaml.v2",

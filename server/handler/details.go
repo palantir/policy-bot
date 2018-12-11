@@ -59,6 +59,11 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to create github client")
 	}
 
+	v4client, err := h.ClientCreator.NewInstallationV4Client(installation.ID)
+	if err != nil {
+		return errors.Wrap(err, "failed to create github client")
+	}
+
 	sess := h.Sessions.Load(r)
 	user, err := sess.GetString(SessionKeyUsername)
 	if err != nil {
@@ -124,7 +129,7 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	mbrCtx := NewCrossOrgMembershipContext(ctx, client, owner, h.Installations, h.ClientCreator)
-	prctx := pull.NewGitHubContext(ctx, mbrCtx, client, pr)
+	prctx := pull.NewGitHubContext(ctx, mbrCtx, client, v4client, pr)
 	result := evaluator.Evaluate(ctx, prctx)
 
 	data.Result = &result

@@ -38,73 +38,65 @@ func TestIsApproved(t *testing.T) {
 		AuthorValue: "mhaypenny",
 		CommentsValue: []*pull.Comment{
 			{
-				Order:        10,
-				Author:       "other-user",
-				Body:         "Why did you do this?",
-				LastModified: now.Add(1 * time.Second),
+				CreatedAt: now.Add(10 * time.Second),
+				Author:    "other-user",
+				Body:      "Why did you do this?",
 			},
 			{
-				Order:        20,
-				Author:       "comment-approver",
-				Body:         "LGTM :+1: :shipit:",
-				LastModified: now.Add(2 * time.Second),
+				CreatedAt: now.Add(20 * time.Second),
+				Author:    "comment-approver",
+				Body:      "LGTM :+1: :shipit:",
 			},
 			{
-				Order:        30,
-				Author:       "disapprover",
-				Body:         "I don't like things! :-1:",
-				LastModified: now.Add(3 * time.Second),
+				CreatedAt: now.Add(30 * time.Second),
+				Author:    "disapprover",
+				Body:      "I don't like things! :-1:",
 			},
 			{
-				Order:        40,
-				Author:       "mhaypenny",
-				Body:         ":+1: my stuff is cool",
-				LastModified: now.Add(4 * time.Second),
+				CreatedAt: now.Add(40 * time.Second),
+				Author:    "mhaypenny",
+				Body:      ":+1: my stuff is cool",
 			},
 			{
-				Order:        50,
-				Author:       "contributor-author",
-				Body:         ":+1: I added to this PR",
-				LastModified: now.Add(5 * time.Second),
+				CreatedAt: now.Add(50 * time.Second),
+				Author:    "contributor-author",
+				Body:      ":+1: I added to this PR",
 			},
 			{
-				Order:        60,
-				Author:       "contributor-committer",
-				Body:         ":+1: I also added to this PR",
-				LastModified: now.Add(6 * time.Second),
+				CreatedAt: now.Add(60 * time.Second),
+				Author:    "contributor-committer",
+				Body:      ":+1: I also added to this PR",
 			},
 		},
 		ReviewsValue: []*pull.Review{
 			{
-				Order:        70,
-				Author:       "disapprover",
-				State:        pull.ReviewChangesRequested,
-				Body:         "I _really_ don't like things!",
-				LastModified: now.Add(7 * time.Second),
+				CreatedAt: now.Add(70 * time.Second),
+				Author:    "disapprover",
+				State:     pull.ReviewChangesRequested,
+				Body:      "I _really_ don't like things!",
 			},
 			{
-				Order:        80,
-				Author:       "review-approver",
-				State:        pull.ReviewApproved,
-				Body:         "I LIKE THIS",
-				LastModified: now.Add(8 * time.Second),
+				CreatedAt: now.Add(80 * time.Second),
+				Author:    "review-approver",
+				State:     pull.ReviewApproved,
+				Body:      "I LIKE THIS",
 			},
 		},
 		CommitsValue: []*pull.Commit{
 			{
-				Order:     90,
+				CreatedAt: now.Add(90 * time.Second),
 				SHA:       "c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
 				Author:    "mhaypenny",
 				Committer: "mhaypenny",
 			},
 			{
-				Order:     100,
+				CreatedAt: now.Add(100 * time.Second),
 				SHA:       "674832587eaaf416371b30f5bc5a47e377f534ec",
 				Author:    "contributor-author",
 				Committer: "mhaypenny",
 			},
 			{
-				Order:     110,
+				CreatedAt: now.Add(110 * time.Second),
 				SHA:       "97d5ea26da319a987d80f6db0b7ef759f2f2e441",
 				Author:    "mhaypenny",
 				Committer: "contributor-committer",
@@ -275,11 +267,11 @@ func TestIsApproved(t *testing.T) {
 		}
 
 		// set the commit after the comment
-		prctx.CommitsValue[0].Order = 25
+		prctx.CommitsValue[0].CreatedAt = now.Add(25 * time.Second)
 		assertPending(t, r, "0/1 approvals required. Ignored 4 approvals from disqualified users")
 
 		// set the commit before the comment
-		prctx.CommitsValue[0].Order = 15
+		prctx.CommitsValue[0].CreatedAt = now.Add(15 * time.Second)
 		assertApproved(t, r, "Approved by comment-approver")
 	})
 
@@ -305,11 +297,11 @@ func TestIsApproved(t *testing.T) {
 		}
 
 		// set the commit after the review
-		prctx.CommitsValue[0].Order = 85
+		prctx.CommitsValue[0].CreatedAt = now.Add(85 * time.Second)
 		assertPending(t, r, "0/1 approvals required")
 
 		// set the commit before the review
-		prctx.CommitsValue[0].Order = 75
+		prctx.CommitsValue[0].CreatedAt = now.Add(75 * time.Second)
 		assertApproved(t, r, "Approved by review-approver")
 	})
 }

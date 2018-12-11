@@ -137,7 +137,7 @@ func (p *Policy) IsDisapproved(ctx context.Context, prctx pull.Context) (disappr
 		msg = fmt.Sprintf("Disapproved by %s", disapprover.User)
 
 	// the new disapproval appears after a revocation
-	case disapprover.LastModified.After(revoker.LastModified):
+	case disapprover.CreatedAt.After(revoker.CreatedAt):
 		disapproved = true
 		msg = fmt.Sprintf("Disapproved by %s", disapprover.User)
 
@@ -163,7 +163,7 @@ func (p *Policy) lastActor(ctx context.Context, prctx pull.Context, methods *com
 		return nil, err
 	}
 
-	sort.Sort(common.CandidatesByModifiedTime(candidates))
+	sort.Stable(common.CandidatesByCreationTime(candidates))
 
 	return last(candidates), nil
 }

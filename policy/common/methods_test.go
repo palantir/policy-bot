@@ -28,40 +28,42 @@ import (
 )
 
 func TestCandidates(t *testing.T) {
+	now := time.Now()
+
 	ctx := context.Background()
 	prctx := &pulltest.Context{
 		CommentsValue: []*pull.Comment{
 			{
-				Body:   "I like to comment!",
-				Author: "rrandom",
-				Order:  0,
+				CreatedAt: now.Add(0 * time.Minute),
+				Body:      "I like to comment!",
+				Author:    "rrandom",
 			},
 			{
-				Body:   "Looks good to me :+1:",
-				Author: "mhaypenny",
-				Order:  2,
+				CreatedAt: now.Add(2 * time.Minute),
+				Body:      "Looks good to me :+1:",
+				Author:    "mhaypenny",
 			},
 			{
-				Body:   ":lgtm:",
-				Author: "ttest",
-				Order:  4,
+				CreatedAt: now.Add(4 * time.Minute),
+				Body:      ":lgtm:",
+				Author:    "ttest",
 			},
 		},
 		ReviewsValue: []*pull.Review{
 			{
-				Author: "rrandom",
-				State:  pull.ReviewCommented,
-				Order:  1,
+				CreatedAt: now.Add(1 * time.Minute),
+				Author:    "rrandom",
+				State:     pull.ReviewCommented,
 			},
 			{
-				Author: "mhaypenny",
-				State:  pull.ReviewChangesRequested,
-				Order:  3,
+				CreatedAt: now.Add(3 * time.Minute),
+				Author:    "mhaypenny",
+				State:     pull.ReviewChangesRequested,
 			},
 			{
-				Author: "ttest",
-				State:  pull.ReviewApproved,
-				Order:  5,
+				CreatedAt: now.Add(5 * time.Minute),
+				Author:    "ttest",
+				State:     pull.ReviewApproved,
 			},
 		},
 	}
@@ -73,6 +75,8 @@ func TestCandidates(t *testing.T) {
 
 		cs, err := m.Candidates(ctx, prctx)
 		require.NoError(t, err)
+
+		sort.Sort(CandidatesByCreationTime(cs))
 
 		require.Len(t, cs, 2, "incorrect number of candidates found")
 		assert.Equal(t, "mhaypenny", cs[0].User)
@@ -88,6 +92,8 @@ func TestCandidates(t *testing.T) {
 		cs, err := m.Candidates(ctx, prctx)
 		require.NoError(t, err)
 
+		sort.Sort(CandidatesByCreationTime(cs))
+
 		require.Len(t, cs, 1, "incorrect number of candidates found")
 		assert.Equal(t, "mhaypenny", cs[0].User)
 	})
@@ -102,33 +108,35 @@ func TestCandidates(t *testing.T) {
 		cs, err := m.Candidates(ctx, prctx)
 		require.NoError(t, err)
 
+		sort.Sort(CandidatesByCreationTime(cs))
+
 		require.Len(t, cs, 2, "incorrect number of candidates found")
 		assert.Equal(t, "mhaypenny", cs[0].User)
 		assert.Equal(t, "ttest", cs[1].User)
 	})
 }
 
-func TestCandidatesByLastModified(t *testing.T) {
+func TestCandidatesByCreationTime(t *testing.T) {
 	cs := []*Candidate{
 		{
-			User:         "c",
-			LastModified: time.Date(2018, 6, 29, 12, 0, 0, 0, time.UTC),
+			User:      "c",
+			CreatedAt: time.Date(2018, 6, 29, 12, 0, 0, 0, time.UTC),
 		},
 		{
-			User:         "a",
-			LastModified: time.Date(2018, 6, 28, 0, 0, 0, 0, time.UTC),
+			User:      "a",
+			CreatedAt: time.Date(2018, 6, 28, 0, 0, 0, 0, time.UTC),
 		},
 		{
-			User:         "d",
-			LastModified: time.Date(2018, 6, 29, 14, 0, 0, 0, time.UTC),
+			User:      "d",
+			CreatedAt: time.Date(2018, 6, 29, 14, 0, 0, 0, time.UTC),
 		},
 		{
-			User:         "b",
-			LastModified: time.Date(2018, 6, 29, 10, 0, 0, 0, time.UTC),
+			User:      "b",
+			CreatedAt: time.Date(2018, 6, 29, 10, 0, 0, 0, time.UTC),
 		},
 	}
 
-	sort.Sort(CandidatesByModifiedTime(cs))
+	sort.Sort(CandidatesByCreationTime(cs))
 
 	for i, u := range []string{"a", "b", "c", "d"} {
 		assert.Equalf(t, u, cs[i].User, "candidate at position %d is incorrect", i)

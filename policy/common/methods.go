@@ -33,17 +33,16 @@ type Methods struct {
 }
 
 type Candidate struct {
-	Order        int
-	User         string
-	LastModified time.Time
+	User      string
+	CreatedAt time.Time
 }
 
-type CandidatesByModifiedTime []*Candidate
+type CandidatesByCreationTime []*Candidate
 
-func (cs CandidatesByModifiedTime) Len() int      { return len(cs) }
-func (cs CandidatesByModifiedTime) Swap(i, j int) { cs[i], cs[j] = cs[j], cs[i] }
-func (cs CandidatesByModifiedTime) Less(i, j int) bool {
-	return cs[i].LastModified.Before(cs[j].LastModified)
+func (cs CandidatesByCreationTime) Len() int      { return len(cs) }
+func (cs CandidatesByCreationTime) Swap(i, j int) { cs[i], cs[j] = cs[j], cs[i] }
+func (cs CandidatesByCreationTime) Less(i, j int) bool {
+	return cs[i].CreatedAt.Before(cs[j].CreatedAt)
 }
 
 // Candidates returns a list of user candidates based on the configured
@@ -62,9 +61,8 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 		for _, c := range comments {
 			if m.CommentMatches(c.Body) {
 				candidates = append(candidates, &Candidate{
-					Order:        c.Order,
-					User:         c.Author,
-					LastModified: c.LastModified,
+					User:      c.Author,
+					CreatedAt: c.CreatedAt,
 				})
 			}
 		}
@@ -79,9 +77,8 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 		for _, r := range reviews {
 			if r.State == m.GithubReviewState {
 				candidates = append(candidates, &Candidate{
-					Order:        r.Order,
-					User:         r.Author,
-					LastModified: r.LastModified,
+					User:      r.Author,
+					CreatedAt: r.CreatedAt,
 				})
 			}
 		}
@@ -94,7 +91,7 @@ func deduplicateCandidates(all []*Candidate) []*Candidate {
 	users := make(map[string]*Candidate)
 	for _, c := range all {
 		last, ok := users[c.User]
-		if !ok || last.Order < c.Order {
+		if !ok || last.CreatedAt.Before(c.CreatedAt) {
 			users[c.User] = c
 		}
 	}

@@ -80,10 +80,8 @@ type File struct {
 }
 
 type Commit struct {
-	// Order is the order it appears in the PR timeline.
-	Order int
-
-	SHA string
+	CreatedAt time.Time
+	SHA       string
 
 	// Author is the login name of the author. It is empty if the author is not
 	// a real user.
@@ -107,12 +105,9 @@ func (c *Commit) Users() []string {
 }
 
 type Comment struct {
-	// Order is the order it appears in the PR timeline.
-	Order int
-
-	Author       string
-	LastModified time.Time
-	Body         string
+	CreatedAt time.Time
+	Author    string
+	Body      string
 }
 
 type ReviewState string
@@ -126,11 +121,8 @@ const (
 )
 
 type Review struct {
-	// Order is the order it appears in the PR timeline.
-	Order int
-
-	Author       string
-	LastModified time.Time
-	State        ReviewState
-	Body         string
+	CreatedAt time.Time
+	Author    string
+	State     ReviewState
+	Body      string
 }

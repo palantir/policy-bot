@@ -18,10 +18,13 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
+	"github.com/shurcooL/githubv4"
 )
 
 const (
@@ -37,9 +40,10 @@ const (
 // GitHubContext is a Context implementation that gets information from GitHub.
 // A new instance must be created for each request.
 type GitHubContext struct {
-	ctx    context.Context
-	client *github.Client
-	mbrCtx MembershipContext
+	ctx      context.Context
+	client   *github.Client
+	v4client *githubv4.Client
+	mbrCtx   MembershipContext
 
 	owner  string
 	repo   string
@@ -47,38 +51,26 @@ type GitHubContext struct {
 	pr     *github.PullRequest
 
 	// cached fields
-	files             []*File
-	commitsHaveAuthor bool
-	commits           []*Commit
-	comments          []*Comment
-	reviews           []*Review
-	teamIDs           map[string]int64
-	membership        map[string]bool
+	files      []*File
+	commits    []*Commit
+	comments   []*Comment
+	reviews    []*Review
+	teamIDs    map[string]int64
+	membership map[string]bool
 }
 
-func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *github.Client, pr *github.PullRequest) Context {
+func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *github.Client, v4client *githubv4.Client, pr *github.PullRequest) Context {
 	return &GitHubContext{
-		ctx:    ctx,
-		client: client,
-		mbrCtx: mbrCtx,
+		ctx:      ctx,
+		client:   client,
+		v4client: v4client,
+		mbrCtx:   mbrCtx,
 
 		owner:  pr.GetBase().GetRepo().GetOwner().GetLogin(),
 		repo:   pr.GetBase().GetRepo().GetName(),
 		number: pr.GetNumber(),
 		pr:     pr,
 	}
-}
-
-func (ghc *GitHubContext) ensurePRCached() error {
-	if ghc.pr == nil {
-		pr, _, err := ghc.client.PullRequests.Get(ghc.ctx, ghc.owner, ghc.repo, ghc.number)
-		if err != nil {
-			return errors.Wrap(err, "failed to get pull request")
-		}
-		ghc.pr = pr
-	}
-
-	return nil
 }
 
 func (ghc *GitHubContext) IsTeamMember(team, user string) (bool, error) {
@@ -94,10 +86,6 @@ func (ghc *GitHubContext) Locator() string {
 }
 
 func (ghc *GitHubContext) Author() (string, error) {
-	if err := ghc.ensurePRCached(); err != nil {
-		return "", errors.Wrap(err, "failed to get author")
-	}
-
 	return ghc.pr.GetUser().GetLogin(), nil
 }
 
@@ -115,10 +103,6 @@ func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
 				break
 			}
 			opt.Page = res.NextPage
-		}
-
-		if len(allFiles) >= MaxPullRequestFiles {
-			return nil, errors.Errorf("too many files in pull request, maximum is %d", MaxPullRequestFiles)
 		}
 
 		for _, f := range allFiles {
@@ -140,49 +124,21 @@ func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
 			})
 		}
 	}
+	if len(ghc.files) >= MaxPullRequestFiles {
+		return nil, errors.Errorf("too many files in pull request, maximum is %d", MaxPullRequestFiles)
+	}
 	return ghc.files, nil
 }
 
 func (ghc *GitHubContext) Commits() ([]*Commit, error) {
-	if !ghc.commitsHaveAuthor {
-		if ghc.commits == nil {
-			if err := ghc.loadTimeline(); err != nil {
-				return nil, errors.Wrap(err, "failed to fetch commits")
-			}
+	if ghc.commits == nil {
+		if err := ghc.loadTimeline(); err != nil {
+			return nil, errors.Wrap(err, "failed to fetch commits")
 		}
-
-		var opt github.ListOptions
-		var allCommits []*github.RepositoryCommit
-		for {
-			commits, res, err := ghc.client.PullRequests.ListCommits(ghc.ctx, ghc.owner, ghc.repo, ghc.number, &opt)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to list pull request commits")
-			}
-			allCommits = append(allCommits, commits...)
-			if res.NextPage == 0 {
-				break
-			}
-			opt.Page = res.NextPage
-		}
-
-		if len(allCommits) >= MaxPullRequestCommits {
-			return nil, errors.Errorf("too many commits in pull request, maximum is %d", MaxPullRequestCommits)
-		}
-
-		commitsBySha := make(map[string]*github.RepositoryCommit)
-		for _, c := range allCommits {
-			commitsBySha[c.GetSHA()] = c
-		}
-
-		for _, orderedCommit := range ghc.commits {
-			commitWithLogin := commitsBySha[orderedCommit.SHA]
-			orderedCommit.Committer = commitWithLogin.GetCommitter().GetLogin()
-			orderedCommit.Author = commitWithLogin.GetAuthor().GetLogin()
-		}
-
-		ghc.commitsHaveAuthor = true
 	}
-
+	if len(ghc.commits) >= MaxPullRequestCommits {
+		return nil, errors.Errorf("too many commits in pull request, maximum is %d", MaxPullRequestCommits)
+	}
 	return ghc.commits, nil
 }
 
@@ -192,7 +148,6 @@ func (ghc *GitHubContext) Comments() ([]*Comment, error) {
 			return nil, errors.Wrap(err, "failed to fetch comments")
 		}
 	}
-
 	return ghc.comments, nil
 }
 
@@ -202,17 +157,12 @@ func (ghc *GitHubContext) Reviews() ([]*Review, error) {
 			return nil, errors.Wrap(err, "failed to fetch reviews")
 		}
 	}
-
 	return ghc.reviews, nil
 }
 
 // Branches returns the names of the base and head branch. If the head branch is from another repository (it is a fork)
 // then the branch name is `owner:branchName`.
 func (ghc *GitHubContext) Branches() (base string, head string, err error) {
-	if err := ghc.ensurePRCached(); err != nil {
-		return "", "", errors.Wrap(err, "failed to get branches")
-	}
-
 	base = ghc.pr.GetBase().GetRef()
 
 	if ghc.pr.GetHead().GetRepo().GetID() == ghc.pr.GetBase().GetRepo().GetID() {
@@ -225,53 +175,142 @@ func (ghc *GitHubContext) Branches() (base string, head string, err error) {
 }
 
 func (ghc *GitHubContext) loadTimeline() error {
-	var opts github.ListOptions
-	var allEvents []*pullrequestEvent
+	var q struct {
+		Repository struct {
+			PullRequest struct {
+				Timeline struct {
+					PageInfo struct {
+						EndCursor   githubv4.String
+						HasNextPage bool
+					}
+					Nodes []*timelineEvent
+				} `graphql:"timeline(first: 100, after: $cursor)"`
+			} `graphql:"pullRequest(number: $number)"`
+		} `graphql:"repository(owner: $owner, name: $name)"`
+	}
+	qvars := map[string]interface{}{
+		"owner":  githubv4.String(ghc.owner),
+		"name":   githubv4.String(ghc.repo),
+		"number": githubv4.Int(ghc.number),
+		"cursor": (*githubv4.String)(nil),
+	}
+
+	var allEvents []*timelineEvent
 	for {
-		events, res, err := listIssueTimelineEvents(ghc.ctx, ghc.client, ghc.owner, ghc.repo, ghc.number, &opts)
-		if err != nil {
+		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
 			return errors.Wrap(err, "failed to list pull request timeline")
 		}
 
-		allEvents = append(allEvents, events...)
-		if res.NextPage == 0 {
+		allEvents = append(allEvents, q.Repository.PullRequest.Timeline.Nodes...)
+		if !q.Repository.PullRequest.Timeline.PageInfo.HasNextPage {
 			break
 		}
-
-		opts.Page = res.NextPage
+		qvars["cursor"] = githubv4.NewString(q.Repository.PullRequest.Timeline.PageInfo.EndCursor)
 	}
+
+	// GitHub only records pushedDate for the HEAD commit in a batch push
+	// Backfill this to all other commits for the purpose of sorting
+	var lastPushed *time.Time
+	for i := len(allEvents) - 1; i >= 0; i-- {
+		if event := allEvents[i]; event.Type == "Commit" {
+			if event.Commit.PushedDate != nil {
+				lastPushed = event.Commit.PushedDate
+			} else {
+				event.Commit.PushedDate = lastPushed
+			}
+		}
+	}
+
+	// Order events by ascending creation time
+	// Use stable sort to keep ordering for commits with the same timestamp
+	sort.SliceStable(allEvents, func(i, j int) bool {
+		return allEvents[i].CreatedAt().Before(allEvents[j].CreatedAt())
+	})
 
 	ghc.commits = make([]*Commit, 0)
 	ghc.reviews = make([]*Review, 0)
 	ghc.comments = make([]*Comment, 0)
 
-	for i, event := range allEvents {
-		switch event.GetEvent() {
-		case "committed":
+	for _, event := range allEvents {
+		switch event.Type {
+		case "Commit":
 			ghc.commits = append(ghc.commits, &Commit{
-				Order: i,
-				SHA:   event.GetSHA(),
+				CreatedAt: event.CreatedAt(),
+				SHA:       event.Commit.OID,
+				Author:    event.Commit.Author.GetLogin(),
+				Committer: event.Commit.Committer.GetLogin(),
 			})
-		case "reviewed":
-			state := ReviewState(strings.ToLower(event.GetState()))
+		case "PullRequestReview":
+			state := ReviewState(strings.ToLower(event.PullRequestReview.State))
 			ghc.reviews = append(ghc.reviews, &Review{
-				Order:        i,
-				Author:       event.User.GetLogin(),
-				LastModified: event.GetSubmittedAt(),
-				State:        state,
-				Body:         event.GetBody(),
+				CreatedAt: event.CreatedAt(),
+				Author:    event.PullRequestReview.Author.Login,
+				State:     state,
+				Body:      event.PullRequestReview.Body,
 			})
-		case "commented":
+		case "IssueComment":
 			ghc.comments = append(ghc.comments, &Comment{
-				Order:        i,
-				Author:       event.GetActor().GetLogin(),
-				LastModified: event.GetCreatedAt(),
-				Body:         event.GetBody(),
+				CreatedAt: event.CreatedAt(),
+				Author:    event.IssueComment.Author.Login,
+				Body:      event.IssueComment.Body,
 			})
 		}
 	}
 
 	return nil
+}
+
+type timelineEvent struct {
+	Type string `graphql:"__typename"`
+
+	Commit struct {
+		OID        string
+		PushedDate *time.Time
+		Author     gitActor
+		Committer  gitActor
+	} `graphql:"... on Commit"`
+
+	PullRequestReview struct {
+		Author      actor
+		State       string
+		Body        string
+		SubmittedAt time.Time
+	} `graphql:"... on PullRequestReview"`
+
+	IssueComment struct {
+		Author    actor
+		Body      string
+		CreatedAt time.Time
+	} `graphql:"... on IssueComment"`
+}
+
+func (event *timelineEvent) CreatedAt() (t time.Time) {
+	switch event.Type {
+	case "Commit":
+		if event.Commit.PushedDate != nil {
+			t = *event.Commit.PushedDate
+		}
+	case "PullRequestReview":
+		t = event.PullRequestReview.SubmittedAt
+	case "IssueComment":
+		t = event.IssueComment.CreatedAt
+	}
+	return
+}
+
+type actor struct {
+	Login string
+}
+
+type gitActor struct {
+	User *actor
+}
+
+func (ga gitActor) GetLogin() string {
+	if ga.User != nil {
+		return ga.User.Login
+	}
+	return ""
 }
 
 func isNotFound(err error) bool {

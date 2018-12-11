@@ -24,6 +24,7 @@ import (
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"github.com/shurcooL/githubv4"
 
 	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/common"
@@ -110,15 +111,15 @@ func (b *Base) postGitHubRepoStatus(ctx context.Context, client *github.Client, 
 	return err
 }
 
-func (b *Base) Evaluate(ctx context.Context, mbrCtx pull.MembershipContext, client *github.Client, pr *github.PullRequest) error {
+func (b *Base) Evaluate(ctx context.Context, mbrCtx pull.MembershipContext, client *github.Client, v4client *githubv4.Client, pr *github.PullRequest) error {
 	fetchedConfig, err := b.ConfigFetcher.ConfigForPR(ctx, client, pr)
 	if err != nil {
 		return errors.WithMessage(err, fmt.Sprintf("failed to fetch policy: %s", fetchedConfig))
 	}
-	return b.EvaluateFetchedConfig(ctx, mbrCtx, client, pr, fetchedConfig)
+	return b.EvaluateFetchedConfig(ctx, mbrCtx, client, v4client, pr, fetchedConfig)
 }
 
-func (b *Base) EvaluateFetchedConfig(ctx context.Context, mbrCtx pull.MembershipContext, client *github.Client, pr *github.PullRequest, fetchedConfig FetchedConfig) error {
+func (b *Base) EvaluateFetchedConfig(ctx context.Context, mbrCtx pull.MembershipContext, client *github.Client, v4client *githubv4.Client, pr *github.PullRequest, fetchedConfig FetchedConfig) error {
 	logger := zerolog.Ctx(ctx)
 
 	if fetchedConfig.Missing() {
@@ -140,7 +141,7 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, mbrCtx pull.Membership
 		return err
 	}
 
-	prctx := pull.NewGitHubContext(ctx, mbrCtx, client, pr)
+	prctx := pull.NewGitHubContext(ctx, mbrCtx, client, v4client, pr)
 	result := evaluator.Evaluate(ctx, prctx)
 
 	if result.Error != nil {
