@@ -13,12 +13,30 @@
               "nodes": [
                 {
                   "__typename": "PullRequestReview",
+                  "id": "12345",
+                  "author": {
+                    "login": "mhaypenny"
+                  },
+                  "state": "CHANGED_REQUESTED",
+                  "body": "",
+                  "submittedAt": "2018-06-27T20:33:26Z"
+                },
+                {
+                  "__typename": "PullRequestReview",
+                  "id": "12347",
                   "author": {
                     "login": "bkeyes"
                   },
                   "state": "APPROVED",
                   "body": "the body",
-                  "submittedAt": "2018-06-27T20:33:26Z"
+                  "submittedAt": "2018-06-27T20:33:27Z"
+                },
+                {
+                  "__typename": "ReviewDismissedEvent",
+                  "createdAt": "2018-06-27T20:37:15Z",
+                  "review": {
+                    "id": "12345"
+                  }
                 }
               ]
             }

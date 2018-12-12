@@ -247,7 +247,14 @@ func (ghc *GitHubContext) loadTimeline() error {
 				Author:    event.PullRequestReview.Author.Login,
 				State:     state,
 				Body:      event.PullRequestReview.Body,
+				ID:        event.PullRequestReview.ID,
 			})
+		case "ReviewDismissedEvent":
+			for _, r := range ghc.reviews {
+				if r.ID == event.ReviewDismissedEvent.Review.ID {
+					r.State = ReviewDismissed
+				}
+			}
 		case "IssueComment":
 			ghc.comments = append(ghc.comments, &Comment{
 				CreatedAt: event.CreatedAt(),
@@ -271,11 +278,19 @@ type timelineEvent struct {
 	} `graphql:"... on Commit"`
 
 	PullRequestReview struct {
+		ID          string
 		Author      actor
 		State       string
 		Body        string
 		SubmittedAt time.Time
 	} `graphql:"... on PullRequestReview"`
+
+	ReviewDismissedEvent struct {
+		CreatedAt time.Time
+		Review    struct {
+			ID string
+		}
+	} `graphql:"... on ReviewDismissedEvent"`
 
 	IssueComment struct {
 		Author    actor
@@ -292,6 +307,8 @@ func (event *timelineEvent) CreatedAt() (t time.Time) {
 		}
 	case "PullRequestReview":
 		t = event.PullRequestReview.SubmittedAt
+	case "ReviewDismissedEvent":
+		t = event.ReviewDismissedEvent.CreatedAt
 	case "IssueComment":
 		t = event.IssueComment.CreatedAt
 	}
