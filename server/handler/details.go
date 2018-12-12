@@ -17,6 +17,8 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"net/url"
+	"path"
 	"strconv"
 
 	"github.com/alexedwards/scs"
@@ -99,6 +101,7 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 		Result      *common.Result
 		PullRequest *github.PullRequest
 		User        string
+		PolicyURL   string
 	}
 
 	data.PullRequest = pr
@@ -107,6 +110,8 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	ctx, _ = githubapp.PreparePRContext(ctx, installation.ID, pr.GetBase().GetRepo(), number)
 
 	config, err := h.ConfigFetcher.ConfigForPR(ctx, client, pr)
+	data.PolicyURL = getPolicyURL(pr, config)
+
 	if err != nil {
 		data.Error = errors.WithMessage(err, fmt.Sprintf("Failed to fetch configuration at ref=%s", config.Ref))
 		return h.render(w, data)
@@ -140,6 +145,15 @@ func (h *Details) render(w http.ResponseWriter, data interface{}) error {
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 	return h.Templates.ExecuteTemplate(w, "details.html.tmpl", data)
+}
+
+func getPolicyURL(pr *github.PullRequest, config FetchedConfig) string {
+	base := pr.GetBase().GetRepo().GetHTMLURL()
+	if u, _ := url.Parse(base); u != nil {
+		u.Path = path.Join(u.Path, "blob", pr.GetBase().GetRef(), config.Path)
+		return u.String()
+	}
+	return base
 }
 
 func isNotFound(err error) bool {

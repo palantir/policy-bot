@@ -32,6 +32,7 @@ type FetchedConfig struct {
 	Owner  string
 	Repo   string
 	Ref    string
+	Path   string
 	Config *policy.Config
 	Error  error
 }
@@ -75,6 +76,7 @@ func (cf *ConfigFetcher) ConfigForPR(ctx context.Context, client *github.Client,
 		Owner: pr.GetBase().GetRepo().GetOwner().GetLogin(),
 		Repo:  pr.GetBase().GetRepo().GetName(),
 		Ref:   pr.GetBase().GetRef(),
+		Path:  cf.PolicyPath,
 	}
 
 	configBytes, err := cf.fetchConfig(ctx, client, fc.Owner, fc.Repo, fc.Ref)
