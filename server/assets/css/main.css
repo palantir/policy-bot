@@ -3,7 +3,7 @@
 
 /* custom components */
 
-a, a:visited {
+a {
   color: config('colors.blue3');
 }
 
