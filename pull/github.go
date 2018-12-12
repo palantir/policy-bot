@@ -250,10 +250,9 @@ func (ghc *GitHubContext) loadTimeline() error {
 				ID:        event.PullRequestReview.ID,
 			})
 		case "ReviewDismissedEvent":
-			for i, r := range ghc.reviews {
+			for _, r := range ghc.reviews {
 				if r.ID == event.ReviewDismissedEvent.Review.ID {
-					ghc.reviews = append(ghc.reviews[:i], ghc.reviews[i+1:]...)
-					break
+					r.State = ReviewDismissed
 				}
 			}
 		case "IssueComment":

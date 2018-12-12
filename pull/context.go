@@ -114,10 +114,10 @@ type ReviewState string
 
 const (
 	ReviewApproved         ReviewState = "approved"
-	ReviewChangesRequested             = "changes_requested"
-	ReviewCommented                    = "commented"
-	ReviewDismissed                    = "dismissed"
-	ReviewPending                      = "pending"
+	ReviewChangesRequested ReviewState = "changes_requested"
+	ReviewCommented        ReviewState = "commented"
+	ReviewDismissed        ReviewState = "dismissed"
+	ReviewPending          ReviewState = "pending"
 )
 
 type Review struct {

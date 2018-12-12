@@ -19,7 +19,7 @@
                   },
                   "state": "CHANGED_REQUESTED",
                   "body": "",
-                  "submittedAt": "2018-06-27T20:30:00Z"
+                  "submittedAt": "2018-06-27T20:33:26Z"
                 },
                 {
                   "__typename": "PullRequestReview",
@@ -29,7 +29,7 @@
                   },
                   "state": "APPROVED",
                   "body": "the body",
-                  "submittedAt": "2018-06-27T20:33:26Z"
+                  "submittedAt": "2018-06-27T20:33:27Z"
                 },
                 {
                   "__typename": "ReviewDismissedEvent",
