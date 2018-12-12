@@ -129,22 +129,27 @@ func TestReviews(t *testing.T) {
 	reviews, err := ctx.Reviews()
 	require.NoError(t, err)
 
-	require.Len(t, reviews, 1, "incorrect number of reviews")
+	require.Len(t, reviews, 2, "incorrect number of reviews")
 	assert.Equal(t, 1, timelineRule.Count, "no http request was made")
 
 	expectedTime, err := time.Parse(time.RFC3339, "2018-06-27T20:33:26Z")
 	assert.NoError(t, err)
 
-	assert.Equal(t, "bkeyes", reviews[0].Author)
+	assert.Equal(t, "mhaypenny", reviews[0].Author)
 	assert.Equal(t, expectedTime, reviews[0].CreatedAt)
-	assert.Equal(t, ReviewApproved, reviews[0].State)
-	assert.Equal(t, "the body", reviews[0].Body)
+	assert.Equal(t, ReviewDismissed, reviews[0].State)
+	assert.Equal(t, "", reviews[0].Body)
+
+	assert.Equal(t, "bkeyes", reviews[1].Author)
+	assert.Equal(t, expectedTime.Add(time.Second), reviews[1].CreatedAt)
+	assert.Equal(t, ReviewApproved, reviews[1].State)
+	assert.Equal(t, "the body", reviews[1].Body)
 
 	// verify that the review list is cached
 	reviews, err = ctx.Reviews()
 	require.NoError(t, err)
 
-	require.Len(t, reviews, 1, "incorrect number of reviews")
+	require.Len(t, reviews, 2, "incorrect number of reviews")
 	assert.Equal(t, 1, timelineRule.Count, "cached reviews were not used")
 }
 

@@ -120,10 +120,10 @@ type ReviewState string
 
 const (
 	ReviewApproved         ReviewState = "approved"
-	ReviewChangesRequested             = "changes_requested"
-	ReviewCommented                    = "commented"
-	ReviewDismissed                    = "dismissed"
-	ReviewPending                      = "pending"
+	ReviewChangesRequested ReviewState = "changes_requested"
+	ReviewCommented        ReviewState = "commented"
+	ReviewDismissed        ReviewState = "dismissed"
+	ReviewPending          ReviewState = "pending"
 )
 
 type Review struct {
@@ -131,4 +131,7 @@ type Review struct {
 	Author    string
 	State     ReviewState
 	Body      string
+
+	// ID is the GitHub node ID of the review, used to resolve dismissals
+	ID string
 }
