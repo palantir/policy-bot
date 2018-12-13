@@ -45,6 +45,9 @@ type Context struct {
 	BranchBaseName string
 	BranchHeadName string
 	BranchesError  error
+
+	TargetCommitsValue []*pull.Commit
+	TargetCommitsError error
 }
 
 func (c *Context) Locator() string {
@@ -102,6 +105,10 @@ func (c *Context) Reviews() ([]*pull.Review, error) {
 
 func (c *Context) Branches() (base string, head string, err error) {
 	return c.BranchBaseName, c.BranchHeadName, c.BranchesError
+}
+
+func (c *Context) TargetCommits() ([]*pull.Commit, error) {
+	return c.TargetCommitsValue, c.TargetCommitsError
 }
 
 // assert that the test object implements the full interface

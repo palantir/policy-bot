@@ -62,6 +62,10 @@ type Context interface {
 	// branches in forks are prefixed with the owner of the fork and a colon.
 	// The base branch will always be unprefixed.
 	Branches() (base string, head string, err error)
+
+	// TargetCommits returns recent commits on the target branch of the pull
+	// request. The exact number of commits is an implementation detail.
+	TargetCommits() ([]*Commit, error)
 }
 
 type FileStatus int
@@ -80,8 +84,10 @@ type File struct {
 }
 
 type Commit struct {
-	CreatedAt time.Time
-	SHA       string
+	CreatedAt       time.Time
+	SHA             string
+	Parents         []string
+	CommittedViaWeb bool
 
 	// Author is the login name of the author. It is empty if the author is not
 	// a real user.

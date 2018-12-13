@@ -29,6 +29,7 @@ UI to view the detailed approval status of any pull request.
     - [Disapproval is Disabled by Default](#disapproval-is-disabled-by-default)
     - [`or`, `and`, and `if` (Rule Predicates)](#or-and-and-if-rule-predicates)
     - [Cross-organization Membership Tests](#cross-organization-membership-tests)
+    - [Update Merges](#update-merges)
 * [Deployment](#deployment)
 * [Development](#development)
 * [Contributing](#contributing)
@@ -163,6 +164,13 @@ options:
   # approvals for this rule. False by default.
   invalidate_on_push: false
 
+  # If true, "update merges" do not invalidate approval (if invalidate_on_push
+  # is enabled) and their authors/committers do not count as contributors. An
+  # "update merge" is a merge commit that was created in the UI or via the API
+  # and merges the target branch into the pull request branch. These are
+  # commonly created by using the "Update branch" button in the UI.
+  ignore_update_merges: false
+
   # "methods" defines how users may express approval. The defaults are below.
   methods:
     comments:
@@ -293,6 +301,24 @@ Effectively, skipped rules are treated as if they don't exist.
 `policy-bot` allows approval rules to reference organizations and teams that are
 not in the organization that owns the repository where the rules appear. In
 this case, `policy-bot` must be installed on all referenced organizations.
+
+#### Update Merges
+
+For a commit on a branch to count as an "update merge" for the purpose of the
+`ignore_update_merges` option, the following must be true:
+
+1. The commit must have exactly two parents
+2. The commit must have the `committedViaWeb` property set to `true`
+3. One parent must exist in the last 100 commits on the target branch of the
+   pull request
+
+These will all be true after updating a branch using the UI, but historic
+merges on long-running branches or merges created with the API may not be
+ignored. If this happens, you will need to reapprove the pull request.
+
+Note that `policy-bot` cannot detect if an update merge contains any merge
+conflict resolutions. If you enable this option, users _may_ be able to merge
+unapproved code by exploiting the conflict editor.
 
 ## Deployment
 
