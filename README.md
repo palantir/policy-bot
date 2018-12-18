@@ -339,12 +339,14 @@ that terminates TLS connections.
 
 `policy-bot` requires the following permissions as a GitHub app:
 
-* Issues - read-only
-* Repository metadata - read-only
-* Pull requests - read-only
-* Single file - read-only, with the file matching the server configuration
-* Commit status - read & write
-* Organization members - read-only
+| Permission | Access | Reason |
+| ---------- | ------ | ------ |
+| Repository contents | Read & write | Read configuration, perform merges |
+| Issues | Read-only | Read pull request comments |
+| Repository metadata | Read-only | Basic repository data |
+| Pull requests | Read-only| Receive pull request events, read metadata |
+| Commit status | Read & write | Post commit statuses |
+| Organization members | Read-only | Determine organization and team membership |
 
 It should be subscribed to the following events:
 
