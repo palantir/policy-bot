@@ -14,10 +14,20 @@
                 {
                   "__typename": "IssueComment",
                   "author": {
+                    "__typename": "User",
                     "login": "bkeyes"
                   },
                   "body": ":+1:",
                   "createdAt": "2018-06-27T20:28:22Z"
+                },
+                {
+                  "__typename": "IssueComment",
+                  "author": {
+                    "__typename": "Bot",
+                    "login": "bulldozer"
+                  },
+                  "body": "I merge!",
+                  "createdAt": "2018-06-27T20:29:22Z"
                 }
               ]
             }

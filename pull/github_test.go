@@ -165,7 +165,7 @@ func TestComments(t *testing.T) {
 	comments, err := ctx.Comments()
 	require.NoError(t, err)
 
-	require.Len(t, comments, 1, "incorrect number of comments")
+	require.Len(t, comments, 2, "incorrect number of comments")
 	assert.Equal(t, 1, timelineRule.Count, "no http request was made")
 
 	expectedTime, err := time.Parse(time.RFC3339, "2018-06-27T20:28:22Z")
@@ -175,11 +175,15 @@ func TestComments(t *testing.T) {
 	assert.Equal(t, expectedTime, comments[0].CreatedAt)
 	assert.Equal(t, ":+1:", comments[0].Body)
 
+	assert.Equal(t, "bulldozer[bot]", comments[1].Author)
+	assert.Equal(t, expectedTime.Add(time.Minute), comments[1].CreatedAt)
+	assert.Equal(t, "I merge!", comments[1].Body)
+
 	// verify that the commit list is cached
 	comments, err = ctx.Comments()
 	require.NoError(t, err)
 
-	require.Len(t, comments, 1, "incorrect number of comments")
+	require.Len(t, comments, 2, "incorrect number of comments")
 	assert.Equal(t, 1, timelineRule.Count, "cached comments were not used")
 }
 

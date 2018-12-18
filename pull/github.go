@@ -290,7 +290,7 @@ func (ghc *GitHubContext) loadTimeline() error {
 			state := ReviewState(strings.ToLower(event.PullRequestReview.State))
 			ghc.reviews = append(ghc.reviews, &Review{
 				CreatedAt: event.CreatedAt(),
-				Author:    event.PullRequestReview.Author.Login,
+				Author:    event.PullRequestReview.Author.GetV3Login(),
 				State:     state,
 				Body:      event.PullRequestReview.Body,
 				ID:        event.PullRequestReview.ID,
@@ -304,7 +304,7 @@ func (ghc *GitHubContext) loadTimeline() error {
 		case "IssueComment":
 			ghc.comments = append(ghc.comments, &Comment{
 				CreatedAt: event.CreatedAt(),
-				Author:    event.IssueComment.Author.Login,
+				Author:    event.IssueComment.Author.GetV3Login(),
 				Body:      event.IssueComment.Body,
 			})
 		}
@@ -385,22 +385,32 @@ func (c *v4Commit) ToCommit() *Commit {
 		SHA:             c.OID,
 		Parents:         parents,
 		CommittedViaWeb: c.CommittedViaWeb,
-		Author:          c.Author.GetLogin(),
-		Committer:       c.Committer.GetLogin(),
+		Author:          c.Author.GetV3Login(),
+		Committer:       c.Committer.GetV3Login(),
 	}
 }
 
 type v4Actor struct {
+	Type  string `graphql:"__typename"`
 	Login string
+}
+
+// GetV3Login returns a V3-compatible login string. These login strings contain
+// the "[bot]" suffix for GitHub identities.
+func (a v4Actor) GetV3Login() string {
+	if a.Type == "Bot" {
+		return a.Login + "[bot]"
+	}
+	return a.Login
 }
 
 type v4GitActor struct {
 	User *v4Actor
 }
 
-func (ga v4GitActor) GetLogin() string {
+func (ga v4GitActor) GetV3Login() string {
 	if ga.User != nil {
-		return ga.User.Login
+		return ga.User.GetV3Login()
 	}
 	return ""
 }
