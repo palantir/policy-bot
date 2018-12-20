@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/go-github/github"
 	"github.com/palantir/go-baseapp/baseapp"
@@ -111,6 +112,63 @@ func (b *Base) postGitHubRepoStatus(ctx context.Context, client *github.Client, 
 	return err
 }
 
+func (b *Base) PostCheckResults(ctx context.Context, client *github.Client, pr *github.PullRequest, evaluationResult common.Result) error {
+	sha := pr.GetHead().GetSHA()
+	owner := pr.GetBase().GetRepo().GetOwner().GetLogin()
+	repo := pr.GetBase().GetRepo().GetName()
+	checkRunsRequest := &github.ListCheckRunsOptions{}
+
+	existingChecks, _, err := client.Checks.ListCheckRunsForRef(ctx, owner, repo, sha, checkRunsRequest)
+	if err != nil {
+		return err
+	}
+
+	if existingChecks.GetTotal() >= 0 {
+		if err := b.createGitHubRepoCheck(ctx, client, pr, owner, repo, sha, evaluationResult); err != nil {
+			return err
+		}
+	}
+
+	return nil
+
+}
+
+func (b *Base) createGitHubRepoCheck(ctx context.Context, client *github.Client, pr *github.PullRequest, owner string, repo string, sha string, evaluationResult common.Result) error {
+	publicURL := strings.TrimSuffix(b.BaseConfig.PublicURL, "/")
+	detailsURL := fmt.Sprintf("%s/details/%s/%s/%d", publicURL, owner, repo, pr.GetNumber())
+	defaultStatus := "completed"
+	time := github.Timestamp{
+		Time: time.Now(),
+	}
+
+	conclusion := "neutral"
+	switch evaluationResult.Status.String() {
+	case "approved":
+		conclusion = "success"
+	case "disapproved":
+		conclusion = "failure"
+	case "pending":
+		conclusion = "action_required"
+	}
+
+	status := &github.CreateCheckRunOptions{
+		Name: b.PullOpts.AppName,
+		DetailsURL: &detailsURL,
+		Status: &defaultStatus,
+		Output: &github.CheckRunOutput{
+			Title: &evaluationResult.Name,
+			Summary: &evaluationResult.Description,
+		},
+		StartedAt: &time,
+		CompletedAt: &time,
+		Conclusion: &conclusion,
+		HeadSHA: sha,
+	}
+
+	_, _, err := client.Checks.CreateCheckRun(ctx, owner, repo, *status)
+	return err
+}
+
 func (b *Base) Evaluate(ctx context.Context, mbrCtx pull.MembershipContext, client *github.Client, v4client *githubv4.Client, pr *github.PullRequest) error {
 	fetchedConfig, err := b.ConfigFetcher.ConfigForPR(ctx, client, pr)
 	if err != nil {
@@ -168,5 +226,10 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, mbrCtx pull.Membership
 	}
 
 	err = b.PostStatus(ctx, client, pr, statusState, statusDescription)
+	if err != nil {
+		return err
+	}
+
+	err = b.PostCheckResults(ctx, client, pr, result)
 	return err
 }
