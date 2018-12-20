@@ -117,8 +117,10 @@ func (b *Base) PostCheckResults(ctx context.Context, client *github.Client, pr *
 	owner := pr.GetBase().GetRepo().GetOwner().GetLogin()
 	repo := pr.GetBase().GetRepo().GetName()
 
-	if err := b.createGitHubRepoCheck(ctx, client, pr, owner, repo, sha, evaluationResult); err != nil {
-		return err
+	for _, result := range evaluationResult.Children {
+		if err := b.createGitHubRepoCheck(ctx, client, pr, owner, repo, sha, *result); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -137,18 +139,21 @@ func (b *Base) createGitHubRepoCheck(ctx context.Context, client *github.Client,
 	switch evaluationResult.Status.String() {
 	case "approved":
 		conclusion = "success"
+	case "skipped":
+		conclusion = "neutral"
 	case "disapproved":
+	case "unknown":
 		conclusion = "failure"
 	case "pending":
 		conclusion = "action_required"
 	}
 
 	status := &github.CreateCheckRunOptions{
-		Name: b.PullOpts.AppName,
+		Name: strings.Title(evaluationResult.Name + "s"),
 		DetailsURL: &detailsURL,
 		Status: &defaultStatus,
 		Output: &github.CheckRunOutput{
-			Title: &evaluationResult.Name,
+			Title: &evaluationResult.Description,
 			Summary: &evaluationResult.Description,
 		},
 		StartedAt: &time,
