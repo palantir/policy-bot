@@ -141,10 +141,11 @@ func (b *Base) createGitHubRepoCheck(ctx context.Context, client *github.Client,
 	case "skipped":
 		conclusion = "neutral"
 	case "disapproved":
+		conclusion = "failure"
 	case "unknown":
 		conclusion = "failure"
 	case "pending":
-		conclusion = "action_required"
+		conclusion = "failure"
 	}
 
 	var builder strings.Builder
