@@ -116,17 +116,9 @@ func (b *Base) PostCheckResults(ctx context.Context, client *github.Client, pr *
 	sha := pr.GetHead().GetSHA()
 	owner := pr.GetBase().GetRepo().GetOwner().GetLogin()
 	repo := pr.GetBase().GetRepo().GetName()
-	checkRunsRequest := &github.ListCheckRunsOptions{}
 
-	existingChecks, _, err := client.Checks.ListCheckRunsForRef(ctx, owner, repo, sha, checkRunsRequest)
-	if err != nil {
+	if err := b.createGitHubRepoCheck(ctx, client, pr, owner, repo, sha, evaluationResult); err != nil {
 		return err
-	}
-
-	if existingChecks.GetTotal() >= 0 {
-		if err := b.createGitHubRepoCheck(ctx, client, pr, owner, repo, sha, evaluationResult); err != nil {
-			return err
-		}
 	}
 
 	return nil
