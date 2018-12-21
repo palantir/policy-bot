@@ -113,6 +113,7 @@ func New(c *Config) (*Server, error) {
 		&handler.PullRequestReview{Base: basePolicyHandler},
 		&handler.IssueComment{Base: basePolicyHandler},
 		&handler.Status{Base: basePolicyHandler},
+		&handler.CheckRun{Base: basePolicyHandler},
 	)
 
 	templates, err := handler.LoadTemplates(&c.Files)
