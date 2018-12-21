@@ -46,7 +46,10 @@ options:
   status_check_context: policy-bot
   # The name of the application as registered with GitHub
   app_name: policy-bot
-
+  # Disable the traditional way of post status updates for a Pull Request
+  disable_github_status_updates: false
+  # Enable status update via GitHub checks. Requires `checks:write` permission
+  enable_github_check_runs: false
 # Options for frontend assets
 files:
   # The filesystem path to static CSS and JS assets

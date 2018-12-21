@@ -59,6 +59,16 @@ type PullEvaluationOptions struct {
 	// no templating. This is turned off by default. This is to support legacy workflows that depend on the original
 	// context behaviour, and will be removed in 2.0
 	PostInsecureStatusChecks bool `yaml:"post_insecure_status_checks"`
+
+	// DisableGitHubStatusChecks disable the sending of a status update to GitHub. This is enable by default as
+	// traditionally status checks were the only way to add status to a Pull Request. This can be replaced by the new
+	// GitHub Checks feature. See EnableGitHubCheckRuns
+	DisableGitHubStatusChecks bool `yaml:"disable_github_status_updates"`
+
+	// EnableGitHubCheckRuns enables posting of the results of the policy evaluations as GitHub checks. This means that
+	// that full results are visible on the checks tab of a GitHub pull request. By default this is turned off as the
+	// `checks:write` permission is required for the GitHub application
+	EnableGitHubCheckRuns bool `yaml:"enable_github_check_runs"`
 }
 
 func (p *PullEvaluationOptions) FillDefaults() {
@@ -248,11 +258,15 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, mbrCtx pull.Membership
 		return errors.Errorf("evaluation resulted in unexpected state: %s", result.Status)
 	}
 
-	err = b.PostStatus(ctx, client, pr, statusState, statusDescription)
-	if err != nil {
-		return err
+	if !b.PullOpts.DisableGitHubStatusChecks {
+		err = b.PostStatus(ctx, client, pr, statusState, statusDescription)
+		if err != nil {
+			return err
+		}
 	}
 
-	err = b.PostCheckResults(ctx, client, pr, result)
+	if b.PullOpts.EnableGitHubCheckRuns {
+		err = b.PostCheckResults(ctx, client, pr, result)
+	}
 	return err
 }
