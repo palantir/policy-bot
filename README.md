@@ -346,6 +346,7 @@ that terminates TLS connections.
 | Repository metadata | Read-only | Basic repository data |
 | Pull requests | Read-only| Receive pull request events, read metadata |
 | Commit status | Read & write | Post commit statuses |
+| Checks | Read & write | Post check run results |
 | Organization members | Read-only | Determine organization and team membership |
 
 It should be subscribed to the following events:
@@ -354,6 +355,7 @@ It should be subscribed to the following events:
 * Pull request
 * Status
 * Pull request review
+* Check run
 
 There is a [`logo.png`](https://github.com/palantir/policy-bot/blob/develop/logo.png)
 provided if you'd like to use it as the GitHub application logo. The background
