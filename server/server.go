@@ -114,6 +114,7 @@ func New(c *Config) (*Server, error) {
 		&handler.IssueComment{Base: basePolicyHandler},
 		&handler.Status{Base: basePolicyHandler},
 		&handler.CheckRun{Base: basePolicyHandler},
+		&handler.CheckSuite{Base: basePolicyHandler},
 	)
 
 	templates, err := handler.LoadTemplates(&c.Files)
