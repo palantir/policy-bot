@@ -26,7 +26,7 @@ type CheckRun struct {
 	Base
 }
 
-func (h CheckRun) Handles() []string { return []string {"check_run"} }
+func (h CheckRun) Handles() []string { return []string{"check_run"} }
 
 // Handle check_run
 // https://developer.github.com/v3/activity/events/types/#checkrunevent

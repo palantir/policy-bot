@@ -168,34 +168,34 @@ func (b *Base) createGitHubRepoCheck(ctx context.Context, client *github.Client,
 	summary := builder.String()
 
 	status := &github.CreateCheckRunOptions{
-		Name: strings.Title(evaluationResult.Name + "s"),
+		Name:       strings.Title(evaluationResult.Name + "s"),
 		DetailsURL: &detailsURL,
-		Status: &defaultStatus,
+		Status:     &defaultStatus,
 		Output: &github.CheckRunOutput{
-			Title: &evaluationResult.Description,
+			Title:   &evaluationResult.Description,
 			Summary: &summary,
 		},
-		StartedAt: &time,
+		StartedAt:   &time,
 		CompletedAt: &time,
-		Conclusion: &conclusion,
-		HeadSHA: sha,
+		Conclusion:  &conclusion,
+		HeadSHA:     sha,
 	}
 
 	_, _, err := client.Checks.CreateCheckRun(ctx, owner, repo, *status)
 	return err
 }
 
-func (b *Base) generateCheckRunSummary(results[] *common.Result, level int) string {
+func (b *Base) generateCheckRunSummary(results []*common.Result, level int) string {
 	var summaryBuilder strings.Builder
-	headerValue := strings.Repeat("#", 3 + level)
-	indentValue := strings.Repeat(" ", 2 * level)
+	headerValue := strings.Repeat("#", 3+level)
+	indentValue := strings.Repeat(" ", 2*level)
 
 	for _, childResult := range results {
 		summaryBuilder.WriteString("\n")
 		summaryBuilder.WriteString(fmt.Sprintf("%s- %s %s (%s)", indentValue, headerValue, strings.Title(childResult.Name), childResult.Status.String()))
 		summaryBuilder.WriteString("\n")
 		summaryBuilder.WriteString(fmt.Sprintf("  %s%s", indentValue, childResult.Description))
-		childSummaries := b.generateCheckRunSummary(childResult.Children, level + 1)
+		childSummaries := b.generateCheckRunSummary(childResult.Children, level+1)
 		summaryBuilder.WriteString(childSummaries)
 	}
 
