@@ -166,9 +166,10 @@ func (b *Base) createGitHubRepoCheck(ctx context.Context, client *github.Client,
 	childSummaries := b.generateCheckRunSummary(evaluationResult.Children, 0)
 	_, _ = builder.WriteString(childSummaries)
 	summary := builder.String()
+	checkName := fmt.Sprintf("%s: %ss - %s", b.PullOpts.StatusCheckContext, evaluationResult.Name, pr.GetBase().GetRef())
 
 	status := &github.CreateCheckRunOptions{
-		Name:       strings.Title(evaluationResult.Name + "s"),
+		Name:       checkName,
 		DetailsURL: &detailsURL,
 		Status:     &defaultStatus,
 		Output: &github.CheckRunOutput{
