@@ -17,6 +17,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/google/go-github/github"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/pkg/errors"
@@ -36,14 +37,14 @@ func (h *CheckRun) Handle(ctx context.Context, eventType, deliveryID string, pay
 		return errors.Wrap(err, "failed to parse check run event payload")
 	}
 
-	installationId := githubapp.GetInstallationIDFromEvent(&event)
+	installationID := githubapp.GetInstallationIDFromEvent(&event)
 
-	client, err := h.NewInstallationClient(installationId)
+	client, err := h.NewInstallationClient(installationID)
 	if err != nil {
 		return err
 	}
 
-	v4client, err := h.NewInstallationV4Client(installationId)
+	v4client, err := h.NewInstallationV4Client(installationID)
 	if err != nil {
 		return err
 	}
@@ -51,7 +52,7 @@ func (h *CheckRun) Handle(ctx context.Context, eventType, deliveryID string, pay
 	switch event.GetAction() {
 	case "rerequested":
 		for _, pullRequest := range event.GetCheckRun().PullRequests {
-			ctx, _ = githubapp.PreparePRContext(ctx, installationId, event.GetRepo(), pullRequest.GetNumber())
+			ctx, _ = githubapp.PreparePRContext(ctx, installationID, event.GetRepo(), pullRequest.GetNumber())
 
 			// HACK: This gets around a lack of context from the PR associated with a check run. As the API might
 			// change later, this should be re-evaluated at a later date
