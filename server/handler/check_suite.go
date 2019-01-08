@@ -21,7 +21,6 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog"
 )
 
 type CheckSuite struct {
@@ -52,28 +51,7 @@ func (h *CheckSuite) Handle(ctx context.Context, eventType, deliveryID string, p
 
 	switch event.GetAction() {
 	case "rerequested":
-		owner := event.GetRepo().GetOwner().GetLogin()
-		repo := event.GetRepo().GetName()
-
-		for _, checkPullRequest := range event.GetCheckSuite().PullRequests {
-			pullRequestId := checkPullRequest.GetNumber()
-
-			ctx, _ = githubapp.PreparePRContext(ctx, installationID, event.GetRepo(), pullRequestId)
-			logger := zerolog.Ctx(ctx)
-
-			// Load up the PR dependant affected by a check suite update
-			pullRequest, _, err := client.PullRequests.Get(ctx, owner, repo, pullRequestId)
-			if err != nil {
-				logger.Error().Err(err).Msgf("unable to load pull request %s in %s/%s", pullRequestId, owner, repo)
-				continue
-			}
-
-			mbrCtx := NewCrossOrgMembershipContext(ctx, client, owner, h.Installations, h.ClientCreator)
-			err = h.Evaluate(ctx, mbrCtx, client, v4client, pullRequest)
-			if err != nil {
-				logger.Error().Err(err).Msgf("unable to process checks for pull request %s in %s/%s", pullRequestId, owner, repo)
-			}
-		}
+		h.ProcessChecksRerequests(ctx, installationID, client, v4client, *event.GetRepo(), event.GetCheckSuite().PullRequests)
 	}
 
 	return nil

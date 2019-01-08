@@ -271,3 +271,28 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, mbrCtx pull.Membership
 	}
 	return err
 }
+
+func (b *Base) ProcessChecksRerequests(ctx context.Context, installationID int64, client *github.Client, v4client *githubv4.Client, repo github.Repository, checksPullRequests []*github.PullRequest) {
+	owner := repo.GetOwner().GetLogin()
+	repoName := repo.GetName()
+
+	for _, checkPullRequest := range checksPullRequests {
+		pullRequestID := checkPullRequest.GetNumber()
+
+		ctx, _ = githubapp.PreparePRContext(ctx, installationID, &repo, pullRequestID)
+		logger := zerolog.Ctx(ctx)
+
+		// Load up the PR dependant affected by a check suite update
+		pullRequest, _, err := client.PullRequests.Get(ctx, owner, repoName, pullRequestID)
+		if err != nil {
+			logger.Error().Err(err).Msgf("unable to load pull request %s in %s/%s", string(pullRequestID), owner, repo)
+			continue
+		}
+
+		mbrCtx := NewCrossOrgMembershipContext(ctx, client, owner, b.Installations, b.ClientCreator)
+		err = b.Evaluate(ctx, mbrCtx, client, v4client, pullRequest)
+		if err != nil {
+			logger.Error().Err(err).Msgf("unable to process checks for pull request %s in %s/%s", string(pullRequestID), owner, repo)
+		}
+	}
+}
