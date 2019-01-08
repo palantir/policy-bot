@@ -51,15 +51,7 @@ func (h *CheckRun) Handle(ctx context.Context, eventType, deliveryID string, pay
 
 	switch event.GetAction() {
 	case "rerequested":
-		for _, pullRequest := range event.GetCheckRun().PullRequests {
-			ctx, _ = githubapp.PreparePRContext(ctx, installationID, event.GetRepo(), pullRequest.GetNumber())
-
-			// HACK: This gets around a lack of context from the PR associated with a check run. As the API might
-			// change later, this should be re-evaluated at a later date
-			pullRequest.Base.Repo = event.GetRepo()
-			mbrCtx := NewCrossOrgMembershipContext(ctx, client, event.GetRepo().GetOwner().GetLogin(), h.Installations, h.ClientCreator)
-			return h.Evaluate(ctx, mbrCtx, client, v4client, pullRequest)
-		}
+		h.ProcessChecksRerequests(ctx, installationID, client, v4client, *event.GetRepo(), event.GetCheckRun().PullRequests)
 	}
 
 	return nil
