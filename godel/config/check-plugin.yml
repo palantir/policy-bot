@@ -9,3 +9,9 @@ checks:
   errcheck:
     filters:
     - value: "Client\\.(Count|Gauge)"
+    config:
+      exclude:
+        - (*strings.Builder).Write
+        - (*strings.Builder).WriteByte
+        - (*strings.Builder).WriteRune
+        - (*strings.Builder).WriteString

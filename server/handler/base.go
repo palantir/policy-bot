@@ -160,11 +160,11 @@ func (b *Base) createGitHubRepoCheck(ctx context.Context, client *github.Client,
 
 	var builder strings.Builder
 	if len(evaluationResult.Children) == 0 {
-		_, _ = builder.WriteString(evaluationResult.Description)
+		builder.WriteString(evaluationResult.Description)
 	}
 
 	childSummaries := b.generateCheckRunSummary(evaluationResult.Children, 0)
-	_, _ = builder.WriteString(childSummaries)
+	builder.WriteString(childSummaries)
 	summary := builder.String()
 	checkName := fmt.Sprintf("%s: %ss - %s", b.PullOpts.StatusCheckContext, evaluationResult.Name, pr.GetBase().GetRef())
 
@@ -192,12 +192,12 @@ func (b *Base) generateCheckRunSummary(results []*common.Result, level int) stri
 	indentValue := strings.Repeat(" ", 2*level)
 
 	for _, childResult := range results {
-		_, _ = summaryBuilder.WriteString("\n")
-		_, _ = summaryBuilder.WriteString(fmt.Sprintf("%s- %s %s (%s)", indentValue, headerValue, strings.Title(childResult.Name), childResult.Status.String()))
-		_, _ = summaryBuilder.WriteString("\n")
-		_, _ = summaryBuilder.WriteString(fmt.Sprintf("  %s%s", indentValue, childResult.Description))
+		summaryBuilder.WriteString("\n")
+		summaryBuilder.WriteString(fmt.Sprintf("%s- %s %s (%s)", indentValue, headerValue, strings.Title(childResult.Name), childResult.Status.String()))
+		summaryBuilder.WriteString("\n")
+		summaryBuilder.WriteString(fmt.Sprintf("  %s%s", indentValue, childResult.Description))
 		childSummaries := b.generateCheckRunSummary(childResult.Children, level+1)
-		_, _ = summaryBuilder.WriteString(childSummaries)
+		summaryBuilder.WriteString(childSummaries)
 	}
 
 	return summaryBuilder.String()
