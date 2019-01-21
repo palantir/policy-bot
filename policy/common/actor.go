@@ -29,11 +29,19 @@ type Actors struct {
 	Users         []string `yaml:"users"`
 	Teams         []string `yaml:"teams"`
 	Organizations []string `yaml:"organizations"`
+
+	// Github specific interpolation options
+	Github *Github `yaml:"github"`
+}
+
+type Github struct {
+	Admin             bool `yaml:"admin"`
+	WriteCollaborator bool `yaml:"write_collaborator"`
 }
 
 // IsEmpty returns true if no conditions for actors are defined.
 func (a *Actors) IsEmpty() bool {
-	return a == nil || (len(a.Users) == 0 && len(a.Teams) == 0 && len(a.Organizations) == 0)
+	return a == nil || (len(a.Users) == 0 && len(a.Teams) == 0 && len(a.Organizations) == 0 && a.Github == nil)
 }
 
 // IsActor returns true if the given user satisfies at least one of the
@@ -62,6 +70,29 @@ func (a *Actors) IsActor(ctx context.Context, prctx pull.Context, user string) (
 		}
 		if member {
 			return true, nil
+		}
+	}
+
+	if a.Github != nil {
+		if a.Github.Admin {
+			prctx.Locator()
+			isAdmin, err := prctx.IsCollaborator("admin", prctx.Owner(), prctx.Repo(), user)
+			if err != nil {
+				return false, errors.Wrap(err, "failed to get admin collaborator status")
+			}
+			if isAdmin {
+				return true, nil
+			}
+		}
+
+		if a.Github.WriteCollaborator {
+			isWrite, err := prctx.IsCollaborator("push", prctx.Owner(), prctx.Repo(), user)
+			if err != nil {
+				return false, errors.Wrap(err, "failed to get write collaborator status")
+			}
+			if isWrite {
+				return true, nil
+			}
 		}
 	}
 

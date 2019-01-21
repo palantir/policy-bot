@@ -20,6 +20,8 @@ import (
 
 type Context struct {
 	LocatorValue string
+	OwnerValue   string
+	RepoValue    string
 
 	AuthorValue string
 	AuthorError error
@@ -42,6 +44,9 @@ type Context struct {
 	OrgMemberships     map[string][]string
 	OrgMembershipError error
 
+	CollaboratorMemberships     map[string][]string
+	CollaboratorMembershipError error
+
 	BranchBaseName string
 	BranchHeadName string
 	BranchesError  error
@@ -55,6 +60,20 @@ func (c *Context) Locator() string {
 		return c.LocatorValue
 	}
 	return "pulltest/context#1"
+}
+
+func (c *Context) Owner() string {
+	if c.OwnerValue != "" {
+		return c.OwnerValue
+	}
+	return "pulltest"
+}
+
+func (c *Context) Repo() string {
+	if c.RepoValue != "" {
+		return c.RepoValue
+	}
+	return "context"
 }
 
 func (c *Context) Author() (string, error) {
@@ -89,6 +108,19 @@ func (c *Context) IsOrgMember(org, user string) (bool, error) {
 
 	for _, o := range c.OrgMemberships[user] {
 		if o == org {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (c *Context) IsCollaborator(desiredPerm, org, repo, user string) (bool, error) {
+	if c.CollaboratorMembershipError != nil {
+		return false, c.CollaboratorMembershipError
+	}
+
+	for _, c := range c.CollaboratorMemberships[user] {
+		if c == desiredPerm {
 			return true, nil
 		}
 	}

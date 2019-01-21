@@ -87,8 +87,20 @@ func (ghc *GitHubContext) IsOrgMember(org, user string) (bool, error) {
 	return ghc.mbrCtx.IsOrgMember(org, user)
 }
 
+func (ghc *GitHubContext) IsCollaborator(desiredPerm, org, repo, user string) (bool, error) {
+	return ghc.mbrCtx.IsCollaborator(desiredPerm, org, repo, user)
+}
+
 func (ghc *GitHubContext) Locator() string {
 	return fmt.Sprintf("%s/%s#%d", ghc.owner, ghc.repo, ghc.number)
+}
+
+func (ghc *GitHubContext) Owner() string {
+	return ghc.owner
+}
+
+func (ghc *GitHubContext) Repo() string {
+	return ghc.repo
 }
 
 func (ghc *GitHubContext) Author() (string, error) {

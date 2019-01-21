@@ -87,3 +87,11 @@ func (c *CrossOrgMembershipContext) IsOrgMember(org, user string) (bool, error) 
 	}
 	return mbrCtx.IsOrgMember(org, user)
 }
+
+func (c *CrossOrgMembershipContext) IsCollaborator(desiredPerm, org, repo, user string) (bool, error) {
+	mbrCtx, err := c.getCtxForOrg(org)
+	if err != nil {
+		return false, err
+	}
+	return mbrCtx.IsCollaborator(desiredPerm, org, repo, user)
+}

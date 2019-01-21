@@ -190,6 +190,14 @@ requires:
   users: ["user1", "user2"]
   organizations: ["org1", "org2"]
   teams: ["org1/team1", "org2/team2"]
+
+  # "github" resolves the membership with respect to github settings for the repo
+  # using the API for both organization and repository settings
+  github:
+    # allows approval by admins of the org or repository
+    admin: true
+    # allows approval by users who have write on the repository
+    write_collaborator: true
 ```
 
 ### Approval Policies
