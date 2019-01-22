@@ -72,8 +72,6 @@ type ConfigFetcher struct {
 // does not exist or is invalid, the returned error is nil and the appropriate
 // fields are set on the FetchedConfig.
 func (cf *ConfigFetcher) ConfigForPR(ctx context.Context, client *github.Client, pr *github.PullRequest) (FetchedConfig, error) {
-	logger := zerolog.Ctx(ctx)
-
 	fc := FetchedConfig{
 		Owner: pr.GetBase().GetRepo().GetOwner().GetLogin(),
 		Repo:  pr.GetBase().GetRepo().GetName(),
@@ -92,13 +90,10 @@ func (cf *ConfigFetcher) ConfigForPR(ctx context.Context, client *github.Client,
 
 	config, err := cf.unmarshalConfig(configBytes)
 	if err != nil {
-		logger.Debug().Msg("error unmarshaling config")
 		fc.Error = err
 		return fc, nil
 	}
-
-	logger.Debug().Msg("found config")
-
+	
 	fc.Config = config
 	return fc, nil
 }
