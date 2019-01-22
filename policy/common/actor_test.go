@@ -34,7 +34,7 @@ func TestIsActor(t *testing.T) {
 			"mhaypenny": {"cool-org", "regular-org"},
 		},
 		CollaboratorMemberships: map[string][]string{
-			"mhaypenny": {"admin", "push"},
+			"mhaypenny": {GithubAdminPermission, GithubWritePermission},
 		},
 	}
 
@@ -78,22 +78,14 @@ func TestIsActor(t *testing.T) {
 	})
 
 	t.Run("admins", func(t *testing.T) {
-		a := &Actors{
-			Github: &Github{
-				Admin: true,
-			},
-		}
+		a := &Actors{Admins: true}
 
 		assertActor(t, a, "mhaypenny")
 		assertNotActor(t, a, "ttest")
 	})
 
-	t.Run("push", func(t *testing.T) {
-		a := &Actors{
-			Github: &Github{
-				WriteCollaborator: true,
-			},
-		}
+	t.Run("write", func(t *testing.T) {
+		a := &Actors{WriteCollaborators: true}
 
 		assertActor(t, a, "mhaypenny")
 		assertNotActor(t, a, "ttest")
@@ -111,9 +103,6 @@ func TestIsEmpty(t *testing.T) {
 	assert.False(t, a.IsEmpty(), "Actors struct was empty")
 
 	a = &Actors{Organizations: []string{"org"}}
-	assert.False(t, a.IsEmpty(), "Actors struct was empty")
-
-	a = &Actors{Github: &Github{Admin: true}}
 	assert.False(t, a.IsEmpty(), "Actors struct was empty")
 
 	a = nil

@@ -30,18 +30,19 @@ type Actors struct {
 	Teams         []string `yaml:"teams"`
 	Organizations []string `yaml:"organizations"`
 
-	// Github specific interpolation options
-	Github *Github `yaml:"github"`
+	// Github repository specific interpolation options
+	Admins             bool `yaml:"admins"`
+	WriteCollaborators bool `yaml:"write_collaborators"`
 }
 
-type Github struct {
-	Admin             bool `yaml:"admin"`
-	WriteCollaborator bool `yaml:"write_collaborator"`
-}
+const (
+	GithubWritePermission = "write"
+	GithubAdminPermission = "admin"
+)
 
 // IsEmpty returns true if no conditions for actors are defined.
 func (a *Actors) IsEmpty() bool {
-	return a == nil || (len(a.Users) == 0 && len(a.Teams) == 0 && len(a.Organizations) == 0 && a.Github == nil)
+	return a == nil || (len(a.Users) == 0 && len(a.Teams) == 0 && len(a.Organizations) == 0)
 }
 
 // IsActor returns true if the given user satisfies at least one of the
@@ -73,26 +74,23 @@ func (a *Actors) IsActor(ctx context.Context, prctx pull.Context, user string) (
 		}
 	}
 
-	if a.Github != nil {
-		if a.Github.Admin {
-			prctx.Locator()
-			isAdmin, err := prctx.IsCollaborator("admin", prctx.Owner(), prctx.Repo(), user)
-			if err != nil {
-				return false, errors.Wrap(err, "failed to get admin collaborator status")
-			}
-			if isAdmin {
-				return true, nil
-			}
+	if a.Admins {
+		isAdmin, err := prctx.IsCollaborator(prctx.RepositoryOwner(), prctx.RepositoryName(), user, GithubAdminPermission)
+		if err != nil {
+			return false, errors.Wrap(err, "failed to get admin collaborator status")
 		}
+		if isAdmin {
+			return true, nil
+		}
+	}
 
-		if a.Github.WriteCollaborator {
-			isWrite, err := prctx.IsCollaborator("push", prctx.Owner(), prctx.Repo(), user)
-			if err != nil {
-				return false, errors.Wrap(err, "failed to get write collaborator status")
-			}
-			if isWrite {
-				return true, nil
-			}
+	if a.WriteCollaborators {
+		isWrite, err := prctx.IsCollaborator(prctx.RepositoryOwner(), prctx.RepositoryName(), user, GithubWritePermission)
+		if err != nil {
+			return false, errors.Wrap(err, "failed to get write collaborator status")
+		}
+		if isWrite {
+			return true, nil
 		}
 	}
 

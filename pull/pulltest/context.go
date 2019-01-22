@@ -62,14 +62,14 @@ func (c *Context) Locator() string {
 	return "pulltest/context#1"
 }
 
-func (c *Context) Owner() string {
+func (c *Context) RepositoryOwner() string {
 	if c.OwnerValue != "" {
 		return c.OwnerValue
 	}
 	return "pulltest"
 }
 
-func (c *Context) Repo() string {
+func (c *Context) RepositoryName() string {
 	if c.RepoValue != "" {
 		return c.RepoValue
 	}
@@ -114,7 +114,7 @@ func (c *Context) IsOrgMember(org, user string) (bool, error) {
 	return false, nil
 }
 
-func (c *Context) IsCollaborator(desiredPerm, org, repo, user string) (bool, error) {
+func (c *Context) IsCollaborator(org, repo, user, desiredPerm string) (bool, error) {
 	if c.CollaboratorMembershipError != nil {
 		return false, c.CollaboratorMembershipError
 	}

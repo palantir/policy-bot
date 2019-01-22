@@ -122,6 +122,8 @@ func (b *Base) Evaluate(ctx context.Context, mbrCtx pull.MembershipContext, clie
 func (b *Base) EvaluateFetchedConfig(ctx context.Context, mbrCtx pull.MembershipContext, client *github.Client, v4client *githubv4.Client, pr *github.PullRequest, fetchedConfig FetchedConfig) error {
 	logger := zerolog.Ctx(ctx)
 
+	logger.Debug().Msg(fetchedConfig.String())
+
 	if fetchedConfig.Missing() {
 		logger.Debug().Msgf("policy does not exist: %s", fetchedConfig)
 		return nil
