@@ -93,7 +93,7 @@ func (cf *ConfigFetcher) ConfigForPR(ctx context.Context, client *github.Client,
 		fc.Error = err
 		return fc, nil
 	}
-	
+
 	fc.Config = config
 	return fc, nil
 }
