@@ -29,7 +29,16 @@ type Actors struct {
 	Users         []string `yaml:"users"`
 	Teams         []string `yaml:"teams"`
 	Organizations []string `yaml:"organizations"`
+
+	// Github repository specific interpolation options
+	Admins             bool `yaml:"admins"`
+	WriteCollaborators bool `yaml:"write_collaborators"`
 }
+
+const (
+	GithubWritePermission = "write"
+	GithubAdminPermission = "admin"
+)
 
 // IsEmpty returns true if no conditions for actors are defined.
 func (a *Actors) IsEmpty() bool {
@@ -61,6 +70,26 @@ func (a *Actors) IsActor(ctx context.Context, prctx pull.Context, user string) (
 			return false, errors.Wrap(err, "failed to get org membership")
 		}
 		if member {
+			return true, nil
+		}
+	}
+
+	if a.Admins {
+		isAdmin, err := prctx.IsCollaborator(prctx.RepositoryOwner(), prctx.RepositoryName(), user, GithubAdminPermission)
+		if err != nil {
+			return false, errors.Wrap(err, "failed to get admin collaborator status")
+		}
+		if isAdmin {
+			return true, nil
+		}
+	}
+
+	if a.WriteCollaborators {
+		isWrite, err := prctx.IsCollaborator(prctx.RepositoryOwner(), prctx.RepositoryName(), user, GithubWritePermission)
+		if err != nil {
+			return false, errors.Wrap(err, "failed to get write collaborator status")
+		}
+		if isWrite {
 			return true, nil
 		}
 	}

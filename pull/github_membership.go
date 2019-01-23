@@ -112,3 +112,12 @@ func (mc *GitHubMembershipContext) IsOrgMember(org, user string) (bool, error) {
 	mc.membership[key] = isMember
 	return isMember, nil
 }
+
+func (mc *GitHubMembershipContext) IsCollaborator(org, repo, user, desiredPerm string) (bool, error) {
+	perm, _, err := mc.client.Repositories.GetPermissionLevel(mc.ctx, org, repo, user)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to get repo %s permission", desiredPerm)
+	}
+
+	return perm.GetPermission() == desiredPerm, nil
+}

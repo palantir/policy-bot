@@ -190,6 +190,11 @@ requires:
   users: ["user1", "user2"]
   organizations: ["org1", "org2"]
   teams: ["org1/team1", "org2/team2"]
+
+  # allows approval by admins of the org or repository
+  admins: true
+  # allows approval by users who have write on the repository
+  write_collaborators: true
 ```
 
 ### Approval Policies

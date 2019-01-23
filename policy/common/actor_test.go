@@ -33,6 +33,9 @@ func TestIsActor(t *testing.T) {
 		OrgMemberships: map[string][]string{
 			"mhaypenny": {"cool-org", "regular-org"},
 		},
+		CollaboratorMemberships: map[string][]string{
+			"mhaypenny": {GithubAdminPermission, GithubWritePermission},
+		},
 	}
 
 	assertActor := func(t *testing.T, a *Actors, user string) {
@@ -69,6 +72,20 @@ func TestIsActor(t *testing.T) {
 		a := &Actors{
 			Organizations: []string{"cool-org"},
 		}
+
+		assertActor(t, a, "mhaypenny")
+		assertNotActor(t, a, "ttest")
+	})
+
+	t.Run("admins", func(t *testing.T) {
+		a := &Actors{Admins: true}
+
+		assertActor(t, a, "mhaypenny")
+		assertNotActor(t, a, "ttest")
+	})
+
+	t.Run("write", func(t *testing.T) {
+		a := &Actors{WriteCollaborators: true}
 
 		assertActor(t, a, "mhaypenny")
 		assertNotActor(t, a, "ttest")

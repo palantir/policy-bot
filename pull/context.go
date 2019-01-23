@@ -27,6 +27,9 @@ type MembershipContext interface {
 
 	// IsOrgMember returns true if the user is a member of the given organzation.
 	IsOrgMember(org, user string) (bool, error)
+
+	// IsCollaborator returns true if the user meets the desiredPerm of the given organzation's repository.
+	IsCollaborator(org, repo, user, desiredPerm string) (bool, error)
 }
 
 // Context is the context for a pull request. It defines methods to get
@@ -41,6 +44,12 @@ type Context interface {
 	// Locator returns a locator string for the pull request. The locator
 	// string is formated as "<owner>/<repository>#<number>"
 	Locator() string
+
+	// RepositoryOwner returns the owner of the repo that the pull request targets.
+	RepositoryOwner() string
+
+	// RepositoryName returns the repo that the pull request targets.
+	RepositoryName() string
 
 	// Author returns the username of the user who opened the pull request.
 	Author() (string, error)
