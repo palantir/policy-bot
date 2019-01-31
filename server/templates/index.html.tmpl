@@ -1,7 +1,7 @@
 {{/* templatetree:extends page.html.tmpl */}}
 {{define "body-class"}}text-dark-gray1 flex flex-col items-center min-h-screen hero{{end}}
 {{define "body"}}
-{{ $appURL := printf "%s/github-apps/%s" .GitHubURL .AppName }}
+{{ $appURL := printf "%s/apps/%s" .GitHubURL .AppName }}
 {{ $docsURL := printf "https://github.com/palantir/policy-bot/blob/%s/README.md" .Version }}
 <header class="p-4 mb-8 text-white flex flex-col items-center">
   <div class="logo mb-4 drop-shadow-sm"></div>
