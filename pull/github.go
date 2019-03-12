@@ -218,19 +218,11 @@ func (ghc *GitHubContext) TargetCommits() ([]*Commit, error) {
 		}
 
 		commits := q.Repository.Ref.Target.Commit.History.Nodes
+		backfillPushedDate(commits)
+
 		ghc.targetCommits = make([]*Commit, len(commits))
-
-		// GitHub only records pushedDate for the HEAD commit in a batch push
-		// Backfill this to all other commits for the purpose of sorting
-		var lastPushed *time.Time
-		for i := len(commits) - 1; i >= 0; i-- {
-			if commits[i].PushedDate != nil {
-				lastPushed = commits[i].PushedDate
-			} else {
-				commits[i].PushedDate = lastPushed
-			}
-
-			ghc.targetCommits[i] = commits[i].ToCommit()
+		for i, c := range commits {
+			ghc.targetCommits[i] = c.ToCommit()
 		}
 	}
 	return ghc.targetCommits, nil
@@ -270,7 +262,8 @@ func (ghc *GitHubContext) loadPullRequestData() error {
 		"reviewCursor":  (*githubv4.String)(nil),
 	}
 
-	ghc.commits = make([]*Commit, 0)
+	// accumulate raw commits for post-processing
+	var commits []*v4Commit
 	ghc.reviews = make([]*Review, 0)
 	ghc.comments = make([]*Comment, 0)
 
@@ -288,7 +281,7 @@ func (ghc *GitHubContext) loadPullRequestData() error {
 		}
 
 		for _, c := range q.Repository.PullRequest.Commits.Nodes {
-			ghc.commits = append(ghc.commits, c.ToCommit())
+			commits = append(commits, &c.Commit)
 		}
 		if !q.Repository.PullRequest.Commits.PageInfo.UpdateCursor(qvars, "commitCursor") {
 			complete++
@@ -306,16 +299,11 @@ func (ghc *GitHubContext) loadPullRequestData() error {
 		}
 	}
 
-	// GitHub only records pushedDate for the HEAD commit in a batch push
-	// Backfill this to all other commits for the purpose of sorting
-	var lastPushed *time.Time
-	for i := len(ghc.commits) - 1; i >= 0; i-- {
-		c := ghc.commits[i]
-		if !c.CreatedAt.IsZero() {
-			lastPushed = &c.CreatedAt
-		} else if lastPushed != nil {
-			c.CreatedAt = *lastPushed
-		}
+	backfillPushedDate(commits)
+
+	ghc.commits = make([]*Commit, len(commits))
+	for i, c := range commits {
+		ghc.commits[i] = c.ToCommit()
 	}
 
 	return nil
@@ -376,10 +364,6 @@ type v4PullRequestCommit struct {
 	Commit v4Commit
 }
 
-func (c *v4PullRequestCommit) ToCommit() *Commit {
-	return c.Commit.ToCommit()
-}
-
 type v4Commit struct {
 	OID             string
 	PushedDate      *time.Time
@@ -411,6 +395,20 @@ func (c *v4Commit) ToCommit() *Commit {
 		CommittedViaWeb: c.CommittedViaWeb,
 		Author:          c.Author.GetV3Login(),
 		Committer:       c.Committer.GetV3Login(),
+	}
+}
+
+// backfillPushedDate copies the push date from the HEAD commit in a batch push
+// to all other commits in that batch. It assumes the commits slice is in
+// ascending chronologic order (latest commit at the end).
+func backfillPushedDate(commits []*v4Commit) {
+	var lastPushed *time.Time
+	for i := len(commits) - 1; i >= 0; i-- {
+		if commits[i].PushedDate != nil {
+			lastPushed = commits[i].PushedDate
+		} else {
+			commits[i].PushedDate = lastPushed
+		}
 	}
 }
 
