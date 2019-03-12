@@ -238,8 +238,8 @@ func (ghc *GitHubContext) TargetCommits() ([]*Commit, error) {
 
 func (ghc *GitHubContext) loadPullRequestData() error {
 	// do not query changed files here because they are only need for rules
-	// that us file predicates, while comments, commits, and reviews are needed
-	// for almost all rule evaluations
+	// that use file predicates, while comments, commits, and reviews are
+	// needed for almost all rule evaluations
 	var q struct {
 		Repository struct {
 			PullRequest struct {
