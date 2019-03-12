@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"sort"
 	"strings"
 	"time"
 
@@ -150,8 +149,8 @@ func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
 
 func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 	if ghc.commits == nil {
-		if err := ghc.loadTimeline(); err != nil {
-			return nil, errors.Wrap(err, "failed to fetch commits")
+		if err := ghc.loadPullRequestData(); err != nil {
+			return nil, err
 		}
 	}
 	if len(ghc.commits) >= MaxPullRequestCommits {
@@ -162,8 +161,8 @@ func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 
 func (ghc *GitHubContext) Comments() ([]*Comment, error) {
 	if ghc.comments == nil {
-		if err := ghc.loadTimeline(); err != nil {
-			return nil, errors.Wrap(err, "failed to fetch comments")
+		if err := ghc.loadPullRequestData(); err != nil {
+			return nil, err
 		}
 	}
 	return ghc.comments, nil
@@ -171,8 +170,8 @@ func (ghc *GitHubContext) Comments() ([]*Comment, error) {
 
 func (ghc *GitHubContext) Reviews() ([]*Review, error) {
 	if ghc.reviews == nil {
-		if err := ghc.loadTimeline(); err != nil {
-			return nil, errors.Wrap(err, "failed to fetch reviews")
+		if err := ghc.loadPullRequestData(); err != nil {
+			return nil, err
 		}
 	}
 	return ghc.reviews, nil
@@ -237,17 +236,27 @@ func (ghc *GitHubContext) TargetCommits() ([]*Commit, error) {
 	return ghc.targetCommits, nil
 }
 
-func (ghc *GitHubContext) loadTimeline() error {
+func (ghc *GitHubContext) loadPullRequestData() error {
+	// do not query changed files here because they are only need for rules
+	// that us file predicates, while comments, commits, and reviews are needed
+	// for almost all rule evaluations
 	var q struct {
 		Repository struct {
 			PullRequest struct {
-				Timeline struct {
-					PageInfo struct {
-						EndCursor   githubv4.String
-						HasNextPage bool
-					}
-					Nodes []*v4TimelineEvent
-				} `graphql:"timeline(first: 100, after: $cursor)"`
+				Comments struct {
+					PageInfo v4PageInfo
+					Nodes    []*v4IssueComment
+				} `graphql:"comments(first: 100, after: $commentCursor)"`
+
+				Commits struct {
+					PageInfo v4PageInfo
+					Nodes    []*v4PullRequestCommit
+				} `graphql:"commits(first: 100, after: $commitCursor)"`
+
+				Reviews struct {
+					PageInfo v4PageInfo
+					Nodes    []*v4PullRequestReview
+				} `graphql:"reviews(first: 100, after: $reviewCursor, states: [APPROVED, CHANGES_REQUESTED])"`
 			} `graphql:"pullRequest(number: $number)"`
 		} `graphql:"repository(owner: $owner, name: $name)"`
 	}
@@ -255,117 +264,120 @@ func (ghc *GitHubContext) loadTimeline() error {
 		"owner":  githubv4.String(ghc.owner),
 		"name":   githubv4.String(ghc.repo),
 		"number": githubv4.Int(ghc.number),
-		"cursor": (*githubv4.String)(nil),
+
+		"commentCursor": (*githubv4.String)(nil),
+		"commitCursor":  (*githubv4.String)(nil),
+		"reviewCursor":  (*githubv4.String)(nil),
 	}
-
-	var allEvents []*v4TimelineEvent
-	for {
-		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
-			return errors.Wrap(err, "failed to list pull request timeline")
-		}
-
-		allEvents = append(allEvents, q.Repository.PullRequest.Timeline.Nodes...)
-		if !q.Repository.PullRequest.Timeline.PageInfo.HasNextPage {
-			break
-		}
-		qvars["cursor"] = githubv4.NewString(q.Repository.PullRequest.Timeline.PageInfo.EndCursor)
-	}
-
-	// GitHub only records pushedDate for the HEAD commit in a batch push
-	// Backfill this to all other commits for the purpose of sorting
-	var lastPushed *time.Time
-	for i := len(allEvents) - 1; i >= 0; i-- {
-		if event := allEvents[i]; event.Type == "Commit" {
-			if event.Commit.PushedDate != nil {
-				lastPushed = event.Commit.PushedDate
-			} else {
-				event.Commit.PushedDate = lastPushed
-			}
-		}
-	}
-
-	// Order events by ascending creation time
-	// Use stable sort to keep ordering for commits with the same timestamp
-	sort.SliceStable(allEvents, func(i, j int) bool {
-		return allEvents[i].CreatedAt().Before(allEvents[j].CreatedAt())
-	})
 
 	ghc.commits = make([]*Commit, 0)
 	ghc.reviews = make([]*Review, 0)
 	ghc.comments = make([]*Comment, 0)
 
-	for _, event := range allEvents {
-		switch event.Type {
-		case "Commit":
-			ghc.commits = append(ghc.commits, event.Commit.ToCommit())
-		case "PullRequestReview":
-			state := ReviewState(strings.ToLower(event.PullRequestReview.State))
-			ghc.reviews = append(ghc.reviews, &Review{
-				CreatedAt: event.CreatedAt(),
-				Author:    event.PullRequestReview.Author.GetV3Login(),
-				State:     state,
-				Body:      event.PullRequestReview.Body,
-				ID:        event.PullRequestReview.ID,
-			})
-		case "ReviewDismissedEvent":
-			for _, r := range ghc.reviews {
-				if r.ID == event.ReviewDismissedEvent.Review.ID {
-					r.State = ReviewDismissed
-				}
-			}
-		case "IssueComment":
-			ghc.comments = append(ghc.comments, &Comment{
-				CreatedAt: event.CreatedAt(),
-				Author:    event.IssueComment.Author.GetV3Login(),
-				Body:      event.IssueComment.Body,
-			})
+	for {
+		complete := 0
+		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
+			return errors.Wrap(err, "failed to load pull request data")
+		}
+
+		for _, c := range q.Repository.PullRequest.Comments.Nodes {
+			ghc.comments = append(ghc.comments, c.ToComment())
+		}
+		if !q.Repository.PullRequest.Comments.PageInfo.UpdateCursor(qvars, "commentCursor") {
+			complete++
+		}
+
+		for _, c := range q.Repository.PullRequest.Commits.Nodes {
+			ghc.commits = append(ghc.commits, c.ToCommit())
+		}
+		if !q.Repository.PullRequest.Commits.PageInfo.UpdateCursor(qvars, "commitCursor") {
+			complete++
+		}
+
+		for _, r := range q.Repository.PullRequest.Reviews.Nodes {
+			ghc.reviews = append(ghc.reviews, r.ToReview())
+		}
+		if !q.Repository.PullRequest.Reviews.PageInfo.UpdateCursor(qvars, "reviewCursor") {
+			complete++
+		}
+
+		if complete == 3 {
+			break
+		}
+	}
+
+	// GitHub only records pushedDate for the HEAD commit in a batch push
+	// Backfill this to all other commits for the purpose of sorting
+	var lastPushed *time.Time
+	for i := len(ghc.commits) - 1; i >= 0; i-- {
+		c := ghc.commits[i]
+		if !c.CreatedAt.IsZero() {
+			lastPushed = &c.CreatedAt
+		} else if lastPushed != nil {
+			c.CreatedAt = *lastPushed
 		}
 	}
 
 	return nil
 }
 
-type v4TimelineEvent struct {
-	Type string `graphql:"__typename"`
-
-	Commit v4Commit `graphql:"... on Commit"`
-
-	PullRequestReview struct {
-		ID          string
-		Author      v4Actor
-		State       string
-		Body        string
-		SubmittedAt time.Time
-	} `graphql:"... on PullRequestReview"`
-
-	ReviewDismissedEvent struct {
-		CreatedAt time.Time
-		Review    struct {
-			ID string
-		}
-	} `graphql:"... on ReviewDismissedEvent"`
-
-	IssueComment struct {
-		Author    v4Actor
-		Body      string
-		CreatedAt time.Time
-	} `graphql:"... on IssueComment"`
+type v4PageInfo struct {
+	EndCursor   *githubv4.String
+	HasNextPage bool
 }
 
-func (event *v4TimelineEvent) CreatedAt() (t time.Time) {
-	switch event.Type {
-	case "Commit":
-		if event.Commit.PushedDate != nil {
-			t = *event.Commit.PushedDate
-		}
-	case "PullRequestReview":
-		t = event.PullRequestReview.SubmittedAt
-	case "ReviewDismissedEvent":
-		t = event.ReviewDismissedEvent.CreatedAt
-	case "IssueComment":
-		t = event.IssueComment.CreatedAt
+// UpdateCursor modifies the named cursor value in the the query variable map
+// and returns true if there are additional pages.
+func (pi v4PageInfo) UpdateCursor(vars map[string]interface{}, name string) bool {
+	if pi.HasNextPage {
+		vars[name] = githubv4.NewString(*pi.EndCursor)
+		return true
 	}
-	return
+
+	// if this was the last page, set cursor so the next response is empty
+	// on all queuries after that, the end cursor will be nil
+	if pi.EndCursor != nil {
+		vars[name] = githubv4.NewString(*pi.EndCursor)
+	}
+	return false
+}
+
+type v4PullRequestReview struct {
+	Author      v4Actor
+	State       string
+	Body        string
+	SubmittedAt time.Time
+}
+
+func (r *v4PullRequestReview) ToReview() *Review {
+	return &Review{
+		CreatedAt: r.SubmittedAt,
+		Author:    r.Author.GetV3Login(),
+		State:     ReviewState(strings.ToLower(r.State)),
+		Body:      r.Body,
+	}
+}
+
+type v4IssueComment struct {
+	Author    v4Actor
+	Body      string
+	CreatedAt time.Time
+}
+
+func (c *v4IssueComment) ToComment() *Comment {
+	return &Comment{
+		CreatedAt: c.CreatedAt,
+		Author:    c.Author.GetV3Login(),
+		Body:      c.Body,
+	}
+}
+
+type v4PullRequestCommit struct {
+	Commit v4Commit
+}
+
+func (c *v4PullRequestCommit) ToCommit() *Commit {
+	return c.Commit.ToCommit()
 }
 
 type v4Commit struct {

@@ -1,0 +1,174 @@
+- status: 200
+  body: |
+    {
+      "errors": [],
+      "data": {
+        "repository": {
+          "pullRequest": {
+            "comments": {
+              "pageInfo": {
+                "endCursor": "1",
+                "hasNextPage": false
+              },
+              "nodes": [
+                {
+                  "author": {
+                    "__typename": "User",
+                    "login": "bkeyes"
+                  },
+                  "body": ":+1:",
+                  "createdAt": "2018-06-27T20:28:22Z"
+                },
+                {
+                  "author": {
+                    "__typename": "User",
+                    "login": "mhaypenny"
+                  },
+                  "body": "I comment!",
+                  "createdAt": "2018-06-27T20:28:22Z"
+                }
+              ]
+            },
+            "commits": {
+              "pageInfo": {
+                "endCursor": "2",
+                "hasNextPage": true
+              },
+              "nodes": [
+                {
+                  "commit": {
+                    "oid": "a6f3f69b64eaafece5a0d854eb4af11c0d64394c",
+                    "pushedDate": null,
+                    "author": {
+                      "user": {
+                        "login": "mhaypenny"
+                      }
+                    },
+                    "committer": {
+                      "user": {
+                        "login": "mhaypenny"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "reviews": {
+              "pageInfo": {
+                "endCursor": "2",
+                "hasNextPage": true
+              },
+              "nodes": [
+                {
+                  "author": {
+                    "login": "mhaypenny"
+                  },
+                  "state": "APPROVED",
+                  "body": "",
+                  "submittedAt": "2018-06-27T20:33:26Z"
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+- status: 200
+  body: |
+    {
+      "errors": [],
+      "data": {
+        "repository": {
+          "pullRequest": {
+            "comments": {
+              "pageInfo": {
+                "endCursor": null,
+                "hasNextPage": false
+              },
+              "nodes": []
+            },
+            "commits": {
+              "pageInfo": {
+                "endCursor": "3",
+                "hasNextPage": false
+              },
+              "nodes": [
+                {
+                  "commit": {
+                    "oid": "1fc89f1cedf8e3f3ce516ab75b5952295c8ea5e9",
+                    "pushedDate": "2018-12-04T12:34:56Z",
+                    "author": {
+                      "user": {
+                        "login": "mhaypenny"
+                      }
+                    },
+                    "committer": {
+                      "user": {
+                        "login": "mhaypenny"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "reviews": {
+              "pageInfo": {
+                "endCursor": "3",
+                "hasNextPage": true
+              },
+              "nodes": [
+                {
+                  "author": {
+                    "login": "ttest"
+                  },
+                  "state": "CHANGES_REQUESTED",
+                  "body": "",
+                  "submittedAt": "2018-06-27T20:44:26Z"
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+- status: 200
+  body: |
+    {
+      "errors": [],
+      "data": {
+        "repository": {
+          "pullRequest": {
+            "comments": {
+              "pageInfo": {
+                "endCursor": null,
+                "hasNextPage": false
+              },
+              "nodes": []
+            },
+            "commits": {
+              "pageInfo": {
+                "endCursor": null,
+                "hasNextPage": false
+              },
+              "nodes": []
+            },
+            "reviews": {
+              "pageInfo": {
+                "endCursor": "4",
+                "hasNextPage": false
+              },
+              "nodes": [
+                {
+                  "author": {
+                    "login": "bkeyes"
+                  },
+                  "state": "CHANGES_REQUESTED",
+                  "body": "",
+                  "submittedAt": "2018-06-27T20:55:26Z"
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
