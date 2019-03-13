@@ -101,17 +101,23 @@ func TestCommits(t *testing.T) {
 	require.Len(t, commits, 3, "incorrect number of commits")
 	assert.Equal(t, 2, dataRule.Count, "no http request was made")
 
-	assert.Equal(t, "a6f3f69b64eaafece5a0d854eb4af11c0d64394c", commits[0].SHA)
-	assert.Equal(t, "mhaypenny", commits[0].Author)
+	expectedTime, err := time.Parse(time.RFC3339, "2018-12-06T12:34:56Z")
+	assert.NoError(t, err)
+
+	assert.Equal(t, "e05fcae367230ee709313dd2720da527d178ce43", commits[0].SHA)
+	assert.Equal(t, "ttest", commits[0].Author)
 	assert.Equal(t, "mhaypenny", commits[0].Committer)
+	assert.Equal(t, expectedTime, commits[0].CreatedAt)
 
 	assert.Equal(t, "1fc89f1cedf8e3f3ce516ab75b5952295c8ea5e9", commits[1].SHA)
 	assert.Equal(t, "mhaypenny", commits[1].Author)
 	assert.Equal(t, "mhaypenny", commits[1].Committer)
+	assert.Equal(t, expectedTime.Add(-48*time.Hour), commits[1].CreatedAt)
 
-	assert.Equal(t, "e05fcae367230ee709313dd2720da527d178ce43", commits[2].SHA)
-	assert.Equal(t, "ttest", commits[2].Author)
+	assert.Equal(t, "a6f3f69b64eaafece5a0d854eb4af11c0d64394c", commits[2].SHA)
+	assert.Equal(t, "mhaypenny", commits[2].Author)
 	assert.Equal(t, "mhaypenny", commits[2].Committer)
+	assert.Equal(t, expectedTime.Add(-48*time.Hour), commits[2].CreatedAt)
 
 	// verify that the commit list is cached
 	commits, err = ctx.Commits()

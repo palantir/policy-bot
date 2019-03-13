@@ -37,11 +37,11 @@
               "nodes": [
                 {
                   "commit": {
-                    "oid": "a6f3f69b64eaafece5a0d854eb4af11c0d64394c",
-                    "pushedDate": null,
+                    "oid": "e05fcae367230ee709313dd2720da527d178ce43",
+                    "pushedDate": "2018-12-06T12:34:56Z",
                     "author": {
                       "user": {
-                        "login": "mhaypenny"
+                        "login": "ttest"
                       }
                     },
                     "committer": {
@@ -153,11 +153,11 @@
               "nodes": [
                 {
                   "commit": {
-                    "oid": "e05fcae367230ee709313dd2720da527d178ce43",
-                    "pushedDate": "2018-12-06T12:34:56Z",
+                    "oid": "a6f3f69b64eaafece5a0d854eb4af11c0d64394c",
+                    "pushedDate": null,
                     "author": {
                       "user": {
-                        "login": "ttest"
+                        "login": "mhaypenny"
                       }
                     },
                     "committer": {

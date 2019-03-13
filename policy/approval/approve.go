@@ -212,11 +212,14 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 	return false, msg, nil
 }
 
+// filteredCommits returns relevant commits ordered from oldest to newest.
 func (r *Rule) filteredCommits(prctx pull.Context) ([]*pull.Commit, error) {
 	commits, err := prctx.Commits()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list commits")
 	}
+
+	sort.Stable(pull.CommitsByCreationTime(commits))
 
 	needsFiltering := r.Options.IgnoreUpdateMerges
 	if !needsFiltering {

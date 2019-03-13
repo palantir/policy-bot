@@ -161,8 +161,8 @@ func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 	// verify that the head of the PR being evaluated exists in commit list
 	// some GitHub APIs have a delay propagating commit information
 	headSHA := ghc.pr.GetHead().GetSHA()
-	for i := len(ghc.commits) - 1; i >= 0; i-- {
-		if headSHA == ghc.commits[i].SHA {
+	for _, c := range ghc.commits {
+		if headSHA == c.SHA {
 			return ghc.commits, nil
 		}
 	}
@@ -411,14 +411,15 @@ func (c *v4Commit) ToCommit() *Commit {
 
 // backfillPushedDate copies the push date from the HEAD commit in a batch push
 // to all other commits in that batch. It assumes the commits slice is in
-// ascending chronologic order (latest commit at the end).
+// descending chronologic order (latest commit at the start), which is the
+// default for `git log` and most GitHub APIs.
 func backfillPushedDate(commits []*v4Commit) {
 	var lastPushed *time.Time
-	for i := len(commits) - 1; i >= 0; i-- {
-		if commits[i].PushedDate != nil {
-			lastPushed = commits[i].PushedDate
+	for _, c := range commits {
+		if c.PushedDate != nil {
+			lastPushed = c.PushedDate
 		} else {
-			commits[i].PushedDate = lastPushed
+			c.PushedDate = lastPushed
 		}
 	}
 }
