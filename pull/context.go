@@ -57,13 +57,16 @@ type Context interface {
 	// ChangedFiles returns the files that were changed in this pull request.
 	ChangedFiles() ([]*File, error)
 
-	// Commits returns the commits that are part of this pull request.
+	// Commits returns the commits that are part of this pull request. The
+	// commit order is implementation dependent.
 	Commits() ([]*Commit, error)
 
-	// Comments lists all comments on a Pull Request
+	// Comments lists all comments on a Pull Request. The comment order is
+	// implementation dependent.
 	Comments() ([]*Comment, error)
 
-	// Reviews lists all reviews on a Pull Request
+	// Reviews lists all reviews on a Pull Request. The review order is
+	// implementation dependent.
 	Reviews() ([]*Review, error)
 
 	// Branches returns the base (also known as target) and head branch names
@@ -117,6 +120,14 @@ func (c *Commit) Users() []string {
 		users = append(users, c.Committer)
 	}
 	return users
+}
+
+type CommitsByCreationTime []*Commit
+
+func (cs CommitsByCreationTime) Len() int      { return len(cs) }
+func (cs CommitsByCreationTime) Swap(i, j int) { cs[i], cs[j] = cs[j], cs[i] }
+func (cs CommitsByCreationTime) Less(i, j int) bool {
+	return cs[i].CreatedAt.Before(cs[j].CreatedAt)
 }
 
 type Comment struct {
