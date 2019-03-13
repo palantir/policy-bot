@@ -5,38 +5,46 @@
       "data": {
         "repository": {
           "pullRequest": {
-            "timeline": {
+            "reviews": {
               "pageInfo": {
-                "endCursor": null,
+                "endCursor": "2",
+                "hasNextPage": true
+              },
+              "nodes": [
+                {
+                  "author": {
+                    "login": "mhaypenny"
+                  },
+                  "state": "CHANGES_REQUESTED",
+                  "body": "",
+                  "submittedAt": "2018-06-27T20:33:26Z"
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+- status: 200
+  body: |
+    {
+      "errors": [],
+      "data": {
+        "repository": {
+          "pullRequest": {
+            "reviews": {
+              "pageInfo": {
+                "endCursor": "3",
                 "hasNextPage": false
               },
               "nodes": [
                 {
-                  "__typename": "PullRequestReview",
-                  "id": "12345",
-                  "author": {
-                    "login": "mhaypenny"
-                  },
-                  "state": "CHANGED_REQUESTED",
-                  "body": "",
-                  "submittedAt": "2018-06-27T20:33:26Z"
-                },
-                {
-                  "__typename": "PullRequestReview",
-                  "id": "12347",
                   "author": {
                     "login": "bkeyes"
                   },
                   "state": "APPROVED",
                   "body": "the body",
                   "submittedAt": "2018-06-27T20:33:27Z"
-                },
-                {
-                  "__typename": "ReviewDismissedEvent",
-                  "createdAt": "2018-06-27T20:37:15Z",
-                  "review": {
-                    "id": "12345"
-                  }
                 }
               ]
             }

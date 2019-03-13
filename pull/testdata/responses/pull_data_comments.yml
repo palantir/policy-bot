@@ -5,23 +5,40 @@
       "data": {
         "repository": {
           "pullRequest": {
-            "timeline": {
+            "comments": {
               "pageInfo": {
-                "endCursor": null,
-                "hasNextPage": false
+                "endCursor": "2",
+                "hasNextPage": true
               },
               "nodes": [
                 {
-                  "__typename": "IssueComment",
                   "author": {
                     "__typename": "User",
                     "login": "bkeyes"
                   },
                   "body": ":+1:",
                   "createdAt": "2018-06-27T20:28:22Z"
-                },
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+- status: 200
+  body: |
+    {
+      "errors": [],
+      "data": {
+        "repository": {
+          "pullRequest": {
+            "comments": {
+              "pageInfo": {
+                "endCursor": "3",
+                "hasNextPage": false
+              },
+              "nodes": [
                 {
-                  "__typename": "IssueComment",
                   "author": {
                     "__typename": "Bot",
                     "login": "bulldozer"
