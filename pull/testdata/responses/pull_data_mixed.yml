@@ -63,7 +63,7 @@
                   "author": {
                     "login": "mhaypenny"
                   },
-                  "state": "APPROVED",
+                  "state": "CHANGES_REQUESTED",
                   "body": "",
                   "submittedAt": "2018-06-27T20:33:26Z"
                 }
@@ -90,7 +90,7 @@
             "commits": {
               "pageInfo": {
                 "endCursor": "3",
-                "hasNextPage": false
+                "hasNextPage": true
               },
               "nodes": [
                 {
@@ -114,16 +114,16 @@
             "reviews": {
               "pageInfo": {
                 "endCursor": "3",
-                "hasNextPage": true
+                "hasNextPage": false
               },
               "nodes": [
                 {
                   "author": {
-                    "login": "ttest"
+                    "login": "bkeyes"
                   },
-                  "state": "CHANGES_REQUESTED",
-                  "body": "",
-                  "submittedAt": "2018-06-27T20:44:26Z"
+                  "state": "APPROVED",
+                  "body": "the body",
+                  "submittedAt": "2018-06-27T20:33:27Z"
                 }
               ]
             }
@@ -147,26 +147,34 @@
             },
             "commits": {
               "pageInfo": {
-                "endCursor": null,
-                "hasNextPage": false
-              },
-              "nodes": []
-            },
-            "reviews": {
-              "pageInfo": {
                 "endCursor": "4",
                 "hasNextPage": false
               },
               "nodes": [
                 {
-                  "author": {
-                    "login": "bkeyes"
-                  },
-                  "state": "CHANGES_REQUESTED",
-                  "body": "",
-                  "submittedAt": "2018-06-27T20:55:26Z"
+                  "commit": {
+                    "oid": "e05fcae367230ee709313dd2720da527d178ce43",
+                    "pushedDate": "2018-12-06T12:34:56Z",
+                    "author": {
+                      "user": {
+                        "login": "ttest"
+                      }
+                    },
+                    "committer": {
+                      "user": {
+                        "login": "mhaypenny"
+                      }
+                    }
+                  }
                 }
               ]
+            },
+            "reviews": {
+              "pageInfo": {
+                "endCursor": null,
+                "hasNextPage": false
+              },
+              "nodes": []
             }
           }
         }

@@ -153,10 +153,21 @@ func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 			return nil, err
 		}
 	}
+
 	if len(ghc.commits) >= MaxPullRequestCommits {
 		return nil, errors.Errorf("too many commits in pull request, maximum is %d", MaxPullRequestCommits)
 	}
-	return ghc.commits, nil
+
+	// verify that the head of the PR being evaluated exists in commit list
+	// some GitHub APIs have a delay propagating commit information
+	headSHA := ghc.pr.GetHead().GetSHA()
+	for i := len(ghc.commits) - 1; i >= 0; i-- {
+		if headSHA == ghc.commits[i].SHA {
+			return ghc.commits, nil
+		}
+	}
+
+	return nil, errors.Errorf("pull request head %s was missing from commit listing", headSHA)
 }
 
 func (ghc *GitHubContext) Comments() ([]*Comment, error) {
