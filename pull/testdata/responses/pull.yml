@@ -1,0 +1,31 @@
+- status: 200
+  body: |
+    {
+      "number": 123,
+      "user": {
+        "login": "mhaypenny"
+      },
+      "head": {
+        "label": "testorg:test-branch",
+        "ref": "test-branch",
+        "sha": "e05fcae367230ee709313dd2720da527d178ce43",
+        "repo": {
+          "name": "testrepo",
+          "full_name": "testorg/testrepo",
+          "owner": {
+            "login": "testorg"
+          }
+        }
+      },
+      "base": {
+        "label": "testorg:develop",
+        "ref": "develop",
+        "repo": {
+          "name": "testrepo",
+          "full_name": "testorg/testrepo",
+          "owner": {
+            "login": "testorg"
+          }
+        }
+      }
+    }

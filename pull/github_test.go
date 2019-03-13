@@ -31,7 +31,7 @@ func TestAuthor(t *testing.T) {
 	rp := &ResponsePlayer{}
 	pullsRule := rp.AddRule(
 		ExactPathMatcher("/repos/testorg/testrepo/pulls/123"),
-		"testdata/responses/pull_author.yml",
+		"testdata/responses/pull.yml",
 	)
 
 	ctx := makeContext(rp)
@@ -84,6 +84,10 @@ func TestChangedFiles(t *testing.T) {
 
 func TestCommits(t *testing.T) {
 	rp := &ResponsePlayer{}
+	rp.AddRule(
+		ExactPathMatcher("/repos/testorg/testrepo/pulls/123"),
+		"testdata/responses/pull.yml",
+	)
 	dataRule := rp.AddRule(
 		GraphQLNodePrefixMatcher("repository.pullRequest.commits"),
 		"testdata/responses/pull_data_commits.yml",
@@ -253,6 +257,10 @@ func TestIsTeamMember(t *testing.T) {
 
 func TestMixedPaging(t *testing.T) {
 	rp := &ResponsePlayer{}
+	rp.AddRule(
+		ExactPathMatcher("/repos/testorg/testrepo/pulls/123"),
+		"testdata/responses/pull.yml",
+	)
 	dataRule := rp.AddRule(
 		GraphQLNodePrefixMatcher("repository.pullRequest"),
 		"testdata/responses/pull_data_mixed.yml",
@@ -271,8 +279,8 @@ func TestMixedPaging(t *testing.T) {
 
 	assert.Equal(t, 3, dataRule.Count, "cached values were not used")
 	assert.Len(t, comments, 2, "incorrect number of comments")
-	assert.Len(t, reviews, 3, "incorrect number of reviews")
-	assert.Len(t, commits, 2, "incorrect number of commits")
+	assert.Len(t, reviews, 2, "incorrect number of reviews")
+	assert.Len(t, commits, 3, "incorrect number of commits")
 }
 
 func TestIsOrgMember(t *testing.T) {
@@ -323,15 +331,13 @@ func makeContext(rp *ResponsePlayer) Context {
 		pr = &github.PullRequest{}
 	}
 
-	// insert the values needed for the context
-	repoOwner, repoName, prNum := "testorg", "testrepo", 123
-	pr.Number = &prNum
+	pr.Number = github.Int(123)
 	pr.Base = &github.PullRequestBranch{
 		Repo: &github.Repository{
 			Owner: &github.User{
-				Login: &repoOwner,
+				Login: github.String("testorg"),
 			},
-			Name: &repoName,
+			Name: github.String("testrepo"),
 		},
 	}
 
