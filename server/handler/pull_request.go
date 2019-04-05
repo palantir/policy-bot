@@ -49,7 +49,7 @@ func (h *PullRequest) Handle(ctx context.Context, eventType, deliveryID string, 
 		return err
 	}
 
-	ctx, _ = githubapp.PreparePRContext(ctx, installationID, event.GetRepo(), event.GetNumber())
+	ctx, _ = h.PreparePRContext(ctx, installationID, event.GetPullRequest())
 
 	switch event.GetAction() {
 	case "opened", "reopened", "synchronize", "edited":

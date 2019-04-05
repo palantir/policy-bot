@@ -106,9 +106,18 @@ func (b *Base) PostStatus(ctx context.Context, client *github.Client, pr *github
 
 func (b *Base) postGitHubRepoStatus(ctx context.Context, client *github.Client, owner, repo, ref string, status *github.RepoStatus) error {
 	logger := zerolog.Ctx(ctx)
-	logger.Info().Msgf("Setting status context=%s state=%s description=%s target_url=%s", status.GetContext(), status.GetState(), status.GetDescription(), status.GetTargetURL())
+	logger.Info().Msgf("Setting %q status on %s to %s: %s", status.GetContext(), ref, status.GetState(), status.GetDescription())
 	_, _, err := client.Repositories.CreateStatus(ctx, owner, repo, ref, status)
 	return err
+}
+
+func (b *Base) PreparePRContext(ctx context.Context, installationID int64, pr *github.PullRequest) (context.Context, zerolog.Logger) {
+	ctx, logger := githubapp.PreparePRContext(ctx, installationID, pr.GetBase().GetRepo(), pr.GetNumber())
+
+	logger = logger.With().Str("github_sha", pr.GetHead().GetSHA()).Logger()
+	ctx = logger.WithContext(ctx)
+
+	return ctx, logger
 }
 
 func (b *Base) Evaluate(ctx context.Context, mbrCtx pull.MembershipContext, client *github.Client, v4client *githubv4.Client, pr *github.PullRequest) error {

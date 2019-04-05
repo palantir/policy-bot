@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -128,15 +129,20 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 		if err != nil {
 			return false, "", err
 		}
-
-		lastCommitTime := commits[len(commits)-1].CreatedAt
+		lastCommit := commits[len(commits)-1]
 
 		var allowedCandidates []*common.Candidate
 		for _, candidate := range candidates {
-			if candidate.CreatedAt.After(lastCommitTime) {
+			if candidate.CreatedAt.After(lastCommit.CreatedAt) {
 				allowedCandidates = append(allowedCandidates, candidate)
 			}
 		}
+
+		log.Debug().Msgf("discarded %d candidates invalidated by push of %s at %s",
+			len(candidates)-len(allowedCandidates),
+			lastCommit.SHA,
+			lastCommit.CreatedAt.Format(time.RFC3339))
+
 		candidates = allowedCandidates
 	}
 
