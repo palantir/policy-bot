@@ -24,7 +24,6 @@ import (
 	"github.com/alexedwards/scs"
 	"github.com/bluekeyes/templatetree"
 	"github.com/google/go-github/github"
-	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/pkg/errors"
 	"goji.io/pat"
 
@@ -107,7 +106,7 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	data.PullRequest = pr
 	data.User = user
 
-	ctx, _ = githubapp.PreparePRContext(ctx, installation.ID, pr.GetBase().GetRepo(), number)
+	ctx, _ = h.PreparePRContext(ctx, installation.ID, pr)
 
 	config, err := h.ConfigFetcher.ConfigForPR(ctx, client, pr)
 	data.PolicyURL = getPolicyURL(pr, config)

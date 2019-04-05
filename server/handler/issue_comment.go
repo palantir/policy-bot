@@ -46,10 +46,8 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 	number := event.GetIssue().GetNumber()
 	installationID := githubapp.GetInstallationIDFromEvent(&event)
 
-	ctx, logger := githubapp.PreparePRContext(ctx, installationID, event.GetRepo(), number)
-
 	if !event.GetIssue().IsPullRequest() {
-		logger.Debug().Msg("Issue comment event is not for a pull request")
+		zerolog.Ctx(ctx).Debug().Msg("Issue comment event is not for a pull request")
 		return nil
 	}
 
@@ -67,6 +65,8 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 	if err != nil {
 		return errors.Wrapf(err, "failed to get pull request %s/%s#%d", repo.GetOwner().GetLogin(), repo.GetName(), number)
 	}
+
+	ctx, logger := h.PreparePRContext(ctx, installationID, pr)
 
 	fetchedConfig, err := h.ConfigFetcher.ConfigForPR(ctx, client, pr)
 	if err != nil {

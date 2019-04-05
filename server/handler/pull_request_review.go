@@ -49,7 +49,7 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 		return err
 	}
 
-	ctx, _ = githubapp.PreparePRContext(ctx, installationID, event.GetRepo(), event.GetPullRequest().GetNumber())
+	ctx, _ = h.PreparePRContext(ctx, installationID, event.GetPullRequest())
 
 	mbrCtx := NewCrossOrgMembershipContext(ctx, client, event.GetRepo().GetOwner().GetLogin(), h.Installations, h.ClientCreator)
 	return h.Evaluate(ctx, mbrCtx, client, v4client, event.GetPullRequest())
