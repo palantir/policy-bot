@@ -346,7 +346,7 @@ that terminates TLS connections.
 
 | Permission | Access | Reason |
 | ---------- | ------ | ------ |
-| Repository contents | Read & write | Read configuration, perform merges |
+| Repository contents | Read-only | Read configuration and commit metadata |
 | Issues | Read-only | Read pull request comments |
 | Repository metadata | Read-only | Basic repository data |
 | Pull requests | Read-only| Receive pull request events, read metadata |
