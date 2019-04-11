@@ -10,7 +10,10 @@ server:
 logging:
   # If true, logs are printed in human-readable form. We recommend using
   # "false" to output JSON-formatted logs in production
-  text: true
+  pretty: true
+  # Set a minimum logging level threshold
+  # Choose from: debug, info, warn, error
+  level: debug
 
 # Options for connecting to GitHub
 github:

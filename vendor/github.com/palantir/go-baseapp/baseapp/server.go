@@ -26,19 +26,26 @@ import (
 	"goji.io"
 )
 
+// Server is the base server type. It is usually embedded in an
+// application-specific struct.
 type Server struct {
 	config     HTTPConfig
 	middleware []func(http.Handler) http.Handler
 	logger     zerolog.Logger
 	mux        *goji.Mux
+	server     *http.Server
 
-	registry    metrics.Registry
-	initMetrics func()
-	init        sync.Once
+	registry metrics.Registry
+
+	// functions that are called once on start
+	initFns []func(*Server)
+	init    sync.Once
 }
 
+// Param configures a Server instance.
 type Param func(b *Server) error
 
+// NewServer creates a Server instance from configuration and parameters.
 func NewServer(c HTTPConfig, params ...Param) (*Server, error) {
 	logger := zerolog.Nop()
 	base := &Server{
@@ -63,43 +70,74 @@ func NewServer(c HTTPConfig, params ...Param) (*Server, error) {
 		base.mux.Use(middleware)
 	}
 
+	if base.server == nil {
+		base.server = &http.Server{}
+	}
+
+	if base.server.Addr == "" {
+		addr := c.Address + ":" + strconv.Itoa(c.Port)
+		base.server.Addr = addr
+	}
+
+	if base.server.Handler == nil {
+		base.server.Handler = base.mux
+	}
+
 	return base, nil
 }
 
+// HTTPConfig returns the server configuration.
 func (s *Server) HTTPConfig() HTTPConfig {
 	return s.config
 }
 
+// HTTPServer returns the underlying HTTP Server.
+func (s *Server) HTTPServer() *http.Server {
+	return s.server
+}
+
+// Mux returns the root mux for the server.
 func (s *Server) Mux() *goji.Mux {
 	return s.mux
 }
 
+// Logger returns the root logger for the server.
 func (s *Server) Logger() zerolog.Logger {
 	return s.logger
 }
 
+// Registry returns the root metrics registry for the server.
 func (s *Server) Registry() metrics.Registry {
 	return s.registry
 }
 
-// Start starts the server and is blocking
+// Start starts the server and blocks.
 func (s *Server) Start() error {
-	if s.initMetrics != nil {
-		s.init.Do(s.initMetrics)
-	}
+	s.init.Do(func() {
+		for _, fn := range s.initFns {
+			fn(s)
+		}
+	})
 
 	addr := s.config.Address + ":" + strconv.Itoa(s.config.Port)
 	s.logger.Info().Msgf("Server listening on %s", addr)
-	return http.ListenAndServe(addr, s.mux)
+
+	tlsConfig := s.config.TLSConfig
+	if tlsConfig != nil {
+		return s.server.ListenAndServeTLS(tlsConfig.CertFile, tlsConfig.KeyFile)
+	}
+
+	return s.server.ListenAndServe()
 }
 
+// WriteJSON writes a JSON response or an error if mashalling the object fails.
 func WriteJSON(w http.ResponseWriter, status int, obj interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 
 	b, err := json.Marshal(obj)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, `{"error": %s}`, strconv.Quote(err.Error()))
+		_, _ = fmt.Fprintf(w, `{"error": %s}`, strconv.Quote(err.Error()))
 	} else {
 		w.WriteHeader(status)
 		_, _ = w.Write(b)

@@ -24,6 +24,8 @@ import (
 	"github.com/palantir/go-baseapp/pkg/errfmt"
 )
 
+// RichErrorMarshalFunc is a zerolog error marshaller that formats the error as
+// a string that includes a stack trace, if one is available.
 func RichErrorMarshalFunc(err error) interface{} {
 	switch err := err.(type) {
 	case hatpear.PanicError:
@@ -33,6 +35,8 @@ func RichErrorMarshalFunc(err error) interface{} {
 	}
 }
 
+// HandleRouteError is a hatpear error handler that logs the error and sends a
+// 500 Internal Server Error response to clients.
 func HandleRouteError(w http.ResponseWriter, r *http.Request, err error) {
 	hlog.FromRequest(r).
 		Error().

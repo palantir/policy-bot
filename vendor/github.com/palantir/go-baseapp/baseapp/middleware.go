@@ -24,6 +24,17 @@ import (
 	"github.com/rs/zerolog/hlog"
 )
 
+// DefaultMiddleware returns the default middleware stack. The stack:
+//
+//  - Adds a logger to request contexts
+//  - Adds a metrics registry to request contexts
+//  - Adds a request ID to all requests and responses
+//  - Logs and records metrics for all requests
+//  - Handles errors returned by route handlers
+//  - Recovers from panics in route handlers
+//
+// All components are exported so users can select individual middleware to
+// build their own stack if desired.
 func DefaultMiddleware(logger zerolog.Logger, registry metrics.Registry) []func(http.Handler) http.Handler {
 	return []func(http.Handler) http.Handler{
 		hlog.NewHandler(logger),
@@ -35,6 +46,8 @@ func DefaultMiddleware(logger zerolog.Logger, registry metrics.Registry) []func(
 	}
 }
 
+// NewMetricsHandler returns middleware that add the given metrics registry to
+// the request context.
 func NewMetricsHandler(registry metrics.Registry) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -44,6 +57,7 @@ func NewMetricsHandler(registry metrics.Registry) func(http.Handler) http.Handle
 	}
 }
 
+// LogRequest is an hlog access handler that logs request information.
 func LogRequest(r *http.Request, status, size int, elapsed time.Duration) {
 	hlog.FromRequest(r).Info().
 		Str("method", r.Method).
@@ -54,6 +68,8 @@ func LogRequest(r *http.Request, status, size int, elapsed time.Duration) {
 		Msg("http_request")
 }
 
+// RecordRequest is an hlog access handler that logs request information and
+// records request metrics.
 func RecordRequest(r *http.Request, status, size int, elapsed time.Duration) {
 	LogRequest(r, status, size, elapsed)
 	CountRequest(r, status, size, elapsed)

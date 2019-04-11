@@ -14,8 +14,25 @@
 
 package baseapp
 
+type TLSConfig struct {
+	CertFile string `yaml:"cert_file" json:"certFile"`
+	KeyFile  string `yaml:"key_file" json:"keyFile"`
+}
+
+// HTTPConfig contains options for HTTP servers. It is usually embedded in a
+// larger configuration struct.
 type HTTPConfig struct {
-	Address   string `yaml:"address" json:"address"`
-	Port      int    `yaml:"port" json:"port"`
-	PublicURL string `yaml:"public_url" json:"publicUrl"`
+	Address   string     `yaml:"address" json:"address"`
+	Port      int        `yaml:"port" json:"port"`
+	PublicURL string     `yaml:"public_url" json:"publicUrl"`
+	TLSConfig *TLSConfig `yaml:"tls_config" json:"tlsConfig"`
+}
+
+// LoggingConfig contains options for logging, such as log level and textual representation.
+// It is usually embedded in a larger configuration struct.
+type LoggingConfig struct {
+	Level string `yaml:"level" json:"level"`
+
+	// Pretty will make the output human-readable
+	Pretty bool `yaml:"pretty" json:"pretty"`
 }
