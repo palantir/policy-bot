@@ -30,6 +30,7 @@ UI to view the detailed approval status of any pull request.
     - [`or`, `and`, and `if` (Rule Predicates)](#or-and-and-if-rule-predicates)
     - [Cross-organization Membership Tests](#cross-organization-membership-tests)
     - [Update Merges](#update-merges)
+    - [Private Repositories](#private-repositories)
 * [Deployment](#deployment)
 * [Development](#development)
 * [Contributing](#contributing)
@@ -325,6 +326,12 @@ Note that `policy-bot` cannot detect if an update merge contains any merge
 conflict resolutions. If you enable this option, users _may_ be able to merge
 unapproved code by exploiting the conflict editor.
 
+#### Private Repositories
+
+`policy-bot` works with private repositories, but currently does not support
+pull requests from private _forks_ of private repositories due to GitHub API
+limitations. Please file an issue if this functionality is important to you.
+
 ## Deployment
 
 `policy-bot` is easy to deploy in your own environment as it has no dependencies
@@ -404,6 +411,7 @@ To develop `policy-bot`, you will need a [Go installation](https://golang.org/do
 - The server is available at `http://localhost:8080/`
 
 ### Example Policy Files
+
 Example policy files can be found in [`config/policy-examples`](https://github.com/palantir/policy-bot/tree/develop/config/policy-examples)
 
 ## Contributing
