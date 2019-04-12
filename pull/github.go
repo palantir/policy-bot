@@ -166,22 +166,23 @@ func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 		qvars := map[string]interface{}{
 			// always list commits from the head repository
 			// some commit details do not propagate from forks to the upstream
-			"owner": githubv4.String(ghc.pr.GetHead().GetRepo().GetOwner().GetLogin()),
-			"name":  githubv4.String(ghc.pr.GetHead().GetRepo().GetName()),
-			"oid":   githubv4.GitObjectID(ghc.pr.GetHead().GetSHA()),
-
-			"limit":  githubv4.Int(min(totalCommits, MaxPageSize)),
+			"owner":  githubv4.String(ghc.pr.GetHead().GetRepo().GetOwner().GetLogin()),
+			"name":   githubv4.String(ghc.pr.GetHead().GetRepo().GetName()),
+			"oid":    githubv4.GitObjectID(ghc.pr.GetHead().GetSHA()),
 			"cursor": (*githubv4.String)(nil),
 		}
 
 		var commits []*v4Commit
-		for len(commits) < totalCommits {
+		for {
+			qvars["limit"] = githubv4.Int(min(totalCommits-len(commits), MaxPageSize))
 			if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
 				return nil, errors.Wrap(err, "failed to list commits")
 			}
 			commits = append(commits, q.Repository.Object.Commit.History.Nodes...)
 
-			qvars["limit"] = githubv4.Int(min(totalCommits-len(commits), MaxPageSize))
+			if len(commits) == totalCommits {
+				break
+			}
 			if !q.Repository.Object.Commit.History.PageInfo.UpdateCursor(qvars, "cursor") {
 				break
 			}
@@ -341,7 +342,7 @@ type v4PageInfo struct {
 // UpdateCursor modifies the named cursor value in the the query variable map
 // and returns true if there are additional pages.
 func (pi v4PageInfo) UpdateCursor(vars map[string]interface{}, name string) bool {
-	if pi.HasNextPage {
+	if pi.HasNextPage && pi.EndCursor != nil {
 		vars[name] = githubv4.NewString(*pi.EndCursor)
 		return true
 	}
