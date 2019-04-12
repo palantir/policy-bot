@@ -190,6 +190,11 @@ func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 			return nil, errors.Errorf("pull request has %d commits, but API returned %d", totalCommits, len(commits))
 		}
 
+		// this should always be true, but check because invalidate_on_push is
+		// broken if the pushed date is missing and it's better to fail loudly
+		if len(commits) > 0 && commits[0].PushedDate == nil {
+			return nil, errors.Errorf("head commit %s is missing push date", commits[0].OID)
+		}
 		backfillPushedDate(commits)
 
 		ghc.commits = make([]*Commit, len(commits))
