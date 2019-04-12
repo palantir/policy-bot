@@ -35,7 +35,7 @@ type Config struct {
 }
 
 type LoggingConfig struct {
-	Level string `yaml:"level" json:"text"`
+	Level string `yaml:"level" json:"level"`
 	Text  bool   `yaml:"text" json:"text"`
 }
 
