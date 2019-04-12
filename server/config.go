@@ -26,12 +26,17 @@ import (
 
 type Config struct {
 	Server   baseapp.HTTPConfig            `yaml:"server"`
-	Logging  baseapp.LoggingConfig         `yaml:"logging"`
+	Logging  LoggingConfig                 `yaml:"logging"`
 	Github   githubapp.Config              `yaml:"github"`
 	Sessions SessionsConfig                `yaml:"sessions"`
 	Options  handler.PullEvaluationOptions `yaml:"options"`
 	Files    handler.FilesConfig           `yaml:"files"`
 	Datadog  datadog.Config                `yaml:"datadog"`
+}
+
+type LoggingConfig struct {
+	Level string `yaml:"level" json:"text"`
+	Text  bool   `yaml:"text" json:"text"`
 }
 
 type SessionsConfig struct {
