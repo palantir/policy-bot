@@ -27,29 +27,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAuthor(t *testing.T) {
-	rp := &ResponsePlayer{}
-	pullsRule := rp.AddRule(
-		ExactPathMatcher("/repos/testorg/testrepo/pulls/123"),
-		"testdata/responses/pull.yml",
-	)
-
-	ctx := makeContext(rp)
-
-	author, err := ctx.Author()
-	require.NoError(t, err)
-
-	assert.Equal(t, "mhaypenny", author)
-	assert.Equal(t, 1, pullsRule.Count, "no http request was made")
-
-	author, err = ctx.Author()
-	require.NoError(t, err)
-
-	// verify that the pull request is cached
-	assert.Equal(t, "mhaypenny", author)
-	assert.Equal(t, 1, pullsRule.Count, "cached pull request was not used")
-}
-
 func TestChangedFiles(t *testing.T) {
 	rp := &ResponsePlayer{}
 	filesRule := rp.AddRule(
@@ -57,7 +34,7 @@ func TestChangedFiles(t *testing.T) {
 		"testdata/responses/pull_files.yml",
 	)
 
-	ctx := makeContext(rp)
+	ctx := makeContext(rp, nil)
 
 	files, err := ctx.ChangedFiles()
 	require.NoError(t, err)
@@ -84,16 +61,15 @@ func TestChangedFiles(t *testing.T) {
 
 func TestCommits(t *testing.T) {
 	rp := &ResponsePlayer{}
-	rp.AddRule(
-		ExactPathMatcher("/repos/testorg/testrepo/pulls/123"),
-		"testdata/responses/pull.yml",
-	)
 	dataRule := rp.AddRule(
-		GraphQLNodePrefixMatcher("repository.pullRequest.commits"),
-		"testdata/responses/pull_data_commits.yml",
+		GraphQLNodePrefixMatcher("repository.object"),
+		"testdata/responses/pull_commits.yml",
 	)
 
-	ctx := makeContext(rp)
+	pr := defaultTestPR()
+	pr.Commits = github.Int(3)
+
+	ctx := makeContext(rp, pr)
 
 	commits, err := ctx.Commits()
 	require.NoError(t, err)
@@ -131,10 +107,10 @@ func TestReviews(t *testing.T) {
 	rp := &ResponsePlayer{}
 	dataRule := rp.AddRule(
 		GraphQLNodePrefixMatcher("repository.pullRequest.reviews"),
-		"testdata/responses/pull_data_reviews.yml",
+		"testdata/responses/pull_reviews.yml",
 	)
 
-	ctx := makeContext(rp)
+	ctx := makeContext(rp, nil)
 
 	reviews, err := ctx.Reviews()
 	require.NoError(t, err)
@@ -167,10 +143,10 @@ func TestComments(t *testing.T) {
 	rp := &ResponsePlayer{}
 	dataRule := rp.AddRule(
 		GraphQLNodePrefixMatcher("repository.pullRequest.comments"),
-		"testdata/responses/pull_data_comments.yml",
+		"testdata/responses/pull_comments.yml",
 	)
 
-	ctx := makeContext(rp)
+	ctx := makeContext(rp, nil)
 
 	comments, err := ctx.Comments()
 	require.NoError(t, err)
@@ -220,7 +196,7 @@ func TestIsTeamMember(t *testing.T) {
 		"testdata/responses/membership_team456_ttest.yml",
 	)
 
-	ctx := makeContext(rp)
+	ctx := makeContext(rp, nil)
 
 	isMember, err := ctx.IsTeamMember("testorg/yes-team", "mhaypenny")
 	require.NoError(t, err)
@@ -261,7 +237,7 @@ func TestIsTeamMember(t *testing.T) {
 	assert.Equal(t, 1, yesRule1.Count, "cached membership was not used")
 }
 
-func TestMixedPaging(t *testing.T) {
+func TestMixedReviewCommentPaging(t *testing.T) {
 	rp := &ResponsePlayer{}
 	rp.AddRule(
 		ExactPathMatcher("/repos/testorg/testrepo/pulls/123"),
@@ -269,10 +245,10 @@ func TestMixedPaging(t *testing.T) {
 	)
 	dataRule := rp.AddRule(
 		GraphQLNodePrefixMatcher("repository.pullRequest"),
-		"testdata/responses/pull_data_mixed.yml",
+		"testdata/responses/pull_reviews_comments.yml",
 	)
 
-	ctx := makeContext(rp)
+	ctx := makeContext(rp, nil)
 
 	comments, err := ctx.Comments()
 	require.NoError(t, err)
@@ -280,13 +256,9 @@ func TestMixedPaging(t *testing.T) {
 	reviews, err := ctx.Reviews()
 	require.NoError(t, err)
 
-	commits, err := ctx.Commits()
-	require.NoError(t, err)
-
-	assert.Equal(t, 3, dataRule.Count, "cached values were not used")
+	assert.Equal(t, 2, dataRule.Count, "cached values were not used")
 	assert.Len(t, comments, 2, "incorrect number of comments")
 	assert.Len(t, reviews, 2, "incorrect number of reviews")
-	assert.Len(t, commits, 3, "incorrect number of commits")
 }
 
 func TestIsOrgMember(t *testing.T) {
@@ -300,7 +272,7 @@ func TestIsOrgMember(t *testing.T) {
 		"testdata/responses/membership_testorg_ttest.yml",
 	)
 
-	ctx := makeContext(rp)
+	ctx := makeContext(rp, nil)
 
 	isMember, err := ctx.IsOrgMember("testorg", "mhaypenny")
 	require.NoError(t, err)
@@ -322,7 +294,7 @@ func TestIsOrgMember(t *testing.T) {
 	assert.Equal(t, 1, yesRule.Count, "cached membership was not used")
 }
 
-func makeContext(rp *ResponsePlayer) Context {
+func makeContext(rp *ResponsePlayer, pr *github.PullRequest) Context {
 	ctx := context.Background()
 	client := github.NewClient(&http.Client{Transport: rp})
 	v4client := githubv4.NewClient(&http.Client{Transport: rp})
@@ -331,21 +303,38 @@ func makeContext(rp *ResponsePlayer) Context {
 	client.BaseURL = base
 
 	mbrCtx := NewGitHubMembershipContext(ctx, client)
-	pr, _, _ := client.PullRequests.Get(ctx, "testorg", "testrepo", 123)
 	if pr == nil {
-		// create a stub PR if none is returned from the response player
-		pr = &github.PullRequest{}
+		pr = defaultTestPR()
 	}
+	return NewGitHubContext(ctx, mbrCtx, client, v4client, pr)
+}
 
-	pr.Number = github.Int(123)
-	pr.Base = &github.PullRequestBranch{
-		Repo: &github.Repository{
-			Owner: &github.User{
-				Login: github.String("testorg"),
+func defaultTestPR() *github.PullRequest {
+	return &github.PullRequest{
+		Number: github.Int(123),
+		User: &github.User{
+			Login: github.String("mhaypenny"),
+		},
+		Head: &github.PullRequestBranch{
+			Label: github.String("testorg:test-branch"),
+			Ref:   github.String("test-branch"),
+			SHA:   github.String("e05fcae367230ee709313dd2720da527d178ce43"),
+			Repo: &github.Repository{
+				Owner: &github.User{
+					Login: github.String("testorg"),
+				},
+				Name: github.String("testrepo"),
 			},
-			Name: github.String("testrepo"),
+		},
+		Base: &github.PullRequestBranch{
+			Label: github.String("testorg:develop"),
+			Ref:   github.String("develop"),
+			Repo: &github.Repository{
+				Owner: &github.User{
+					Login: github.String("testorg"),
+				},
+				Name: github.String("testrepo"),
+			},
 		},
 	}
-
-	return NewGitHubContext(ctx, mbrCtx, client, v4client, pr)
 }
