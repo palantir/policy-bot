@@ -97,7 +97,7 @@
 
 [[projects]]
   branch = "develop"
-  digest = "1:d78dd9767ded5926aa52cf1b8abf20f68fbbca5db5262be3398c242f1344bb22"
+  digest = "1:5ec96530838ec8dfc68abb6e443a80f982d6295c4f8d4d85171ec1837e7c0a7d"
   name = "github.com/palantir/go-baseapp"
   packages = [
     "baseapp",
@@ -105,7 +105,7 @@
     "pkg/errfmt",
   ]
   pruneopts = "NUT"
-  revision = "0561b0583746f5a1dfa575bed73ba6d18243d73b"
+  revision = "47d033114f8e6941d5e6bb4b04e7c47ac91dea21"
 
 [[projects]]
   branch = "develop"
@@ -218,14 +218,6 @@
   pruneopts = "NUT"
   revision = "ffdc059bfe9ce6a4e144ba849dbedead332c6053"
   version = "v1.3.0"
-
-[[projects]]
-  branch = "master"
-  digest = "1:4202ae4bc475052ad99562194dac3db816ee76f018b92cf2d699071f4c6e3f7a"
-  name = "github.com/syntaqx/go-metrics-datadog"
-  packages = ["."]
-  pruneopts = "NUT"
-  revision = "defd050220648a3021b2bccfa09d15bcdffeea27"
 
 [[projects]]
   digest = "1:8fa8b9ab39372cb2c9fc2a0c8a252b9688800828baa9abb6c743de067ba7465f"

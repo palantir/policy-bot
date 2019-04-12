@@ -16,10 +16,8 @@ package server
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
 	"github.com/alexedwards/scs"
@@ -49,11 +47,10 @@ type Server struct {
 // New instantiates a new Server.
 // Callers must then invoke Start to run the Server.
 func New(c *Config) (*Server, error) {
-	out := io.Writer(os.Stdout)
-	if c.Logging.Text {
-		out = zerolog.ConsoleWriter{Out: out}
-	}
-	logger := zerolog.New(out).With().Timestamp().Logger()
+	logger := baseapp.NewLogger(baseapp.LoggingConfig{
+		Level:  c.Logging.Level,
+		Pretty: c.Logging.Text,
+	})
 
 	lifetime, _ := time.ParseDuration(c.Sessions.Lifetime)
 	if lifetime == 0 {

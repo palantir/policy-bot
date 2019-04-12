@@ -36,8 +36,8 @@ const (
 
 type metricsCtxKey struct{}
 
-// MetricsCtx retries a metrics registry from the context. It returns the
-// default registry from the go-metrics package if none exists in the context.
+// MetricsCtx gets a metrics registry from the context. It returns the default
+// registry from the go-metrics package if none exists in the context.
 func MetricsCtx(ctx context.Context) metrics.Registry {
 	if r, ok := ctx.Value(metricsCtxKey{}).(metrics.Registry); ok {
 		return r
@@ -51,8 +51,8 @@ func WithMetricsCtx(ctx context.Context, registry metrics.Registry) context.Cont
 }
 
 // RegisterDefaultMetrics adds the default metrics provided by this package to
-// the registry. This should be called before any functions that emit metrics
-// to ensure no events are lost.
+// the registry. This should be called before any functions emit metrics to
+// ensure that no events are lost.
 func RegisterDefaultMetrics(registry metrics.Registry) {
 	for _, key := range []string{
 		MetricsKeyRequests,
@@ -64,10 +64,23 @@ func RegisterDefaultMetrics(registry metrics.Registry) {
 		metrics.GetOrRegisterCounter(key, registry)
 	}
 
-	metrics.GetOrRegisterGauge(MetricsKeyNumGoroutines, registry)
-	metrics.GetOrRegisterGauge(MetricsKeyMemoryUsed, registry)
+	registry.GetOrRegister(MetricsKeyNumGoroutines, func() metrics.Gauge {
+		return metrics.NewFunctionalGauge(func() int64 {
+			return int64(runtime.NumGoroutine())
+		})
+	})
+
+	registry.GetOrRegister(MetricsKeyMemoryUsed, func() metrics.Gauge {
+		return metrics.NewFunctionalGauge(func() int64 {
+			var m runtime.MemStats
+			runtime.ReadMemStats(&m)
+			return int64(m.Alloc)
+		})
+	})
 }
 
+// CountRequest is an hlog access handler that records metrics about the
+// request.
 func CountRequest(r *http.Request, status, _ int, _ time.Duration) {
 	registry := MetricsCtx(r.Context())
 
@@ -94,21 +107,4 @@ func bucketStatus(status int) string {
 		return MetricsKeyRequests5xx
 	}
 	return ""
-}
-
-func collectGoMetrics(registry metrics.Registry, interval time.Duration) {
-	var memStats runtime.MemStats
-
-	ticker := time.Tick(interval)
-	for range ticker {
-		if g := registry.Get(MetricsKeyNumGoroutines); g != nil {
-			num := runtime.NumGoroutine()
-			g.(metrics.Gauge).Update(int64(num))
-		}
-
-		if g := registry.Get(MetricsKeyMemoryUsed); g != nil {
-			runtime.ReadMemStats(&memStats)
-			g.(metrics.Gauge).Update(int64(memStats.Alloc))
-		}
-	}
 }

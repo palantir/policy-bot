@@ -26,8 +26,8 @@ import (
 
 type Config struct {
 	Server   baseapp.HTTPConfig            `yaml:"server"`
-	Github   githubapp.Config              `yaml:"github"`
 	Logging  LoggingConfig                 `yaml:"logging"`
+	Github   githubapp.Config              `yaml:"github"`
 	Sessions SessionsConfig                `yaml:"sessions"`
 	Options  handler.PullEvaluationOptions `yaml:"options"`
 	Files    handler.FilesConfig           `yaml:"files"`
@@ -35,7 +35,8 @@ type Config struct {
 }
 
 type LoggingConfig struct {
-	Text bool `yaml:"text" json:"text"`
+	Level string `yaml:"level" json:"level"`
+	Text  bool   `yaml:"text" json:"text"`
 }
 
 type SessionsConfig struct {
