@@ -31,14 +31,14 @@ const (
 	// https://developer.github.com/v3/pulls/#list-pull-requests-files
 	MaxPullRequestFiles = 300
 
-	// MaxPullRequestCommits is the max number of commits returned by GitHub
-	// https://developer.github.com/v3/pulls/#list-commits-on-a-pull-request
-	MaxPullRequestCommits = 250
-
 	// TargetCommitLimit is the max number of commits to retrieve from the
 	// target branch of a pull request. 100 items is the maximum that can be
 	// retrieved from the GitHub API without paging.
 	TargetCommitLimit = 100
+
+	// MaxPageSize is the largest single page that can be retrieved from a
+	// GraphQL API call.
+	MaxPageSize = 100
 )
 
 // GitHubContext is a Context implementation that gets information from GitHub.
@@ -149,30 +149,60 @@ func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
 
 func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 	if ghc.commits == nil {
-		if err := ghc.loadPullRequestData(); err != nil {
-			return nil, err
+		totalCommits := ghc.pr.GetCommits()
+
+		var q struct {
+			Repository struct {
+				Object struct {
+					Commit struct {
+						History struct {
+							PageInfo v4PageInfo
+							Nodes    []*v4Commit
+						} `graphql:"history(first: $limit, after: $cursor)"`
+					} `graphql:"... on Commit"`
+				} `graphql:"object(oid: $oid)"`
+			} `graphql:"repository(owner: $owner, name: $name)"`
+		}
+		qvars := map[string]interface{}{
+			// always list commits from the head repository
+			// some commit details do not propagate from forks to the upstream
+			"owner": githubv4.String(ghc.pr.GetHead().GetRepo().GetOwner().GetLogin()),
+			"name":  githubv4.String(ghc.pr.GetHead().GetRepo().GetName()),
+			"oid":   githubv4.GitObjectID(ghc.pr.GetHead().GetSHA()),
+
+			"limit":  githubv4.Int(min(totalCommits, MaxPageSize)),
+			"cursor": (*githubv4.String)(nil),
+		}
+
+		var commits []*v4Commit
+		for len(commits) < totalCommits {
+			if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
+				return nil, errors.Wrap(err, "failed to list commits")
+			}
+			commits = append(commits, q.Repository.Object.Commit.History.Nodes...)
+
+			qvars["limit"] = githubv4.Int(min(totalCommits-len(commits), MaxPageSize))
+			if !q.Repository.Object.Commit.History.PageInfo.UpdateCursor(qvars, "cursor") {
+				break
+			}
+		}
+		if len(commits) != totalCommits {
+			return nil, errors.Errorf("pull request has %d commits, but API returned %d", totalCommits, len(commits))
+		}
+
+		backfillPushedDate(commits)
+
+		ghc.commits = make([]*Commit, len(commits))
+		for i, c := range commits {
+			ghc.commits[i] = c.ToCommit()
 		}
 	}
-
-	if len(ghc.commits) >= MaxPullRequestCommits {
-		return nil, errors.Errorf("too many commits in pull request, maximum is %d", MaxPullRequestCommits)
-	}
-
-	// verify that the head of the PR being evaluated exists in commit list
-	// some GitHub APIs have a delay propagating commit information
-	headSHA := ghc.pr.GetHead().GetSHA()
-	for _, c := range ghc.commits {
-		if headSHA == c.SHA {
-			return ghc.commits, nil
-		}
-	}
-
-	return nil, errors.Errorf("pull request head %s was missing from commit listing", headSHA)
+	return ghc.commits, nil
 }
 
 func (ghc *GitHubContext) Comments() ([]*Comment, error) {
 	if ghc.comments == nil {
-		if err := ghc.loadPullRequestData(); err != nil {
+		if err := ghc.loadCommentsAndReviews(); err != nil {
 			return nil, err
 		}
 	}
@@ -181,15 +211,16 @@ func (ghc *GitHubContext) Comments() ([]*Comment, error) {
 
 func (ghc *GitHubContext) Reviews() ([]*Review, error) {
 	if ghc.reviews == nil {
-		if err := ghc.loadPullRequestData(); err != nil {
+		if err := ghc.loadCommentsAndReviews(); err != nil {
 			return nil, err
 		}
 	}
 	return ghc.reviews, nil
 }
 
-// Branches returns the names of the base and head branch. If the head branch is from another repository (it is a fork)
-// then the branch name is `owner:branchName`.
+// Branches returns the names of the base and head branch. If the head branch
+// is from another repository (it is a fork) then the branch name is
+// `owner:branchName`.
 func (ghc *GitHubContext) Branches() (base string, head string, err error) {
 	base = ghc.pr.GetBase().GetRef()
 
@@ -239,10 +270,8 @@ func (ghc *GitHubContext) TargetCommits() ([]*Commit, error) {
 	return ghc.targetCommits, nil
 }
 
-func (ghc *GitHubContext) loadPullRequestData() error {
-	// do not query changed files here because they are only need for rules
-	// that use file predicates, while comments, commits, and reviews are
-	// needed for almost all rule evaluations
+func (ghc *GitHubContext) loadCommentsAndReviews() error {
+	// this is a minor optimization: we make max(r, c) requests instead of r + c
 	var q struct {
 		Repository struct {
 			PullRequest struct {
@@ -250,11 +279,6 @@ func (ghc *GitHubContext) loadPullRequestData() error {
 					PageInfo v4PageInfo
 					Nodes    []*v4IssueComment
 				} `graphql:"comments(first: 100, after: $commentCursor)"`
-
-				Commits struct {
-					PageInfo v4PageInfo
-					Nodes    []*v4PullRequestCommit
-				} `graphql:"commits(first: 100, after: $commitCursor)"`
 
 				Reviews struct {
 					PageInfo v4PageInfo
@@ -269,15 +293,11 @@ func (ghc *GitHubContext) loadPullRequestData() error {
 		"number": githubv4.Int(ghc.number),
 
 		"commentCursor": (*githubv4.String)(nil),
-		"commitCursor":  (*githubv4.String)(nil),
 		"reviewCursor":  (*githubv4.String)(nil),
 	}
 
-	// accumulate raw commits for post-processing
-	var commits []*v4Commit
-	ghc.reviews = make([]*Review, 0)
-	ghc.comments = make([]*Comment, 0)
-
+	var reviews []*Review
+	var comments []*Comment
 	for {
 		complete := 0
 		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
@@ -285,38 +305,26 @@ func (ghc *GitHubContext) loadPullRequestData() error {
 		}
 
 		for _, c := range q.Repository.PullRequest.Comments.Nodes {
-			ghc.comments = append(ghc.comments, c.ToComment())
+			comments = append(comments, c.ToComment())
 		}
 		if !q.Repository.PullRequest.Comments.PageInfo.UpdateCursor(qvars, "commentCursor") {
 			complete++
 		}
 
-		for _, c := range q.Repository.PullRequest.Commits.Nodes {
-			commits = append(commits, &c.Commit)
-		}
-		if !q.Repository.PullRequest.Commits.PageInfo.UpdateCursor(qvars, "commitCursor") {
-			complete++
-		}
-
 		for _, r := range q.Repository.PullRequest.Reviews.Nodes {
-			ghc.reviews = append(ghc.reviews, r.ToReview())
+			reviews = append(reviews, r.ToReview())
 		}
 		if !q.Repository.PullRequest.Reviews.PageInfo.UpdateCursor(qvars, "reviewCursor") {
 			complete++
 		}
 
-		if complete == 3 {
+		if complete == 2 {
 			break
 		}
 	}
 
-	backfillPushedDate(commits)
-
-	ghc.commits = make([]*Commit, len(commits))
-	for i, c := range commits {
-		ghc.commits[i] = c.ToCommit()
-	}
-
+	ghc.reviews = reviews
+	ghc.comments = comments
 	return nil
 }
 
@@ -369,10 +377,6 @@ func (c *v4IssueComment) ToComment() *Comment {
 		Author:    c.Author.GetV3Login(),
 		Body:      c.Body,
 	}
-}
-
-type v4PullRequestCommit struct {
-	Commit v4Commit
 }
 
 type v4Commit struct {
@@ -454,4 +458,11 @@ func isNotFound(err error) bool {
 		return rerr.Response.StatusCode == http.StatusNotFound
 	}
 	return false
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
