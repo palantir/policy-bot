@@ -157,7 +157,7 @@ func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 					Commit struct {
 						History struct {
 							PageInfo v4PageInfo
-							Nodes    []*v4Commit
+							Nodes    []v4Commit
 						} `graphql:"history(first: $limit, after: $cursor)"`
 					} `graphql:"... on Commit"`
 				} `graphql:"object(oid: $oid)"`
@@ -172,7 +172,7 @@ func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 			"cursor": (*githubv4.String)(nil),
 		}
 
-		var commits []*v4Commit
+		var commits []v4Commit
 		for {
 			qvars["limit"] = githubv4.Int(min(totalCommits-len(commits), MaxPageSize))
 			if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
@@ -247,7 +247,7 @@ func (ghc *GitHubContext) TargetCommits() ([]*Commit, error) {
 					Target struct {
 						Commit struct {
 							History struct {
-								Nodes []*v4Commit
+								Nodes []v4Commit
 							} `graphql:"history(first: $limit)"`
 						} `graphql:"... on Commit"`
 					}
@@ -283,12 +283,12 @@ func (ghc *GitHubContext) loadCommentsAndReviews() error {
 			PullRequest struct {
 				Comments struct {
 					PageInfo v4PageInfo
-					Nodes    []*v4IssueComment
+					Nodes    []v4IssueComment
 				} `graphql:"comments(first: 100, after: $commentCursor)"`
 
 				Reviews struct {
 					PageInfo v4PageInfo
-					Nodes    []*v4PullRequestReview
+					Nodes    []v4PullRequestReview
 				} `graphql:"reviews(first: 100, after: $reviewCursor, states: [APPROVED, CHANGES_REQUESTED])"`
 			} `graphql:"pullRequest(number: $number)"`
 		} `graphql:"repository(owner: $owner, name: $name)"`
@@ -423,13 +423,14 @@ func (c *v4Commit) ToCommit() *Commit {
 // to all other commits in that batch. It assumes the commits slice is in
 // descending chronologic order (latest commit at the start), which is the
 // default for `git log` and most GitHub APIs.
-func backfillPushedDate(commits []*v4Commit) {
+func backfillPushedDate(commits []v4Commit) {
 	var lastPushed *time.Time
-	for _, c := range commits {
+	for i, c := range commits {
 		if c.PushedDate != nil {
 			lastPushed = c.PushedDate
 		} else {
 			c.PushedDate = lastPushed
+			commits[i] = c
 		}
 	}
 }
