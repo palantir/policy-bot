@@ -1,0 +1,19 @@
+- status: 200
+  body: |
+    {
+      "errors": [],
+      "data": {
+        "repository": {
+          "pullRequest": {
+            "comments": {
+              "pageInfo": {
+                "endCursor": null,
+                "hasNextPage": false
+              },
+              "nodes": [
+              ]
+            }
+          }
+        }
+      }
+    }
