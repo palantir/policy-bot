@@ -26,24 +26,6 @@ import (
 	"github.com/palantir/policy-bot/pull"
 )
 
-var (
-	DefaultDisapproveMethods = common.Methods{
-		Comments: []string{
-			":-1:",
-			"👎",
-		},
-		GithubReview: true,
-	}
-
-	DefaultRevokeMethods = common.Methods{
-		Comments: []string{
-			":+1:",
-			"👍",
-		},
-		GithubReview: true,
-	}
-)
-
 type Policy struct {
 	Options  Options  `yaml:"options"`
 	Requires Requires `yaml:"requires"`
@@ -61,7 +43,13 @@ type Methods struct {
 func (opts *Options) GetDisapproveMethods() *common.Methods {
 	m := opts.Methods.Disapprove
 	if m == nil {
-		m = &DefaultDisapproveMethods
+		m = &common.Methods{
+			Comments: []string{
+				":-1:",
+				"👎",
+			},
+			GithubReview: true,
+		}
 	}
 
 	m.GithubReviewState = pull.ReviewChangesRequested
@@ -71,7 +59,13 @@ func (opts *Options) GetDisapproveMethods() *common.Methods {
 func (opts *Options) GetRevokeMethods() *common.Methods {
 	m := opts.Methods.Revoke
 	if m == nil {
-		m = &DefaultRevokeMethods
+		m = &common.Methods{
+			Comments: []string{
+				":+1:",
+				"👍",
+			},
+			GithubReview: true,
+		}
 	}
 
 	m.GithubReviewState = pull.ReviewApproved
