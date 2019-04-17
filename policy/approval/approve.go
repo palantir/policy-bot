@@ -28,16 +28,6 @@ import (
 	"github.com/palantir/policy-bot/pull"
 )
 
-var (
-	DefaultApproveMethods = common.Methods{
-		Comments: []string{
-			":+1:",
-			"👍",
-		},
-		GithubReview: true,
-	}
-)
-
 type Rule struct {
 	Name       string     `yaml:"name"`
 	Predicates Predicates `yaml:"if"`
@@ -57,7 +47,13 @@ type Options struct {
 func (opts *Options) GetMethods() *common.Methods {
 	methods := opts.Methods
 	if methods == nil {
-		methods = &DefaultApproveMethods
+		methods = &common.Methods{
+			Comments: []string{
+				":+1:",
+				"👍",
+			},
+			GithubReview: true,
+		}
 	}
 
 	methods.GithubReviewState = pull.ReviewApproved
