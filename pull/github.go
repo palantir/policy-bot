@@ -277,7 +277,7 @@ func (ghc *GitHubContext) TargetCommits() ([]*Commit, error) {
 }
 
 func (ghc *GitHubContext) loadCommentsAndReviews() error {
-	// this is a minor optimization: we make max(r, c) requests instead of r + c
+	// this is a minor optimization: we make max(r,c) requests instead of r+c
 	var q struct {
 		Repository struct {
 			PullRequest struct {
@@ -302,8 +302,8 @@ func (ghc *GitHubContext) loadCommentsAndReviews() error {
 		"reviewCursor":  (*githubv4.String)(nil),
 	}
 
-	var reviews []*Review
-	var comments []*Comment
+	reviews := []*Review{}
+	comments := []*Comment{}
 	for {
 		complete := 0
 		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
