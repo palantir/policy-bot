@@ -3,9 +3,3 @@ checks:
     filters:
     - value: should have comment or be unexported
     - value: or a comment on this block
-  novendor:
-    filters:
-    - value: github.com/stretchr/objx
-  errcheck:
-    filters:
-    - value: "Client\\.(Count|Gauge)"
