@@ -358,10 +358,10 @@ func defaultTestPR() *github.PullRequest {
 			Login: github.String("mhaypenny"),
 		},
 		Head: &github.PullRequestBranch{
-			Label: github.String("testorg:test-branch"),
-			Ref:   github.String("test-branch"),
-			SHA:   github.String("e05fcae367230ee709313dd2720da527d178ce43"),
+			Ref: github.String("test-branch"),
+			SHA: github.String("e05fcae367230ee709313dd2720da527d178ce43"),
 			Repo: &github.Repository{
+				ID: github.Int64(1234),
 				Owner: &github.User{
 					Login: github.String("testorg"),
 				},
@@ -369,14 +369,15 @@ func defaultTestPR() *github.PullRequest {
 			},
 		},
 		Base: &github.PullRequestBranch{
-			Label: github.String("testorg:develop"),
-			Ref:   github.String("develop"),
+			Ref: github.String("develop"),
 			Repo: &github.Repository{
+				ID: github.Int64(1234),
 				Owner: &github.User{
 					Login: github.String("testorg"),
 				},
 				Name: github.String("testrepo"),
 			},
 		},
+		Commits: github.Int(1),
 	}
 }

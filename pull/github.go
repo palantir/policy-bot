@@ -52,9 +52,9 @@ type GitHubContext struct {
 	owner  string
 	repo   string
 	number int
-	pr     *github.PullRequest
 
 	// cached fields
+	pr            *v4PullRequest
 	files         []*File
 	commits       []*Commit
 	targetCommits []*Commit
@@ -64,18 +64,50 @@ type GitHubContext struct {
 	membership    map[string]bool
 }
 
+// NewGitHubContext creates a new pull.Context that makes GitHub requests to
+// obtain information. It caches responses for the lifetime of the context. The
+// pull request passed to the context must contain at least the base repository
+// and the number or the function panics.
 func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *github.Client, v4client *githubv4.Client, pr *github.PullRequest) Context {
+	owner := pr.GetBase().GetRepo().GetOwner().GetLogin()
+	repo := pr.GetBase().GetRepo().GetName()
+	number := pr.GetNumber()
+
+	if owner == "" || repo == "" || number == 0 {
+		panic("pull request object does not contain full identifying information")
+	}
+
 	return &GitHubContext{
 		ctx:      ctx,
 		client:   client,
 		v4client: v4client,
 		mbrCtx:   mbrCtx,
 
-		owner:  pr.GetBase().GetRepo().GetOwner().GetLogin(),
-		repo:   pr.GetBase().GetRepo().GetName(),
-		number: pr.GetNumber(),
-		pr:     pr,
+		owner:  owner,
+		repo:   repo,
+		number: number,
+		pr:     v3PullRequestToV4(pr),
 	}
+}
+
+func (ghc *GitHubContext) get() (*v4PullRequest, error) {
+	if ghc.pr == nil {
+		var q struct {
+			Repository struct {
+				PullRequest v4PullRequest `graphql:"pullRequest(number: $number)"`
+			} `graphql:"repository(owner: $owner, name: $name)"`
+		}
+		qvars := map[string]interface{}{
+			"owner":  githubv4.String(ghc.owner),
+			"name":   githubv4.String(ghc.repo),
+			"number": githubv4.Int(ghc.number),
+		}
+		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
+			return nil, errors.Wrap(err, "failed to load pull request details")
+		}
+		ghc.pr = &q.Repository.PullRequest
+	}
+	return ghc.pr, nil
 }
 
 func (ghc *GitHubContext) IsTeamMember(team, user string) (bool, error) {
@@ -103,7 +135,11 @@ func (ghc *GitHubContext) RepositoryName() string {
 }
 
 func (ghc *GitHubContext) Author() (string, error) {
-	return ghc.pr.GetUser().GetLogin(), nil
+	pr, err := ghc.get()
+	if err != nil {
+		return "", err
+	}
+	return pr.Author.Login, nil
 }
 
 func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
@@ -149,7 +185,12 @@ func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
 
 func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 	if ghc.commits == nil {
-		totalCommits := ghc.pr.GetCommits()
+		pr, err := ghc.get()
+		if err != nil {
+			return nil, err
+		}
+
+		totalCommits := ghc.pr.Commits.TotalCount
 
 		var q struct {
 			Repository struct {
@@ -166,9 +207,9 @@ func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 		qvars := map[string]interface{}{
 			// always list commits from the head repository
 			// some commit details do not propagate from forks to the upstream
-			"owner":  githubv4.String(ghc.pr.GetHead().GetRepo().GetOwner().GetLogin()),
-			"name":   githubv4.String(ghc.pr.GetHead().GetRepo().GetName()),
-			"oid":    githubv4.GitObjectID(ghc.pr.GetHead().GetSHA()),
+			"owner":  githubv4.String(pr.HeadRepository.Owner.Login),
+			"name":   githubv4.String(pr.HeadRepository.Name),
+			"oid":    githubv4.GitObjectID(pr.HeadRefOID),
 			"cursor": (*githubv4.String)(nil),
 		}
 
@@ -228,19 +269,26 @@ func (ghc *GitHubContext) Reviews() ([]*Review, error) {
 // is from another repository (it is a fork) then the branch name is
 // `owner:branchName`.
 func (ghc *GitHubContext) Branches() (base string, head string, err error) {
-	base = ghc.pr.GetBase().GetRef()
-
-	if ghc.pr.GetHead().GetRepo().GetID() == ghc.pr.GetBase().GetRepo().GetID() {
-		head = ghc.pr.GetHead().GetRef()
-	} else {
-		head = ghc.pr.GetHead().GetLabel()
+	pr, err := ghc.get()
+	if err != nil {
+		return "", "", err
 	}
 
+	base = pr.BaseRefName
+	head = pr.HeadRefName
+	if pr.IsCrossRepository {
+		head = pr.HeadRepository.Owner.Login + ":" + head
+	}
 	return
 }
 
 func (ghc *GitHubContext) TargetCommits() ([]*Commit, error) {
 	if ghc.targetCommits == nil {
+		pr, err := ghc.get()
+		if err != nil {
+			return nil, err
+		}
+
 		var q struct {
 			Repository struct {
 				Ref struct {
@@ -257,7 +305,7 @@ func (ghc *GitHubContext) TargetCommits() ([]*Commit, error) {
 		qvars := map[string]interface{}{
 			"owner": githubv4.String(ghc.owner),
 			"name":  githubv4.String(ghc.repo),
-			"ref":   githubv4.String(ghc.pr.GetBase().GetRef()),
+			"ref":   githubv4.String(pr.BaseRefName),
 			"limit": githubv4.Int(TargetCommitLimit),
 		}
 
@@ -331,6 +379,61 @@ func (ghc *GitHubContext) loadCommentsAndReviews() error {
 
 	ghc.reviews = reviews
 	ghc.comments = comments
+	return nil
+}
+
+// if adding new fields to this struct, modify v3PullRequestToV4() as well!
+type v4PullRequest struct {
+	Author  v4Actor
+	Commits struct {
+		TotalCount int
+	}
+
+	IsCrossRepository bool
+
+	HeadRefOID     string
+	HeadRefName    string
+	HeadRepository struct {
+		Name  string
+		Owner v4Actor
+	}
+
+	BaseRefName string
+}
+
+// v3PullRequestToV4 creates a v4PullRequest from the v3 version if and only if
+// all necessary fields are present. It returns nil otherwise.
+func v3PullRequestToV4(v3 *github.PullRequest) *v4PullRequest {
+	switch {
+	case v3 == nil:
+
+	case v3.GetUser().GetLogin() == "":
+	case v3.Commits == nil:
+
+	case v3.GetBase().GetRef() == "":
+	case v3.GetBase().GetRepo().GetID() == 0:
+
+	case v3.GetHead().GetSHA() == "":
+	case v3.GetHead().GetRef() == "":
+	case v3.GetHead().GetRepo().GetID() == 0:
+	case v3.GetHead().GetRepo().GetName() == "":
+	case v3.GetHead().GetRepo().GetOwner().GetLogin() == "":
+
+	default:
+		var v4 v4PullRequest
+		v4.Author.Login = v3.GetUser().GetLogin()
+		v4.Commits.TotalCount = v3.GetCommits()
+
+		v4.IsCrossRepository = v3.GetHead().GetRepo().GetID() != v3.GetBase().GetRepo().GetID()
+
+		v4.HeadRefOID = v3.GetHead().GetSHA()
+		v4.HeadRefName = v3.GetHead().GetRef()
+		v4.HeadRepository.Name = v3.GetHead().GetRepo().GetName()
+		v4.HeadRepository.Owner.Login = v3.GetHead().GetRepo().GetOwner().GetLogin()
+
+		v4.BaseRefName = v3.GetBase().GetRef()
+		return &v4
+	}
 	return nil
 }
 
