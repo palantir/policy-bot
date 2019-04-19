@@ -106,7 +106,7 @@ func (exp ComparisonExpr) IsEmpty() bool {
 func (exp ComparisonExpr) Evaluate(n int64) (bool, error) {
 	match := numCompRegexp.FindStringSubmatch(string(exp))
 	if match == nil {
-		return false, errors.Errorf("invalid comparsion expression: %q", exp)
+		return false, errors.Errorf("invalid comparison expression: %q", exp)
 	}
 
 	op := match[1]
