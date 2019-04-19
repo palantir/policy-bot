@@ -121,7 +121,7 @@ func (exp ComparisonExpr) Evaluate(n int64) (bool, error) {
 	case ">":
 		return n > v, nil
 	}
-	return false, errors.Errorf("invalid comparsion expression: %q", exp)
+	return false, errors.Errorf("invalid comparison expression: %q", exp)
 }
 
 func (pred *ModifiedLines) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
