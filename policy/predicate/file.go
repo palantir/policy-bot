@@ -16,7 +16,9 @@ package predicate
 
 import (
 	"context"
+	"fmt"
 	"regexp"
+	"strconv"
 
 	"github.com/pkg/errors"
 
@@ -84,6 +86,75 @@ func (pred *OnlyChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) 
 
 	return filesChanged, desc, nil
 }
+
+type ModifiedLines struct {
+	Additions ComparisonExpr `yaml:"additions"`
+	Deletions ComparisonExpr `yaml:"deletions"`
+	Total     ComparisonExpr `yaml:"total"`
+}
+
+type ComparisonExpr string
+
+var (
+	numCompRegexp = regexp.MustCompile(`^(<|>) ?(\d+)$`)
+)
+
+func (exp ComparisonExpr) IsEmpty() bool {
+	return exp == ""
+}
+
+func (exp ComparisonExpr) Evaluate(n int64) (bool, error) {
+	match := numCompRegexp.FindStringSubmatch(string(exp))
+	if match == nil {
+		return false, errors.Errorf("invalid comparsion expression: %q", exp)
+	}
+
+	op := match[1]
+	v, err := strconv.ParseInt(match[2], 10, 64)
+	if err != nil {
+		return false, errors.Wrapf(err, "invalid commparison expression: %q", exp)
+	}
+
+	switch op {
+	case "<":
+		return n < v, nil
+	case ">":
+		return n > v, nil
+	}
+	return false, errors.Errorf("invalid comparsion expression: %q", exp)
+}
+
+func (pred *ModifiedLines) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
+	files, err := prctx.ChangedFiles()
+	if err != nil {
+		return false, "", errors.Wrap(err, "failed to list changed files")
+	}
+
+	var additions, deletions int64
+	for _, f := range files {
+		additions += int64(f.Additions)
+		deletions += int64(f.Deletions)
+	}
+
+	for expr, v := range map[ComparisonExpr]int64{
+		pred.Additions: additions,
+		pred.Deletions: deletions,
+		pred.Total:     additions + deletions,
+	} {
+		if !expr.IsEmpty() {
+			ok, err := expr.Evaluate(v)
+			if err != nil {
+				return false, "", err
+			}
+			if ok {
+				return true, "", nil
+			}
+		}
+	}
+	return false, fmt.Sprintf("modification of (+%d, -%d) does not match any conditions", additions, deletions), nil
+}
+
+var _ Predicate = &ModifiedLines{}
 
 func anyMatches(re []*regexp.Regexp, s string) bool {
 	for _, r := range re {

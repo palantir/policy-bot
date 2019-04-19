@@ -145,10 +145,18 @@ if:
     organizations: ["org1", "org2", ...]
     teams: ["org1/team1", "org2/team2", ...]
 
-  # "targets_branch" is satisfied if the target branch on the pull request
+  # "targets_branch" is satisfied if the target branch of the pull request
   # matches the regular expression
   targets_branch:
     pattern: "^(master|regexPattern)$"
+
+  # "modified_lines" is satisfied if the number of lines added or deleted by
+  # the pull request matches any of the listed conditions. Each expression is
+  # an operator (one of '<' or '>'), an optional space, and a number.
+  modified_lines:
+    additions: "> 100"
+    deletion: "> 100"
+    total: "> 200"
 
 # "options" specifies a set of restrictions on approvals. If the block does not
 # exist, the default values are used.
