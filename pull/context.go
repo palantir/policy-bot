@@ -41,18 +41,26 @@ type MembershipContext interface {
 type Context interface {
 	MembershipContext
 
-	// Locator returns a locator string for the pull request. The locator
-	// string is formated as "<owner>/<repository>#<number>"
-	Locator() string
-
 	// RepositoryOwner returns the owner of the repo that the pull request targets.
 	RepositoryOwner() string
 
 	// RepositoryName returns the repo that the pull request targets.
 	RepositoryName() string
 
+	// Number returns the number of the pull request.
+	Number() int
+
 	// Author returns the username of the user who opened the pull request.
-	Author() (string, error)
+	Author() string
+
+	// HeadSHA returns the SHA of the head commit of the pull request.
+	HeadSHA() string
+
+	// Branches returns the base (also known as target) and head branch names
+	// of this pull request. Branches in this repository have no prefix, while
+	// branches in forks are prefixed with the owner of the fork and a colon.
+	// The base branch will always be unprefixed.
+	Branches() (base string, head string)
 
 	// ChangedFiles returns the files that were changed in this pull request.
 	ChangedFiles() ([]*File, error)
@@ -68,12 +76,6 @@ type Context interface {
 	// Reviews lists all reviews on a Pull Request. The review order is
 	// implementation dependent.
 	Reviews() ([]*Review, error)
-
-	// Branches returns the base (also known as target) and head branch names
-	// of this pull request. Branches in this repository have no prefix, while
-	// branches in forks are prefixed with the owner of the fork and a colon.
-	// The base branch will always be unprefixed.
-	Branches() (base string, head string, err error)
 
 	// TargetCommits returns recent commits on the target branch of the pull
 	// request. The exact number of commits is an implementation detail.

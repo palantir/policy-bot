@@ -24,7 +24,6 @@ import (
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	"github.com/shurcooL/githubv4"
 
 	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/common"
@@ -74,15 +73,16 @@ func (p *PullEvaluationOptions) FillDefaults() {
 	}
 }
 
-func (b *Base) PostStatus(ctx context.Context, client *github.Client, pr *github.PullRequest, state, message string) error {
-	owner := pr.GetBase().GetRepo().GetOwner().GetLogin()
-	repo := pr.GetBase().GetRepo().GetName()
-	sha := pr.GetHead().GetSHA()
+func (b *Base) PostStatus(ctx context.Context, prctx pull.Context, client *github.Client, state, message string) error {
+	owner := prctx.RepositoryOwner()
+	repo := prctx.RepositoryName()
+	sha := prctx.HeadSHA()
+	base, _ := prctx.Branches()
 
 	publicURL := strings.TrimSuffix(b.BaseConfig.PublicURL, "/")
-	detailsURL := fmt.Sprintf("%s/details/%s/%s/%d", publicURL, owner, repo, pr.GetNumber())
+	detailsURL := fmt.Sprintf("%s/details/%s/%s/%d", publicURL, owner, repo, prctx.Number())
 
-	contextWithBranch := fmt.Sprintf("%s: %s", b.PullOpts.StatusCheckContext, pr.GetBase().GetRef())
+	contextWithBranch := fmt.Sprintf("%s: %s", b.PullOpts.StatusCheckContext, base)
 	status := &github.RepoStatus{
 		Context:     &contextWithBranch,
 		State:       &state,
@@ -120,15 +120,32 @@ func (b *Base) PreparePRContext(ctx context.Context, installationID int64, pr *g
 	return ctx, logger
 }
 
-func (b *Base) Evaluate(ctx context.Context, mbrCtx pull.MembershipContext, client *github.Client, v4client *githubv4.Client, pr *github.PullRequest) error {
-	fetchedConfig, err := b.ConfigFetcher.ConfigForPR(ctx, client, pr)
+func (b *Base) Evaluate(ctx context.Context, installationID int64, loc pull.Locator) error {
+	client, err := b.NewInstallationClient(installationID)
+	if err != nil {
+		return err
+	}
+
+	v4client, err := b.NewInstallationV4Client(installationID)
+	if err != nil {
+		return err
+	}
+
+	mbrCtx := NewCrossOrgMembershipContext(ctx, client, loc.Owner, b.Installations, b.ClientCreator)
+	prctx, err := pull.NewGitHubContext(ctx, mbrCtx, client, v4client, loc)
+	if err != nil {
+		return err
+	}
+
+	fetchedConfig, err := b.ConfigFetcher.ConfigForPR(ctx, prctx, client)
 	if err != nil {
 		return errors.WithMessage(err, fmt.Sprintf("failed to fetch policy: %s", fetchedConfig))
 	}
-	return b.EvaluateFetchedConfig(ctx, mbrCtx, client, v4client, pr, fetchedConfig)
+
+	return b.EvaluateFetchedConfig(ctx, prctx, client, fetchedConfig)
 }
 
-func (b *Base) EvaluateFetchedConfig(ctx context.Context, mbrCtx pull.MembershipContext, client *github.Client, v4client *githubv4.Client, pr *github.PullRequest, fetchedConfig FetchedConfig) error {
+func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, client *github.Client, fetchedConfig FetchedConfig) error {
 	logger := zerolog.Ctx(ctx)
 
 	if fetchedConfig.Missing() {
@@ -138,7 +155,7 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, mbrCtx pull.Membership
 
 	if fetchedConfig.Invalid() {
 		logger.Warn().Err(fetchedConfig.Error).Msgf("invalid policy: %s", fetchedConfig)
-		err := b.PostStatus(ctx, client, pr, "error", fetchedConfig.Description())
+		err := b.PostStatus(ctx, prctx, client, "error", fetchedConfig.Description())
 		return err
 	}
 
@@ -146,17 +163,15 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, mbrCtx pull.Membership
 	if err != nil {
 		statusMessage := fmt.Sprintf("Invalid policy defined by %s", fetchedConfig)
 		logger.Debug().Err(err).Msg(statusMessage)
-		err := b.PostStatus(ctx, client, pr, "error", statusMessage)
+		err := b.PostStatus(ctx, prctx, client, "error", statusMessage)
 		return err
 	}
 
-	prctx := pull.NewGitHubContext(ctx, mbrCtx, client, v4client, pr)
 	result := evaluator.Evaluate(ctx, prctx)
-
 	if result.Error != nil {
 		statusMessage := fmt.Sprintf("Error evaluating policy defined by %s", fetchedConfig)
 		logger.Warn().Err(result.Error).Msg(statusMessage)
-		err := b.PostStatus(ctx, client, pr, "error", statusMessage)
+		err := b.PostStatus(ctx, prctx, client, "error", statusMessage)
 		return err
 	}
 
@@ -176,6 +191,5 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, mbrCtx pull.Membership
 		return errors.Errorf("evaluation resulted in unexpected state: %s", result.Status)
 	}
 
-	err = b.PostStatus(ctx, client, pr, statusState, statusDescription)
-	return err
+	return b.PostStatus(ctx, prctx, client, statusState, statusDescription)
 }

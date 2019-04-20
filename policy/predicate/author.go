@@ -31,10 +31,7 @@ type HasAuthorIn struct {
 var _ Predicate = &HasAuthorIn{}
 
 func (pred *HasAuthorIn) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
-	author, err := prctx.Author()
-	if err != nil {
-		return false, "", errors.Wrap(err, "failed to get author")
-	}
+	author := prctx.Author()
 
 	result, err := pred.IsActor(ctx, prctx, author)
 	desc := ""
@@ -58,13 +55,8 @@ func (pred *HasContributorIn) Evaluate(ctx context.Context, prctx pull.Context) 
 		return false, "", errors.Wrap(err, "failed to get commits")
 	}
 
-	author, err := prctx.Author()
-	if err != nil {
-		return false, "", errors.Wrap(err, "failed to get author")
-	}
-
 	users := make(map[string]struct{})
-	users[author] = struct{}{}
+	users[prctx.Author()] = struct{}{}
 
 	for _, c := range commits {
 		for _, u := range c.Users() {

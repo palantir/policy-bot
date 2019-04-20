@@ -95,6 +95,19 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to get pull request")
 	}
 
+	ctx, _ = h.PreparePRContext(ctx, installation.ID, pr)
+
+	mbrCtx := NewCrossOrgMembershipContext(ctx, client, owner, h.Installations, h.ClientCreator)
+	prctx, err := pull.NewGitHubContext(ctx, mbrCtx, client, v4client, pull.Locator{
+		Owner:  owner,
+		Repo:   repo,
+		Number: number,
+		Value:  pr,
+	})
+	if err != nil {
+		return err
+	}
+
 	var data struct {
 		Error       error
 		Result      *common.Result
@@ -106,9 +119,7 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	data.PullRequest = pr
 	data.User = user
 
-	ctx, _ = h.PreparePRContext(ctx, installation.ID, pr)
-
-	config, err := h.ConfigFetcher.ConfigForPR(ctx, client, pr)
+	config, err := h.ConfigFetcher.ConfigForPR(ctx, prctx, client)
 	data.PolicyURL = getPolicyURL(pr, config)
 
 	if err != nil {
@@ -132,11 +143,9 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 		return h.render(w, data)
 	}
 
-	mbrCtx := NewCrossOrgMembershipContext(ctx, client, owner, h.Installations, h.ClientCreator)
-	prctx := pull.NewGitHubContext(ctx, mbrCtx, client, v4client, pr)
 	result := evaluator.Evaluate(ctx, prctx)
-
 	data.Result = &result
+
 	return h.render(w, data)
 }
 

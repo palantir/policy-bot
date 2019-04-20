@@ -36,11 +36,7 @@ func (pred *TargetsBranch) Evaluate(ctx context.Context, prctx pull.Context) (bo
 		return false, "", errors.Wrap(err, "failed to compile the target regex")
 	}
 
-	targetName, _, err := prctx.Branches()
-	if err != nil {
-		return false, "", err
-	}
-
+	targetName, _ := prctx.Branches()
 	matches := pattern.MatchString(targetName)
 
 	desc := ""

@@ -19,12 +19,15 @@ import (
 )
 
 type Context struct {
-	LocatorValue string
-	OwnerValue   string
-	RepoValue    string
+	OwnerValue  string
+	RepoValue   string
+	NumberValue int
 
-	AuthorValue string
-	AuthorError error
+	AuthorValue  string
+	HeadSHAValue string
+
+	BranchBaseName string
+	BranchHeadName string
 
 	ChangedFilesValue []*pull.File
 	ChangedFilesError error
@@ -47,19 +50,8 @@ type Context struct {
 	CollaboratorMemberships     map[string][]string
 	CollaboratorMembershipError error
 
-	BranchBaseName string
-	BranchHeadName string
-	BranchesError  error
-
 	TargetCommitsValue []*pull.Commit
 	TargetCommitsError error
-}
-
-func (c *Context) Locator() string {
-	if c.LocatorValue != "" {
-		return c.LocatorValue
-	}
-	return "pulltest/context#1"
 }
 
 func (c *Context) RepositoryOwner() string {
@@ -76,8 +68,23 @@ func (c *Context) RepositoryName() string {
 	return "context"
 }
 
-func (c *Context) Author() (string, error) {
-	return c.AuthorValue, c.AuthorError
+func (c *Context) Number() int {
+	if c.NumberValue > 0 {
+		return c.NumberValue
+	}
+	return 1
+}
+
+func (c *Context) Author() string {
+	return c.AuthorValue
+}
+
+func (c *Context) HeadSHA() string {
+	return c.HeadSHAValue
+}
+
+func (c *Context) Branches() (base string, head string) {
+	return c.BranchBaseName, c.BranchHeadName
 }
 
 func (c *Context) ChangedFiles() ([]*pull.File, error) {
@@ -133,10 +140,6 @@ func (c *Context) Comments() ([]*pull.Comment, error) {
 
 func (c *Context) Reviews() ([]*pull.Review, error) {
 	return c.ReviewsValue, c.ReviewsError
-}
-
-func (c *Context) Branches() (base string, head string, err error) {
-	return c.BranchBaseName, c.BranchHeadName, c.BranchesError
 }
 
 func (c *Context) TargetCommits() ([]*pull.Commit, error) {

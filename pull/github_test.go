@@ -34,7 +34,7 @@ func TestChangedFiles(t *testing.T) {
 		"testdata/responses/pull_files.yml",
 	)
 
-	ctx := makeContext(rp, nil)
+	ctx := makeContext(t, rp, nil)
 
 	files, err := ctx.ChangedFiles()
 	require.NoError(t, err)
@@ -69,7 +69,7 @@ func TestCommits(t *testing.T) {
 	pr := defaultTestPR()
 	pr.Commits = github.Int(3)
 
-	ctx := makeContext(rp, pr)
+	ctx := makeContext(t, rp, pr)
 
 	commits, err := ctx.Commits()
 	require.NoError(t, err)
@@ -110,7 +110,7 @@ func TestReviews(t *testing.T) {
 		"testdata/responses/pull_reviews.yml",
 	)
 
-	ctx := makeContext(rp, nil)
+	ctx := makeContext(t, rp, nil)
 
 	reviews, err := ctx.Reviews()
 	require.NoError(t, err)
@@ -146,7 +146,7 @@ func TestNoReviews(t *testing.T) {
 		"testdata/responses/pull_no_reviews.yml",
 	)
 
-	ctx := makeContext(rp, nil)
+	ctx := makeContext(t, rp, nil)
 
 	reviews, err := ctx.Reviews()
 	require.NoError(t, err)
@@ -167,7 +167,7 @@ func TestComments(t *testing.T) {
 		"testdata/responses/pull_comments.yml",
 	)
 
-	ctx := makeContext(rp, nil)
+	ctx := makeContext(t, rp, nil)
 
 	comments, err := ctx.Comments()
 	require.NoError(t, err)
@@ -201,7 +201,7 @@ func TestNoComments(t *testing.T) {
 		"testdata/responses/pull_no_comments.yml",
 	)
 
-	ctx := makeContext(rp, nil)
+	ctx := makeContext(t, rp, nil)
 
 	comments, err := ctx.Comments()
 	require.NoError(t, err)
@@ -238,7 +238,7 @@ func TestIsTeamMember(t *testing.T) {
 		"testdata/responses/membership_team456_ttest.yml",
 	)
 
-	ctx := makeContext(rp, nil)
+	ctx := makeContext(t, rp, nil)
 
 	isMember, err := ctx.IsTeamMember("testorg/yes-team", "mhaypenny")
 	require.NoError(t, err)
@@ -290,7 +290,7 @@ func TestMixedReviewCommentPaging(t *testing.T) {
 		"testdata/responses/pull_reviews_comments.yml",
 	)
 
-	ctx := makeContext(rp, nil)
+	ctx := makeContext(t, rp, nil)
 
 	comments, err := ctx.Comments()
 	require.NoError(t, err)
@@ -314,7 +314,7 @@ func TestIsOrgMember(t *testing.T) {
 		"testdata/responses/membership_testorg_ttest.yml",
 	)
 
-	ctx := makeContext(rp, nil)
+	ctx := makeContext(t, rp, nil)
 
 	isMember, err := ctx.IsOrgMember("testorg", "mhaypenny")
 	require.NoError(t, err)
@@ -336,7 +336,7 @@ func TestIsOrgMember(t *testing.T) {
 	assert.Equal(t, 1, yesRule.Count, "cached membership was not used")
 }
 
-func makeContext(rp *ResponsePlayer, pr *github.PullRequest) Context {
+func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest) Context {
 	ctx := context.Background()
 	client := github.NewClient(&http.Client{Transport: rp})
 	v4client := githubv4.NewClient(&http.Client{Transport: rp})
@@ -348,7 +348,16 @@ func makeContext(rp *ResponsePlayer, pr *github.PullRequest) Context {
 	if pr == nil {
 		pr = defaultTestPR()
 	}
-	return NewGitHubContext(ctx, mbrCtx, client, v4client, pr)
+
+	prctx, err := NewGitHubContext(ctx, mbrCtx, client, v4client, Locator{
+		Owner:  pr.GetBase().GetRepo().GetOwner().GetLogin(),
+		Repo:   pr.GetBase().GetRepo().GetName(),
+		Number: pr.GetNumber(),
+		Value:  pr,
+	})
+	require.NoError(t, err, "failed to create github context")
+
+	return prctx
 }
 
 func defaultTestPR() *github.PullRequest {
