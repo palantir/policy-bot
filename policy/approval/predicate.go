@@ -24,6 +24,7 @@ type Predicates struct {
 	HasAuthorIn      *predicate.HasAuthorIn      `yaml:"has_author_in"`
 	HasContributorIn *predicate.HasContributorIn `yaml:"has_contributor_in"`
 	TargetsBranch    *predicate.TargetsBranch    `yaml:"targets_branch"`
+	ModifiedLines    *predicate.ModifiedLines    `yaml:"modified_lines"`
 }
 
 func (p *Predicates) Predicates() []predicate.Predicate {
@@ -43,6 +44,9 @@ func (p *Predicates) Predicates() []predicate.Predicate {
 	}
 	if p.TargetsBranch != nil {
 		ps = append(ps, predicate.Predicate(p.TargetsBranch))
+	}
+	if p.ModifiedLines != nil {
+		ps = append(ps, predicate.Predicate(p.ModifiedLines))
 	}
 
 	return ps

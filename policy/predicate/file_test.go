@@ -142,6 +142,113 @@ func TestOnlyChangedFiles(t *testing.T) {
 	})
 }
 
+func TestModifiedLines(t *testing.T) {
+	p := &ModifiedLines{
+		Additions: ">100",
+		Deletions: ">10",
+	}
+
+	runFileTests(t, p, []FileTestCase{
+		{
+			"empty",
+			false,
+			[]*pull.File{},
+		},
+		{
+			"additions",
+			true,
+			[]*pull.File{
+				{Additions: 55},
+				{Additions: 10},
+				{Additions: 45},
+			},
+		},
+		{
+			"deletions",
+			true,
+			[]*pull.File{
+				{Additions: 5},
+				{Additions: 10, Deletions: 10},
+				{Additions: 5},
+				{Deletions: 10},
+			},
+		},
+	})
+
+	p = &ModifiedLines{
+		Total: ">100",
+	}
+
+	runFileTests(t, p, []FileTestCase{
+		{
+			"total",
+			true,
+			[]*pull.File{
+				{Additions: 20, Deletions: 20},
+				{Additions: 20},
+				{Deletions: 20},
+				{Additions: 20, Deletions: 20},
+			},
+		},
+	})
+}
+
+func TestComparisonExpr(t *testing.T) {
+	tests := map[string]struct {
+		Expr   ComparisonExpr
+		Value  int64
+		Output bool
+		Err    bool
+	}{
+		"greaterThanTrue": {
+			Expr:   ">100",
+			Value:  200,
+			Output: true,
+		},
+		"greaterThanFalse": {
+			Expr:   "> 100",
+			Value:  50,
+			Output: false,
+		},
+		"lessThanTrue": {
+			Expr:   "<100",
+			Value:  50,
+			Output: true,
+		},
+		"lessThanFalse": {
+			Expr:   "< 100",
+			Value:  200,
+			Output: false,
+		},
+		"invalidOperator": {
+			Expr: "=200",
+			Err:  true,
+		},
+		"invalidNumber": {
+			Expr: ">12ab",
+			Err:  true,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ok, err := test.Expr.Evaluate(test.Value)
+			if test.Err {
+				assert.Error(t, err, "expected error evaluating expression, but got nil")
+				return
+			}
+			if assert.NoError(t, err, "unexpected error evaluating expression") {
+				assert.Equal(t, test.Output, ok, "evaluation was not correct")
+			}
+		})
+	}
+
+	t.Run("isEmpty", func(t *testing.T) {
+		assert.True(t, ComparisonExpr("").IsEmpty(), "expression was not empty")
+		assert.False(t, ComparisonExpr(">100").IsEmpty(), "expression was empty")
+	})
+}
+
 type FileTestCase struct {
 	Name     string
 	Expected bool
