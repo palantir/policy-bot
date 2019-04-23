@@ -21,6 +21,8 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/pkg/errors"
+
+	"github.com/palantir/policy-bot/pull"
 )
 
 type PullRequestReview struct {
@@ -38,19 +40,12 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 	}
 
 	installationID := githubapp.GetInstallationIDFromEvent(&event)
-
-	client, err := h.NewInstallationClient(installationID)
-	if err != nil {
-		return err
-	}
-
-	v4client, err := h.NewInstallationV4Client(installationID)
-	if err != nil {
-		return err
-	}
-
 	ctx, _ = h.PreparePRContext(ctx, installationID, event.GetPullRequest())
 
-	mbrCtx := NewCrossOrgMembershipContext(ctx, client, event.GetRepo().GetOwner().GetLogin(), h.Installations, h.ClientCreator)
-	return h.Evaluate(ctx, mbrCtx, client, v4client, event.GetPullRequest())
+	return h.Evaluate(ctx, installationID, pull.Locator{
+		Owner:  event.GetRepo().GetOwner().GetLogin(),
+		Repo:   event.GetRepo().GetName(),
+		Number: event.GetPullRequest().GetNumber(),
+		Value:  event.GetPullRequest(),
+	})
 }

@@ -26,6 +26,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/palantir/policy-bot/policy"
+	"github.com/palantir/policy-bot/pull"
 )
 
 type FetchedConfig struct {
@@ -71,11 +72,12 @@ type ConfigFetcher struct {
 // only if the existence of the policy could not be determined. If the policy
 // does not exist or is invalid, the returned error is nil and the appropriate
 // fields are set on the FetchedConfig.
-func (cf *ConfigFetcher) ConfigForPR(ctx context.Context, client *github.Client, pr *github.PullRequest) (FetchedConfig, error) {
+func (cf *ConfigFetcher) ConfigForPR(ctx context.Context, prctx pull.Context, client *github.Client) (FetchedConfig, error) {
+	base, _ := prctx.Branches()
 	fc := FetchedConfig{
-		Owner: pr.GetBase().GetRepo().GetOwner().GetLogin(),
-		Repo:  pr.GetBase().GetRepo().GetName(),
-		Ref:   pr.GetBase().GetRef(),
+		Owner: prctx.RepositoryOwner(),
+		Repo:  prctx.RepositoryName(),
+		Ref:   base,
 		Path:  cf.PolicyPath,
 	}
 

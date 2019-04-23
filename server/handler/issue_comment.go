@@ -26,6 +26,7 @@ import (
 
 	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/approval"
+	"github.com/palantir/policy-bot/pull"
 )
 
 type IssueComment struct {
@@ -43,6 +44,7 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 	}
 
 	repo := event.GetRepo()
+	owner := repo.GetOwner().GetLogin()
 	number := event.GetIssue().GetNumber()
 	installationID := githubapp.GetInstallationIDFromEvent(&event)
 
@@ -61,20 +63,31 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 		return err
 	}
 
-	pr, _, err := client.PullRequests.Get(ctx, repo.GetOwner().GetLogin(), repo.GetName(), number)
+	pr, _, err := client.PullRequests.Get(ctx, owner, repo.GetName(), number)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get pull request %s/%s#%d", repo.GetOwner().GetLogin(), repo.GetName(), number)
+		return errors.Wrapf(err, "failed to get pull request %s/%s#%d", owner, repo.GetName(), number)
 	}
 
 	ctx, logger := h.PreparePRContext(ctx, installationID, pr)
 
-	fetchedConfig, err := h.ConfigFetcher.ConfigForPR(ctx, client, pr)
+	mbrCtx := NewCrossOrgMembershipContext(ctx, client, owner, h.Installations, h.ClientCreator)
+	prctx, err := pull.NewGitHubContext(ctx, mbrCtx, client, v4client, pull.Locator{
+		Owner:  owner,
+		Repo:   repo.GetName(),
+		Number: number,
+		Value:  pr,
+	})
+	if err != nil {
+		return err
+	}
+
+	fetchedConfig, err := h.ConfigFetcher.ConfigForPR(ctx, prctx, client)
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch configuration")
 	}
 
 	if fetchedConfig.Valid() {
-		tampered, err := h.detectAndLogTampering(ctx, client, event, pr, fetchedConfig.Config)
+		tampered, err := h.detectAndLogTampering(ctx, prctx, client, event, fetchedConfig.Config)
 		if err != nil {
 			return errors.Wrap(err, "failed to detect tampering")
 		} else if tampered {
@@ -84,11 +97,10 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 		logger.Warn().Str(LogKeyAudit, "issue_comment").Msg("Skipped tampering check because the policy is not valid")
 	}
 
-	mbrCtx := NewCrossOrgMembershipContext(ctx, client, repo.GetOwner().GetLogin(), h.Installations, h.ClientCreator)
-	return h.EvaluateFetchedConfig(ctx, mbrCtx, client, v4client, pr, fetchedConfig)
+	return h.EvaluateFetchedConfig(ctx, prctx, client, fetchedConfig)
 }
 
-func (h *IssueComment) detectAndLogTampering(ctx context.Context, client *github.Client, event github.IssueCommentEvent, pr *github.PullRequest, config *policy.Config) (bool, error) {
+func (h *IssueComment) detectAndLogTampering(ctx context.Context, prctx pull.Context, client *github.Client, event github.IssueCommentEvent, config *policy.Config) (bool, error) {
 	logger := zerolog.Ctx(ctx)
 
 	var originalBody string
@@ -113,7 +125,7 @@ func (h *IssueComment) detectAndLogTampering(ctx context.Context, client *github
 		msg := fmt.Sprintf("Entity %s edited approval comment by %s", eventAuthor, commentAuthor)
 		logger.Warn().Str(LogKeyAudit, "issue_comment").Msg(msg)
 
-		err := h.PostStatus(ctx, client, pr, "failure", msg)
+		err := h.PostStatus(ctx, prctx, client, "failure", msg)
 		return true, err
 	}
 

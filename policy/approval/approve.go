@@ -147,16 +147,12 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 
 	log.Debug().Msgf("found %d candidates for approval", len(candidates))
 
-	author, err := prctx.Author()
-	if err != nil {
-		return false, "", err
-	}
-
 	// collect users "banned" by approval options
 	banned := make(map[string]bool)
 
 	// "author" is the user who opened the PR
 	// if contributors are allowed, the author counts as a contributor
+	author := prctx.Author()
 	if !r.Options.AllowAuthor && !r.Options.AllowContributor {
 		banned[author] = true
 	}

@@ -16,7 +16,6 @@ package pull
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -41,18 +40,80 @@ const (
 	MaxPageSize = 100
 )
 
+// Locator identifies a pull request and optionally contains a full or partial
+// pull request object.
+type Locator struct {
+	Owner  string
+	Repo   string
+	Number int
+
+	Value *github.PullRequest
+}
+
+// IsComplete returns true if the locator contains a pull request object with
+// all required fields.
+func (loc Locator) IsComplete() bool {
+	switch {
+	case loc.Value == nil:
+	case loc.Value.GetUser().GetLogin() == "":
+	case loc.Value.Commits == nil:
+	case loc.Value.GetBase().GetRef() == "":
+	case loc.Value.GetBase().GetRepo().GetID() == 0:
+	case loc.Value.GetHead().GetSHA() == "":
+	case loc.Value.GetHead().GetRef() == "":
+	case loc.Value.GetHead().GetRepo().GetID() == 0:
+	case loc.Value.GetHead().GetRepo().GetName() == "":
+	case loc.Value.GetHead().GetRepo().GetOwner().GetLogin() == "":
+	default:
+		return true
+	}
+	return false
+}
+
+// toV4 returns a v4PullRequest, loading data from the API if the locator is not complete.
+func (loc Locator) toV4(ctx context.Context, client *githubv4.Client) (*v4PullRequest, error) {
+	if !loc.IsComplete() {
+		var q struct {
+			Repository struct {
+				PullRequest v4PullRequest `graphql:"pullRequest(number: $number)"`
+			} `graphql:"repository(owner: $owner, name: $name)"`
+		}
+		qvars := map[string]interface{}{
+			"owner":  githubv4.String(loc.Owner),
+			"name":   githubv4.String(loc.Repo),
+			"number": githubv4.Int(loc.Number),
+		}
+		if err := client.Query(ctx, &q, qvars); err != nil {
+			return nil, errors.Wrap(err, "failed to load pull request details")
+		}
+		return &q.Repository.PullRequest, nil
+	}
+
+	var v4 v4PullRequest
+	v4.Author.Login = loc.Value.GetUser().GetLogin()
+	v4.Commits.TotalCount = loc.Value.GetCommits()
+	v4.IsCrossRepository = loc.Value.GetHead().GetRepo().GetID() != loc.Value.GetBase().GetRepo().GetID()
+	v4.HeadRefOID = loc.Value.GetHead().GetSHA()
+	v4.HeadRefName = loc.Value.GetHead().GetRef()
+	v4.HeadRepository.Name = loc.Value.GetHead().GetRepo().GetName()
+	v4.HeadRepository.Owner.Login = loc.Value.GetHead().GetRepo().GetOwner().GetLogin()
+	v4.BaseRefName = loc.Value.GetBase().GetRef()
+	return &v4, nil
+}
+
 // GitHubContext is a Context implementation that gets information from GitHub.
 // A new instance must be created for each request.
 type GitHubContext struct {
+	MembershipContext
+
 	ctx      context.Context
 	client   *github.Client
 	v4client *githubv4.Client
-	mbrCtx   MembershipContext
 
 	owner  string
 	repo   string
 	number int
-	pr     *github.PullRequest
+	pr     *v4PullRequest
 
 	// cached fields
 	files         []*File
@@ -64,34 +125,32 @@ type GitHubContext struct {
 	membership    map[string]bool
 }
 
-func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *github.Client, v4client *githubv4.Client, pr *github.PullRequest) Context {
+// NewGitHubContext creates a new pull.Context that makes GitHub requests to
+// obtain information. It caches responses for the lifetime of the context. The
+// pull request passed to the context must contain at least the base repository
+// and the number or the function panics.
+func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *github.Client, v4client *githubv4.Client, loc Locator) (Context, error) {
+	if loc.Owner == "" || loc.Repo == "" || loc.Number == 0 {
+		panic("pull request object does not contain full identifying information")
+	}
+
+	pr, err := loc.toV4(ctx, v4client)
+	if err != nil {
+		return nil, err
+	}
+
 	return &GitHubContext{
+		MembershipContext: mbrCtx,
+
 		ctx:      ctx,
 		client:   client,
 		v4client: v4client,
-		mbrCtx:   mbrCtx,
 
-		owner:  pr.GetBase().GetRepo().GetOwner().GetLogin(),
-		repo:   pr.GetBase().GetRepo().GetName(),
-		number: pr.GetNumber(),
+		owner:  loc.Owner,
+		repo:   loc.Repo,
+		number: loc.Number,
 		pr:     pr,
-	}
-}
-
-func (ghc *GitHubContext) IsTeamMember(team, user string) (bool, error) {
-	return ghc.mbrCtx.IsTeamMember(team, user)
-}
-
-func (ghc *GitHubContext) IsOrgMember(org, user string) (bool, error) {
-	return ghc.mbrCtx.IsOrgMember(org, user)
-}
-
-func (ghc *GitHubContext) IsCollaborator(org, repo, user, desiredPerm string) (bool, error) {
-	return ghc.mbrCtx.IsCollaborator(org, repo, user, desiredPerm)
-}
-
-func (ghc *GitHubContext) Locator() string {
-	return fmt.Sprintf("%s/%s#%d", ghc.owner, ghc.repo, ghc.number)
+	}, nil
 }
 
 func (ghc *GitHubContext) RepositoryOwner() string {
@@ -102,8 +161,28 @@ func (ghc *GitHubContext) RepositoryName() string {
 	return ghc.repo
 }
 
-func (ghc *GitHubContext) Author() (string, error) {
-	return ghc.pr.GetUser().GetLogin(), nil
+func (ghc *GitHubContext) Number() int {
+	return ghc.number
+}
+
+func (ghc *GitHubContext) Author() string {
+	return ghc.pr.Author.Login
+}
+
+func (ghc *GitHubContext) HeadSHA() string {
+	return ghc.pr.HeadRefOID
+}
+
+// Branches returns the names of the base and head branch. If the head branch
+// is from another repository (it is a fork) then the branch name is
+// `owner:branchName`.
+func (ghc *GitHubContext) Branches() (base string, head string) {
+	base = ghc.pr.BaseRefName
+	head = ghc.pr.HeadRefName
+	if ghc.pr.IsCrossRepository {
+		head = ghc.pr.HeadRepository.Owner.Login + ":" + head
+	}
+	return
 }
 
 func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
@@ -149,7 +228,7 @@ func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
 
 func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 	if ghc.commits == nil {
-		totalCommits := ghc.pr.GetCommits()
+		totalCommits := ghc.pr.Commits.TotalCount
 
 		var q struct {
 			Repository struct {
@@ -166,9 +245,9 @@ func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 		qvars := map[string]interface{}{
 			// always list commits from the head repository
 			// some commit details do not propagate from forks to the upstream
-			"owner":  githubv4.String(ghc.pr.GetHead().GetRepo().GetOwner().GetLogin()),
-			"name":   githubv4.String(ghc.pr.GetHead().GetRepo().GetName()),
-			"oid":    githubv4.GitObjectID(ghc.pr.GetHead().GetSHA()),
+			"owner":  githubv4.String(ghc.pr.HeadRepository.Owner.Login),
+			"name":   githubv4.String(ghc.pr.HeadRepository.Name),
+			"oid":    githubv4.GitObjectID(ghc.pr.HeadRefOID),
 			"cursor": (*githubv4.String)(nil),
 		}
 
@@ -224,21 +303,6 @@ func (ghc *GitHubContext) Reviews() ([]*Review, error) {
 	return ghc.reviews, nil
 }
 
-// Branches returns the names of the base and head branch. If the head branch
-// is from another repository (it is a fork) then the branch name is
-// `owner:branchName`.
-func (ghc *GitHubContext) Branches() (base string, head string, err error) {
-	base = ghc.pr.GetBase().GetRef()
-
-	if ghc.pr.GetHead().GetRepo().GetID() == ghc.pr.GetBase().GetRepo().GetID() {
-		head = ghc.pr.GetHead().GetRef()
-	} else {
-		head = ghc.pr.GetHead().GetLabel()
-	}
-
-	return
-}
-
 func (ghc *GitHubContext) TargetCommits() ([]*Commit, error) {
 	if ghc.targetCommits == nil {
 		var q struct {
@@ -257,7 +321,7 @@ func (ghc *GitHubContext) TargetCommits() ([]*Commit, error) {
 		qvars := map[string]interface{}{
 			"owner": githubv4.String(ghc.owner),
 			"name":  githubv4.String(ghc.repo),
-			"ref":   githubv4.String(ghc.pr.GetBase().GetRef()),
+			"ref":   githubv4.String(ghc.pr.BaseRefName),
 			"limit": githubv4.Int(TargetCommitLimit),
 		}
 
@@ -332,6 +396,25 @@ func (ghc *GitHubContext) loadCommentsAndReviews() error {
 	ghc.reviews = reviews
 	ghc.comments = comments
 	return nil
+}
+
+// if adding new fields to this struct, modify Locator#toV4() as well
+type v4PullRequest struct {
+	Author  v4Actor
+	Commits struct {
+		TotalCount int
+	}
+
+	IsCrossRepository bool
+
+	HeadRefOID     string
+	HeadRefName    string
+	HeadRepository struct {
+		Name  string
+		Owner v4Actor
+	}
+
+	BaseRefName string
 }
 
 type v4PageInfo struct {
