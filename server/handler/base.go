@@ -34,6 +34,8 @@ const (
 	DefaultPolicyPath         = ".policy.yml"
 	DefaultStatusCheckContext = "policy-bot"
 	DefaultAppName            = "policy-bot"
+
+	GitHubSHAKey = "github_sha"
 )
 
 type Base struct {
@@ -114,7 +116,7 @@ func (b *Base) postGitHubRepoStatus(ctx context.Context, client *github.Client, 
 func (b *Base) PreparePRContext(ctx context.Context, installationID int64, pr *github.PullRequest) (context.Context, zerolog.Logger) {
 	ctx, logger := githubapp.PreparePRContext(ctx, installationID, pr.GetBase().GetRepo(), pr.GetNumber())
 
-	logger = logger.With().Str("github_sha", pr.GetHead().GetSHA()).Logger()
+	logger = logger.With().Str(GitHubSHAKey, pr.GetHead().GetSHA()).Logger()
 	ctx = logger.WithContext(ctx)
 
 	return ctx, logger
