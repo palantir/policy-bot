@@ -63,7 +63,7 @@ func (h *Status) Handle(ctx context.Context, eventType, deliveryID string, paylo
 	if sender.GetLogin() != h.PullOpts.AppName+"[bot]" {
 		logger.Warn().
 			Str(LogKeyAudit, eventType).
-			Str(GitHubSHAKey, commitSHA).
+			Str(LogKeyGitHubSHA, commitSHA).
 			Msgf(
 				"Entity '%s' overwrote status check '%s' to state='%s' description='%s' targetURL='%s'",
 				sender.GetLogin(),
