@@ -61,16 +61,20 @@ func (h *Status) Handle(ctx context.Context, eventType, deliveryID string, paylo
 	commitSHA := event.GetCommit().GetSHA()
 
 	if sender.GetLogin() != h.PullOpts.AppName+"[bot]" {
-		auditMessage := fmt.Sprintf(
-			"Entity '%s' overwrote status check '%s' on ref=%s to status='%s' description='%s' targetURL='%s'",
-			sender.GetLogin(),
-			event.GetContext(),
-			commitSHA,
-			event.GetState(),
-			event.GetDescription(),
-			event.GetTargetURL(),
-		)
-		logger.Warn().Str(LogKeyAudit, eventType).Msg(auditMessage)
+		logger.Warn().
+			Str(LogKeyAudit, eventType).
+			Str(LogKeyGitHubSHA, commitSHA).
+			Msgf(
+				"Entity '%s' overwrote status check '%s' to state='%s' description='%s' targetURL='%s'",
+				sender.GetLogin(),
+				event.GetContext(),
+				event.GetState(),
+				event.GetDescription(),
+				event.GetTargetURL(),
+			)
+
+		// must be less than 140 characters to satisfy GitHub API
+		desc := fmt.Sprintf("'%s' overwrote status to '%s'", sender.GetLogin(), event.GetState())
 
 		// unlike in other code, use a single context here because we want to
 		// replace a forged context with a failure, not post a general status
@@ -78,7 +82,7 @@ func (h *Status) Handle(ctx context.Context, eventType, deliveryID string, paylo
 		status := &github.RepoStatus{
 			Context:     event.Context,
 			State:       github.String("failure"),
-			Description: &auditMessage,
+			Description: &desc,
 		}
 
 		_, _, err := client.Repositories.CreateStatus(ctx, ownerName, repoName, commitSHA, status)
