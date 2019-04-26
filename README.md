@@ -323,8 +323,8 @@ For a commit on a branch to count as an "update merge" for the purpose of the
 
 1. The commit must have exactly two parents
 2. The commit must have the `committedViaWeb` property set to `true`
-3. One parent must exist in the last 100 commits on the target branch of the
-   pull request
+3. The first parent must exist in the pull request while the second parent
+   must not exist in the pull request (meaning it is on the target branch)
 
 These will all be true after updating a branch using the UI, but historic
 merges on long-running branches or merges created with the API may not be

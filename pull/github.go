@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 	"github.com/shurcooL/githubv4"
 )
 
@@ -30,14 +31,9 @@ const (
 	// https://developer.github.com/v3/pulls/#list-pull-requests-files
 	MaxPullRequestFiles = 300
 
-	// TargetCommitLimit is the max number of commits to retrieve from the
-	// target branch of a pull request. 100 items is the maximum that can be
-	// retrieved from the GitHub API without paging.
-	TargetCommitLimit = 100
-
-	// MaxPageSize is the largest single page that can be retrieved from a
-	// GraphQL API call.
-	MaxPageSize = 100
+	// MaxPullRequestCommits is the max number of commits returned by GitHub
+	// https://developer.github.com/v3/pulls/#list-commits-on-a-pull-request
+	MaxPullRequestCommits = 250
 )
 
 // Locator identifies a pull request and optionally contains a full or partial
@@ -56,7 +52,6 @@ func (loc Locator) IsComplete() bool {
 	switch {
 	case loc.Value == nil:
 	case loc.Value.GetUser().GetLogin() == "":
-	case loc.Value.Commits == nil:
 	case loc.Value.GetBase().GetRef() == "":
 	case loc.Value.GetBase().GetRepo().GetID() == 0:
 	case loc.Value.GetHead().GetSHA() == "":
@@ -91,7 +86,6 @@ func (loc Locator) toV4(ctx context.Context, client *githubv4.Client) (*v4PullRe
 
 	var v4 v4PullRequest
 	v4.Author.Login = loc.Value.GetUser().GetLogin()
-	v4.Commits.TotalCount = loc.Value.GetCommits()
 	v4.IsCrossRepository = loc.Value.GetHead().GetRepo().GetID() != loc.Value.GetBase().GetRepo().GetID()
 	v4.HeadRefOID = loc.Value.GetHead().GetSHA()
 	v4.HeadRefName = loc.Value.GetHead().GetRef()
@@ -116,13 +110,12 @@ type GitHubContext struct {
 	pr     *v4PullRequest
 
 	// cached fields
-	files         []*File
-	commits       []*Commit
-	targetCommits []*Commit
-	comments      []*Comment
-	reviews       []*Review
-	teamIDs       map[string]int64
-	membership    map[string]bool
+	files      []*File
+	commits    []*Commit
+	comments   []*Comment
+	reviews    []*Review
+	teamIDs    map[string]int64
+	membership map[string]bool
 }
 
 // NewGitHubContext creates a new pull.Context that makes GitHub requests to
@@ -228,66 +221,19 @@ func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
 
 func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 	if ghc.commits == nil {
-		totalCommits := ghc.pr.Commits.TotalCount
-
-		var q struct {
-			Repository struct {
-				Object struct {
-					Commit struct {
-						History struct {
-							PageInfo v4PageInfo
-							Nodes    []v4Commit
-						} `graphql:"history(first: $limit, after: $cursor)"`
-					} `graphql:"... on Commit"`
-				} `graphql:"object(oid: $oid)"`
-			} `graphql:"repository(owner: $owner, name: $name)"`
+		if err := ghc.loadPagedData(); err != nil {
+			return nil, err
 		}
-		qvars := map[string]interface{}{
-			// always list commits from the head repository
-			// some commit details do not propagate from forks to the upstream
-			"owner":  githubv4.String(ghc.pr.HeadRepository.Owner.Login),
-			"name":   githubv4.String(ghc.pr.HeadRepository.Name),
-			"oid":    githubv4.GitObjectID(ghc.pr.HeadRefOID),
-			"cursor": (*githubv4.String)(nil),
-		}
-
-		var commits []v4Commit
-		for {
-			qvars["limit"] = githubv4.Int(min(totalCommits-len(commits), MaxPageSize))
-			if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
-				return nil, errors.Wrap(err, "failed to list commits")
-			}
-			commits = append(commits, q.Repository.Object.Commit.History.Nodes...)
-
-			if len(commits) == totalCommits {
-				break
-			}
-			if !q.Repository.Object.Commit.History.PageInfo.UpdateCursor(qvars, "cursor") {
-				break
-			}
-		}
-		if len(commits) != totalCommits {
-			return nil, errors.Errorf("pull request has %d commits, but API returned %d", totalCommits, len(commits))
-		}
-
-		// this should always be true, but check because invalidate_on_push is
-		// broken if the pushed date is missing and it's better to fail loudly
-		if len(commits) > 0 && commits[0].PushedDate == nil {
-			return nil, errors.Errorf("head commit %s is missing push date", commits[0].OID)
-		}
-		backfillPushedDate(commits)
-
-		ghc.commits = make([]*Commit, len(commits))
-		for i, c := range commits {
-			ghc.commits[i] = c.ToCommit()
-		}
+	}
+	if len(ghc.commits) >= MaxPullRequestCommits {
+		return nil, errors.Errorf("too many commits in pull request, maximum is %d", MaxPullRequestCommits)
 	}
 	return ghc.commits, nil
 }
 
 func (ghc *GitHubContext) Comments() ([]*Comment, error) {
 	if ghc.comments == nil {
-		if err := ghc.loadCommentsAndReviews(); err != nil {
+		if err := ghc.loadPagedData(); err != nil {
 			return nil, err
 		}
 	}
@@ -296,55 +242,23 @@ func (ghc *GitHubContext) Comments() ([]*Comment, error) {
 
 func (ghc *GitHubContext) Reviews() ([]*Review, error) {
 	if ghc.reviews == nil {
-		if err := ghc.loadCommentsAndReviews(); err != nil {
+		if err := ghc.loadPagedData(); err != nil {
 			return nil, err
 		}
 	}
 	return ghc.reviews, nil
 }
 
-func (ghc *GitHubContext) TargetCommits() ([]*Commit, error) {
-	if ghc.targetCommits == nil {
-		var q struct {
-			Repository struct {
-				Ref struct {
-					Target struct {
-						Commit struct {
-							History struct {
-								Nodes []v4Commit
-							} `graphql:"history(first: $limit)"`
-						} `graphql:"... on Commit"`
-					}
-				} `graphql:"ref(qualifiedName: $ref)"`
-			} `graphql:"repository(owner: $owner, name: $name)"`
-		}
-		qvars := map[string]interface{}{
-			"owner": githubv4.String(ghc.owner),
-			"name":  githubv4.String(ghc.repo),
-			"ref":   githubv4.String(ghc.pr.BaseRefName),
-			"limit": githubv4.Int(TargetCommitLimit),
-		}
-
-		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
-			return nil, errors.Wrap(err, "failed to list target commits")
-		}
-
-		commits := q.Repository.Ref.Target.Commit.History.Nodes
-		backfillPushedDate(commits)
-
-		ghc.targetCommits = make([]*Commit, len(commits))
-		for i, c := range commits {
-			ghc.targetCommits[i] = c.ToCommit()
-		}
-	}
-	return ghc.targetCommits, nil
-}
-
-func (ghc *GitHubContext) loadCommentsAndReviews() error {
-	// this is a minor optimization: we make max(r,c) requests instead of r+c
+func (ghc *GitHubContext) loadPagedData() error {
+	// this is a minor optimization: make max(c,m,r) requests instead of c+m+r
 	var q struct {
 		Repository struct {
 			PullRequest struct {
+				Commits struct {
+					PageInfo v4PageInfo
+					Nodes    []v4PullRequestCommit
+				} `graphql:"commits(first: 100, after: $commitCursor)"`
+
 				Comments struct {
 					PageInfo v4PageInfo
 					Nodes    []v4IssueComment
@@ -362,16 +276,25 @@ func (ghc *GitHubContext) loadCommentsAndReviews() error {
 		"name":   githubv4.String(ghc.repo),
 		"number": githubv4.Int(ghc.number),
 
+		"commitCursor":  (*githubv4.String)(nil),
 		"commentCursor": (*githubv4.String)(nil),
 		"reviewCursor":  (*githubv4.String)(nil),
 	}
 
-	reviews := []*Review{}
+	commits := []*Commit{}
 	comments := []*Comment{}
+	reviews := []*Review{}
 	for {
 		complete := 0
 		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
 			return errors.Wrap(err, "failed to load pull request data")
+		}
+
+		for _, c := range q.Repository.PullRequest.Commits.Nodes {
+			commits = append(commits, c.Commit.ToCommit())
+		}
+		if !q.Repository.PullRequest.Commits.PageInfo.UpdateCursor(qvars, "commitCursor") {
+			complete++
 		}
 
 		for _, c := range q.Repository.PullRequest.Comments.Nodes {
@@ -388,22 +311,127 @@ func (ghc *GitHubContext) loadCommentsAndReviews() error {
 			complete++
 		}
 
-		if complete == 2 {
+		if complete == 3 {
 			break
 		}
 	}
 
-	ghc.reviews = reviews
+	if ghc.pr.IsCrossRepository {
+		// if the commits are from a fork, the pushed date is not set in the
+		// query result above; this is a GitHub limitation as of 2019-04-25,
+		// but their support team has suggested it will be fixed in the future
+		if err := ghc.loadPushedAt(commits); err != nil {
+			return err
+		}
+	}
+	if err := backfillPushedAt(commits, ghc.pr.HeadRefOID); err != nil {
+		return err
+	}
+
 	ghc.comments = comments
+	ghc.reviews = reviews
+	ghc.commits = commits
+	return nil
+}
+
+func (ghc *GitHubContext) loadPushedAt(commits []*Commit) error {
+	commitsBySHA := make(map[string]*Commit)
+	for _, c := range commits {
+		commitsBySHA[c.SHA] = c
+	}
+
+	if c, ok := commitsBySHA[ghc.pr.HeadRefOID]; ok && c.PushedAt != nil {
+		// head commit has a pushed date, so assume we don't need to load more
+		zerolog.Ctx(ghc.ctx).Debug().Msg("Skipping pushed date loading, a date was already present")
+		return nil
+	}
+
+	var q struct {
+		Repository struct {
+			Object struct {
+				Commit struct {
+					History struct {
+						PageInfo v4PageInfo
+						Nodes    []struct {
+							OID        string
+							PushedDate *time.Time
+						}
+					} `graphql:"history(first: 100, after: $cursor)"`
+				} `graphql:"... on Commit"`
+			} `graphql:"object(oid: $oid)"`
+		} `graphql:"repository(owner: $owner, name: $name)"`
+	}
+	qvars := map[string]interface{}{
+		"owner":  githubv4.String(ghc.pr.HeadRepository.Owner.Login),
+		"name":   githubv4.String(ghc.pr.HeadRepository.Name),
+		"oid":    githubv4.GitObjectID(ghc.pr.HeadRefOID),
+		"cursor": (*githubv4.String)(nil),
+	}
+
+	for len(commitsBySHA) > 0 {
+		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
+			return errors.Wrap(err, "failed to load commit pushed dates")
+		}
+
+		for _, n := range q.Repository.Object.Commit.History.Nodes {
+			if c, ok := commitsBySHA[n.OID]; ok {
+				c.PushedAt = n.PushedDate
+				delete(commitsBySHA, n.OID)
+			}
+		}
+
+		if !q.Repository.Object.Commit.History.PageInfo.UpdateCursor(qvars, "cursor") {
+			break
+		}
+	}
+
+	if len(commitsBySHA) > 0 {
+		return errors.Errorf("%d commits were not found while loading pushed dates", len(commitsBySHA))
+	}
+	return nil
+}
+
+func backfillPushedAt(commits []*Commit, headSHA string) error {
+	if len(commits) == 0 {
+		return nil
+	}
+
+	commitsBySHA := make(map[string]*Commit)
+	for _, c := range commits {
+		commitsBySHA[c.SHA] = c
+	}
+
+	if head, ok := commitsBySHA[headSHA]; !ok || head.PushedAt == nil {
+		msg := "missing"
+		if ok {
+			msg += " a pushed date"
+		}
+		return errors.Errorf("head commit %s is %s; this is probably a bug", headSHA, msg)
+	}
+
+	root := headSHA
+	for {
+		c, ok := commitsBySHA[root]
+		if !ok || len(c.Parents) == 0 {
+			break
+		}
+
+		firstParent, ok := commitsBySHA[c.Parents[0]]
+		if !ok {
+			break
+		}
+
+		if firstParent.PushedAt == nil {
+			firstParent.PushedAt = c.PushedAt
+		}
+		root = firstParent.SHA
+	}
 	return nil
 }
 
 // if adding new fields to this struct, modify Locator#toV4() as well
 type v4PullRequest struct {
-	Author  v4Actor
-	Commits struct {
-		TotalCount int
-	}
+	Author v4Actor
 
 	IsCrossRepository bool
 
@@ -468,17 +496,21 @@ func (c *v4IssueComment) ToComment() *Comment {
 	}
 }
 
+type v4PullRequestCommit struct {
+	Commit v4Commit
+}
+
 type v4Commit struct {
 	OID             string
-	PushedDate      *time.Time
 	Author          v4GitActor
 	Committer       v4GitActor
 	CommittedViaWeb bool
+	PushedDate      *time.Time
 	Parents         struct {
 		Nodes []struct {
 			OID string
 		}
-	} `graphql:"parents(first: 10)"`
+	} `graphql:"parents(first: 3)"`
 }
 
 func (c *v4Commit) ToCommit() *Commit {
@@ -487,34 +519,13 @@ func (c *v4Commit) ToCommit() *Commit {
 		parents = append(parents, p.OID)
 	}
 
-	var createdAt time.Time
-	if c.PushedDate != nil {
-		createdAt = *c.PushedDate
-	}
-
 	return &Commit{
-		CreatedAt:       createdAt,
 		SHA:             c.OID,
 		Parents:         parents,
 		CommittedViaWeb: c.CommittedViaWeb,
 		Author:          c.Author.GetV3Login(),
 		Committer:       c.Committer.GetV3Login(),
-	}
-}
-
-// backfillPushedDate copies the push date from the HEAD commit in a batch push
-// to all other commits in that batch. It assumes the commits slice is in
-// descending chronologic order (latest commit at the start), which is the
-// default for `git log` and most GitHub APIs.
-func backfillPushedDate(commits []v4Commit) {
-	var lastPushed *time.Time
-	for i, c := range commits {
-		if c.PushedDate != nil {
-			lastPushed = c.PushedDate
-		} else {
-			c.PushedDate = lastPushed
-			commits[i] = c
-		}
+		PushedAt:        c.PushedDate,
 	}
 }
 
@@ -548,11 +559,4 @@ func isNotFound(err error) bool {
 		return rerr.Response.StatusCode == http.StatusNotFound
 	}
 	return false
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

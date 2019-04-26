@@ -49,9 +49,6 @@ type Context struct {
 
 	CollaboratorMemberships     map[string][]string
 	CollaboratorMembershipError error
-
-	TargetCommitsValue []*pull.Commit
-	TargetCommitsError error
 }
 
 func (c *Context) RepositoryOwner() string {
@@ -140,10 +137,6 @@ func (c *Context) Comments() ([]*pull.Comment, error) {
 
 func (c *Context) Reviews() ([]*pull.Review, error) {
 	return c.ReviewsValue, c.ReviewsError
-}
-
-func (c *Context) TargetCommits() ([]*pull.Commit, error) {
-	return c.TargetCommitsValue, c.TargetCommitsError
 }
 
 // assert that the test object implements the full interface

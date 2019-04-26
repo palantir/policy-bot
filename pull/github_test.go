@@ -62,7 +62,7 @@ func TestChangedFiles(t *testing.T) {
 func TestCommits(t *testing.T) {
 	rp := &ResponsePlayer{}
 	dataRule := rp.AddRule(
-		GraphQLNodePrefixMatcher("repository.object"),
+		GraphQLNodePrefixMatcher("repository.pullRequest.commits"),
 		"testdata/responses/pull_commits.yml",
 	)
 
@@ -77,23 +77,23 @@ func TestCommits(t *testing.T) {
 	require.Len(t, commits, 3, "incorrect number of commits")
 	assert.Equal(t, 2, dataRule.Count, "no http request was made")
 
-	expectedTime, err := time.Parse(time.RFC3339, "2018-12-06T12:34:56Z")
+	expectedTime, err := time.Parse(time.RFC3339, "2018-12-04T12:34:56Z")
 	assert.NoError(t, err)
 
-	assert.Equal(t, "e05fcae367230ee709313dd2720da527d178ce43", commits[0].SHA)
-	assert.Equal(t, "ttest", commits[0].Author)
+	assert.Equal(t, "a6f3f69b64eaafece5a0d854eb4af11c0d64394c", commits[0].SHA)
+	assert.Equal(t, "mhaypenny", commits[0].Author)
 	assert.Equal(t, "mhaypenny", commits[0].Committer)
-	assert.Equal(t, expectedTime, commits[0].CreatedAt)
+	assert.Equal(t, newTime(expectedTime), commits[0].PushedAt)
 
 	assert.Equal(t, "1fc89f1cedf8e3f3ce516ab75b5952295c8ea5e9", commits[1].SHA)
 	assert.Equal(t, "mhaypenny", commits[1].Author)
 	assert.Equal(t, "mhaypenny", commits[1].Committer)
-	assert.Equal(t, expectedTime.Add(-48*time.Hour), commits[1].CreatedAt)
+	assert.Equal(t, newTime(expectedTime), commits[1].PushedAt)
 
-	assert.Equal(t, "a6f3f69b64eaafece5a0d854eb4af11c0d64394c", commits[2].SHA)
-	assert.Equal(t, "mhaypenny", commits[2].Author)
+	assert.Equal(t, "e05fcae367230ee709313dd2720da527d178ce43", commits[2].SHA)
+	assert.Equal(t, "ttest", commits[2].Author)
 	assert.Equal(t, "mhaypenny", commits[2].Committer)
-	assert.Equal(t, expectedTime.Add(-48*time.Hour), commits[2].CreatedAt)
+	assert.Equal(t, newTime(expectedTime.Add(48*time.Hour)), commits[2].PushedAt)
 
 	// verify that the commit list is cached
 	commits, err = ctx.Commits()
@@ -387,6 +387,9 @@ func defaultTestPR() *github.PullRequest {
 				Name: github.String("testrepo"),
 			},
 		},
-		Commits: github.Int(1),
 	}
+}
+
+func newTime(t time.Time) *time.Time {
+	return &t
 }
