@@ -252,12 +252,9 @@ func isUpdateMerge(commits []*pull.Commit, c *pull.Commit) bool {
 		shas[c.SHA] = true
 	}
 
-	// first parent must exist: it is another commit on the head branch
-	// second parent must not: it is already included in the base branch
-	if shas[c.Parents[0]] && !shas[c.Parents[1]] {
-		return true
-	}
-	return false
+	// first parent must exist: it is a commit on the head branch
+	// second parent must not exist: it is already in the base branch
+	return shas[c.Parents[0]] && !shas[c.Parents[1]]
 }
 
 func findLastPushed(commits []*pull.Commit) *pull.Commit {

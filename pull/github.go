@@ -328,9 +328,9 @@ func (ghc *GitHubContext) loadPagedData() error {
 		return err
 	}
 
+	ghc.commits = commits
 	ghc.comments = comments
 	ghc.reviews = reviews
-	ghc.commits = commits
 	return nil
 }
 
