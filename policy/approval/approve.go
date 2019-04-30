@@ -126,23 +126,24 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 			return false, "", err
 		}
 
-		if len(commits) > 0 {
-			lastCommit := commits[len(commits)-1]
-
-			var allowedCandidates []*common.Candidate
-			for _, candidate := range candidates {
-				if candidate.CreatedAt.After(lastCommit.CreatedAt) {
-					allowedCandidates = append(allowedCandidates, candidate)
-				}
-			}
-
-			log.Debug().Msgf("discarded %d candidates invalidated by push of %s at %s",
-				len(candidates)-len(allowedCandidates),
-				lastCommit.SHA,
-				lastCommit.CreatedAt.Format(time.RFC3339))
-
-			candidates = allowedCandidates
+		last := findLastPushed(commits)
+		if last == nil {
+			return false, "", errors.New("no commit contained a push date")
 		}
+
+		var allowedCandidates []*common.Candidate
+		for _, candidate := range candidates {
+			if candidate.CreatedAt.After(*last.PushedAt) {
+				allowedCandidates = append(allowedCandidates, candidate)
+			}
+		}
+
+		log.Debug().Msgf("discarded %d candidates invalidated by push of %s at %s",
+			len(candidates)-len(allowedCandidates),
+			last.SHA,
+			last.PushedAt.Format(time.RFC3339))
+
+		candidates = allowedCandidates
 	}
 
 	log.Debug().Msgf("found %d candidates for approval", len(candidates))
@@ -213,14 +214,11 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 	return false, msg, nil
 }
 
-// filteredCommits returns relevant commits ordered from oldest to newest.
 func (r *Rule) filteredCommits(prctx pull.Context) ([]*pull.Commit, error) {
 	commits, err := prctx.Commits()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list commits")
 	}
-
-	sort.Stable(pull.CommitsByCreationTime(commits))
 
 	needsFiltering := r.Options.IgnoreUpdateMerges
 	if !needsFiltering {
@@ -229,13 +227,8 @@ func (r *Rule) filteredCommits(prctx pull.Context) ([]*pull.Commit, error) {
 
 	var filtered []*pull.Commit
 	for _, c := range commits {
-		isUpdate, err := isUpdateMerge(prctx, c)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to detemine update merge status")
-		}
-
 		switch {
-		case isUpdate:
+		case isUpdateMerge(commits, c):
 		default:
 			filtered = append(filtered, c)
 		}
@@ -243,29 +236,35 @@ func (r *Rule) filteredCommits(prctx pull.Context) ([]*pull.Commit, error) {
 	return filtered, nil
 }
 
-func isUpdateMerge(prctx pull.Context, c *pull.Commit) (bool, error) {
+func isUpdateMerge(commits []*pull.Commit, c *pull.Commit) bool {
 	// must be a simple merge commit (exactly 2 parents)
 	if len(c.Parents) != 2 {
-		return false, nil
+		return false
 	}
 
 	// must be created via the UI or the API (no local merges)
 	if !c.CommittedViaWeb {
-		return false, nil
+		return false
 	}
 
-	// one parent must exist in recent history on the target branch
-	targets, err := prctx.TargetCommits()
-	if err != nil {
-		return false, err
+	shas := make(map[string]bool)
+	for _, c := range commits {
+		shas[c.SHA] = true
 	}
-	for _, target := range targets {
-		if c.Parents[0] == target.SHA || c.Parents[1] == target.SHA {
-			return true, nil
+
+	// first parent must exist: it is a commit on the head branch
+	// second parent must not exist: it is already in the base branch
+	return shas[c.Parents[0]] && !shas[c.Parents[1]]
+}
+
+func findLastPushed(commits []*pull.Commit) *pull.Commit {
+	var last *pull.Commit
+	for _, c := range commits {
+		if c.PushedAt != nil && (last == nil || c.PushedAt.After(*last.PushedAt)) {
+			last = c
 		}
 	}
-
-	return false, nil
+	return last
 }
 
 func numberOfApprovals(count int) string {

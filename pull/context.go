@@ -76,10 +76,6 @@ type Context interface {
 	// Reviews lists all reviews on a Pull Request. The review order is
 	// implementation dependent.
 	Reviews() ([]*Review, error)
-
-	// TargetCommits returns recent commits on the target branch of the pull
-	// request. The exact number of commits is an implementation detail.
-	TargetCommits() ([]*Commit, error)
 }
 
 type FileStatus int
@@ -98,7 +94,6 @@ type File struct {
 }
 
 type Commit struct {
-	CreatedAt       time.Time
 	SHA             string
 	Parents         []string
 	CommittedViaWeb bool
@@ -110,6 +105,10 @@ type Commit struct {
 	// Commiter is the login name of the committer. It is empty if the
 	// committer is not a real user.
 	Committer string
+
+	// PushedAt is the timestamp when the commit was pushed. It is nil if that
+	// information is not available for this commit.
+	PushedAt *time.Time
 }
 
 // Users returns the login names of the users associated with this commit.
@@ -122,14 +121,6 @@ func (c *Commit) Users() []string {
 		users = append(users, c.Committer)
 	}
 	return users
-}
-
-type CommitsByCreationTime []*Commit
-
-func (cs CommitsByCreationTime) Len() int      { return len(cs) }
-func (cs CommitsByCreationTime) Swap(i, j int) { cs[i], cs[j] = cs[j], cs[i] }
-func (cs CommitsByCreationTime) Less(i, j int) bool {
-	return cs[i].CreatedAt.Before(cs[j].CreatedAt)
 }
 
 type Comment struct {
