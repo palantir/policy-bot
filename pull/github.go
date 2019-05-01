@@ -22,7 +22,6 @@ import (
 
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog"
 	"github.com/shurcooL/githubv4"
 )
 
@@ -34,6 +33,10 @@ const (
 	// MaxPullRequestCommits is the max number of commits returned by GitHub
 	// https://developer.github.com/v3/pulls/#list-commits-on-a-pull-request
 	MaxPullRequestCommits = 250
+
+	// MaxCommitLoadAttempts is the maximum number of times to attempt loading
+	// commit data if the GitHub reposnse is missing data.
+	MaxCommitLoadAttempts = 3
 )
 
 // Locator identifies a pull request and optionally contains a full or partial
@@ -221,12 +224,47 @@ func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
 
 func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 	if ghc.commits == nil {
-		if err := ghc.loadPagedData(); err != nil {
+		// github does not always return the latest commit information for a PR
+		// immediately after it was updated; if we're missing data, try again
+		var commits []*Commit
+		for i := 0; i < MaxCommitLoadAttempts; i++ {
+			if i > 0 {
+				time.Sleep(time.Duration(i) * time.Second)
+			}
+
+			var err error
+			if commits, err = ghc.loadCommits(); err != nil {
+				return nil, err
+			}
+
+			head := findHeadCommit(commits, ghc.pr.HeadRefOID)
+			if head == nil {
+				continue
+			}
+			if head.PushedAt != nil {
+				break
+			}
+
+			// as of 2019-05-01, the GitHub API does return pushed date for
+			// commits from forks, so we must load that separately
+			if ghc.pr.IsCrossRepository {
+				if err := ghc.loadPushedAt(commits); err != nil {
+					return nil, err
+				}
+				if head.PushedAt != nil {
+					break
+				}
+			}
+		}
+		// if we're still missing data after the last attempt, this will fail
+		if err := backfillPushedAt(commits, ghc.pr.HeadRefOID); err != nil {
 			return nil, err
 		}
-	}
-	if len(ghc.commits) >= MaxPullRequestCommits {
-		return nil, errors.Errorf("too many commits in pull request, maximum is %d", MaxPullRequestCommits)
+		if len(commits) >= MaxPullRequestCommits {
+			return nil, errors.Errorf("too many commits in pull request, maximum is %d", MaxPullRequestCommits)
+		}
+
+		ghc.commits = commits
 	}
 	return ghc.commits, nil
 }
@@ -250,15 +288,10 @@ func (ghc *GitHubContext) Reviews() ([]*Review, error) {
 }
 
 func (ghc *GitHubContext) loadPagedData() error {
-	// this is a minor optimization: make max(c,m,r) requests instead of c+m+r
+	// this is a minor optimization: make max(c,r) requests instead of c+r
 	var q struct {
 		Repository struct {
 			PullRequest struct {
-				Commits struct {
-					PageInfo v4PageInfo
-					Nodes    []v4PullRequestCommit
-				} `graphql:"commits(first: 100, after: $commitCursor)"`
-
 				Comments struct {
 					PageInfo v4PageInfo
 					Nodes    []v4IssueComment
@@ -276,25 +309,16 @@ func (ghc *GitHubContext) loadPagedData() error {
 		"name":   githubv4.String(ghc.repo),
 		"number": githubv4.Int(ghc.number),
 
-		"commitCursor":  (*githubv4.String)(nil),
 		"commentCursor": (*githubv4.String)(nil),
 		"reviewCursor":  (*githubv4.String)(nil),
 	}
 
-	commits := []*Commit{}
 	comments := []*Comment{}
 	reviews := []*Review{}
 	for {
 		complete := 0
 		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
 			return errors.Wrap(err, "failed to load pull request data")
-		}
-
-		for _, c := range q.Repository.PullRequest.Commits.Nodes {
-			commits = append(commits, c.Commit.ToCommit())
-		}
-		if !q.Repository.PullRequest.Commits.PageInfo.UpdateCursor(qvars, "commitCursor") {
-			complete++
 		}
 
 		for _, c := range q.Repository.PullRequest.Comments.Nodes {
@@ -311,39 +335,54 @@ func (ghc *GitHubContext) loadPagedData() error {
 			complete++
 		}
 
-		if complete == 3 {
+		if complete == 2 {
 			break
 		}
 	}
 
-	if ghc.pr.IsCrossRepository {
-		// if the commits are from a fork, the pushed date is not set in the
-		// query result above; this is a GitHub limitation as of 2019-04-25,
-		// but their support team has suggested it will be fixed in the future
-		if err := ghc.loadPushedAt(commits); err != nil {
-			return err
-		}
-	}
-	if err := backfillPushedAt(commits, ghc.pr.HeadRefOID); err != nil {
-		return err
-	}
-
-	ghc.commits = commits
 	ghc.comments = comments
 	ghc.reviews = reviews
 	return nil
+}
+
+func (ghc *GitHubContext) loadCommits() ([]*Commit, error) {
+	var q struct {
+		Repository struct {
+			PullRequest struct {
+				Commits struct {
+					PageInfo v4PageInfo
+					Nodes    []v4PullRequestCommit
+				} `graphql:"commits(first: 100, after: $cursor)"`
+			} `graphql:"pullRequest(number: $number)"`
+		} `graphql:"repository(owner: $owner, name: $name)"`
+	}
+	qvars := map[string]interface{}{
+		"owner":  githubv4.String(ghc.owner),
+		"name":   githubv4.String(ghc.repo),
+		"number": githubv4.Int(ghc.number),
+		"cursor": (*githubv4.String)(nil),
+	}
+
+	commits := []*Commit{}
+	for {
+		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
+			return nil, errors.Wrap(err, "failed to load commits")
+		}
+		for _, n := range q.Repository.PullRequest.Commits.Nodes {
+			c := n.Commit.ToCommit()
+			commits = append(commits, c)
+		}
+		if !q.Repository.PullRequest.Commits.PageInfo.UpdateCursor(qvars, "cursor") {
+			break
+		}
+	}
+	return commits, nil
 }
 
 func (ghc *GitHubContext) loadPushedAt(commits []*Commit) error {
 	commitsBySHA := make(map[string]*Commit)
 	for _, c := range commits {
 		commitsBySHA[c.SHA] = c
-	}
-
-	if c, ok := commitsBySHA[ghc.pr.HeadRefOID]; ok && c.PushedAt != nil {
-		// head commit has a pushed date, so assume we don't need to load more
-		zerolog.Ctx(ghc.ctx).Debug().Msg("Skipping pushed date loading, a date was already present")
-		return nil
 	}
 
 	var q struct {
@@ -372,14 +411,12 @@ func (ghc *GitHubContext) loadPushedAt(commits []*Commit) error {
 		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
 			return errors.Wrap(err, "failed to load commit pushed dates")
 		}
-
 		for _, n := range q.Repository.Object.Commit.History.Nodes {
 			if c, ok := commitsBySHA[n.OID]; ok {
 				c.PushedAt = n.PushedDate
 				delete(commitsBySHA, n.OID)
 			}
 		}
-
 		if !q.Repository.Object.Commit.History.PageInfo.UpdateCursor(qvars, "cursor") {
 			break
 		}
@@ -391,11 +428,16 @@ func (ghc *GitHubContext) loadPushedAt(commits []*Commit) error {
 	return nil
 }
 
-func backfillPushedAt(commits []*Commit, headSHA string) error {
-	if len(commits) == 0 {
-		return nil
+func findHeadCommit(commits []*Commit, sha string) *Commit {
+	for i := len(commits) - 1; i >= 0; i-- {
+		if commits[i].SHA == sha {
+			return commits[i]
+		}
 	}
+	return nil
+}
 
+func backfillPushedAt(commits []*Commit, headSHA string) error {
 	commitsBySHA := make(map[string]*Commit)
 	for _, c := range commits {
 		commitsBySHA[c.SHA] = c
@@ -424,6 +466,8 @@ func backfillPushedAt(commits []*Commit, headSHA string) error {
 		if firstParent.PushedAt == nil {
 			firstParent.PushedAt = c.PushedAt
 		}
+
+		delete(commitsBySHA, root)
 		root = firstParent.SHA
 	}
 	return nil
