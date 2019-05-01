@@ -21,10 +21,14 @@ import (
 type Predicates struct {
 	ChangedFiles     *predicate.ChangedFiles     `yaml:"changed_files"`
 	OnlyChangedFiles *predicate.OnlyChangedFiles `yaml:"only_changed_files"`
-	HasAuthorIn      *predicate.HasAuthorIn      `yaml:"has_author_in"`
-	HasContributorIn *predicate.HasContributorIn `yaml:"has_contributor_in"`
-	TargetsBranch    *predicate.TargetsBranch    `yaml:"targets_branch"`
-	ModifiedLines    *predicate.ModifiedLines    `yaml:"modified_lines"`
+
+	HasAuthorIn             *predicate.HasAuthorIn      `yaml:"has_author_in"`
+	HasContributorIn        *predicate.HasContributorIn `yaml:"has_contributor_in"`
+	AuthorIsOnlyContributor bool                        `yaml:"author_is_only_contributor"`
+
+	TargetsBranch *predicate.TargetsBranch `yaml:"targets_branch"`
+
+	ModifiedLines *predicate.ModifiedLines `yaml:"modified_lines"`
 }
 
 func (p *Predicates) Predicates() []predicate.Predicate {
@@ -36,12 +40,17 @@ func (p *Predicates) Predicates() []predicate.Predicate {
 	if p.OnlyChangedFiles != nil {
 		ps = append(ps, predicate.Predicate(p.OnlyChangedFiles))
 	}
+
 	if p.HasAuthorIn != nil {
 		ps = append(ps, predicate.Predicate(p.HasAuthorIn))
 	}
 	if p.HasContributorIn != nil {
 		ps = append(ps, predicate.Predicate(p.HasContributorIn))
 	}
+	if p.AuthorIsOnlyContributor {
+		ps = append(ps, predicate.Predicate(&predicate.AuthorIsOnlyContributor{}))
+	}
+
 	if p.TargetsBranch != nil {
 		ps = append(ps, predicate.Predicate(p.TargetsBranch))
 	}

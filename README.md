@@ -103,7 +103,7 @@ path: path/to/policy.yml
 # The branch (or tag, or commit hash) that should be used on the remote
 # repository. If none is specified, the default branch of the repository is used.
 ref: master
-```  
+```
 
 ### Approval Rules
 
@@ -144,6 +144,10 @@ if:
     users: ["user1", "user2", ...]
     organizations: ["org1", "org2", ...]
     teams: ["org1/team1", "org2/team2", ...]
+
+  # "author_is_only_contributor" is satisfied if all commits in the pull request
+  # are both authored by and committed by the user who opened the pull request.
+  author_is_only_contributor: false
 
   # "targets_branch" is satisfied if the target branch of the pull request
   # matches the regular expression
@@ -408,7 +412,7 @@ To develop `policy-bot`, you will need a [Go installation](https://golang.org/do
 
     # copy and edit the server config
     cp config/policy-bot.example.yml config/policy-bot.yml
-    
+
     # build the docker image
     ./godelw docker build --verbose
 
