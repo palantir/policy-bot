@@ -187,6 +187,134 @@ func TestHasContributorIn(t *testing.T) {
 	})
 }
 
+func TestAuthorIsOnlyContributor(t *testing.T) {
+	p := AuthorIsOnlyContributor(true)
+
+	runAuthorTests(t, p, []AuthorTestCase{
+		{
+			"authorIsOnlyConrtributor",
+			true,
+			&pulltest.Context{
+				AuthorValue: "mhaypenny",
+				CommitsValue: []*pull.Commit{
+					{
+						SHA:       "0cb194c52ee7c6c82110b59ec51b959ecfcb2fa2",
+						Author:    "mhaypenny",
+						Committer: "mhaypenny",
+					},
+					{
+						SHA:       "9df0f1cee4b58363b534dbb5e9070fceee23fa10",
+						Author:    "mhaypenny",
+						Committer: "mhaypenny",
+					},
+				},
+			},
+		},
+		{
+			"authorIsNotOnlyAuthor",
+			false,
+			&pulltest.Context{
+				AuthorValue: "mhaypenny",
+				CommitsValue: []*pull.Commit{
+					{
+						SHA:       "0cb194c52ee7c6c82110b59ec51b959ecfcb2fa2",
+						Author:    "mhaypenny",
+						Committer: "mhaypenny",
+					},
+					{
+						SHA:       "9df0f1cee4b58363b534dbb5e9070fceee23fa10",
+						Author:    "ttest",
+						Committer: "mhaypenny",
+					},
+				},
+			},
+		},
+		{
+			"authorIsNotOnlyCommitter",
+			false,
+			&pulltest.Context{
+				AuthorValue: "mhaypenny",
+				CommitsValue: []*pull.Commit{
+					{
+						SHA:       "0cb194c52ee7c6c82110b59ec51b959ecfcb2fa2",
+						Author:    "mhaypenny",
+						Committer: "mhaypenny",
+					},
+					{
+						SHA:       "9df0f1cee4b58363b534dbb5e9070fceee23fa10",
+						Author:    "mhaypenny",
+						Committer: "ttest",
+					},
+				},
+			},
+		},
+	})
+}
+
+func TestAuthorIsNotOnlyContributor(t *testing.T) {
+	p := AuthorIsOnlyContributor(false)
+
+	runAuthorTests(t, p, []AuthorTestCase{
+		{
+			"authorIsOnlyConrtributor",
+			false,
+			&pulltest.Context{
+				AuthorValue: "mhaypenny",
+				CommitsValue: []*pull.Commit{
+					{
+						SHA:       "0cb194c52ee7c6c82110b59ec51b959ecfcb2fa2",
+						Author:    "mhaypenny",
+						Committer: "mhaypenny",
+					},
+					{
+						SHA:       "9df0f1cee4b58363b534dbb5e9070fceee23fa10",
+						Author:    "mhaypenny",
+						Committer: "mhaypenny",
+					},
+				},
+			},
+		},
+		{
+			"authorIsNotOnlyAuthor",
+			true,
+			&pulltest.Context{
+				AuthorValue: "mhaypenny",
+				CommitsValue: []*pull.Commit{
+					{
+						SHA:       "0cb194c52ee7c6c82110b59ec51b959ecfcb2fa2",
+						Author:    "mhaypenny",
+						Committer: "mhaypenny",
+					},
+					{
+						SHA:       "9df0f1cee4b58363b534dbb5e9070fceee23fa10",
+						Author:    "ttest",
+						Committer: "mhaypenny",
+					},
+				},
+			},
+		},
+		{
+			"authorIsNotOnlyCommitter",
+			true,
+			&pulltest.Context{
+				AuthorValue: "mhaypenny",
+				CommitsValue: []*pull.Commit{
+					{
+						SHA:       "0cb194c52ee7c6c82110b59ec51b959ecfcb2fa2",
+						Author:    "mhaypenny",
+						Committer: "mhaypenny",
+					},
+					{
+						SHA:       "9df0f1cee4b58363b534dbb5e9070fceee23fa10",
+						Author:    "mhaypenny",
+						Committer: "ttest",
+					},
+				},
+			},
+		},
+	})
+}
+
 type AuthorTestCase struct {
 	Name     string
 	Expected bool

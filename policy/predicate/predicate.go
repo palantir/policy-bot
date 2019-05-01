@@ -21,6 +21,7 @@ import (
 )
 
 type Predicate interface {
-	// Evaluate can return an optional string providing more details
+	// Evaluate determines if the predicate is satisfied. It also returns an
+	// optional string providing details about the evaluation result.
 	Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error)
 }
