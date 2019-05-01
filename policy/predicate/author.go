@@ -78,11 +78,11 @@ func (pred *HasContributorIn) Evaluate(ctx context.Context, prctx pull.Context) 
 	return false, desc, nil
 }
 
-type AuthorIsOnlyContributor struct{}
+type AuthorIsOnlyContributor bool
 
-var _ Predicate = &AuthorIsOnlyContributor{}
+var _ Predicate = AuthorIsOnlyContributor(false)
 
-func (pred *AuthorIsOnlyContributor) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
+func (pred AuthorIsOnlyContributor) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
 	commits, err := prctx.Commits()
 	if err != nil {
 		return false, "", errors.Wrap(err, "failed to get commits")
@@ -91,9 +91,15 @@ func (pred *AuthorIsOnlyContributor) Evaluate(ctx context.Context, prctx pull.Co
 	author := prctx.Author()
 	for _, c := range commits {
 		if c.Author != author || c.Committer != author {
-			return false, fmt.Sprintf("Commit %.10s was authored or committed by a different user", c.SHA), nil
+			if pred {
+				return false, fmt.Sprintf("Commit %.10s was authored or committed by a different user", c.SHA), nil
+			}
+			return true, "", nil
 		}
 	}
 
-	return true, "", nil
+	if pred {
+		return true, "", nil
+	}
+	return false, fmt.Sprintf("All commits were authored and committed by %s", author), nil
 }

@@ -145,9 +145,11 @@ if:
     organizations: ["org1", "org2", ...]
     teams: ["org1/team1", "org2/team2", ...]
 
-  # "author_is_only_contributor" is satisfied if all commits in the pull request
-  # are both authored by and committed by the user who opened the pull request.
-  author_is_only_contributor: false
+  # "author_is_only_contributor", when true, is satisfied if all commits in the
+  # pull request are authored by and committed by the user who opened the pull
+  # request. When false, it is satisfied if at least one commit in the pull
+  # request was authored or committed by another user.
+  author_is_only_contributor: true
 
   # "targets_branch" is satisfied if the target branch of the pull request
   # matches the regular expression
