@@ -33,10 +33,11 @@ const (
 	// MaxPullRequestCommits is the max number of commits returned by GitHub
 	// https://developer.github.com/v3/pulls/#list-commits-on-a-pull-request
 	MaxPullRequestCommits = 250
+)
 
-	// MaxCommitLoadAttempts is the maximum number of times to attempt loading
-	// commit data if the GitHub reposnse is missing data.
-	MaxCommitLoadAttempts = 3
+var (
+	commitLoadMaxAttempts = 3
+	commitLoadBaseDelay   = time.Second
 )
 
 // Locator identifies a pull request and optionally contains a full or partial
@@ -349,7 +350,7 @@ func (ghc *GitHubContext) loadCommits() ([]*Commit, error) {
 		}
 
 		attempts++
-		if attempts >= MaxCommitLoadAttempts {
+		if attempts >= commitLoadMaxAttempts {
 			msg := "missing"
 			if head != nil {
 				msg += " pushed date"
@@ -357,7 +358,7 @@ func (ghc *GitHubContext) loadCommits() ([]*Commit, error) {
 			return nil, errors.Errorf("head commit %.10s is %s; this is probably a bug", ghc.pr.HeadRefOID, msg)
 		}
 
-		time.Sleep(time.Duration(attempts) * time.Second)
+		time.Sleep(time.Duration(attempts) * commitLoadBaseDelay)
 	}
 }
 
