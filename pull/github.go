@@ -336,28 +336,27 @@ func (ghc *GitHubContext) loadCommits() ([]*Commit, error) {
 			commits = append(commits, c)
 		}
 
-		if head != nil {
-			// as of 2019-05-01, the GitHub API does return pushed date for
-			// commits from forks, so we must load that separately
-			if ghc.pr.IsCrossRepository && head.PushedAt == nil {
-				if err := ghc.loadPushedAt(commits); err != nil {
-					return nil, err
-				}
+		// if head is missing from the pull request, retrying won't find it
+		if head == nil {
+			return nil, errors.Errorf("head commit %.10s is missing, probably due to a force-push", ghc.pr.HeadRefOID)
+		}
+
+		// as of 2019-05-01, the GitHub API does not return pushed date
+		// for commits from forks, so we must load that separately
+		if ghc.pr.IsCrossRepository && head.PushedAt == nil {
+			if err := ghc.loadPushedAt(commits); err != nil {
+				return nil, err
 			}
-			if head.PushedAt != nil {
-				return commits, nil
-			}
+		}
+
+		if head.PushedAt != nil {
+			return commits, nil
 		}
 
 		attempts++
 		if attempts >= commitLoadMaxAttempts {
-			msg := "missing"
-			if head != nil {
-				msg += " pushed date"
-			}
-			return nil, errors.Errorf("head commit %.10s is %s; this is probably a bug", ghc.pr.HeadRefOID, msg)
+			return nil, errors.Errorf("head commit %.10s is missing pushed date; this is probably a bug", ghc.pr.HeadRefOID)
 		}
-
 		time.Sleep(time.Duration(attempts) * commitLoadBaseDelay)
 	}
 }
