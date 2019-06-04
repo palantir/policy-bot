@@ -159,12 +159,15 @@ func (cf *ConfigFetcher) fetchConfigContents(ctx context.Context, client *github
 		}
 		if ok && cf.hasTooLargeError(rerr) {
 			// GetContents only supports file sizes up to 1 MB, DownloadContents supports files up to 100 MB (with an additional API call)
-			reader, downloadErr := client.Repositories.DownloadContents(ctx, owner, repo, path, opts)
-			if downloadErr != nil {
-				return nil, errors.Wrapf(downloadErr, "failed to download content of %s/%s@%s/%s", owner, repo, ref, path)
+			reader, err := client.Repositories.DownloadContents(ctx, owner, repo, path, opts)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to download content of %s/%s@%s/%s", owner, repo, ref, path)
 			}
 			downloadedContent, readErr := ioutil.ReadAll(reader)
-			reader.Close()
+			closeError := reader.Close()
+			if closeError != nil {
+				return nil, errors.Wrapf(closeError, "failed to close reader for %s/%s@%s/%s", owner, repo, ref, path)
+			}
 			if readErr != nil {
 				return nil, errors.Wrapf(readErr, "failed to read content of %s/%s/@%s/%s", owner, repo, ref, path)
 			}
