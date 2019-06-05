@@ -17,6 +17,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
 
@@ -152,8 +153,27 @@ func (cf *ConfigFetcher) fetchConfigContents(ctx context.Context, client *github
 
 	file, _, _, err := client.Repositories.GetContents(ctx, owner, repo, path, opts)
 	if err != nil {
-		if rerr, ok := err.(*github.ErrorResponse); ok && rerr.Response.StatusCode == http.StatusNotFound {
+		rerr, ok := err.(*github.ErrorResponse)
+		if ok && rerr.Response.StatusCode == http.StatusNotFound {
 			return nil, nil
+		}
+		if ok && isTooLargeError(rerr) {
+			// GetContents only supports file sizes up to 1 MB, DownloadContents supports files up to 100 MB (with an additional API call)
+			reader, err := client.Repositories.DownloadContents(ctx, owner, repo, path, opts)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to download content of %s/%s@%s/%s", owner, repo, ref, path)
+			}
+
+			defer func() {
+				if cerr := reader.Close(); cerr != nil {
+					logger.Error().Err(cerr).Msgf("failed to close reader for %s/%s@%s/%s", owner, repo, ref, path)
+				}
+			}()
+			downloadedContent, readErr := ioutil.ReadAll(reader)
+			if readErr != nil {
+				return nil, errors.Wrapf(readErr, "failed to read content of %s/%s/@%s/%s", owner, repo, ref, path)
+			}
+			return downloadedContent, nil
 		}
 		return nil, errors.Wrapf(err, "failed to fetch content of %s/%s@%s/%s", owner, repo, ref, path)
 	}
@@ -178,4 +198,13 @@ func (cf *ConfigFetcher) unmarshalConfig(bytes []byte) (*policy.Config, error) {
 	}
 
 	return &config, nil
+}
+
+func isTooLargeError(errorResponse *github.ErrorResponse) bool {
+	for _, error := range errorResponse.Errors {
+		if error.Code == "too_large" {
+			return true
+		}
+	}
+	return false
 }
