@@ -192,7 +192,7 @@ func TestAuthorIsOnlyContributor(t *testing.T) {
 
 	runAuthorTests(t, p, []AuthorTestCase{
 		{
-			"authorIsOnlyConrtributor",
+			"authorIsOnlyContributor",
 			true,
 			&pulltest.Context{
 				AuthorValue: "mhaypenny",
@@ -206,6 +206,21 @@ func TestAuthorIsOnlyContributor(t *testing.T) {
 						SHA:       "9df0f1cee4b58363b534dbb5e9070fceee23fa10",
 						Author:    "mhaypenny",
 						Committer: "mhaypenny",
+					},
+				},
+			},
+		},
+		{
+			"authorIsOnlyContributorViaWeb",
+			true,
+			&pulltest.Context{
+				AuthorValue: "mhaypenny",
+				CommitsValue: []*pull.Commit{
+					{
+						SHA:             "0cb194c52ee7c6c82110b59ec51b959ecfcb2fa2",
+						Author:          "mhaypenny",
+						Committer:       "",
+						CommittedViaWeb: true,
 					},
 				},
 			},
@@ -256,7 +271,7 @@ func TestAuthorIsNotOnlyContributor(t *testing.T) {
 
 	runAuthorTests(t, p, []AuthorTestCase{
 		{
-			"authorIsOnlyConrtributor",
+			"authorIsOnlyContributor",
 			false,
 			&pulltest.Context{
 				AuthorValue: "mhaypenny",
