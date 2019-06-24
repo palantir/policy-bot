@@ -45,6 +45,14 @@
   version = "v0.1.2"
 
 [[projects]]
+  branch = "master"
+  digest = "1:2755397479777565ae0c383f63be30e8975da63805281283bdde46d73bed9a7d"
+  name = "github.com/c2h5oh/datasize"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "4eba002a5eaea69cf8d235a388fc6b65ae68d2dd"
+
+[[projects]]
   digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
@@ -61,6 +69,14 @@
   version = "v3.2.0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:ea77235a4b2c30ec49399bc8376fcb9ceab8b7726b7426e845fc651ae56af5f5"
+  name = "github.com/die-net/lrucache"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "19a39ef22a11a471b23c3beb9cb39903f6cff332"
+
+[[projects]]
   digest = "1:f4f203acd8b11b8747bdcd91696a01dbc95ccb9e2ca2db6abf81c3a4f5e950ce"
   name = "github.com/google/go-github"
   packages = ["github"]
@@ -75,6 +91,14 @@
   pruneopts = "NUT"
   revision = "44c6ddd0a2342c386950e880b658017258da92fc"
   version = "v1.0.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:a2b4fa8b538f6e42d0f38cbdef92e771072d7a64a97ff1512da95554ab2680a1"
+  name = "github.com/gregjones/httpcache"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "901d90724c7919163f472a9812253fb26761123d"
 
 [[projects]]
   digest = "1:b42cde0e1f3c816dd57f57f7bbcf05ca40263ad96f168714c130c611fc0856a6"
@@ -109,14 +133,14 @@
 
 [[projects]]
   branch = "develop"
-  digest = "1:d4c5669ddd2be5c4dc7630fa37bca33907636ce3f2c07e4e0657c8fbe84e92ce"
+  digest = "1:35faf16086fb6919f1778aa024c60eb0453a8e82c9627c70804ea1308cca77e9"
   name = "github.com/palantir/go-githubapp"
   packages = [
     "githubapp",
     "oauth2",
   ]
   pruneopts = "NUT"
-  revision = "ed81aa4e14c9710e0ac064a763e8577970f97e55"
+  revision = "91e10a96cd345bf9278ddc8a6472b1a0ac46c595"
 
 [[projects]]
   digest = "1:5cf3f025cbee5951a4ee961de067c8a89fc95a5adabead774f82822efabab121"
@@ -303,7 +327,10 @@
     "github.com/alexedwards/scs",
     "github.com/bluekeyes/hatpear",
     "github.com/bluekeyes/templatetree",
+    "github.com/c2h5oh/datasize",
+    "github.com/die-net/lrucache",
     "github.com/google/go-github/github",
+    "github.com/gregjones/httpcache",
     "github.com/palantir/go-baseapp/baseapp",
     "github.com/palantir/go-baseapp/baseapp/datadog",
     "github.com/palantir/go-baseapp/pkg/errfmt",

@@ -18,7 +18,7 @@ import (
 	"fmt"
 
 	"github.com/google/go-github/github"
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/pkg/errors"
 	"github.com/shurcooL/githubv4"
 )

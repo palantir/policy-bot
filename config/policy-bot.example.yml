@@ -15,6 +15,11 @@ logging:
   # Choose from: debug, info, warn, error
   level: debug
 
+# Options for the HTTP Cache
+cache:
+  # The maximum size of the cache (specified in human readable units)
+  max_size: 50 MB
+
 # Options for connecting to GitHub
 github:
   # The URL of the GitHub homepage
