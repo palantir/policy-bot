@@ -36,8 +36,9 @@ const (
 )
 
 var (
-	commitLoadMaxAttempts = 3
-	commitLoadBaseDelay   = time.Second
+	// 5 attempts, exponential 1000ms delay = 15s max wait
+	commitLoadMaxAttempts = 5
+	commitLoadBaseDelay   = 1000 * time.Millisecond
 )
 
 // Locator identifies a pull request and optionally contains a full or partial
@@ -357,7 +358,7 @@ func (ghc *GitHubContext) loadCommits() ([]*Commit, error) {
 		if attempts >= commitLoadMaxAttempts {
 			return nil, errors.Errorf("head commit %.10s is missing pushed date; this is probably a bug", ghc.pr.HeadRefOID)
 		}
-		time.Sleep(time.Duration(attempts) * commitLoadBaseDelay)
+		time.Sleep(time.Duration(1<<uint(attempts-1)) * commitLoadBaseDelay)
 	}
 }
 
