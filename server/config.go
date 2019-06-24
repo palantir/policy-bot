@@ -15,6 +15,7 @@
 package server
 
 import (
+	"github.com/c2h5oh/datasize"
 	"github.com/palantir/go-baseapp/baseapp"
 	"github.com/palantir/go-baseapp/baseapp/datadog"
 	"github.com/palantir/go-githubapp/githubapp"
@@ -27,6 +28,7 @@ import (
 type Config struct {
 	Server   baseapp.HTTPConfig            `yaml:"server"`
 	Logging  LoggingConfig                 `yaml:"logging"`
+	Cache    CachingConfig                 `yaml:"cache"`
 	Github   githubapp.Config              `yaml:"github"`
 	Sessions SessionsConfig                `yaml:"sessions"`
 	Options  handler.PullEvaluationOptions `yaml:"options"`
@@ -37,6 +39,10 @@ type Config struct {
 type LoggingConfig struct {
 	Level string `yaml:"level" json:"level"`
 	Text  bool   `yaml:"text" json:"text"`
+}
+
+type CachingConfig struct {
+	MaxSize datasize.ByteSize `yaml:"max_size"`
 }
 
 type SessionsConfig struct {

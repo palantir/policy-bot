@@ -22,6 +22,9 @@ import (
 
 	"github.com/alexedwards/scs"
 	"github.com/bluekeyes/hatpear"
+	"github.com/c2h5oh/datasize"
+	"github.com/die-net/lrucache"
+	"github.com/gregjones/httpcache"
 	"github.com/palantir/go-baseapp/baseapp"
 	"github.com/palantir/go-baseapp/baseapp/datadog"
 	"github.com/palantir/go-githubapp/githubapp"
@@ -76,10 +79,18 @@ func New(c *Config) (*Server, error) {
 		return nil, errors.Wrap(err, "failed to initialize base server")
 	}
 
+	maxSize := int64(50 * datasize.MB)
+	if c.Cache.MaxSize != 0 {
+		maxSize = int64(c.Cache.MaxSize)
+	}
+
 	userAgent := fmt.Sprintf("%s/%s", c.Options.AppName, version.GetVersion())
 	cc, err := githubapp.NewDefaultCachingClientCreator(
 		c.Github,
 		githubapp.WithClientUserAgent(userAgent),
+		githubapp.WithClientCaching(true, func() httpcache.Cache {
+			return lrucache.New(maxSize, 0)
+		}),
 		githubapp.WithClientMiddleware(
 			githubapp.ClientLogging(zerolog.DebugLevel),
 			githubapp.ClientMetrics(base.Registry()),
