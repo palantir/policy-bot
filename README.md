@@ -161,7 +161,7 @@ if:
   # an operator (one of '<' or '>'), an optional space, and a number.
   modified_lines:
     additions: "> 100"
-    deletion: "> 100"
+    deletions: "> 100"
     total: "> 200"
 
 # "options" specifies a set of restrictions on approvals. If the block does not
