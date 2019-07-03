@@ -133,14 +133,14 @@
 
 [[projects]]
   branch = "develop"
-  digest = "1:35faf16086fb6919f1778aa024c60eb0453a8e82c9627c70804ea1308cca77e9"
+  digest = "1:a25cea36e32fe9f171da95aa4199e0a97f113af70ae2802bcbd2aa1e95647439"
   name = "github.com/palantir/go-githubapp"
   packages = [
     "githubapp",
     "oauth2",
   ]
   pruneopts = "NUT"
-  revision = "91e10a96cd345bf9278ddc8a6472b1a0ac46c595"
+  revision = "9f023162a90f86c702017192b62d39a7e2fe32d7"
 
 [[projects]]
   digest = "1:5cf3f025cbee5951a4ee961de067c8a89fc95a5adabead774f82822efabab121"
