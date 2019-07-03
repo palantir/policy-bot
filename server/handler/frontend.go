@@ -17,9 +17,12 @@ package handler
 import (
 	"html/template"
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/bluekeyes/templatetree"
+
+	"github.com/palantir/policy-bot/policy/common"
 )
 
 const (
@@ -35,6 +38,16 @@ type FilesConfig struct {
 func LoadTemplates(c *FilesConfig) (templatetree.HTMLTree, error) {
 	root := template.New("root").Funcs(template.FuncMap{
 		"titlecase": strings.Title,
+		"sortByStatus": func(results []*common.Result) []*common.Result {
+			r := make([]*common.Result, len(results))
+			copy(r, results)
+
+			sort.SliceStable(r, func(i, j int) bool {
+				return r[i].Status > r[j].Status
+			})
+
+			return r
+		},
 	})
 
 	dir := c.Templates

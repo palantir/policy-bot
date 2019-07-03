@@ -30,7 +30,7 @@
     </div>
     <div class="pl-8 overflow-auto flex-grow">
       <ul class="tree px-4 pb-4">
-          {{range .Result.Children}}{{template "result" .}}{{end}}
+          {{range .Result.Children | sortByStatus}}{{template "result" .}}{{end}}
       </ul>
     </div>
   {{end}}
@@ -44,7 +44,7 @@
   </div>
   {{if .Children}}
   <ul class="tree">
-    {{range .Children}}{{template "result" .}}{{end}}
+    {{range .Children | sortByStatus}}{{template "result" .}}{{end}}
   </ul>
   {{end}}
 </li>
