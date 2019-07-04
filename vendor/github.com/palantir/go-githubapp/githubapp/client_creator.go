@@ -252,7 +252,7 @@ func (c *clientCreator) NewTokenV4Client(token string) (*githubv4.Client, error)
 }
 
 func (c *clientCreator) newClient(base *http.Client, middleware []ClientMiddleware, details string, installID int64) (*github.Client, error) {
-	middleware = append(middleware, setInstallationID(installID))
+	middleware = append([]ClientMiddleware{setInstallationID(installID)}, middleware...)
 	applyMiddleware(base, middleware)
 
 	baseURL, err := url.Parse(c.v3BaseURL)
