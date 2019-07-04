@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 	"github.com/shurcooL/githubv4"
 )
 
@@ -317,6 +318,8 @@ func (ghc *GitHubContext) loadPagedData() error {
 }
 
 func (ghc *GitHubContext) loadCommits() ([]*Commit, error) {
+	log := zerolog.Ctx(ghc.ctx)
+
 	// github does not always return the latest commit information for a PR
 	// immediately after it was updated; if we're missing data, try again
 	attempts := 0
@@ -358,7 +361,10 @@ func (ghc *GitHubContext) loadCommits() ([]*Commit, error) {
 		if attempts >= commitLoadMaxAttempts {
 			return nil, errors.Errorf("head commit %.10s is missing pushed date; this is probably a bug", ghc.pr.HeadRefOID)
 		}
-		time.Sleep(time.Duration(1<<uint(attempts-1)) * commitLoadBaseDelay)
+
+		delay := time.Duration(1<<uint(attempts-1)) * commitLoadBaseDelay
+		log.Debug().Msgf("failed to load pushed date on attempt %d, sleeping %s and trying again", attempts, delay)
+		time.Sleep(delay)
 	}
 }
 
