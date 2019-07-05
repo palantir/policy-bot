@@ -39,8 +39,7 @@ UI to view the detailed approval status of any pull request.
 ## Configuration
 
 By default, the behavior of the bot is configured by a `.policy.yml` file at
-the root of the repository. The file name and location are configurable when
-running your own instance of the server.
+the root of the repository. When running your own instance of the server, a different file name and location can be configured. The configured name and location will be used instead of the default location.
 
 - If the file does not exist, the `policy-bot` status check is not posted. This
   means it is safe to enable `policy-bot` on all repositories in an organization.
