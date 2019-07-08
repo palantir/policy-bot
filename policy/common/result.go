@@ -17,7 +17,7 @@ package common
 type EvaluationStatus int
 
 const (
-	StatusSkipped EvaluationStatus = iota
+	StatusSkipped EvaluationStatus = iota // note: values used for ordering
 	StatusPending
 	StatusApproved
 	StatusDisapproved
