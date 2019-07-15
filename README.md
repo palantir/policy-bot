@@ -364,7 +364,14 @@ that terminates TLS connections.
 
 ### GitHub App Configuration
 
-`policy-bot` requires the following permissions as a GitHub app:
+To configure `policy-bot` as a GitHub App, these general options are required:
+
+- **User authorization callback URL**: `http(s)://<your-policy-bot-domain>/api/github/auth`
+- **Webhook URL**: `http(s)://<your-policy-bot-domain>/api/github/hook`
+- **Webhook secret**: A random string that matches the value of the
+  `github.app.webhook_secret` property in the server configuration
+
+The app requires these permissions:
 
 | Permission | Access | Reason |
 | ---------- | ------ | ------ |
@@ -375,7 +382,7 @@ that terminates TLS connections.
 | Commit status | Read & write | Post commit statuses |
 | Organization members | Read-only | Determine organization and team membership |
 
-It should be subscribed to the following events:
+The app should be subscribed to these events:
 
 * Issue comment
 * Pull request

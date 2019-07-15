@@ -34,7 +34,12 @@ github:
     # A random string used to validate webhooks
     webhook_secret: "app_secret"
     # The private key of the GitHub app
-    private_key: "app_private_key"
+    private_key: |
+      -----BEGIN RSA PRIVATE KEY-----
+      xxxxx
+      xxxxx
+      xxxxx
+      -----END RSA PRIVATE KEY-----
   oauth:
     # The client ID of the OAuth app associated with the GitHub app
     client_id: "client_id"
