@@ -65,6 +65,29 @@ func TestChangedFiles(t *testing.T) {
 	assert.Equal(t, 2, filesRule.Count, "cached files were not used")
 }
 
+func TestChangedFilesNoFiles(t *testing.T) {
+	rp := &ResponsePlayer{}
+	filesRule := rp.AddRule(
+		ExactPathMatcher("/repos/testorg/testrepo/pulls/123/files"),
+		"testdata/responses/pull_no_files.yml",
+	)
+
+	ctx := makeContext(t, rp, nil)
+
+	files, err := ctx.ChangedFiles()
+	require.NoError(t, err)
+
+	require.Len(t, files, 0, "incorrect number of files")
+	assert.Equal(t, 1, filesRule.Count, "no http request was made")
+
+	// verify that the file list is cached
+	files, err = ctx.ChangedFiles()
+	require.NoError(t, err)
+
+	require.Len(t, files, 0, "incorrect number of files")
+	assert.Equal(t, 1, filesRule.Count, "cached files were not used")
+}
+
 func TestCommits(t *testing.T) {
 	rp := &ResponsePlayer{}
 	dataRule := rp.AddRule(

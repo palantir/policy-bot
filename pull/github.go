@@ -200,7 +200,8 @@ func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
 			opt.Page = res.NextPage
 		}
 
-		for _, f := range allFiles {
+		ghc.files = make([]*File, len(allFiles))
+		for i, f := range allFiles {
 			var status FileStatus
 			switch f.GetStatus() {
 			case "added":
@@ -211,12 +212,12 @@ func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
 				status = FileModified
 			}
 
-			ghc.files = append(ghc.files, &File{
+			ghc.files[i] = &File{
 				Filename:  f.GetFilename(),
 				Status:    status,
 				Additions: f.GetAdditions(),
 				Deletions: f.GetDeletions(),
-			})
+			}
 		}
 	}
 	if len(ghc.files) >= MaxPullRequestFiles {
