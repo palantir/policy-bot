@@ -55,9 +55,12 @@ sessions:
 options:
   # The path within repositories to find the policy.yml file
   policy_path: .policy.yml
-  # The context for status checks created by the bot
+  # The context prefix for status checks created by the bot
   status_check_context: policy-bot
-  # The name of the application as registered with GitHub
+  # The user name of the application as registered with GitHub. Note that
+  # GitHub will lowercase the application name and replace forbidden characters
+  # (including spaces) with hyphens, so if the application name is "Policy Bot"
+  # in the GitHub UI, this value should be set to "policy-bot".
   app_name: policy-bot
 
 # Options for frontend assets
