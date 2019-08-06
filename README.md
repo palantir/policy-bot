@@ -358,9 +358,9 @@ We provide both a Docker container and a binary distribution of the server:
 - Binaries: https://bintray.com/palantir/releases/policy-bot
 - Docker Images: https://hub.docker.com/r/palantirtechnologies/policy-bot/
 
-A sample configuration file is provided at `config/policy-bot.example.yml`. We
-recommend deploying the application behind a reverse proxy or load balancer
-that terminates TLS connections.
+A sample configuration file is provided at `config/policy-bot.example.yml`.
+Certain values may also be set by environment variables; these are noted in the
+comments in the sample configuration file.
 
 ### GitHub App Configuration
 

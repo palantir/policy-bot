@@ -14,6 +14,11 @@
 
 package githubapp
 
+import (
+	"os"
+	"strconv"
+)
+
 type Config struct {
 	WebURL   string `yaml:"web_url" json:"webUrl"`
 	V3APIURL string `yaml:"v3_api_url" json:"v3ApiUrl"`
@@ -29,4 +34,34 @@ type Config struct {
 		ClientID     string `yaml:"client_id" json:"clientId"`
 		ClientSecret string `yaml:"client_secret" json:"clientSecret"`
 	} `yaml:"oauth" json:"oauth"`
+}
+
+// SetValuesFromEnv sets values in the configuration from coresponding
+// environment variables, if they exist. The optional prefix is added to the
+// start of the environment variable names.
+func (c *Config) SetValuesFromEnv(prefix string) {
+	setStringFromEnv("GITHUB_WEB_URL", prefix, &c.WebURL)
+	setStringFromEnv("GITHUB_V3_API_URL", prefix, &c.V3APIURL)
+	setStringFromEnv("GITHUB_V4_API_URL", prefix, &c.V4APIURL)
+
+	setIntFromEnv("GITHUB_APP_INTEGRATION_ID", prefix, &c.App.IntegrationID)
+	setStringFromEnv("GITHUB_APP_WEBHOOK_SECRET", prefix, &c.App.WebhookSecret)
+	setStringFromEnv("GITHUB_APP_PRIVATE_KEY", prefix, &c.App.PrivateKey)
+
+	setStringFromEnv("GITHUB_OAUTH_CLIENT_ID", prefix, &c.OAuth.ClientID)
+	setStringFromEnv("GITHUB_OAUTH_CLIENT_SECRET", prefix, &c.OAuth.ClientSecret)
+}
+
+func setStringFromEnv(key, prefix string, value *string) {
+	if v, ok := os.LookupEnv(prefix + key); ok {
+		*value = v
+	}
+}
+
+func setIntFromEnv(key, prefix string, value *int) {
+	if v, ok := os.LookupEnv(prefix + key); ok {
+		if i, err := strconv.Atoi(v); err == nil {
+			*value = i
+		}
+	}
 }

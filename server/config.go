@@ -15,6 +15,8 @@
 package server
 
 import (
+	"os"
+
 	"github.com/c2h5oh/datasize"
 	"github.com/palantir/go-baseapp/baseapp"
 	"github.com/palantir/go-baseapp/baseapp/datadog"
@@ -52,12 +54,16 @@ type SessionsConfig struct {
 
 func ParseConfig(bytes []byte) (*Config, error) {
 	var c Config
-	err := yaml.UnmarshalStrict(bytes, &c)
-	if err != nil {
+	if err := yaml.UnmarshalStrict(bytes, &c); err != nil {
 		return nil, errors.Wrapf(err, "failed unmarshalling yaml")
 	}
 
 	c.Options.FillDefaults()
+	c.Github.SetValuesFromEnv("")
+
+	if v, ok := os.LookupEnv("POLICYBOT_SESSIONS_KEY"); ok {
+		c.Sessions.Key = v
+	}
 
 	return &c, nil
 }
