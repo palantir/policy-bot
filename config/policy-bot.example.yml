@@ -5,6 +5,11 @@ server:
   port: 8080
   # The public URL, used for URL generation when the server is behind a proxy
   public_url: http://localhost:8080
+  # Uncomment the "tls_config" block to enable HTTPS support in the server.
+  # The cert and key files must be usable by net/http.ListenAndServeTLS().
+  # tls_config:
+  #   cert_file: /path/to/server.pem
+  #   key_file: /path/to/server.key
 
 # Options for logging output
 logging:
@@ -22,18 +27,24 @@ cache:
 
 # Options for connecting to GitHub
 github:
-  # The URL of the GitHub homepage
+  # The URL of the GitHub homepage. Can also be set by the GITHUB_WEB_URL
+  # environment variable.
   web_url: "https://github.com"
-  # The base URL for v3 (REST) API requests
+  # The base URL for v3 (REST) API requests. Can also be set by the
+  # GITHUB_V3_API_URL environment variable.
   v3_api_url: "https://api.github.com"
-  # The base URL for v4 (GraphQL) API requests
+  # The base URL for v4 (GraphQL) API requests. Can also be set by the
+  # GITHUB_V4_API_URL environment variable.
   v4_api_url: "https://api.github.com/graphql"
   app:
-    # The integration ID of the GitHub app
+    # The integration ID of the GitHub app. Can also be set by the
+    # GITHUB_APP_INTEGRATION_ID environment variable.
     integration_id: 1
-    # A random string used to validate webhooks
+    # A random string used to validate webhooks. Can also be set by the
+    # GITHUB_APP_WEBHOOK_SECRET environment variable.
     webhook_secret: "app_secret"
-    # The private key of the GitHub app
+    # The private key of the GitHub app. Can also be set by the
+    # GITHUB_APP_PRIVATE_KEY environment variable.
     private_key: |
       -----BEGIN RSA PRIVATE KEY-----
       xxxxx
@@ -41,14 +52,17 @@ github:
       xxxxx
       -----END RSA PRIVATE KEY-----
   oauth:
-    # The client ID of the OAuth app associated with the GitHub app
+    # The client ID of the OAuth app associated with the GitHub app. Can also
+    # be set by the GITHUB_OAUTH_CLIENT_ID environment variable.
     client_id: "client_id"
-    # The client secret of the OAuth app associated with the GitHub app
+    # The client secret of the OAuth app associated with the GitHub app. Can
+    # also be set by the GITHUB_OAUTH_CLIENT_SECRET environment variable.
     client_secret: "client_secret"
 
 # Options for user sessions
 sessions:
-  # A random string used to sign session cookies
+  # A random string used to sign session cookies. Can also be set by the
+  # POLICYBOT_SESSIONS_KEY environment variable.
   key: "secretsessionkey"
 
 # Options for application behavior
