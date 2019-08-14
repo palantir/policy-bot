@@ -88,6 +88,89 @@ func TestHasAuthorIn(t *testing.T) {
 	})
 }
 
+func TestOnlyHasAuthorsIn(t *testing.T) {
+	p := &OnlyHasAuthorsIn{
+		common.Actors{
+			Teams:         []string{"testorg/team"},
+			Users:         []string{"mhaypenny"},
+			Organizations: []string{"testorg"},
+		},
+	}
+
+	runAuthorTests(t, p, []AuthorTestCase{
+		{
+			"noMatch",
+			false,
+			&pulltest.Context{
+				AuthorValue: "ttest",
+				TeamMemberships: map[string][]string{
+					"ttest": {
+						"boringorg/testers",
+					},
+				},
+				OrgMemberships: map[string][]string{
+					"ttest": {
+						"boringorg",
+					},
+				},
+			},
+		},
+		{
+			"authorInUsers",
+			true,
+			&pulltest.Context{
+				AuthorValue: "mhaypenny",
+			},
+		},
+		{
+			"authorInTeams",
+			true,
+			&pulltest.Context{
+				AuthorValue: "mortonh",
+				TeamMemberships: map[string][]string{
+					"mortonh": {
+						"coolorg/approvers",
+						"testorg/team",
+					},
+				},
+			},
+		},
+		{
+			"authorInOrgs",
+			true,
+			&pulltest.Context{
+				AuthorValue: "mortonh",
+				OrgMemberships: map[string][]string{
+					"mortonh": {
+						"coolorg",
+						"testorg",
+					},
+				},
+			},
+		},
+		{
+			"someAuthorsNotInUsers",
+			false,
+			&pulltest.Context{
+				AuthorValue: "mhaypenny",
+				CommitsValue: []*pull.Commit{
+					{Author: "notmhaypenny"},
+				},
+			},
+		},
+		{
+			"prAuthorNotInUsers",
+			false,
+			&pulltest.Context{
+				AuthorValue: "notmhaypenny",
+				CommitsValue: []*pull.Commit{
+					{Author: "mhaypenny"},
+				},
+			},
+		},
+	})
+}
+
 func TestHasContributorIn(t *testing.T) {
 	p := &HasContributorIn{
 		common.Actors{

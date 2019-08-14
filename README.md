@@ -131,9 +131,17 @@ if:
     paths:
       - "config/.*"
 
-  # "has_author_in" is satisified if the user who opened the pull request is in
+  # "has_author_in" is satisfied if the user who opened the pull request is in
   # the users list or belongs to any of the listed organizations or teams.
   has_author_in:
+    users: ["user1", "user2", ...]
+    organizations: ["org1", "org2", ...]
+    teams: ["org1/team1", "org2/team2", ...]
+    
+  # "only_has_authors_in" is satisfied if the user who opened the pull request
+  # and all commit authors are in the users list or belong to any of the listed
+  # organizations or teams.
+  only_has_authors_in:
     users: ["user1", "user2", ...]
     organizations: ["org1", "org2", ...]
     teams: ["org1/team1", "org2/team2", ...]

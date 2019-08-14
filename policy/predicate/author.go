@@ -24,6 +24,41 @@ import (
 	"github.com/palantir/policy-bot/pull"
 )
 
+type OnlyHasAuthorsIn struct {
+	common.Actors `yaml:",inline"`
+}
+
+var _ Predicate = &OnlyHasAuthorsIn{}
+
+func (pred *OnlyHasAuthorsIn) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
+	author := prctx.Author()
+
+	result, err := pred.IsActor(ctx, prctx, author)
+	if err != nil {
+		return false, "", errors.Wrap(err, "failed to validate author")
+	}
+	if !result {
+		return false, fmt.Sprintf("The pull request author %q does not meet the required membership conditions", author), nil
+	}
+
+	commits, err := prctx.Commits()
+	if err != nil {
+		return false, "", errors.Wrap(err, "failed to get commits")
+	}
+
+	for _, c := range commits {
+		result, err := pred.IsActor(ctx, prctx, c.Author)
+		if err != nil {
+			return false, "", errors.Wrap(err, "failed to validate author")
+		}
+		if !result {
+			return false, fmt.Sprintf("The author of commit %.10s does not meet required membership conditions", c.SHA), nil
+		}
+	}
+
+	return true, "", nil
+}
+
 type HasAuthorIn struct {
 	common.Actors `yaml:",inline"`
 }
