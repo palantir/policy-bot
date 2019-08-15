@@ -24,6 +24,7 @@ type Predicates struct {
 
 	HasAuthorIn             *predicate.HasAuthorIn             `yaml:"has_author_in"`
 	HasContributorIn        *predicate.HasContributorIn        `yaml:"has_contributor_in"`
+	OnlyHasContributorsIn   *predicate.OnlyHasContributorsIn   `yaml:"only_has_contributors_in"`
 	AuthorIsOnlyContributor *predicate.AuthorIsOnlyContributor `yaml:"author_is_only_contributor"`
 
 	TargetsBranch *predicate.TargetsBranch `yaml:"targets_branch"`

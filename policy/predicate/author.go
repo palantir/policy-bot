@@ -43,6 +43,40 @@ func (pred *HasAuthorIn) Evaluate(ctx context.Context, prctx pull.Context) (bool
 	return result, desc, err
 }
 
+type OnlyHasContributorsIn struct {
+	common.Actors `yaml:",inline"`
+}
+
+var _ Predicate = &OnlyHasContributorsIn{}
+
+func (pred *OnlyHasContributorsIn) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
+	commits, err := prctx.Commits()
+	if err != nil {
+		return false, "", errors.Wrap(err, "failed to get commits")
+	}
+
+	users := make(map[string]struct{})
+	users[prctx.Author()] = struct{}{}
+
+	for _, c := range commits {
+		for _, u := range c.Users() {
+			users[u] = struct{}{}
+		}
+	}
+
+	for user := range users {
+		member, err := pred.IsActor(ctx, prctx, user)
+		if err != nil {
+			return false, "", err
+		}
+		if !member {
+			return false, fmt.Sprintf("Contributor %q does not meet the required membership conditions", user), nil
+		}
+	}
+
+	return true, "", nil
+}
+
 type HasContributorIn struct {
 	common.Actors `yaml:",inline"`
 }

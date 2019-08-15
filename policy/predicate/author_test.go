@@ -187,6 +187,119 @@ func TestHasContributorIn(t *testing.T) {
 	})
 }
 
+func TestOnlyHasContributorsIn(t *testing.T) {
+	p := &OnlyHasContributorsIn{
+		common.Actors{
+			Teams:         []string{"testorg/team"},
+			Users:         []string{"mhaypenny"},
+			Organizations: []string{"testorg"},
+		},
+	}
+
+	runAuthorTests(t, p, []AuthorTestCase{
+		{
+			"authorNotInList",
+			false,
+			&pulltest.Context{
+				AuthorValue: "ttest",
+				CommitsValue: []*pull.Commit{
+					{
+						SHA:       "abcdef123456789",
+						Author:    "mhaypenny",
+						Committer: "mhaypenny",
+					},
+				},
+			},
+		},
+		{
+			"containsCommitAuthorNotInList",
+			false,
+			&pulltest.Context{
+				AuthorValue: "mhaypenny",
+				CommitsValue: []*pull.Commit{
+					{
+						SHA:       "abcdef123456789",
+						Author:    "mhaypenny",
+						Committer: "mhaypenny",
+					},
+					{
+						SHA:       "abcdef123456789",
+						Author:    "ttest",
+						Committer: "ttest",
+					},
+				},
+			},
+		},
+		{
+			"committersInListButAuthorsAreNot",
+			false,
+			&pulltest.Context{
+				AuthorValue: "mhaypenny",
+				CommitsValue: []*pull.Commit{
+					{
+						SHA:       "abcdef123456789",
+						Author:    "ttest1",
+						Committer: "mhaypenny",
+					},
+					{
+						SHA:       "abcdef123456789",
+						Author:    "ttest2",
+						Committer: "mhaypenny",
+					},
+				},
+			},
+		},
+		{
+			"commitAuthorInTeam",
+			true,
+			&pulltest.Context{
+				AuthorValue: "ttest",
+				TeamMemberships: map[string][]string{
+					"ttest": {
+						"testorg/team",
+					},
+				},
+				CommitsValue: []*pull.Commit{
+					{
+						SHA:       "abcdef123456789",
+						Author:    "ttest",
+						Committer: "ttest",
+					},
+					{
+						SHA:       "abcdef123456789",
+						Author:    "mhaypenny",
+						Committer: "mhaypenny",
+					},
+				},
+			},
+		},
+		{
+			"commitAuthorInOrg",
+			true,
+			&pulltest.Context{
+				AuthorValue: "ttest",
+				OrgMemberships: map[string][]string{
+					"ttest": {
+						"testorg",
+					},
+				},
+				CommitsValue: []*pull.Commit{
+					{
+						SHA:       "abcdef123456789",
+						Author:    "ttest",
+						Committer: "ttest",
+					},
+					{
+						SHA:       "abcdef123456789",
+						Author:    "mhaypenny",
+						Committer: "mhaypenny",
+					},
+				},
+			},
+		},
+	})
+}
+
 func TestAuthorIsOnlyContributor(t *testing.T) {
 	p := AuthorIsOnlyContributor(true)
 
