@@ -137,19 +137,19 @@ if:
     users: ["user1", "user2", ...]
     organizations: ["org1", "org2", ...]
     teams: ["org1/team1", "org2/team2", ...]
-    
-  # "only_has_authors_in" is satisfied if the user who opened the pull request
-  # and all commit authors are in the users list or belong to any of the listed
-  # organizations or teams.
-  only_has_authors_in:
-    users: ["user1", "user2", ...]
-    organizations: ["org1", "org2", ...]
-    teams: ["org1/team1", "org2/team2", ...]
 
   # "has_contributor_in" is satisfied if any commits on the pull request have
   # an author or committer in the users list or that belong to any of the
   # listed organizations or teams.
   has_contributor_in:
+    users: ["user1", "user2", ...]
+    organizations: ["org1", "org2", ...]
+    teams: ["org1/team1", "org2/team2", ...]
+    
+  # "only_has_contributors_in" is satisfied if all of the commits on the pull
+  # request have an author or committer in the users list or that belong to
+  # any of the listed organizations or teams.
+  only_has_contributors_in:
     users: ["user1", "user2", ...]
     organizations: ["org1", "org2", ...]
     teams: ["org1/team1", "org2/team2", ...]

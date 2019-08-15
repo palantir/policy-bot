@@ -23,8 +23,8 @@ type Predicates struct {
 	OnlyChangedFiles *predicate.OnlyChangedFiles `yaml:"only_changed_files"`
 
 	HasAuthorIn             *predicate.HasAuthorIn             `yaml:"has_author_in"`
-	OnlyHasAuthorsIn        *predicate.OnlyHasAuthorsIn        `yaml:"only_has_authors_in"`
 	HasContributorIn        *predicate.HasContributorIn        `yaml:"has_contributor_in"`
+	OnlyHasContributorsIn   *predicate.OnlyHasContributorsIn   `yaml:"only_has_contributors_in"`
 	AuthorIsOnlyContributor *predicate.AuthorIsOnlyContributor `yaml:"author_is_only_contributor"`
 
 	TargetsBranch *predicate.TargetsBranch `yaml:"targets_branch"`
