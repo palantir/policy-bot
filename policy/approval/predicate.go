@@ -48,6 +48,9 @@ func (p *Predicates) Predicates() []predicate.Predicate {
 	if p.HasContributorIn != nil {
 		ps = append(ps, predicate.Predicate(p.HasContributorIn))
 	}
+	if p.OnlyHasContributorsIn != nil {
+		ps = append(ps, predicate.Predicate(p.OnlyHasContributorsIn))
+	}
 	if p.AuthorIsOnlyContributor != nil {
 		ps = append(ps, predicate.Predicate(p.AuthorIsOnlyContributor))
 	}
