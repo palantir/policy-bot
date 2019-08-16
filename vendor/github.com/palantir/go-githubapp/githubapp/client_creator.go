@@ -165,9 +165,9 @@ func WithClientMiddleware(middleware ...ClientMiddleware) ClientOption {
 
 func (c *clientCreator) NewAppClient() (*github.Client, error) {
 	base := &http.Client{Transport: http.DefaultTransport}
-
 	installation, transportError := newAppInstallation(c.integrationID, c.privKeyBytes, c.v3BaseURL)
-	middleware := append(c.middleware, installation)
+
+	middleware := []ClientMiddleware{installation}
 	if c.cacheFunc != nil {
 		middleware = append(middleware, cache(c.cacheFunc), cacheControl(c.alwaysValidate))
 	}
@@ -184,14 +184,13 @@ func (c *clientCreator) NewAppClient() (*github.Client, error) {
 
 func (c *clientCreator) NewAppV4Client() (*githubv4.Client, error) {
 	base := &http.Client{Transport: http.DefaultTransport}
-
 	installation, transportError := newAppInstallation(c.integrationID, c.privKeyBytes, c.v3BaseURL)
 
 	// The v4 API primarily uses POST requests (except for introspection queries)
-	// which we cannot cache, so don't construct the middleware
-	middleware := append(c.middleware, installation)
+	// which we cannot cache, so don't add the cache middleware
+	middleware := []ClientMiddleware{installation}
 
-	client, err := c.newV4Client(base, middleware, "application", 0)
+	client, err := c.newV4Client(base, middleware, "application")
 	if err != nil {
 		return nil, err
 	}
@@ -203,9 +202,9 @@ func (c *clientCreator) NewAppV4Client() (*githubv4.Client, error) {
 
 func (c *clientCreator) NewInstallationClient(installationID int64) (*github.Client, error) {
 	base := &http.Client{Transport: http.DefaultTransport}
-
 	installation, transportError := newInstallation(c.integrationID, int(installationID), c.privKeyBytes, c.v3BaseURL)
-	middleware := append(c.middleware, installation)
+
+	middleware := []ClientMiddleware{installation}
 	if c.cacheFunc != nil {
 		middleware = append(middleware, cache(c.cacheFunc), cacheControl(c.alwaysValidate))
 	}
@@ -222,14 +221,13 @@ func (c *clientCreator) NewInstallationClient(installationID int64) (*github.Cli
 
 func (c *clientCreator) NewInstallationV4Client(installationID int64) (*githubv4.Client, error) {
 	base := &http.Client{Transport: http.DefaultTransport}
-
 	installation, transportError := newInstallation(c.integrationID, int(installationID), c.privKeyBytes, c.v3BaseURL)
 
 	// The v4 API primarily uses POST requests (except for introspection queries)
 	// which we cannot cache, so don't construct the middleware
-	middleware := append(c.middleware, installation)
+	middleware := []ClientMiddleware{installation}
 
-	client, err := c.newV4Client(base, middleware, fmt.Sprintf("installation: %d", installationID), installationID)
+	client, err := c.newV4Client(base, middleware, fmt.Sprintf("installation: %d", installationID))
 	if err != nil {
 		return nil, err
 	}
@@ -242,18 +240,21 @@ func (c *clientCreator) NewInstallationV4Client(installationID int64) (*githubv4
 func (c *clientCreator) NewTokenClient(token string) (*github.Client, error) {
 	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
 	tc := oauth2.NewClient(context.Background(), ts)
-	return c.newClient(tc, c.middleware, "oauth token", 0)
+	return c.newClient(tc, nil, "oauth token", 0)
 }
 
 func (c *clientCreator) NewTokenV4Client(token string) (*githubv4.Client, error) {
 	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
 	tc := oauth2.NewClient(context.Background(), ts)
-	return c.newV4Client(tc, c.middleware, "oauth token", 0)
+	return c.newV4Client(tc, nil, "oauth token")
 }
 
 func (c *clientCreator) newClient(base *http.Client, middleware []ClientMiddleware, details string, installID int64) (*github.Client, error) {
-	middleware = append([]ClientMiddleware{setInstallationID(installID)}, middleware...)
-	applyMiddleware(base, middleware)
+	applyMiddleware(base, [][]ClientMiddleware{
+		{setInstallationID(installID)},
+		c.middleware,
+		middleware,
+	})
 
 	baseURL, err := url.Parse(c.v3BaseURL)
 	if err != nil {
@@ -267,11 +268,12 @@ func (c *clientCreator) newClient(base *http.Client, middleware []ClientMiddlewa
 	return client, nil
 }
 
-func (c *clientCreator) newV4Client(base *http.Client, middleware []ClientMiddleware, details string, installID int64) (*githubv4.Client, error) {
-	ua := makeUserAgent(c.userAgent, details)
-
-	middleware = append([]ClientMiddleware{setUserAgentHeader(ua)}, middleware...)
-	applyMiddleware(base, middleware)
+func (c *clientCreator) newV4Client(base *http.Client, middleware []ClientMiddleware, details string) (*githubv4.Client, error) {
+	applyMiddleware(base, [][]ClientMiddleware{
+		{setUserAgentHeader(makeUserAgent(c.userAgent, details))},
+		c.middleware,
+		middleware,
+	})
 
 	v4BaseURL, err := url.Parse(c.v4BaseURL)
 	if err != nil {
@@ -282,9 +284,14 @@ func (c *clientCreator) newV4Client(base *http.Client, middleware []ClientMiddle
 	return client, nil
 }
 
-func applyMiddleware(base *http.Client, middleware []ClientMiddleware) {
+// applyMiddleware behaves as if it concatenates all middleware slices in the
+// order given and then composes the middleware so that the first element is
+// the outermost function and the last element is the innermost function.
+func applyMiddleware(base *http.Client, middleware [][]ClientMiddleware) {
 	for i := len(middleware) - 1; i >= 0; i-- {
-		base.Transport = middleware[i](base.Transport)
+		for j := len(middleware[i]) - 1; j >= 0; j-- {
+			base.Transport = middleware[i][j](base.Transport)
+		}
 	}
 }
 
