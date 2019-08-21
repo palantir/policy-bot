@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/alexedwards/scs"
@@ -65,6 +66,7 @@ func New(c *Config) (*Server, error) {
 		return nil, errors.Wrap(err, "failed parse public URL")
 	}
 
+	basePath := strings.TrimSuffix(publicURL.Path, "/")
 	forceTLS := publicURL.Scheme == "https"
 
 	sessions := scs.NewCookieManager(c.Sessions.Key)
@@ -128,7 +130,13 @@ func New(c *Config) (*Server, error) {
 		return nil, errors.Wrap(err, "failed to load templates")
 	}
 
-	mux := base.Mux()
+	var mux *goji.Mux
+	if basePath == "" {
+		mux = base.Mux()
+	} else {
+		mux = goji.SubMux()
+		base.Mux().Handle(pat.New(basePath+"/*"), mux)
+	}
 
 	// webhook route
 	mux.Handle(pat.Post(githubapp.DefaultWebhookRoute), dispatcher)
@@ -145,8 +153,8 @@ func New(c *Config) (*Server, error) {
 	))
 
 	// additional client routes
-	mux.Handle(pat.Get("/favicon.ico"), http.RedirectHandler("/static/img/favicon.ico", http.StatusFound))
-	mux.Handle(pat.Get("/static/*"), handler.Static("/static/", &c.Files))
+	mux.Handle(pat.Get("/favicon.ico"), http.RedirectHandler(basePath+"/static/img/favicon.ico", http.StatusFound))
+	mux.Handle(pat.Get("/static/*"), handler.Static(basePath+"/static/", &c.Files))
 	mux.Handle(pat.Get("/"), hatpear.Try(&handler.Index{
 		Base:         basePolicyHandler,
 		GithubConfig: &c.Github,
@@ -154,7 +162,7 @@ func New(c *Config) (*Server, error) {
 	}))
 
 	details := goji.SubMux()
-	details.Use(handler.RequireLogin(sessions))
+	details.Use(handler.RequireLogin(sessions, basePath))
 	details.Handle(pat.Get("/:owner/:repo/:number"), hatpear.Try(&handler.Details{
 		Base:      basePolicyHandler,
 		Sessions:  sessions,
