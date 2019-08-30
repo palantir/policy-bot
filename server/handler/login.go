@@ -68,7 +68,7 @@ func Login(c githubapp.Config, sessions *scs.Manager) oauth2.LoginCallback {
 	}
 }
 
-func RequireLogin(sessions *scs.Manager) func(http.Handler) http.Handler {
+func RequireLogin(sessions *scs.Manager, basePath string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			sess := sessions.Load(r)
@@ -85,7 +85,7 @@ func RequireLogin(sessions *scs.Manager) func(http.Handler) http.Handler {
 					return
 				}
 
-				http.Redirect(w, r, oauth2.DefaultRoute, http.StatusFound)
+				http.Redirect(w, r, basePath+oauth2.DefaultRoute, http.StatusFound)
 				return
 			}
 
