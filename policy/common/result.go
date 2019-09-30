@@ -42,6 +42,9 @@ type Result struct {
 	Description string
 	Status      EvaluationStatus
 
+	RequestedTeams []string
+	RequestedUsers []string
+
 	Error error
 
 	Children []*Result

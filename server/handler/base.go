@@ -147,6 +147,19 @@ func (b *Base) Evaluate(ctx context.Context, installationID int64, loc pull.Loca
 	return b.EvaluateFetchedConfig(ctx, prctx, client, fetchedConfig)
 }
 
+func findLeafChildren(result common.Result) []common.Result {
+	var r []common.Result
+	if len(result.Children) == 0 {
+		r = append(r, result)
+		return r
+	} else {
+		for _, c := range result.Children {
+			r = append(r, findLeafChildren(*c)...)
+		}
+	}
+	return r
+}
+
 func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, client *github.Client, fetchedConfig FetchedConfig) error {
 	logger := zerolog.Ctx(ctx)
 
@@ -191,6 +204,59 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, cl
 		statusDescription = "All rules were skipped. At least one rule must match."
 	default:
 		return errors.Errorf("evaluation resulted in unexpected state: %s", result.Status)
+	}
+
+	if statusState == "pending" && prctx.IsDraft() != nil && !*prctx.IsDraft() {
+		subsetCurrentReviewers, _, err := client.PullRequests.ListReviewers(ctx, prctx.RepositoryOwner(), prctx.RepositoryName(), prctx.Number(), &github.ListOptions{
+			Page:    0,
+			PerPage: 10,
+		})
+
+		if err != nil {
+			logger.Warn().Err(err).Msg("Unable to list request reviewers")
+		}
+
+		if subsetCurrentReviewers != nil && len(subsetCurrentReviewers.Users) == 0 && len(subsetCurrentReviewers.Teams) == 0 {
+			// look for requested reviewers
+			leafNodes := findLeafChildren(result)
+			var requestedUsers, requestedTeams []string
+			for _, child := range leafNodes {
+				if child.Error != nil {
+					continue
+				}
+
+				requestedUsers = append(requestedUsers, child.RequestedUsers...)
+				requestedTeams = append(requestedTeams, child.RequestedTeams...)
+			}
+
+			// remove PR author if they exist in the possible list, since they cannot be assigned to their own PRs
+			for i, u := range requestedUsers {
+				if u == prctx.Author() {
+					requestedUsers = append(requestedUsers[:i], requestedUsers[i+1:]...)
+				}
+			}
+
+			// remove the owner org name from teams, if present
+			// https://developer.github.com/v3/pulls/review_requests/#create-a-review-request
+			for i, t := range requestedTeams {
+				if strings.Contains(t, prctx.RepositoryOwner()) {
+					requestedTeams[i] = strings.ReplaceAll(t, fmt.Sprintf("%s/", prctx.RepositoryOwner()), "")
+				}
+			}
+
+			reviewers := github.ReviewersRequest{
+				Reviewers:     requestedUsers,
+				TeamReviewers: requestedTeams,
+			}
+
+			logger.Debug().Msgf("PR is not in draft, there are no current reviewers, and reviews are requested from %d users, %d teams", len(requestedUsers), len(requestedTeams))
+			_, _, err := client.PullRequests.RequestReviewers(ctx, prctx.RepositoryOwner(), prctx.RepositoryName(), prctx.Number(), reviewers)
+			if err != nil {
+				logger.Warn().Err(err).Msg("Unable to request reviewers")
+			}
+		} else {
+			logger.Debug().Msg("PR is not in draft or there are existing reviewers, not adding anyone.")
+		}
 	}
 
 	return b.PostStatus(ctx, prctx, client, statusState, statusDescription)

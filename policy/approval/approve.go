@@ -40,6 +40,7 @@ type Options struct {
 	AllowContributor   bool `yaml:"allow_contributor"`
 	InvalidateOnPush   bool `yaml:"invalidate_on_push"`
 	IgnoreUpdateMerges bool `yaml:"ignore_update_merges"`
+	RequestReview      bool `yaml:"request_review"`
 
 	Methods *common.Methods `yaml:"methods"`
 }
@@ -102,6 +103,12 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 		res.Status = common.StatusApproved
 	} else {
 		res.Status = common.StatusPending
+
+		if r.Options.RequestReview {
+			// we don't use organizations, because that would be far too noisy
+			res.RequestedUsers = r.Requires.Users
+			res.RequestedTeams = r.Requires.Teams
+		}
 	}
 	return
 }

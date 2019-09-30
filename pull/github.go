@@ -60,6 +60,7 @@ func (loc Locator) IsComplete() bool {
 	case loc.Value.GetUser().GetLogin() == "":
 	case loc.Value.GetBase().GetRef() == "":
 	case loc.Value.GetBase().GetRepo().GetID() == 0:
+	case loc.Value.GetDraft() == false:
 	case loc.Value.GetHead().GetSHA() == "":
 	case loc.Value.GetHead().GetRef() == "":
 	case loc.Value.GetHead().GetRepo().GetID() == 0:
@@ -113,6 +114,7 @@ type GitHubContext struct {
 	owner  string
 	repo   string
 	number int
+	draft  *bool
 	pr     *v4PullRequest
 
 	// cached fields
@@ -148,6 +150,7 @@ func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *git
 		owner:  loc.Owner,
 		repo:   loc.Repo,
 		number: loc.Number,
+		draft:  loc.Value.Draft,
 		pr:     pr,
 	}, nil
 }
@@ -170,6 +173,10 @@ func (ghc *GitHubContext) Author() string {
 
 func (ghc *GitHubContext) HeadSHA() string {
 	return ghc.pr.HeadRefOID
+}
+
+func (ghc *GitHubContext) IsDraft() *bool {
+	return ghc.draft
 }
 
 // Branches returns the names of the base and head branch. If the head branch

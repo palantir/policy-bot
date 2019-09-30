@@ -76,6 +76,9 @@ type Context interface {
 	// Reviews lists all reviews on a Pull Request. The review order is
 	// implementation dependent.
 	Reviews() ([]*Review, error)
+
+	// IsDraft returns the draft status of the Pull Request.
+	IsDraft() *bool
 }
 
 type FileStatus int

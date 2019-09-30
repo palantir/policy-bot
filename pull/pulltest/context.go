@@ -49,6 +49,8 @@ type Context struct {
 
 	CollaboratorMemberships     map[string][]string
 	CollaboratorMembershipError error
+
+	Draft *bool
 }
 
 func (c *Context) RepositoryOwner() string {
@@ -78,6 +80,10 @@ func (c *Context) Author() string {
 
 func (c *Context) HeadSHA() string {
 	return c.HeadSHAValue
+}
+
+func (c *Context) IsDraft() *bool {
+	return c.Draft
 }
 
 func (c *Context) Branches() (base string, head string) {
