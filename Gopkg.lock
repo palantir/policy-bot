@@ -77,12 +77,12 @@
   revision = "19a39ef22a11a471b23c3beb9cb39903f6cff332"
 
 [[projects]]
-  digest = "1:f4f203acd8b11b8747bdcd91696a01dbc95ccb9e2ca2db6abf81c3a4f5e950ce"
+  digest = "1:91099c6f78b1e7bdf9ed06eb4cb7f017174293a3689d76b995a06f4c8d64a7f0"
   name = "github.com/google/go-github"
   packages = ["github"]
   pruneopts = "NUT"
-  revision = "f55b50f38167644bb7e4be03d9a2bde71d435239"
-  version = "v18.2.0"
+  revision = "9686ff0746200cf521ce225525b421e13b4eac1a"
+  version = "v28.1.1"
 
 [[projects]]
   digest = "1:a63cff6b5d8b95638bfe300385d93b2a6d9d687734b863da8e09dc834510a690"
@@ -279,11 +279,18 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:a68068595227881a09dd5961976ddf705c8eea822dcd1c7b57bbb0067335ad32"
+  digest = "1:991a7400c43735dad60c25f599b48334a4cf36187bec24e293fe943df1aef211"
   name = "golang.org/x/crypto"
   packages = [
+    "cast5",
     "internal/subtle",
     "nacl/secretbox",
+    "openpgp",
+    "openpgp/armor",
+    "openpgp/elgamal",
+    "openpgp/errors",
+    "openpgp/packet",
+    "openpgp/s2k",
     "poly1305",
     "salsa20/salsa",
   ]

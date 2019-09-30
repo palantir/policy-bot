@@ -4,6 +4,7 @@
 // license that can be found in the LICENSE file.
 
 //go:generate go run gen-accessors.go
+//go:generate go run gen-stringify-test.go
 
 package github
 
@@ -54,20 +55,17 @@ const (
 	// https://developer.github.com/changes/2016-04-06-deployment-and-deployment-status-enhancements/
 	mediaTypeDeploymentStatusPreview = "application/vnd.github.ant-man-preview+json"
 
+	// https://developer.github.com/changes/2018-10-16-deployments-environments-states-and-auto-inactive-updates/
+	mediaTypeExpandDeploymentStatusPreview = "application/vnd.github.flash-preview+json"
+
 	// https://developer.github.com/changes/2016-02-19-source-import-preview-api/
 	mediaTypeImportPreview = "application/vnd.github.barred-rock-preview"
 
 	// https://developer.github.com/changes/2016-05-12-reactions-api-preview/
 	mediaTypeReactionsPreview = "application/vnd.github.squirrel-girl-preview"
 
-	// https://developer.github.com/changes/2016-04-04-git-signing-api-preview/
-	mediaTypeGitSigningPreview = "application/vnd.github.cryptographer-preview+json"
-
 	// https://developer.github.com/changes/2016-05-23-timeline-preview-api/
 	mediaTypeTimelinePreview = "application/vnd.github.mockingbird-preview+json"
-
-	// https://developer.github.com/changes/2016-06-14-repository-invitations/
-	mediaTypeRepositoryInvitationsPreview = "application/vnd.github.swamp-thing-preview+json"
 
 	// https://developer.github.com/changes/2016-07-06-github-pages-preiew-api/
 	mediaTypePagesPreview = "application/vnd.github.mister-fantastic-preview+json"
@@ -122,6 +120,42 @@ const (
 
 	// https://developer.github.com/enterprise/2.13/v3/repos/pre_receive_hooks/
 	mediaTypePreReceiveHooksPreview = "application/vnd.github.eye-scream-preview"
+
+	// https://developer.github.com/changes/2018-02-22-protected-branches-required-signatures/
+	mediaTypeSignaturePreview = "application/vnd.github.zzzax-preview+json"
+
+	// https://developer.github.com/changes/2018-09-05-project-card-events/
+	mediaTypeProjectCardDetailsPreview = "application/vnd.github.starfox-preview+json"
+
+	// https://developer.github.com/changes/2018-12-18-interactions-preview/
+	mediaTypeInteractionRestrictionsPreview = "application/vnd.github.sombra-preview+json"
+
+	// https://developer.github.com/changes/2019-02-14-draft-pull-requests/
+	mediaTypeDraftPreview = "application/vnd.github.shadow-cat-preview+json"
+
+	// https://developer.github.com/changes/2019-03-14-enabling-disabling-pages/
+	mediaTypeEnablePagesAPIPreview = "application/vnd.github.switcheroo-preview+json"
+
+	// https://developer.github.com/changes/2019-04-24-vulnerability-alerts/
+	mediaTypeRequiredVulnerabilityAlertsPreview = "application/vnd.github.dorian-preview+json"
+
+	// https://developer.github.com/changes/2019-06-04-automated-security-fixes/
+	mediaTypeRequiredAutomatedSecurityFixesPreview = "application/vnd.github.london-preview+json"
+
+	// https://developer.github.com/changes/2019-05-29-update-branch-api/
+	mediaTypeUpdatePullRequestBranchPreview = "application/vnd.github.lydian-preview+json"
+
+	// https://developer.github.com/changes/2019-04-11-pulls-branches-for-commit/
+	mediaTypeListPullsOrBranchesForCommitPreview = "application/vnd.github.groot-preview+json"
+
+	// https://developer.github.com/changes/2019-06-12-team-sync/
+	mediaTypeTeamSyncPreview = "application/vnd.github.team-sync-preview+json"
+
+	// https://developer.github.com/v3/previews/#repository-creation-permissions
+	mediaTypeMemberAllowedRepoCreationTypePreview = "application/vnd.github.surtur-preview+json"
+
+	// https://developer.github.com/v3/previews/#create-and-use-repository-templates
+	mediaTypeRepositoryTemplatePreview = "application/vnd.github.baptiste-preview+json"
 )
 
 // A Client manages communication with the GitHub API.
@@ -154,6 +188,7 @@ type Client struct {
 	Gists          *GistsService
 	Git            *GitService
 	Gitignores     *GitignoresService
+	Interactions   *InteractionsService
 	Issues         *IssuesService
 	Licenses       *LicensesService
 	Marketplace    *MarketplaceService
@@ -184,7 +219,9 @@ type ListOptions struct {
 
 // UploadOptions specifies the parameters to methods that support uploads.
 type UploadOptions struct {
-	Name string `url:"name,omitempty"`
+	Name      string `url:"name,omitempty"`
+	Label     string `url:"label,omitempty"`
+	MediaType string `url:"-"`
 }
 
 // RawType represents type of raw format of a request instead of JSON.
@@ -226,12 +263,12 @@ func addOptions(s string, opt interface{}) (string, error) {
 }
 
 // NewClient returns a new GitHub API client. If a nil httpClient is
-// provided, http.DefaultClient will be used. To use API methods which require
+// provided, a new http.Client will be used. To use API methods which require
 // authentication, provide an http.Client that will perform the authentication
 // for you (such as that provided by the golang.org/x/oauth2 library).
 func NewClient(httpClient *http.Client) *Client {
 	if httpClient == nil {
-		httpClient = http.DefaultClient
+		httpClient = &http.Client{}
 	}
 	baseURL, _ := url.Parse(defaultBaseURL)
 	uploadURL, _ := url.Parse(uploadBaseURL)
@@ -246,6 +283,7 @@ func NewClient(httpClient *http.Client) *Client {
 	c.Gists = (*GistsService)(&c.common)
 	c.Git = (*GitService)(&c.common)
 	c.Gitignores = (*GitignoresService)(&c.common)
+	c.Interactions = (*InteractionsService)(&c.common)
 	c.Issues = (*IssuesService)(&c.common)
 	c.Licenses = (*LicensesService)(&c.common)
 	c.Marketplace = &MarketplaceService{client: c}
@@ -264,7 +302,7 @@ func NewClient(httpClient *http.Client) *Client {
 // NewEnterpriseClient returns a new GitHub API client with provided
 // base URL and upload URL (often the same URL).
 // If either URL does not have a trailing slash, one is added automatically.
-// If a nil httpClient is provided, http.DefaultClient will be used.
+// If a nil httpClient is provided, a new http.Client will be used.
 //
 // Note that NewEnterpriseClient is a convenience helper only;
 // its behavior is equivalent to using NewClient, followed by setting
@@ -502,13 +540,23 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*Res
 
 	err = CheckResponse(resp)
 	if err != nil {
-		// Even though there was an error, we still return the response
-		// in case the caller wants to inspect it further.
-		// However, if the error is AcceptedError, decode it below before
-		// returning from this function and closing the response body.
-		if _, ok := err.(*AcceptedError); !ok {
-			return response, err
+		// Special case for AcceptedErrors. If an AcceptedError
+		// has been encountered, the response's payload will be
+		// added to the AcceptedError and returned.
+		//
+		// Issue #1022
+		aerr, ok := err.(*AcceptedError)
+		if ok {
+			b, readErr := ioutil.ReadAll(resp.Body)
+			if readErr != nil {
+				return response, readErr
+			}
+
+			aerr.Raw = b
+			return response, aerr
 		}
+
+		return response, err
 	}
 
 	if v != nil {
@@ -601,7 +649,7 @@ type RateLimitError struct {
 func (r *RateLimitError) Error() string {
 	return fmt.Sprintf("%v %v: %d %v %v",
 		r.Response.Request.Method, sanitizeURL(r.Response.Request.URL),
-		r.Response.StatusCode, r.Message, formatRateReset(r.Rate.Reset.Time.Sub(time.Now())))
+		r.Response.StatusCode, r.Message, formatRateReset(time.Until(r.Rate.Reset.Time)))
 }
 
 // AcceptedError occurs when GitHub returns 202 Accepted response with an
@@ -610,7 +658,10 @@ func (r *RateLimitError) Error() string {
 // Technically, 202 Accepted is not a real error, it's just used to
 // indicate that results are not ready yet, but should be available soon.
 // The request can be repeated after some time.
-type AcceptedError struct{}
+type AcceptedError struct {
+	// Raw contains the response body.
+	Raw []byte
+}
 
 func (*AcceptedError) Error() string {
 	return "job scheduled on GitHub side; try again later"
