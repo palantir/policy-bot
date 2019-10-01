@@ -46,7 +46,9 @@ type Options struct {
 }
 
 type RequestReview struct {
-	Enabled bool `yaml:"enabled"`
+	Enabled            bool `yaml:"enabled"`
+	Admins             bool `yaml:"admins"`
+	WriteCollaborators bool `yaml:"write_collaborators"`
 }
 
 func (opts *Options) GetMethods() *common.Methods {
@@ -111,6 +113,11 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 		if r.Options.RequestReview.Enabled {
 			res.RequestedUsers = r.Requires.Users
 			res.RequestedTeams = r.Requires.Teams
+			res.RequestedOrganizations = r.Requires.Organizations
+
+			res.RequestedAdmins = r.Requires.Admins
+			res.RequestedWriteCollaborators = r.Requires.WriteCollaborators
+			res.RequiredCount = r.Requires.Count
 		}
 	}
 	return

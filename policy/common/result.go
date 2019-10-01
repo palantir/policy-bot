@@ -42,8 +42,12 @@ type Result struct {
 	Description string
 	Status      EvaluationStatus
 
-	RequestedTeams []string
-	RequestedUsers []string
+	RequestedTeams              []string
+	RequestedUsers              []string
+	RequestedOrganizations      []string
+	RequestedAdmins             bool
+	RequestedWriteCollaborators bool
+	RequiredCount               int
 
 	Error error
 
