@@ -123,7 +123,7 @@ func (b *Base) PreparePRContext(ctx context.Context, installationID int64, pr *g
 	return ctx, logger
 }
 
-func (b *Base) Evaluate(ctx context.Context, installationID int64, loc pull.Locator) error {
+func (b *Base) Evaluate(ctx context.Context, installationID int64, performActions bool, loc pull.Locator) error {
 	client, err := b.NewInstallationClient(installationID)
 	if err != nil {
 		return err
@@ -145,10 +145,10 @@ func (b *Base) Evaluate(ctx context.Context, installationID int64, loc pull.Loca
 		return errors.WithMessage(err, fmt.Sprintf("failed to fetch policy: %s", fetchedConfig))
 	}
 
-	return b.EvaluateFetchedConfig(ctx, prctx, client, fetchedConfig)
+	return b.EvaluateFetchedConfig(ctx, prctx, performActions, client, fetchedConfig)
 }
 
-func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, client *github.Client, fetchedConfig FetchedConfig) error {
+func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, performActions bool, client *github.Client, fetchedConfig FetchedConfig) error {
 	logger := zerolog.Ctx(ctx)
 
 	if fetchedConfig.Missing() {
@@ -194,7 +194,7 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, cl
 		return errors.Errorf("evaluation resulted in unexpected state: %s", result.Status)
 	}
 
-	if statusState == "pending" && !prctx.IsDraft() {
+	if performActions && statusState == "pending" && !prctx.IsDraft() {
 		// Intentionally kept to a small result size, since we just want to determine if there are existing reviewers
 		subsetCurrentReviewers, _, err := client.PullRequests.ListReviewers(ctx, prctx.RepositoryOwner(), prctx.RepositoryName(), prctx.Number(), &github.ListOptions{
 			Page:    0,
