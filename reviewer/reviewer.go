@@ -152,7 +152,7 @@ func selectRandomUsers(n int, users []string) []string {
 	return selections
 }
 
-func shoveIntoMap(u []string, m map[string]struct{}) map[string]struct{} {
+func shoveIntoMap(m map[string]struct{}, u []string) map[string]struct{} {
 	for _, n := range u {
 		m[n] = struct{}{}
 	}
@@ -169,7 +169,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 
 	for _, child := range pendingLeafNodes {
 		allUsers := make(map[string]struct{})
-		allUsers = shoveIntoMap(child.RequestedUsers, allUsers)
+		allUsers = shoveIntoMap(allUsers, child.RequestedUsers)
 
 		if len(child.RequestedTeams) > 0 {
 			randomTeam := child.RequestedTeams[r.Intn(len(child.RequestedTeams))]
@@ -184,7 +184,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 					logger.Debug().Err(err).Msgf("Unable to get member listing for team %s", randomTeam)
 					//return nil, errors.Wrapf(err, "Unable to get member listing for team %s", randomTeam)
 				} else {
-					allUsers = shoveIntoMap(teamMembers, allUsers)
+					allUsers = shoveIntoMap(allUsers, teamMembers)
 				}
 			}
 		}
@@ -195,7 +195,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 			if err != nil {
 				return nil, errors.Wrapf(err, "Unable to get member listing for org %s", randomOrg)
 			}
-			allUsers = shoveIntoMap(orgMembers, allUsers)
+			allUsers = shoveIntoMap(allUsers, orgMembers)
 		}
 
 		allCollaborators, err := listAllCollaborators(ctx, client, prctx.RepositoryOwner(), prctx.RepositoryName())
@@ -221,7 +221,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 					repoAdmins = append(repoAdmins, c)
 				}
 			}
-			allUsers = shoveIntoMap(repoAdmins, allUsers)
+			allUsers = shoveIntoMap(allUsers, repoAdmins)
 		}
 
 		if child.RequestedWriteCollaborators {
@@ -231,7 +231,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 					repoCollaborators = append(repoCollaborators, c)
 				}
 			}
-			allUsers = shoveIntoMap(repoCollaborators, allUsers)
+			allUsers = shoveIntoMap(allUsers, repoCollaborators)
 		}
 
 		// Remove author before randomly selecting, since github will fail to assign _anyone_
@@ -245,6 +245,9 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 				if collaboratorPerm != "admin" && collaboratorPerm != "write" {
 					delete(allUsers, k)
 				}
+			} else {
+				// the user isn't a collaborator at all
+				delete(allUsers, k)
 			}
 		}
 
