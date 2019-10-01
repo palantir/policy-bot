@@ -132,8 +132,8 @@ func listAllCollaborators(ctx context.Context, client *github.Client, org, repo,
 	return allUsers, nil
 }
 
-// select n random values from the list of users, never selecting the blacklist
-func selectRandomUsers(n int, users []string, blacklist string) []string {
+// select n random values from the list of users
+func selectRandomUsers(n int, users []string) []string {
 	generated := map[int]struct{}{}
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -141,10 +141,7 @@ func selectRandomUsers(n int, users []string, blacklist string) []string {
 	if n == 0 {
 		return selections
 	}
-	if n == 1 && len(users) == 1 && users[0] == blacklist {
-		return selections
-	}
-	if n > len(users) {
+	if n >= len(users) {
 		return users
 	}
 
@@ -153,10 +150,8 @@ func selectRandomUsers(n int, users []string, blacklist string) []string {
 			i := r.Intn(len(users))
 			if _, ok := generated[i]; !ok {
 				generated[i] = struct{}{}
-				if users[i] != blacklist {
-					selections = append(selections, users[i])
-					break
-				}
+				selections = append(selections, users[i])
+				break
 			}
 		}
 	}
@@ -165,7 +160,6 @@ func selectRandomUsers(n int, users []string, blacklist string) []string {
 
 func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common.Result, client *github.Client) ([]string, error) {
 	logger := zerolog.Ctx(ctx)
-	// look for requested reviewers
 	pendingLeafNodes := findLeafChildren(result)
 	var requestedUsers []string
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -173,69 +167,66 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 	logger.Debug().Msgf("Collecting reviewers for %d pending leaf nodes", len(pendingLeafNodes))
 
 	for _, child := range pendingLeafNodes {
+		allUsers := child.RequestedUsers
 
-		selectionType := r.Intn(5)
-
-		logger.Debug().Msgf("Picking %d", selectionType)
-
-		var randomAssignees []string
-		switch selectionType {
-		case 0:
-			// pick a user
-			randomAssignees = selectRandomUsers(child.RequiredCount, child.RequestedUsers, prctx.Author())
-			logger.Debug().Str("users", strings.Join(randomAssignees, ",")).Msg("Select from set of hardcoded usernames")
-		case 1:
-			// pick a user from a team
+		if len(child.RequestedTeams) > 0 {
 			randomTeam := child.RequestedTeams[r.Intn(len(child.RequestedTeams))]
 			teamInfo := strings.Split(randomTeam, "/")
 			team, _, err := client.Teams.GetTeamBySlug(ctx, teamInfo[0], teamInfo[1])
 			if err != nil {
-				return nil, errors.Wrapf(err, "Unable to get information for team %s", randomTeam)
+				logger.Debug().Err(err).Msgf("Unable to get member listing for team %s", randomTeam)
+				//return nil, errors.Wrapf(err, "Unable to get information for team %s", randomTeam)
+			} else {
+				teamMembers, err := listAllTeamMembers(ctx, client, team)
+				if err != nil {
+					logger.Debug().Err(err).Msgf("Unable to get member listing for team %s", randomTeam)
+					//return nil, errors.Wrapf(err, "Unable to get member listing for team %s", randomTeam)
+				} else {
+					allUsers = append(allUsers, teamMembers...)
+				}
 			}
+		}
 
-			teamMembers, err := listAllTeamMembers(ctx, client, team)
-			if err != nil {
-				return nil, errors.Wrapf(err, "Unable to get member listing for team %s", randomTeam)
-			}
-
-			randomAssignees = selectRandomUsers(child.RequiredCount, teamMembers, prctx.Author())
-			logger.Debug().Str("user", strings.Join(randomAssignees, ",")).Str("team", randomTeam).Msg("Select from set of teams")
-		case 2:
-			// pick a user from an org
+		if len(child.RequestedOrganizations) > 0 {
 			randomOrg := child.RequestedOrganizations[r.Intn(len(child.RequestedOrganizations))]
 			orgMembers, err := listAllOrgMembers(ctx, client, randomOrg)
 			if err != nil {
 				return nil, errors.Wrapf(err, "Unable to get member listing for org %s", randomOrg)
 			}
-			randomAssignees = selectRandomUsers(child.RequiredCount, orgMembers, prctx.Author())
-			logger.Debug().Str("user", strings.Join(randomAssignees, ",")).Str("org", randomOrg).Msg("Select from set of orgs")
-		case 3:
-			// pick a user who is an admin of the repo
+			allUsers = append(child.RequestedUsers, orgMembers...)
+		}
+
+		if child.RequestedAdmins {
 			repoAdmins, err := listAllCollaborators(ctx, client, prctx.RepositoryOwner(), prctx.RepositoryName(), "admin")
 			if err != nil {
 				return nil, errors.Wrapf(err, "Unable to get admin listing")
 			}
+			allUsers = append(child.RequestedUsers, repoAdmins...)
+		}
 
-			randomAssignees = selectRandomUsers(child.RequiredCount, repoAdmins, prctx.Author())
-			logger.Debug().Str("user", strings.Join(randomAssignees, ",")).Msg("Select from set of admins")
-		case 4:
-			// pick a user who is a write collaborator on the repo
+		if child.RequestedWriteCollaborators {
 			repoCollaborators, err := listAllCollaborators(ctx, client, prctx.RepositoryOwner(), prctx.RepositoryName(), "write")
 			if err != nil {
 				return nil, errors.Wrapf(err, "Unable to get admin listing")
 			}
-			randomAssignees = selectRandomUsers(child.RequiredCount, repoCollaborators, prctx.Author())
-			logger.Debug().Str("user", strings.Join(randomAssignees, ",")).Msg("Select from set of write collaborators")
+			allUsers = append(child.RequestedUsers, repoCollaborators...)
 		}
-		requestedUsers = append(requestedUsers, randomAssignees...)
-	}
 
-	// remove PR author if they exist in the possible list, since they cannot be assigned to their own PRs
-	for i, u := range requestedUsers {
-		if u == prctx.Author() {
-			requestedUsers = append(requestedUsers[:i], requestedUsers[i+1:]...)
+		// Remove author before randomly selecting
+		logger.Debug().Msgf("Found %q total candidates for review; randomly selecting some", allUsers)
+		for i, u := range allUsers {
+			if u == prctx.Author() {
+				allUsers[i] = allUsers[len(allUsers)-1]
+				allUsers[len(allUsers)-1] = ""
+				allUsers = allUsers[:len(allUsers)-1]
+			}
 		}
-	}
+		logger.Debug().Msgf("Found %q total candidates for review after removing author; randomly selecting some", allUsers)
+		randomSelection := selectRandomUsers(child.RequiredCount, allUsers)
+		logger.Debug().Msgf("Collected reviewers %q", randomSelection)
 
+		requestedUsers = append(requestedUsers, randomSelection...)
+	}
+	logger.Debug().Msgf("all reviewers %q", requestedUsers)
 	return requestedUsers, nil
 }

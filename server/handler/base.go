@@ -210,15 +210,19 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, pe
 				logger.Warn().Err(err).Msg("Unable to select random request reviewers")
 			}
 
-			reviewers := github.ReviewersRequest{
-				Reviewers:     requestedUsers,
-				TeamReviewers: []string{},
-			}
+			if len(requestedUsers) > 0 {
+				reviewers := github.ReviewersRequest{
+					Reviewers:     requestedUsers,
+					TeamReviewers: []string{},
+				}
 
-			logger.Debug().Msgf("PR is not in draft, there are no current reviewers, and reviews are requested from %q users", requestedUsers)
-			_, _, err = client.PullRequests.RequestReviewers(ctx, prctx.RepositoryOwner(), prctx.RepositoryName(), prctx.Number(), reviewers)
-			if err != nil {
-				logger.Warn().Err(err).Msg("Unable to request reviewers")
+				logger.Debug().Msgf("PR is not in draft, there are no current reviewers, and reviews are requested from %q users", requestedUsers)
+				_, _, err = client.PullRequests.RequestReviewers(ctx, prctx.RepositoryOwner(), prctx.RepositoryName(), prctx.Number(), reviewers)
+				if err != nil {
+					logger.Warn().Err(err).Msg("Unable to request reviewers")
+				}
+			} else {
+				logger.Debug().Msg("No users found for review")
 			}
 		} else {
 			logger.Debug().Msg("PR is not in draft or there are existing reviewers, not adding anyone.")
