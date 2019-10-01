@@ -78,7 +78,7 @@ type Context interface {
 	Reviews() ([]*Review, error)
 
 	// IsDraft returns the draft status of the Pull Request.
-	IsDraft() *bool
+	IsDraft() bool
 }
 
 type FileStatus int

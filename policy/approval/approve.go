@@ -36,13 +36,17 @@ type Rule struct {
 }
 
 type Options struct {
-	AllowAuthor        bool `yaml:"allow_author"`
-	AllowContributor   bool `yaml:"allow_contributor"`
-	InvalidateOnPush   bool `yaml:"invalidate_on_push"`
-	IgnoreUpdateMerges bool `yaml:"ignore_update_merges"`
-	RequestReview      bool `yaml:"request_review"`
+	AllowAuthor        bool          `yaml:"allow_author"`
+	AllowContributor   bool          `yaml:"allow_contributor"`
+	InvalidateOnPush   bool          `yaml:"invalidate_on_push"`
+	IgnoreUpdateMerges bool          `yaml:"ignore_update_merges"`
+	RequestReview      RequestReview `yaml:"request_review"`
 
 	Methods *common.Methods `yaml:"methods"`
+}
+
+type RequestReview struct {
+	Enabled bool `yaml:"enabled"`
 }
 
 func (opts *Options) GetMethods() *common.Methods {
@@ -104,8 +108,7 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 	} else {
 		res.Status = common.StatusPending
 
-		if r.Options.RequestReview {
-			// we don't use organizations, because that would be far too noisy
+		if r.Options.RequestReview.Enabled {
 			res.RequestedUsers = r.Requires.Users
 			res.RequestedTeams = r.Requires.Teams
 		}
