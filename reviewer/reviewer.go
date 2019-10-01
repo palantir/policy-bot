@@ -98,7 +98,7 @@ func listAllOrgMembers(ctx context.Context, client *github.Client, org string) (
 	return allUsers, nil
 }
 
-func listAllCollaborators(ctx context.Context, client *github.Client, org, repo, desiredPerm string) ([]string, error) {
+func listAllCollaborators(ctx context.Context, client *github.Client, org, repo string) ([]string, error) {
 	opt := &github.ListCollaboratorsOptions{
 		ListOptions: github.ListOptions{
 			PerPage: 100,
@@ -114,13 +114,7 @@ func listAllCollaborators(ctx context.Context, client *github.Client, org, repo,
 			return nil, errors.Wrapf(err, "failed to list members of org %s page %d", org, opt.Page)
 		}
 		for _, u := range users {
-			perm, _, err := client.Repositories.GetPermissionLevel(ctx, org, repo, u.GetLogin())
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to determine permission level of %s on repo %s", u.GetLogin(), repo)
-			}
-			if perm.GetPermission() == desiredPerm {
-				allUsers = append(allUsers, u.GetLogin())
-			}
+			allUsers = append(allUsers, u.GetLogin())
 		}
 
 		if resp.NextPage == 0 {
@@ -204,18 +198,38 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 			allUsers = shoveIntoMap(orgMembers, allUsers)
 		}
 
+		allCollaborators, err := listAllCollaborators(ctx, client, prctx.RepositoryOwner(), prctx.RepositoryName())
+		if err != nil {
+			return nil, errors.Wrap(err, "Unable to get collaborators")
+		}
+		collaboratorPermissions := make(map[string]string)
+
+		if child.RequestedWriteCollaborators || child.RequestedAdmins {
+			for _, c := range allCollaborators {
+				perm, _, err := client.Repositories.GetPermissionLevel(ctx, prctx.RepositoryOwner(), prctx.RepositoryName(), c)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to determine permission level of %s on repo %s", c, prctx.RepositoryName())
+				}
+				collaboratorPermissions[c] = perm.GetPermission()
+			}
+		}
+
 		if child.RequestedAdmins {
-			repoAdmins, err := listAllCollaborators(ctx, client, prctx.RepositoryOwner(), prctx.RepositoryName(), "admin")
-			if err != nil {
-				return nil, errors.Wrap(err, "Unable to get admin listing")
+			var repoAdmins []string
+			for _, c := range allCollaborators {
+				if collaboratorPermissions[c] == "admin" {
+					repoAdmins = append(repoAdmins, c)
+				}
 			}
 			allUsers = shoveIntoMap(repoAdmins, allUsers)
 		}
 
 		if child.RequestedWriteCollaborators {
-			repoCollaborators, err := listAllCollaborators(ctx, client, prctx.RepositoryOwner(), prctx.RepositoryName(), "write")
-			if err != nil {
-				return nil, errors.Wrap(err, "Unable to get admin listing")
+			var repoCollaborators []string
+			for _, c := range allCollaborators {
+				if collaboratorPermissions[c] == "write" {
+					repoCollaborators = append(repoCollaborators, c)
+				}
 			}
 			allUsers = shoveIntoMap(repoCollaborators, allUsers)
 		}
@@ -227,16 +241,10 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 
 		// Remove any users who aren't collaborators, since github will fail to assign _anyone_
 		for k := range allUsers {
-			adminContrib, err := prctx.IsCollaborator(prctx.RepositoryOwner(), prctx.RepositoryName(), k, common.GithubAdminPermission)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to determine admin permissions for user %s", k)
-			}
-			writeContrib, err := prctx.IsCollaborator(prctx.RepositoryOwner(), prctx.RepositoryName(), k, common.GithubWritePermission)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to determine write permissions for user %s", k)
-			}
-			if !adminContrib && !writeContrib {
-				delete(allUsers, k)
+			if collaboratorPerm, ok := collaboratorPermissions[k]; ok {
+				if collaboratorPerm != "admin" && collaboratorPerm != "write" {
+					delete(allUsers, k)
+				}
 			}
 		}
 
