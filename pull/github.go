@@ -118,12 +118,13 @@ type GitHubContext struct {
 	pr     *v4PullRequest
 
 	// cached fields
-	files      []*File
-	commits    []*Commit
-	comments   []*Comment
-	reviews    []*Review
-	teamIDs    map[string]int64
-	membership map[string]bool
+	files         []*File
+	commits       []*Commit
+	comments      []*Comment
+	reviews       []*Review
+	collaborators map[string]string
+	teamIDs       map[string]int64
+	membership    map[string]bool
 }
 
 // NewGitHubContext creates a new pull.Context that makes GitHub requests to
@@ -266,33 +267,13 @@ func (ghc *GitHubContext) Reviews() ([]*Review, error) {
 	return ghc.reviews, nil
 }
 
-func (ghc *GitHubContext) ListRepositoryCollaborators() ([]string, error) {
-	opt := &github.ListCollaboratorsOptions{
-		Affiliation: "all",
-		ListOptions: github.ListOptions{
-			PerPage: 100,
-		},
+func (ghc *GitHubContext) ListRepositoryCollaborators() (map[string]string, error) {
+	if ghc.collaborators == nil {
+		if err := ghc.loadPagedData(); err != nil {
+			return nil, err
+		}
 	}
-
-	// get all pages of results
-	var allUsers []string
-
-	for {
-		users, resp, err := ghc.client.Repositories.ListCollaborators(ghc.ctx, ghc.owner, ghc.repo, opt)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to list members of org %s page %d", ghc.owner, opt.Page)
-		}
-		for _, u := range users {
-			allUsers = append(allUsers, u.GetLogin())
-		}
-
-		if resp.NextPage == 0 {
-			break
-		}
-		opt.Page = resp.NextPage
-	}
-
-	return allUsers, nil
+	return ghc.collaborators, nil
 }
 
 func (ghc *GitHubContext) ListOrganizationMembers(org string) ([]string, error) {
@@ -358,6 +339,13 @@ func (ghc *GitHubContext) loadPagedData() error {
 	// this is a minor optimization: make max(c,r) requests instead of c+r
 	var q struct {
 		Repository struct {
+			Collaborators struct {
+				PageInfo v4PageInfo
+				Edges    []struct {
+					Permission githubv4.RepositoryPermission `graphql:"permission"`
+					Node       v4Collaborator                `graphql:"node"`
+				}
+			} `graphql:"collaborators(first: 100, after: $collaboratorCursor)"`
 			PullRequest struct {
 				Comments struct {
 					PageInfo v4PageInfo
@@ -376,12 +364,14 @@ func (ghc *GitHubContext) loadPagedData() error {
 		"name":   githubv4.String(ghc.repo),
 		"number": githubv4.Int(ghc.number),
 
-		"commentCursor": (*githubv4.String)(nil),
-		"reviewCursor":  (*githubv4.String)(nil),
+		"commentCursor":      (*githubv4.String)(nil),
+		"reviewCursor":       (*githubv4.String)(nil),
+		"collaboratorCursor": (*githubv4.String)(nil),
 	}
 
 	comments := []*Comment{}
 	reviews := []*Review{}
+	collaborators := map[string]string{}
 	for {
 		complete := 0
 		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
@@ -402,13 +392,21 @@ func (ghc *GitHubContext) loadPagedData() error {
 			complete++
 		}
 
-		if complete == 2 {
+		for _, c := range q.Repository.Collaborators.Edges {
+			collaborators[c.Node.Login] = strings.ToLower(string(c.Permission))
+		}
+		if !q.Repository.Collaborators.PageInfo.UpdateCursor(qvars, "collaboratorCursor") {
+			complete++
+		}
+
+		if complete == 3 {
 			break
 		}
 	}
 
 	ghc.comments = comments
 	ghc.reviews = reviews
+	ghc.collaborators = collaborators
 	return nil
 }
 
@@ -669,6 +667,11 @@ func (c *v4Commit) ToCommit() *Commit {
 		Committer:       c.Committer.GetV3Login(),
 		PushedAt:        c.PushedDate,
 	}
+}
+
+type v4Collaborator struct {
+	Type  string `graphql:"__typename"`
+	Login string
 }
 
 type v4Actor struct {

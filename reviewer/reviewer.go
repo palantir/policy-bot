@@ -112,32 +112,15 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 			allUsers = shoveIntoMap(allUsers, orgMembers)
 		}
 
-		allCollaborators, err := prctx.ListRepositoryCollaborators()
+		allCollaboratorPermissions, err := prctx.ListRepositoryCollaborators()
 		if err != nil {
 			return nil, errors.Wrap(err, "Unable to list repository collaborators")
-		}
-		collaboratorPermissions := make(map[string]string)
-
-		for _, c := range allCollaborators {
-			collaboratorPermissions[c] = ""
-		}
-
-		// TODO(asvoboda):
-		// Replace the expensive permission checking with graphql calls: https://developer.github.com/v4/object/repositorycollaboratoredge/
-		if child.Rule.RequestedAdmins || child.Rule.RequestedWriteCollaborators {
-			for _, c := range allCollaborators {
-				perm, err := prctx.CollaboratorPermission(prctx.RepositoryOwner(), prctx.RepositoryName(), c)
-				if err != nil {
-					return nil, errors.Wrapf(err, "failed to determine permission level of %s on repo %s", c, prctx.RepositoryName())
-				}
-				collaboratorPermissions[c] = perm
-			}
 		}
 
 		if child.Rule.RequestedAdmins {
 			var repoAdmins []string
-			for _, c := range allCollaborators {
-				if collaboratorPermissions[c] == "admin" {
+			for _, c := range allCollaboratorPermissions {
+				if allCollaboratorPermissions[c] == "admin" {
 					repoAdmins = append(repoAdmins, c)
 				}
 			}
@@ -146,8 +129,8 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 
 		if child.Rule.RequestedWriteCollaborators {
 			var repoCollaborators []string
-			for _, c := range allCollaborators {
-				if collaboratorPermissions[c] == "write" {
+			for _, c := range allCollaboratorPermissions {
+				if allCollaboratorPermissions[c] == "write" {
 					repoCollaborators = append(repoCollaborators, c)
 				}
 			}
@@ -161,7 +144,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 
 		// Remove any users who aren't collaborators, since github will fail to assign _anyone_
 		for k := range allUsers {
-			if _, ok := collaboratorPermissions[k]; !ok {
+			if _, ok := allCollaboratorPermissions[k]; !ok {
 				delete(allUsers, k)
 			}
 		}

@@ -87,7 +87,7 @@ type Context interface {
 
 	ListOrganizationMembers(org string) ([]string, error)
 
-	ListRepositoryCollaborators() ([]string, error)
+	ListRepositoryCollaborators() (map[string]string, error)
 }
 
 type FileStatus int
@@ -159,4 +159,9 @@ type Review struct {
 
 	// ID is the GitHub node ID of the review, used to resolve dismissals
 	ID string
+}
+
+type Collaborator struct {
+	Login      string
+	Permission string
 }

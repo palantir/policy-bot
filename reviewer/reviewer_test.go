@@ -57,7 +57,11 @@ func TestFindRandomRequesters(t *testing.T) {
 
 	prctx := makeContext()
 
-	collabs, err := prctx.ListRepositoryCollaborators()
+	collabPerms, err := prctx.ListRepositoryCollaborators()
+	var collabs []string
+	for c := range collabPerms {
+		collabs = append(collabs, c)
+	}
 	sort.Strings(collabs)
 	require.NoError(t, err)
 	require.Equal(t, []string{"contributor-author", "contributor-committer", "mhaypenny", "review-approver"}, collabs)
@@ -139,8 +143,8 @@ func makeContext() pull.Context {
 			"review-approver":       {"everyone", "even-cooler-org"},
 		},
 		CollaboratorMemberships: map[string][]string{
-			"mhaypenny":             {common.GithubAdminPermission, common.GithubWritePermission},
-			"contributor-committer": {common.GithubAdminPermission, common.GithubWritePermission},
+			"mhaypenny":             {common.GithubAdminPermission},
+			"contributor-committer": {common.GithubAdminPermission},
 			"contributor-author":    {common.GithubWritePermission},
 			"review-approver":       {common.GithubWritePermission},
 		},

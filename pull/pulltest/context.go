@@ -150,17 +150,14 @@ func (c *Context) IsCollaborator(org, repo, user, desiredPerm string) (bool, err
 	return false, nil
 }
 
-func (c *Context) ListRepositoryCollaborators() ([]string, error) {
+func (c *Context) ListRepositoryCollaborators() (map[string]string, error) {
 	if c.CollaboratorMembershipError != nil {
 		return nil, c.CollaboratorMembershipError
 	}
-
-	var users []string
-
-	for user := range c.CollaboratorMemberships {
-		users = append(users, user)
+	users := make(map[string]string)
+	for u, p := range c.CollaboratorMemberships {
+		users[u] = p[0]
 	}
-
 	return users, nil
 }
 
