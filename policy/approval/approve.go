@@ -46,9 +46,7 @@ type Options struct {
 }
 
 type RequestReview struct {
-	Enabled            bool `yaml:"enabled"`
-	Admins             bool `yaml:"admins"`
-	WriteCollaborators bool `yaml:"write_collaborators"`
+	Enabled bool `yaml:"enabled"`
 }
 
 func (opts *Options) GetMethods() *common.Methods {
