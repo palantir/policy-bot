@@ -15,6 +15,8 @@
 package pulltest
 
 import (
+	"fmt"
+
 	"github.com/palantir/policy-bot/pull"
 )
 
@@ -135,6 +137,50 @@ func (c *Context) IsCollaborator(org, repo, user, desiredPerm string) (bool, err
 		}
 	}
 	return false, nil
+}
+
+func (c *Context) ListRepositoryCollaborators() ([]string, error) {
+	return nil, nil
+}
+
+func (c *Context) ListOrganizationMembers(org string) ([]string, error) {
+	if c.OrgMembershipError != nil {
+		return nil, c.OrgMembershipError
+	}
+
+	inverted := make(map[string][]string)
+
+	for user, orgs := range c.OrgMemberships {
+		for _, o := range orgs {
+			if _, ok := inverted[o]; ok {
+				inverted[o] = append(inverted[o], user)
+			} else {
+				inverted[o] = []string{user}
+			}
+		}
+	}
+
+	return inverted[org], nil
+}
+
+func (c *Context) ListTeamMembers(org, teamName string) ([]string, error) {
+	if c.TeamMembershipError != nil {
+		return nil, c.TeamMembershipError
+	}
+
+	inverted := make(map[string][]string)
+
+	for user, teams := range c.TeamMemberships {
+		for _, t := range teams {
+			if _, ok := inverted[t]; ok {
+				inverted[t] = append(inverted[t], user)
+			} else {
+				inverted[t] = []string{user}
+			}
+		}
+	}
+
+	return c.TeamMemberships[fmt.Sprintf("%s/%s", org, teamName)], nil
 }
 
 func (c *Context) Comments() ([]*pull.Comment, error) {

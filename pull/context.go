@@ -79,6 +79,12 @@ type Context interface {
 
 	// IsDraft returns the draft status of the Pull Request.
 	IsDraft() bool
+
+	ListTeamMembers(org, team string) ([]string, error)
+
+	ListOrganizationMembers(org string) ([]string, error)
+
+	ListRepositoryCollaborators() ([]string, error)
 }
 
 type FileStatus int

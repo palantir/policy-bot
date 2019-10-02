@@ -266,6 +266,94 @@ func (ghc *GitHubContext) Reviews() ([]*Review, error) {
 	return ghc.reviews, nil
 }
 
+func (ghc *GitHubContext) ListRepositoryCollaborators() ([]string, error) {
+	opt := &github.ListCollaboratorsOptions{
+		Affiliation: "all",
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+		},
+	}
+
+	// get all pages of results
+	var allUsers []string
+
+	for {
+		users, resp, err := ghc.client.Repositories.ListCollaborators(ghc.ctx, ghc.owner, ghc.repo, opt)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to list members of org %s page %d", ghc.owner, opt.Page)
+		}
+		for _, u := range users {
+			allUsers = append(allUsers, u.GetLogin())
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+		opt.Page = resp.NextPage
+	}
+
+	return allUsers, nil
+}
+
+func (ghc *GitHubContext) ListOrganizationMembers(org string) ([]string, error) {
+	opt := &github.ListMembersOptions{
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+		},
+	}
+
+	// get all pages of results
+	var allUsers []string
+
+	for {
+		users, resp, err := ghc.client.Organizations.ListMembers(ghc.ctx, org, opt)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to list members of org %s page %d", org, opt.Page)
+		}
+		for _, u := range users {
+			allUsers = append(allUsers, u.GetLogin())
+		}
+		if resp.NextPage == 0 {
+			break
+		}
+		opt.Page = resp.NextPage
+	}
+
+	return allUsers, nil
+}
+
+func (ghc *GitHubContext) ListTeamMembers(org, teamName string) ([]string, error) {
+	opt := &github.TeamListTeamMembersOptions{
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+		},
+	}
+
+	team, _, err := ghc.client.Teams.GetTeamBySlug(ghc.ctx, org, teamName)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Unable to get information for team %s/%s", org, team)
+	}
+
+	// get all pages of results
+	var allUsers []string
+
+	for {
+		users, resp, err := ghc.client.Teams.ListTeamMembers(ghc.ctx, team.GetID(), opt)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to list team %s/%s members page %d", org, teamName, opt.Page)
+		}
+		for _, u := range users {
+			allUsers = append(allUsers, u.GetLogin())
+		}
+		if resp.NextPage == 0 {
+			break
+		}
+		opt.Page = resp.NextPage
+	}
+
+	return allUsers, nil
+}
+
 func (ghc *GitHubContext) loadPagedData() error {
 	// this is a minor optimization: make max(c,r) requests instead of c+r
 	var q struct {

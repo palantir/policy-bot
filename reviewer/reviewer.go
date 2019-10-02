@@ -76,14 +76,10 @@ func shoveIntoMap(m map[string]struct{}, u []string) map[string]struct{} {
 	return m
 }
 
-func selectTeamMembers(ctx context.Context, client *github.Client, allTeams []string, r *rand.Rand) ([]string, error) {
+func selectTeamMembers(prctx pull.Context, allTeams []string, r *rand.Rand) ([]string, error) {
 	randomTeam := allTeams[r.Intn(len(allTeams))]
 	teamInfo := strings.Split(randomTeam, "/")
-	team, _, err := client.Teams.GetTeamBySlug(ctx, teamInfo[0], teamInfo[1])
-	if err != nil {
-		return nil, errors.Wrapf(err, "Unable to get information for team %s", randomTeam)
-	}
-	teamMembers, err := listAllTeamMembers(ctx, client, team)
+	teamMembers, err := prctx.ListTeamMembers(teamInfo[0], teamInfo[1])
 	if err != nil {
 		return nil, errors.Wrapf(err, "Unable to get member listing for team %s", randomTeam)
 	}
@@ -103,7 +99,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 		allUsers = shoveIntoMap(allUsers, child.Rule.RequestedUsers)
 
 		if len(child.Rule.RequestedTeams) > 0 {
-			teamMembers, err := selectTeamMembers(ctx, client, child.Rule.RequestedTeams, r)
+			teamMembers, err := selectTeamMembers(prctx, child.Rule.RequestedTeams, r)
 			if err != nil {
 				logger.Warn().Err(err).Msgf("Unable to get member listing for teams, skipping team member selection")
 			}
@@ -112,14 +108,14 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 
 		if len(child.Rule.RequestedOrganizations) > 0 {
 			randomOrg := child.Rule.RequestedOrganizations[r.Intn(len(child.Rule.RequestedOrganizations))]
-			orgMembers, err := listAllOrgMembers(ctx, client, randomOrg)
+			orgMembers, err := prctx.ListOrganizationMembers(randomOrg)
 			if err != nil {
 				logger.Warn().Err(err).Msgf("Unable to get member listing for org %s, skipping org member selection", randomOrg)
 			}
 			allUsers = shoveIntoMap(allUsers, orgMembers)
 		}
 
-		allCollaborators, err := listAllCollaborators(ctx, client, prctx.RepositoryOwner(), prctx.RepositoryName())
+		allCollaborators, err := prctx.ListRepositoryCollaborators()
 		if err != nil {
 			return nil, errors.Wrap(err, "Unable to list repository collaborators")
 		}
