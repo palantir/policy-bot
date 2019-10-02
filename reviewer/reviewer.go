@@ -118,15 +118,16 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 		}
 		collaboratorPermissions := make(map[string]string)
 
-		if child.Rule.RequestedWriteCollaborators || child.Rule.RequestedAdmins {
-			for _, c := range allCollaborators {
-				perm, err := prctx.CollaboratorPermission(prctx.RepositoryOwner(), prctx.RepositoryName(), c)
-				if err != nil {
-					return nil, errors.Wrapf(err, "failed to determine permission level of %s on repo %s", c, prctx.RepositoryName())
-				}
-				collaboratorPermissions[c] = perm
+		// TODO(asvoboda):
+		// Replace the expensive permission checking with graphql calls: https://developer.github.com/v4/object/repositorycollaboratoredge/
+		for _, c := range allCollaborators {
+			perm, err := prctx.CollaboratorPermission(prctx.RepositoryOwner(), prctx.RepositoryName(), c)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to determine permission level of %s on repo %s", c, prctx.RepositoryName())
 			}
+			collaboratorPermissions[c] = perm
 		}
+
 
 		if child.Rule.RequestedAdmins {
 			var repoAdmins []string

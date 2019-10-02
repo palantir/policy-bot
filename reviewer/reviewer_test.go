@@ -59,7 +59,7 @@ func TestFindRandomRequesters(t *testing.T) {
 	reviewers, err := FindRandomRequesters(context.Background(), prctx, results, r)
 	require.NoError(t, err)
 	require.Len(t, reviewers, 2, "policy should request two people")
-	require.Equal(t, []string{"contributor-author", "review-approver"}, reviewers)
+	require.Contains(t, reviewers, "review-approver")
 }
 
 func makeResults() common.Result {
