@@ -100,6 +100,7 @@ func listAllOrgMembers(ctx context.Context, client *github.Client, org string) (
 
 func listAllCollaborators(ctx context.Context, client *github.Client, org, repo string) ([]string, error) {
 	opt := &github.ListCollaboratorsOptions{
+		Affiliation: "all",
 		ListOptions: github.ListOptions{
 			PerPage: 100,
 		},
@@ -158,6 +159,20 @@ func shoveIntoMap(m map[string]struct{}, u []string) map[string]struct{} {
 	return m
 }
 
+func selectTeamMembers(ctx context.Context, client *github.Client, allTeams []string, r *rand.Rand) ([]string, error) {
+	randomTeam := allTeams[r.Intn(len(allTeams))]
+	teamInfo := strings.Split(randomTeam, "/")
+	team, _, err := client.Teams.GetTeamBySlug(ctx, teamInfo[0], teamInfo[1])
+	if err != nil {
+		return nil, errors.Wrapf(err, "Unable to get information for team %s", randomTeam)
+	}
+	teamMembers, err := listAllTeamMembers(ctx, client, team)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Unable to get member listing for team %s", randomTeam)
+	}
+	return teamMembers, nil
+}
+
 func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common.Result, client *github.Client) ([]string, error) {
 	logger := zerolog.Ctx(ctx)
 	pendingLeafNodes := findLeafChildren(result)
@@ -171,35 +186,25 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 		allUsers = shoveIntoMap(allUsers, child.RequestedUsers)
 
 		if len(child.RequestedTeams) > 0 {
-			randomTeam := child.RequestedTeams[r.Intn(len(child.RequestedTeams))]
-			teamInfo := strings.Split(randomTeam, "/")
-			team, _, err := client.Teams.GetTeamBySlug(ctx, teamInfo[0], teamInfo[1])
+			teamMembers, err := selectTeamMembers(ctx, client, child.RequestedTeams, r)
 			if err != nil {
-				logger.Debug().Err(err).Msgf("Unable to get member listing for team %s", randomTeam)
-				//return nil, errors.Wrapf(err, "Unable to get information for team %s", randomTeam)
-			} else {
-				teamMembers, err := listAllTeamMembers(ctx, client, team)
-				if err != nil {
-					logger.Debug().Err(err).Msgf("Unable to get member listing for team %s", randomTeam)
-					//return nil, errors.Wrapf(err, "Unable to get member listing for team %s", randomTeam)
-				} else {
-					allUsers = shoveIntoMap(allUsers, teamMembers)
-				}
+				logger.Warn().Err(err).Msgf("Unable to get member listing for teams, skipping team member selection")
 			}
+			allUsers = shoveIntoMap(allUsers, teamMembers)
 		}
 
 		if len(child.RequestedOrganizations) > 0 {
 			randomOrg := child.RequestedOrganizations[r.Intn(len(child.RequestedOrganizations))]
 			orgMembers, err := listAllOrgMembers(ctx, client, randomOrg)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Unable to get member listing for org %s", randomOrg)
+				logger.Warn().Err(err).Msgf("Unable to get member listing for org %s, skipping org member selection", randomOrg)
 			}
 			allUsers = shoveIntoMap(allUsers, orgMembers)
 		}
 
 		allCollaborators, err := listAllCollaborators(ctx, client, prctx.RepositoryOwner(), prctx.RepositoryName())
 		if err != nil {
-			return nil, errors.Wrap(err, "Unable to get collaborators")
+			return nil, errors.Wrap(err, "Unable to list repository collaborators")
 		}
 		collaboratorPermissions := make(map[string]string)
 
@@ -240,12 +245,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 
 		// Remove any users who aren't collaborators, since github will fail to assign _anyone_
 		for k := range allUsers {
-			if collaboratorPerm, ok := collaboratorPermissions[k]; ok {
-				if collaboratorPerm != "admin" && collaboratorPerm != "write" {
-					delete(allUsers, k)
-				}
-			} else {
-				// the user isn't a collaborator at all
+			if _, ok := collaboratorPermissions[k]; !ok {
 				delete(allUsers, k)
 			}
 		}
@@ -255,7 +255,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 			allUserList = append(allUserList, k)
 		}
 
-		logger.Debug().Msgf("Found %q total candidates for review after removing author; randomly selecting some", allUsers)
+		logger.Debug().Msgf("Found %d total candidates for review after removing author and non-collaborators; randomly selecting some", len(allUsers))
 		randomSelection := selectRandomUsers(child.RequiredCount, allUserList, r)
 		requestedUsers = append(requestedUsers, randomSelection...)
 	}
