@@ -126,10 +126,9 @@ func listAllCollaborators(ctx context.Context, client *github.Client, org, repo 
 	return allUsers, nil
 }
 
-// select n random values from the list of users
-func selectRandomUsers(n int, users []string) []string {
-	generated := map[int]struct{}{}
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+// select n random values from the list of users without reuse
+func selectRandomUsers(n int, users []string, r *rand.Rand) []string {
+	selected := make(map[int]bool)
 
 	var selections []string
 	if n == 0 {
@@ -142,8 +141,8 @@ func selectRandomUsers(n int, users []string) []string {
 	for i := 0; i < n; i++ {
 		for {
 			i := r.Intn(len(users))
-			if _, ok := generated[i]; !ok {
-				generated[i] = struct{}{}
+			if !selected[i] {
+				selected[i] = true
 				selections = append(selections, users[i])
 				break
 			}
@@ -257,7 +256,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 		}
 
 		logger.Debug().Msgf("Found %q total candidates for review after removing author; randomly selecting some", allUsers)
-		randomSelection := selectRandomUsers(child.RequiredCount, allUserList)
+		randomSelection := selectRandomUsers(child.RequiredCount, allUserList, r)
 		requestedUsers = append(requestedUsers, randomSelection...)
 	}
 	return requestedUsers, nil

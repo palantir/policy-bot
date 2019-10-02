@@ -57,6 +57,7 @@ type Locator struct {
 func (loc Locator) IsComplete() bool {
 	switch {
 	case loc.Value == nil:
+	case loc.Value.Draft == nil:
 	case loc.Value.GetUser().GetLogin() == "":
 	case loc.Value.GetBase().GetRef() == "":
 	case loc.Value.GetBase().GetRepo().GetID() == 0:
@@ -98,6 +99,7 @@ func (loc Locator) toV4(ctx context.Context, client *githubv4.Client) (*v4PullRe
 	v4.HeadRepository.Name = loc.Value.GetHead().GetRepo().GetName()
 	v4.HeadRepository.Owner.Login = loc.Value.GetHead().GetRepo().GetOwner().GetLogin()
 	v4.BaseRefName = loc.Value.GetBase().GetRef()
+	v4.IsDraft = loc.Value.GetDraft()
 	return &v4, nil
 }
 
