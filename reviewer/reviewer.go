@@ -18,9 +18,7 @@ import (
 	"context"
 	"math/rand"
 	"strings"
-	"time"
 
-	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 
@@ -86,11 +84,10 @@ func selectTeamMembers(prctx pull.Context, allTeams []string, r *rand.Rand) ([]s
 	return teamMembers, nil
 }
 
-func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common.Result, client *github.Client) ([]string, error) {
+func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common.Result, r *rand.Rand) ([]string, error) {
 	logger := zerolog.Ctx(ctx)
 	pendingLeafNodes := findLeafChildren(result)
 	var requestedUsers []string
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	logger.Debug().Msgf("Collecting reviewers for %d pending leaf nodes", len(pendingLeafNodes))
 
@@ -123,11 +120,11 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 
 		if child.Rule.RequestedWriteCollaborators || child.Rule.RequestedAdmins {
 			for _, c := range allCollaborators {
-				perm, _, err := client.Repositories.GetPermissionLevel(ctx, prctx.RepositoryOwner(), prctx.RepositoryName(), c)
+				perm, err := prctx.CollaboratorPermission(prctx.RepositoryOwner(), prctx.RepositoryName(), c)
 				if err != nil {
 					return nil, errors.Wrapf(err, "failed to determine permission level of %s on repo %s", c, prctx.RepositoryName())
 				}
-				collaboratorPermissions[c] = perm.GetPermission()
+				collaboratorPermissions[c] = perm
 			}
 		}
 
@@ -172,5 +169,6 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 		randomSelection := selectRandomUsers(child.Rule.RequiredCount, allUserList, r)
 		requestedUsers = append(requestedUsers, randomSelection...)
 	}
+
 	return requestedUsers, nil
 }

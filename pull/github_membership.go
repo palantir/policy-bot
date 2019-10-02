@@ -113,11 +113,19 @@ func (mc *GitHubMembershipContext) IsOrgMember(org, user string) (bool, error) {
 	return isMember, nil
 }
 
-func (mc *GitHubMembershipContext) IsCollaborator(org, repo, user, desiredPerm string) (bool, error) {
+func (mc *GitHubMembershipContext) CollaboratorPermission(org, repo, user string) (string, error) {
 	perm, _, err := mc.client.Repositories.GetPermissionLevel(mc.ctx, org, repo, user)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get repo %s permission", repo)
+	}
+	return perm.GetPermission(), nil
+}
+
+func (mc *GitHubMembershipContext) IsCollaborator(org, repo, user, desiredPerm string) (bool, error) {
+	perm, err := mc.CollaboratorPermission(org, repo, user)
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to get repo %s permission", desiredPerm)
 	}
 
-	return perm.GetPermission() == desiredPerm, nil
+	return perm == desiredPerm, nil
 }

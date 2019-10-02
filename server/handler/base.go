@@ -17,7 +17,9 @@ package handler
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"strings"
+	"time"
 
 	"github.com/google/go-github/github"
 	"github.com/palantir/go-baseapp/baseapp"
@@ -205,7 +207,8 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, pe
 		}
 
 		if subsetCurrentReviewers != nil && len(subsetCurrentReviewers.Users) == 0 && len(subsetCurrentReviewers.Teams) == 0 {
-			requestedUsers, err := reviewer.FindRandomRequesters(ctx, prctx, result, client)
+			r := rand.New(rand.NewSource(time.Now().UnixNano()))
+			requestedUsers, err := reviewer.FindRandomRequesters(ctx, prctx, result, r)
 			if err != nil {
 				logger.Warn().Err(err).Msg("Unable to select random request reviewers")
 			}

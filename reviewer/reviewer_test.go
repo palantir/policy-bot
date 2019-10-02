@@ -15,6 +15,7 @@
 package reviewer
 
 import (
+	"context"
 	"errors"
 	"math/rand"
 	"testing"
@@ -23,22 +24,66 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/palantir/policy-bot/policy/common"
+	"github.com/palantir/policy-bot/pull"
+	"github.com/palantir/policy-bot/pull/pulltest"
 )
 
-func Test_FindLeafResults(t *testing.T) {
+func TestFindLeafResults(t *testing.T) {
+	results := makeResults()
+	actualResults := findLeafChildren(results)
+	require.Len(t, actualResults, 2, "incorrect number of results")
+}
+
+func TestSelectRandomUsers(t *testing.T) {
+	r := rand.New(rand.NewSource(42))
+
+	require.Len(t, selectRandomUsers(0, []string{"a"}, r), 0, "0 selection should return nothing")
+	require.Len(t, selectRandomUsers(1, []string{}, r), 0, "empty list should return nothing")
+
+	assert.Equal(t, []string{"a"}, selectRandomUsers(1, []string{"a"}, r))
+	assert.Equal(t, []string{"a", "b"}, selectRandomUsers(3, []string{"a", "b"}, r))
+
+	pseudoRandom := selectRandomUsers(1, []string{"a", "b", "c"}, r)
+	assert.Equal(t, []string{"c"}, pseudoRandom)
+
+	multiplePseudoRandom := selectRandomUsers(4, []string{"a", "b", "c", "d", "e", "f", "g"}, r)
+	assert.Equal(t, []string{"c", "e", "b", "f"}, multiplePseudoRandom)
+}
+
+func TestFindRandomRequesters(t *testing.T) {
+	r := rand.New(rand.NewSource(42))
+	results := makeResults()
+
+	prctx := makeContext()
+
+	reviewers, err := FindRandomRequesters(context.Background(), prctx, results, r)
+	require.NoError(t, err)
+	require.Len(t, reviewers, 2, "policy should request two people")
+	require.Equal(t, []string{"contributor-author", "review-approver"}, reviewers)
+}
+
+func makeResults() common.Result {
 	results := common.Result{
 		Name:        "One",
 		Description: "",
 		Status:      common.StatusPending,
-		Rule:        common.Rule{},
-		Error:       nil,
+		Rule: common.Rule{
+			RequestedUsers: []string{"neverappears"},
+			RequiredCount:  0,
+		},
+		Error: nil,
 		Children: []*common.Result{{
 			Name:        "Two",
 			Description: "",
 			Status:      common.StatusPending,
-			Rule:        common.Rule{},
-			Error:       nil,
-			Children:    nil,
+			Rule: common.Rule{
+				RequestedUsers:              []string{"mhaypenny", "review-approver"},
+				RequiredCount:               1,
+				RequestedWriteCollaborators: true,
+				RequestedAdmins:             true,
+			},
+			Error:    nil,
+			Children: nil,
 		},
 			{
 				Name:        "Three",
@@ -58,32 +103,40 @@ func Test_FindLeafResults(t *testing.T) {
 					Name:        "Five",
 					Description: "",
 					Status:      common.StatusPending,
-					Rule:        common.Rule{},
-					Error:       nil,
-					Children:    nil,
+					Rule: common.Rule{
+						RequestedUsers:              []string{"contributor-committer", "contributor-author"},
+						RequiredCount:               1,
+						RequestedWriteCollaborators: true,
+						RequestedAdmins:             true,
+					},
+					Error:    nil,
+					Children: nil,
 				},
 				},
 			},
 		},
 	}
-
-	actualResults := findLeafChildren(results)
-	require.Len(t, actualResults, 2, "incorrect number of results")
+	return results
 }
 
-func Test_selectRandomUsers(t *testing.T) {
-	// (n int, users []string, r *rand.Rand) []string {
-	r := rand.New(rand.NewSource(42))
+func makeContext() pull.Context {
+	return &pulltest.Context{
+		AuthorValue:   "mhaypenny",
+		CommentsValue: []*pull.Comment{},
+		ReviewsValue:  []*pull.Review{},
 
-	require.Len(t, selectRandomUsers(0, []string{"a"}, r), 0, "0 selection should return nothing")
-	require.Len(t, selectRandomUsers(1, []string{}, r), 0, "empty list should return nothing")
-
-	assert.Equal(t, []string{"a"}, selectRandomUsers(1, []string{"a"}, r))
-	assert.Equal(t, []string{"a", "b"}, selectRandomUsers(3, []string{"a", "b"}, r))
-
-	pseudoRandom := selectRandomUsers(1, []string{"a", "b", "c"}, r)
-	assert.Equal(t, []string{"c"}, pseudoRandom)
-
-	multiplePseudoRandom := selectRandomUsers(4, []string{"a", "b", "c", "d", "e", "f", "g"}, r)
-	assert.Equal(t, []string{"c", "e", "b", "f"}, multiplePseudoRandom)
+		OrgMemberships: map[string][]string{
+			"mhaypenny":             {"everyone"},
+			"contributor-author":    {"everyone"},
+			"contributor-committer": {"everyone"},
+			"comment-approver":      {"everyone", "cool-org"},
+			"review-approver":       {"everyone", "even-cooler-org"},
+		},
+		CollaboratorMemberships: map[string][]string{
+			"mhaypenny":             {common.GithubAdminPermission, common.GithubWritePermission},
+			"contributor-committer": {common.GithubAdminPermission, common.GithubWritePermission},
+			"contributor-author":    {common.GithubWritePermission},
+			"review-approver":       {common.GithubWritePermission},
+		},
+	}
 }
