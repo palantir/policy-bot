@@ -128,7 +128,6 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 			collaboratorPermissions[c] = perm
 		}
 
-
 		if child.Rule.RequestedAdmins {
 			var repoAdmins []string
 			for _, c := range allCollaborators {

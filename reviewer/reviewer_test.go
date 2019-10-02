@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"math/rand"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -56,10 +57,17 @@ func TestFindRandomRequesters(t *testing.T) {
 
 	prctx := makeContext()
 
+	collabs, err :=  prctx.ListRepositoryCollaborators()
+	sort.Strings(collabs)
+	require.NoError(t, err)
+	require.Equal(t, []string{"contributor-author", "contributor-committer", "mhaypenny", "review-approver"}, collabs)
+
 	reviewers, err := FindRandomRequesters(context.Background(), prctx, results, r)
 	require.NoError(t, err)
 	require.Len(t, reviewers, 2, "policy should request two people")
-	require.Contains(t, reviewers, "review-approver")
+	require.Contains(t, reviewers, "review-approver", "at least review-approver must be selected")
+	require.NotContains(t, reviewers, "mhaypenny", "the author cannot be requested")
+	require.NotContains(t, reviewers, "not-a-collaborator", "a non collaborator cannot be requested")
 }
 
 func makeResults() common.Result {
@@ -79,8 +87,6 @@ func makeResults() common.Result {
 			Rule: common.Rule{
 				RequestedUsers:              []string{"mhaypenny", "review-approver"},
 				RequiredCount:               1,
-				RequestedWriteCollaborators: true,
-				RequestedAdmins:             true,
 			},
 			Error:    nil,
 			Children: nil,
@@ -104,7 +110,7 @@ func makeResults() common.Result {
 					Description: "",
 					Status:      common.StatusPending,
 					Rule: common.Rule{
-						RequestedUsers:              []string{"contributor-committer", "contributor-author"},
+						RequestedUsers:              []string{"contributor-committer", "contributor-author", "not-a-collaborator"},
 						RequiredCount:               1,
 						RequestedWriteCollaborators: true,
 						RequestedAdmins:             true,
