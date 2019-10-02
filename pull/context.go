@@ -30,9 +30,6 @@ type MembershipContext interface {
 
 	// IsCollaborator returns true if the user meets the desiredPerm of the given organzation's repository.
 	IsCollaborator(org, repo, user, desiredPerm string) (bool, error)
-
-	// CollaboratorPermission returns the permission of the user for the given oranization's repository.
-	CollaboratorPermission(org, repo, user string) (string, error)
 }
 
 // Context is the context for a pull request. It defines methods to get

@@ -88,14 +88,6 @@ func (c *CrossOrgMembershipContext) IsOrgMember(org, user string) (bool, error) 
 	return mbrCtx.IsOrgMember(org, user)
 }
 
-func (c *CrossOrgMembershipContext) CollaboratorPermission(org, repo, user string) (string, error) {
-	mbrCtx, err := c.getCtxForOrg(org)
-	if err != nil {
-		return "", err
-	}
-	return mbrCtx.CollaboratorPermission(org, repo, user)
-}
-
 func (c *CrossOrgMembershipContext) IsCollaborator(org, repo, user, desiredPerm string) (bool, error) {
 	mbrCtx, err := c.getCtxForOrg(org)
 	if err != nil {

@@ -126,17 +126,6 @@ func (c *Context) IsOrgMember(org, user string) (bool, error) {
 	return false, nil
 }
 
-func (c *Context) CollaboratorPermission(org, repo, user string) (string, error) {
-	if c.CollaboratorMembershipError != nil {
-		return "", c.CollaboratorMembershipError
-	}
-
-	for _, c := range c.CollaboratorMemberships[user] {
-		return c, nil
-	}
-	return "", nil
-}
-
 func (c *Context) IsCollaborator(org, repo, user, desiredPerm string) (bool, error) {
 	if c.CollaboratorMembershipError != nil {
 		return false, c.CollaboratorMembershipError
