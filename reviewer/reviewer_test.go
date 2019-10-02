@@ -57,7 +57,7 @@ func TestFindRandomRequesters(t *testing.T) {
 
 	prctx := makeContext()
 
-	collabs, err :=  prctx.ListRepositoryCollaborators()
+	collabs, err := prctx.ListRepositoryCollaborators()
 	sort.Strings(collabs)
 	require.NoError(t, err)
 	require.Equal(t, []string{"contributor-author", "contributor-committer", "mhaypenny", "review-approver"}, collabs)
@@ -85,8 +85,8 @@ func makeResults() common.Result {
 			Description: "",
 			Status:      common.StatusPending,
 			Rule: common.Rule{
-				RequestedUsers:              []string{"mhaypenny", "review-approver"},
-				RequiredCount:               1,
+				RequestedUsers: []string{"mhaypenny", "review-approver"},
+				RequiredCount:  1,
 			},
 			Error:    nil,
 			Children: nil,
