@@ -37,17 +37,20 @@ func (s EvaluationStatus) String() string {
 	return "unknown"
 }
 
-type Result struct {
-	Name        string
-	Description string
-	Status      EvaluationStatus
-
+type Rule struct {
 	RequestedTeams              []string
 	RequestedUsers              []string
 	RequestedOrganizations      []string
 	RequestedAdmins             bool
 	RequestedWriteCollaborators bool
 	RequiredCount               int
+}
+
+type Result struct {
+	Name        string
+	Description string
+	Status      EvaluationStatus
+	Rule        Rule
 
 	Error error
 

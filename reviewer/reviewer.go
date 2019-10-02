@@ -44,89 +44,6 @@ func findLeafChildren(result common.Result) []common.Result {
 	return r
 }
 
-func listAllTeamMembers(ctx context.Context, client *github.Client, team *github.Team) ([]string, error) {
-	opt := &github.TeamListTeamMembersOptions{
-		ListOptions: github.ListOptions{
-			PerPage: 100,
-		},
-	}
-
-	// get all pages of results
-	var allUsers []string
-
-	for {
-		users, resp, err := client.Teams.ListTeamMembers(ctx, team.GetID(), opt)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to list team %s members page %d", team.GetName(), opt.Page)
-		}
-		for _, u := range users {
-			allUsers = append(allUsers, u.GetLogin())
-		}
-		if resp.NextPage == 0 {
-			break
-		}
-		opt.Page = resp.NextPage
-	}
-
-	return allUsers, nil
-}
-
-func listAllOrgMembers(ctx context.Context, client *github.Client, org string) ([]string, error) {
-	opt := &github.ListMembersOptions{
-		ListOptions: github.ListOptions{
-			PerPage: 100,
-		},
-	}
-
-	// get all pages of results
-	var allUsers []string
-
-	for {
-		users, resp, err := client.Organizations.ListMembers(ctx, org, opt)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to list members of org %s page %d", org, opt.Page)
-		}
-		for _, u := range users {
-			allUsers = append(allUsers, u.GetLogin())
-		}
-		if resp.NextPage == 0 {
-			break
-		}
-		opt.Page = resp.NextPage
-	}
-
-	return allUsers, nil
-}
-
-func listAllCollaborators(ctx context.Context, client *github.Client, org, repo string) ([]string, error) {
-	opt := &github.ListCollaboratorsOptions{
-		Affiliation: "all",
-		ListOptions: github.ListOptions{
-			PerPage: 100,
-		},
-	}
-
-	// get all pages of results
-	var allUsers []string
-
-	for {
-		users, resp, err := client.Repositories.ListCollaborators(ctx, org, repo, opt)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to list members of org %s page %d", org, opt.Page)
-		}
-		for _, u := range users {
-			allUsers = append(allUsers, u.GetLogin())
-		}
-
-		if resp.NextPage == 0 {
-			break
-		}
-		opt.Page = resp.NextPage
-	}
-
-	return allUsers, nil
-}
-
 // select n random values from the list of users without reuse
 func selectRandomUsers(n int, users []string, r *rand.Rand) []string {
 	selected := make(map[int]bool)
@@ -183,18 +100,18 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 
 	for _, child := range pendingLeafNodes {
 		allUsers := make(map[string]struct{})
-		allUsers = shoveIntoMap(allUsers, child.RequestedUsers)
+		allUsers = shoveIntoMap(allUsers, child.Rule.RequestedUsers)
 
-		if len(child.RequestedTeams) > 0 {
-			teamMembers, err := selectTeamMembers(ctx, client, child.RequestedTeams, r)
+		if len(child.Rule.RequestedTeams) > 0 {
+			teamMembers, err := selectTeamMembers(ctx, client, child.Rule.RequestedTeams, r)
 			if err != nil {
 				logger.Warn().Err(err).Msgf("Unable to get member listing for teams, skipping team member selection")
 			}
 			allUsers = shoveIntoMap(allUsers, teamMembers)
 		}
 
-		if len(child.RequestedOrganizations) > 0 {
-			randomOrg := child.RequestedOrganizations[r.Intn(len(child.RequestedOrganizations))]
+		if len(child.Rule.RequestedOrganizations) > 0 {
+			randomOrg := child.Rule.RequestedOrganizations[r.Intn(len(child.Rule.RequestedOrganizations))]
 			orgMembers, err := listAllOrgMembers(ctx, client, randomOrg)
 			if err != nil {
 				logger.Warn().Err(err).Msgf("Unable to get member listing for org %s, skipping org member selection", randomOrg)
@@ -208,7 +125,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 		}
 		collaboratorPermissions := make(map[string]string)
 
-		if child.RequestedWriteCollaborators || child.RequestedAdmins {
+		if child.Rule.RequestedWriteCollaborators || child.Rule.RequestedAdmins {
 			for _, c := range allCollaborators {
 				perm, _, err := client.Repositories.GetPermissionLevel(ctx, prctx.RepositoryOwner(), prctx.RepositoryName(), c)
 				if err != nil {
@@ -218,7 +135,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 			}
 		}
 
-		if child.RequestedAdmins {
+		if child.Rule.RequestedAdmins {
 			var repoAdmins []string
 			for _, c := range allCollaborators {
 				if collaboratorPermissions[c] == "admin" {
@@ -228,7 +145,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 			allUsers = shoveIntoMap(allUsers, repoAdmins)
 		}
 
-		if child.RequestedWriteCollaborators {
+		if child.Rule.RequestedWriteCollaborators {
 			var repoCollaborators []string
 			for _, c := range allCollaborators {
 				if collaboratorPermissions[c] == "write" {
@@ -256,7 +173,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 		}
 
 		logger.Debug().Msgf("Found %d total candidates for review after removing author and non-collaborators; randomly selecting some", len(allUsers))
-		randomSelection := selectRandomUsers(child.RequiredCount, allUserList, r)
+		randomSelection := selectRandomUsers(child.Rule.RequiredCount, allUserList, r)
 		requestedUsers = append(requestedUsers, randomSelection...)
 	}
 	return requestedUsers, nil
