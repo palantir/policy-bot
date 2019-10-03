@@ -269,7 +269,7 @@ func (ghc *GitHubContext) Reviews() ([]*Review, error) {
 
 func (ghc *GitHubContext) ListRepositoryCollaborators() (map[string]string, error) {
 	if ghc.collaborators == nil {
-		if err := ghc.loadPagedData(); err != nil {
+		if err := ghc.loadCollaboratorData(); err != nil {
 			return nil, err
 		}
 	}
@@ -293,13 +293,6 @@ func (ghc *GitHubContext) loadPagedData() error {
 	// this is a minor optimization: make max(c,r) requests instead of c+r
 	var q struct {
 		Repository struct {
-			Collaborators struct {
-				PageInfo v4PageInfo
-				Edges    []struct {
-					Permission string  `graphql:"permission"`
-					Node       v4Actor `graphql:"node"`
-				}
-			} `graphql:"collaborators(first: 100, after: $collaboratorCursor, affiliation: DIRECT)"`
 			PullRequest struct {
 				Comments struct {
 					PageInfo v4PageInfo
@@ -320,12 +313,10 @@ func (ghc *GitHubContext) loadPagedData() error {
 
 		"commentCursor":      (*githubv4.String)(nil),
 		"reviewCursor":       (*githubv4.String)(nil),
-		"collaboratorCursor": (*githubv4.String)(nil),
 	}
 
 	comments := []*Comment{}
 	reviews := []*Review{}
-	collaborators := map[string]string{}
 	for {
 		complete := 0
 		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
@@ -346,6 +337,43 @@ func (ghc *GitHubContext) loadPagedData() error {
 			complete++
 		}
 
+		if complete == 2 {
+			break
+		}
+	}
+
+	ghc.comments = comments
+	ghc.reviews = reviews
+	return nil
+}
+
+func (ghc *GitHubContext) loadCollaboratorData() error {
+	// this is a minor optimization: make max(c,r) requests instead of c+r
+	var q struct {
+		Repository struct {
+			Collaborators struct {
+				PageInfo v4PageInfo
+				Edges    []struct {
+					Permission string  `graphql:"permission"`
+					Node       v4Actor `graphql:"node"`
+				}
+			} `graphql:"collaborators(first: 100, after: $collaboratorCursor, affiliation: DIRECT)"`
+		} `graphql:"repository(owner: $owner, name: $name)"`
+	}
+	qvars := map[string]interface{}{
+		"owner":  githubv4.String(ghc.owner),
+		"name":   githubv4.String(ghc.repo),
+
+		"collaboratorCursor": (*githubv4.String)(nil),
+	}
+
+	collaborators := map[string]string{}
+	for {
+		complete := 0
+		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
+			return errors.Wrap(err, "failed to load pull request data")
+		}
+
 		for _, c := range q.Repository.Collaborators.Edges {
 			collaborators[c.Node.Login] = strings.ToLower(c.Permission)
 		}
@@ -353,13 +381,11 @@ func (ghc *GitHubContext) loadPagedData() error {
 			complete++
 		}
 
-		if complete == 3 {
+		if complete == 1 {
 			break
 		}
 	}
 
-	ghc.comments = comments
-	ghc.reviews = reviews
 	ghc.collaborators = collaborators
 	return nil
 }
