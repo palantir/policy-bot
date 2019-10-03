@@ -311,8 +311,8 @@ func (ghc *GitHubContext) loadPagedData() error {
 		"name":   githubv4.String(ghc.repo),
 		"number": githubv4.Int(ghc.number),
 
-		"commentCursor":      (*githubv4.String)(nil),
-		"reviewCursor":       (*githubv4.String)(nil),
+		"commentCursor": (*githubv4.String)(nil),
+		"reviewCursor":  (*githubv4.String)(nil),
 	}
 
 	comments := []*Comment{}
@@ -361,8 +361,8 @@ func (ghc *GitHubContext) loadCollaboratorData() error {
 		} `graphql:"repository(owner: $owner, name: $name)"`
 	}
 	qvars := map[string]interface{}{
-		"owner":  githubv4.String(ghc.owner),
-		"name":   githubv4.String(ghc.repo),
+		"owner": githubv4.String(ghc.owner),
+		"name":  githubv4.String(ghc.repo),
 
 		"collaboratorCursor": (*githubv4.String)(nil),
 	}
