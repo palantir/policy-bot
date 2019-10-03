@@ -196,6 +196,11 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, pe
 		return errors.Errorf("evaluation resulted in unexpected state: %s", result.Status)
 	}
 
+	err = b.PostStatus(ctx, prctx, client, statusState, statusDescription)
+	if err != nil {
+		return err
+	}
+
 	if performActions && statusState == "pending" && !prctx.IsDraft() {
 		hasReviewers, err := prctx.HasReveiwers()
 		if err != nil {
@@ -228,5 +233,5 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, pe
 		}
 	}
 
-	return b.PostStatus(ctx, prctx, client, statusState, statusDescription)
+	return nil
 }
