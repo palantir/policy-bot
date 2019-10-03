@@ -30,6 +30,10 @@ type MembershipContext interface {
 
 	// IsCollaborator returns true if the user meets the desiredPerm of the given organzation's repository.
 	IsCollaborator(org, repo, user, desiredPerm string) (bool, error)
+
+	ListTeamMembers(org, team string) ([]string, error)
+
+	ListOrganizationMembers(org string) ([]string, error)
 }
 
 // Context is the context for a pull request. It defines methods to get
@@ -79,10 +83,6 @@ type Context interface {
 
 	// IsDraft returns the draft status of the Pull Request.
 	IsDraft() bool
-
-	ListTeamMembers(org, team string) ([]string, error)
-
-	ListOrganizationMembers(org string) ([]string, error)
 
 	ListRepositoryCollaborators() (map[string]string, error)
 

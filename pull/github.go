@@ -276,65 +276,6 @@ func (ghc *GitHubContext) ListRepositoryCollaborators() (map[string]string, erro
 	return ghc.collaborators, nil
 }
 
-func (ghc *GitHubContext) ListOrganizationMembers(org string) ([]string, error) {
-	opt := &github.ListMembersOptions{
-		ListOptions: github.ListOptions{
-			PerPage: 100,
-		},
-	}
-
-	// get all pages of results
-	var allUsers []string
-
-	for {
-		users, resp, err := ghc.client.Organizations.ListMembers(ghc.ctx, org, opt)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to list members of org %s page %d", org, opt.Page)
-		}
-		for _, u := range users {
-			allUsers = append(allUsers, u.GetLogin())
-		}
-		if resp.NextPage == 0 {
-			break
-		}
-		opt.Page = resp.NextPage
-	}
-
-	return allUsers, nil
-}
-
-func (ghc *GitHubContext) ListTeamMembers(org, teamName string) ([]string, error) {
-	opt := &github.TeamListTeamMembersOptions{
-		ListOptions: github.ListOptions{
-			PerPage: 100,
-		},
-	}
-
-	team, _, err := ghc.client.Teams.GetTeamBySlug(ghc.ctx, org, teamName)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Unable to get information for team %s/%s", org, team)
-	}
-
-	// get all pages of results
-	var allUsers []string
-
-	for {
-		users, resp, err := ghc.client.Teams.ListTeamMembers(ghc.ctx, team.GetID(), opt)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to list team %s/%s members page %d", org, teamName, opt.Page)
-		}
-		for _, u := range users {
-			allUsers = append(allUsers, u.GetLogin())
-		}
-		if resp.NextPage == 0 {
-			break
-		}
-		opt.Page = resp.NextPage
-	}
-
-	return allUsers, nil
-}
-
 func (ghc *GitHubContext) HasReveiwers() (bool, error) {
 	// Intentionally kept to a small result size, since we just want to determine if there are existing reviewers
 	subsetCurrentReviewers, _, err := ghc.client.PullRequests.ListReviewers(ghc.ctx, ghc.owner, ghc.repo, ghc.number, &github.ListOptions{

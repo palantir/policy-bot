@@ -95,3 +95,19 @@ func (c *CrossOrgMembershipContext) IsCollaborator(org, repo, user, desiredPerm 
 	}
 	return mbrCtx.IsCollaborator(org, repo, user, desiredPerm)
 }
+
+func (c *CrossOrgMembershipContext) ListOrganizationMembers(org string) ([]string, error) {
+	mbrCtx, err := c.getCtxForOrg(org)
+	if err != nil {
+		return nil, err
+	}
+	return mbrCtx.ListOrganizationMembers(org)
+}
+
+func (c *CrossOrgMembershipContext) ListTeamMembers(org, teamName string) ([]string, error) {
+	mbrCtx, err := c.getCtxForOrg(org)
+	if err != nil {
+		return nil, err
+	}
+	return mbrCtx.ListTeamMembers(org, teamName)
+}
