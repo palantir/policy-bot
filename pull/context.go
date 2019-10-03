@@ -85,6 +85,8 @@ type Context interface {
 	ListOrganizationMembers(org string) ([]string, error)
 
 	ListRepositoryCollaborators() (map[string]string, error)
+
+	HasReveiwers() (bool, error)
 }
 
 type FileStatus int

@@ -52,6 +52,9 @@ type Context struct {
 	CollaboratorMemberships     map[string][]string
 	CollaboratorMembershipError error
 
+	HasReviewersValue bool
+	HasReviewersError error
+
 	Draft bool
 }
 
@@ -188,6 +191,10 @@ func (c *Context) ListTeamMembers(org, teamName string) ([]string, error) {
 	}
 
 	return c.TeamMemberships[fmt.Sprintf("%s/%s", org, teamName)], nil
+}
+
+func (c *Context) HasReveiwers() (bool, error) {
+	return c.HasReviewersValue, c.HasReviewersError
 }
 
 func (c *Context) Comments() ([]*pull.Comment, error) {

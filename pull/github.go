@@ -335,6 +335,19 @@ func (ghc *GitHubContext) ListTeamMembers(org, teamName string) ([]string, error
 	return allUsers, nil
 }
 
+func (ghc *GitHubContext) HasReveiwers() (bool, error) {
+	// Intentionally kept to a small result size, since we just want to determine if there are existing reviewers
+	subsetCurrentReviewers, _, err := ghc.client.PullRequests.ListReviewers(ghc.ctx, ghc.owner, ghc.repo, ghc.number, &github.ListOptions{
+		Page:    0,
+		PerPage: 10,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "Unable to list request reviewers")
+	}
+
+	return len(subsetCurrentReviewers.Users) > 0 || len(subsetCurrentReviewers.Teams) > 0, nil
+}
+
 func (ghc *GitHubContext) loadPagedData() error {
 	// this is a minor optimization: make max(c,r) requests instead of c+r
 	var q struct {
@@ -345,7 +358,7 @@ func (ghc *GitHubContext) loadPagedData() error {
 					Permission string  `graphql:"permission"`
 					Node       v4Actor `graphql:"node"`
 				}
-			} `graphql:"collaborators(first: 100, after: $collaboratorCursor)"`
+			} `graphql:"collaborators(first: 100, after: $collaboratorCursor, affiliation: DIRECT)"`
 			PullRequest struct {
 				Comments struct {
 					PageInfo v4PageInfo

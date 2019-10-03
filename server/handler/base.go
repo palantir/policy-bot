@@ -197,16 +197,12 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, pe
 	}
 
 	if performActions && statusState == "pending" && !prctx.IsDraft() {
-		// Intentionally kept to a small result size, since we just want to determine if there are existing reviewers
-		subsetCurrentReviewers, _, err := client.PullRequests.ListReviewers(ctx, prctx.RepositoryOwner(), prctx.RepositoryName(), prctx.Number(), &github.ListOptions{
-			Page:    0,
-			PerPage: 10,
-		})
+		hasReviewers, err := prctx.HasReveiwers()
 		if err != nil {
 			logger.Warn().Err(err).Msg("Unable to list request reviewers")
 		}
 
-		if subsetCurrentReviewers != nil && len(subsetCurrentReviewers.Users) == 0 && len(subsetCurrentReviewers.Teams) == 0 {
+		if !hasReviewers {
 			r := rand.New(rand.NewSource(time.Now().UnixNano()))
 			requestedUsers, err := reviewer.FindRandomRequesters(ctx, prctx, result, r)
 			if err != nil {
