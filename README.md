@@ -386,7 +386,7 @@ The app requires these permissions:
 | Repository contents | Read-only | Read configuration and commit metadata |
 | Issues | Read-only | Read pull request comments |
 | Repository metadata | Read-only | Basic repository data |
-| Pull requests | Read-only| Receive pull request events, read metadata |
+| Pull requests | Read & write | Receive pull request events, read metadata. Assign reviewers |
 | Commit status | Read & write | Post commit statuses |
 | Organization members | Read-only | Determine organization and team membership |
 
