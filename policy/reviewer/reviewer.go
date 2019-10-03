@@ -125,9 +125,9 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 
 		if child.ReviewRequestRule.Admins {
 			var repoAdmins []string
-			for _, c := range allCollaboratorPermissions {
-				if allCollaboratorPermissions[c] == common.GithubAdminPermission {
-					repoAdmins = append(repoAdmins, c)
+			for user, perm := range allCollaboratorPermissions {
+				if perm == common.GithubAdminPermission {
+					repoAdmins = append(repoAdmins, user)
 				}
 			}
 			shoveIntoMap(allUsers, repoAdmins)
@@ -135,9 +135,9 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 
 		if child.ReviewRequestRule.WriteCollaborators {
 			var repoCollaborators []string
-			for _, c := range allCollaboratorPermissions {
-				if allCollaboratorPermissions[c] == common.GithubWritePermission {
-					repoCollaborators = append(repoCollaborators, c)
+			for user, perm := range allCollaboratorPermissions {
+				if perm == common.GithubWritePermission {
+					repoCollaborators = append(repoCollaborators, user)
 				}
 			}
 			shoveIntoMap(allUsers, repoCollaborators)

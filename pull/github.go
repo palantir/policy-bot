@@ -367,7 +367,7 @@ func (ghc *GitHubContext) loadCollaboratorData() error {
 		"collaboratorCursor": (*githubv4.String)(nil),
 	}
 
-	collaborators := map[string]string{}
+	collaborators := make(map[string]string)
 	for {
 		complete := 0
 		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
