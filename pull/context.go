@@ -31,8 +31,10 @@ type MembershipContext interface {
 	// IsCollaborator returns true if the user meets the desiredPerm of the given organzation's repository.
 	IsCollaborator(org, repo, user, desiredPerm string) (bool, error)
 
+	// ListTeamMembers returns the list of usernames in the given organization's team.
 	ListTeamMembers(org, team string) ([]string, error)
 
+	// ListOrganizationMembers returns the list of usernames in the given organization.
 	ListOrganizationMembers(org string) ([]string, error)
 }
 
@@ -84,8 +86,11 @@ type Context interface {
 	// IsDraft returns the draft status of the Pull Request.
 	IsDraft() bool
 
+	// ListRepositoryCollaborators lists the set of Direct collaborators, along with
+	// their respective permission on a repo.
 	ListRepositoryCollaborators() (map[string]string, error)
 
+	// HasReviewers returns true if the Pull Request has reviewers
 	HasReveiwers() (bool, error)
 }
 

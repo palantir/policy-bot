@@ -195,6 +195,14 @@ options:
   # commonly created by using the "Update branch" button in the UI.
   ignore_update_merges: false
 
+  # Automatically request reviewers when a Pull Request is opened
+  # if this rule is pending, there are no assigned reviewers, and if the
+  # Pull Request is not in Draft. Reviewers are selected randomly
+  # based on the set of requirements for this rule.
+  request_review:
+    # False by default
+    enabled: true
+
   # "methods" defines how users may express approval. The defaults are below.
   methods:
     comments:
