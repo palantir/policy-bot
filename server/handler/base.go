@@ -29,8 +29,8 @@ import (
 
 	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/common"
+	"github.com/palantir/policy-bot/policy/reviewer"
 	"github.com/palantir/policy-bot/pull"
-	"github.com/palantir/policy-bot/reviewer"
 )
 
 const (
@@ -221,10 +221,10 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, pe
 					logger.Warn().Err(err).Msg("Unable to request reviewers")
 				}
 			} else {
-				logger.Debug().Msg("No users found for review")
+				logger.Debug().Msg("No users found for review, or no users were requested")
 			}
 		} else {
-			logger.Debug().Msg("PR is not in draft or there are existing reviewers, not adding anyone.")
+			logger.Debug().Msg("PR has existing reviewers, not adding anyone")
 		}
 	}
 
