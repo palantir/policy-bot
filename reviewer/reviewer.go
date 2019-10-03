@@ -16,6 +16,7 @@ package reviewer
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"strings"
 
@@ -44,8 +45,6 @@ func findLeafChildren(result common.Result) []common.Result {
 
 // select n random values from the list of users without reuse
 func selectRandomUsers(n int, users []string, r *rand.Rand) []string {
-	selected := make(map[int]bool)
-
 	var selections []string
 	if n == 0 {
 		return selections
@@ -54,24 +53,31 @@ func selectRandomUsers(n int, users []string, r *rand.Rand) []string {
 		return users
 	}
 
+	selected := make(map[int]bool)
 	for i := 0; i < n; i++ {
+		j := 0
 		for {
-			i := r.Intn(len(users))
-			if !selected[i] {
-				selected[i] = true
-				selections = append(selections, users[i])
+			// Upper bound the number of attempts to uniquely select random users to n*5
+			if j > n*5 {
+				// We haven't been able to select a random value, bail loudly
+				panic(fmt.Sprintf("Unable to select random value for %d %d", n, len(users)))
+			}
+			m := r.Intn(len(users))
+			if !selected[m] {
+				selected[m] = true
+				selections = append(selections, users[m])
 				break
 			}
+			j++
 		}
 	}
 	return selections
 }
 
-func shoveIntoMap(m map[string]struct{}, u []string) map[string]struct{} {
+func shoveIntoMap(m map[string]struct{}, u []string) {
 	for _, n := range u {
 		m[n] = struct{}{}
 	}
-	return m
 }
 
 func selectTeamMembers(prctx pull.Context, allTeams []string, r *rand.Rand) ([]string, error) {
@@ -93,23 +99,23 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 
 	for _, child := range pendingLeafNodes {
 		allUsers := make(map[string]struct{})
-		allUsers = shoveIntoMap(allUsers, child.Rule.RequestedUsers)
+		shoveIntoMap(allUsers, child.ReviewRequestRule.Users)
 
-		if len(child.Rule.RequestedTeams) > 0 {
-			teamMembers, err := selectTeamMembers(prctx, child.Rule.RequestedTeams, r)
+		if len(child.ReviewRequestRule.Teams) > 0 {
+			teamMembers, err := selectTeamMembers(prctx, child.ReviewRequestRule.Teams, r)
 			if err != nil {
 				logger.Warn().Err(err).Msgf("Unable to get member listing for teams, skipping team member selection")
 			}
-			allUsers = shoveIntoMap(allUsers, teamMembers)
+			shoveIntoMap(allUsers, teamMembers)
 		}
 
-		if len(child.Rule.RequestedOrganizations) > 0 {
-			randomOrg := child.Rule.RequestedOrganizations[r.Intn(len(child.Rule.RequestedOrganizations))]
+		if len(child.ReviewRequestRule.Organizations) > 0 {
+			randomOrg := child.ReviewRequestRule.Organizations[r.Intn(len(child.ReviewRequestRule.Organizations))]
 			orgMembers, err := prctx.ListOrganizationMembers(randomOrg)
 			if err != nil {
 				logger.Warn().Err(err).Msgf("Unable to get member listing for org %s, skipping org member selection", randomOrg)
 			}
-			allUsers = shoveIntoMap(allUsers, orgMembers)
+			shoveIntoMap(allUsers, orgMembers)
 		}
 
 		allCollaboratorPermissions, err := prctx.ListRepositoryCollaborators()
@@ -117,45 +123,38 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 			return nil, errors.Wrap(err, "Unable to list repository collaborators")
 		}
 
-		if child.Rule.RequestedAdmins {
+		if child.ReviewRequestRule.Admins {
 			var repoAdmins []string
 			for _, c := range allCollaboratorPermissions {
-				if allCollaboratorPermissions[c] == "admin" {
+				if allCollaboratorPermissions[c] == common.GithubAdminPermission {
 					repoAdmins = append(repoAdmins, c)
 				}
 			}
-			allUsers = shoveIntoMap(allUsers, repoAdmins)
+			shoveIntoMap(allUsers, repoAdmins)
 		}
 
-		if child.Rule.RequestedWriteCollaborators {
+		if child.ReviewRequestRule.WriteCollaborators {
 			var repoCollaborators []string
 			for _, c := range allCollaboratorPermissions {
-				if allCollaboratorPermissions[c] == "write" {
+				if allCollaboratorPermissions[c] == common.GithubWritePermission {
 					repoCollaborators = append(repoCollaborators, c)
 				}
 			}
-			allUsers = shoveIntoMap(allUsers, repoCollaborators)
-		}
-
-		// Remove author before randomly selecting, since github will fail to assign _anyone_
-		if _, ok := allUsers[prctx.Author()]; ok {
-			delete(allUsers, prctx.Author())
-		}
-
-		// Remove any users who aren't collaborators, since github will fail to assign _anyone_
-		for k := range allUsers {
-			if _, ok := allCollaboratorPermissions[k]; !ok {
-				delete(allUsers, k)
-			}
+			shoveIntoMap(allUsers, repoCollaborators)
 		}
 
 		var allUserList []string
-		for k := range allUsers {
-			allUserList = append(allUserList, k)
+		for u := range allUsers {
+			// Remove any users who aren't collaborators or the author, since github will fail to assign _anyone_
+			// if the request contains one of these
+			_, ok := allCollaboratorPermissions[u]
+			if u != prctx.Author() && ok {
+				allUserList = append(allUserList, u)
+			}
 		}
 
 		logger.Debug().Msgf("Found %d total candidates for review after removing author and non-collaborators; randomly selecting some", len(allUsers))
-		randomSelection := selectRandomUsers(child.Rule.RequiredCount, allUserList, r)
+		randomSelection := selectRandomUsers(child.ReviewRequestRule.RequiredCount, allUserList, r)
 		requestedUsers = append(requestedUsers, randomSelection...)
 	}
 

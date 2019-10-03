@@ -342,8 +342,8 @@ func (ghc *GitHubContext) loadPagedData() error {
 			Collaborators struct {
 				PageInfo v4PageInfo
 				Edges    []struct {
-					Permission githubv4.RepositoryPermission `graphql:"permission"`
-					Node       v4Collaborator                `graphql:"node"`
+					Permission string  `graphql:"permission"`
+					Node       v4Actor `graphql:"node"`
 				}
 			} `graphql:"collaborators(first: 100, after: $collaboratorCursor)"`
 			PullRequest struct {
@@ -393,7 +393,7 @@ func (ghc *GitHubContext) loadPagedData() error {
 		}
 
 		for _, c := range q.Repository.Collaborators.Edges {
-			collaborators[c.Node.Login] = strings.ToLower(string(c.Permission))
+			collaborators[c.Node.Login] = strings.ToLower(c.Permission)
 		}
 		if !q.Repository.Collaborators.PageInfo.UpdateCursor(qvars, "collaboratorCursor") {
 			complete++
@@ -667,11 +667,6 @@ func (c *v4Commit) ToCommit() *Commit {
 		Committer:       c.Committer.GetV3Login(),
 		PushedAt:        c.PushedDate,
 	}
-}
-
-type v4Collaborator struct {
-	Type  string `graphql:"__typename"`
-	Login string
 }
 
 type v4Actor struct {

@@ -109,13 +109,13 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 		res.Status = common.StatusPending
 
 		if r.Options.RequestReview.Enabled {
-			res.Rule = common.Rule{
-				RequestedUsers:              r.Requires.Users,
-				RequestedTeams:              r.Requires.Teams,
-				RequestedOrganizations:      r.Requires.Organizations,
-				RequestedAdmins:             r.Requires.Admins,
-				RequestedWriteCollaborators: r.Requires.WriteCollaborators,
-				RequiredCount:               r.Requires.Count,
+			res.ReviewRequestRule = common.ReviewRequestRule{
+				Users:              r.Requires.Users,
+				Teams:              r.Requires.Teams,
+				Organizations:      r.Requires.Organizations,
+				Admins:             r.Requires.Admins,
+				WriteCollaborators: r.Requires.WriteCollaborators,
+				RequiredCount:      r.Requires.Count,
 			}
 		}
 	}
