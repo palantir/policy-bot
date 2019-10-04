@@ -15,8 +15,6 @@
 package pulltest
 
 import (
-	"fmt"
-
 	"github.com/palantir/policy-bot/pull"
 )
 
@@ -173,7 +171,7 @@ func (c *Context) OrganizationMembers(org string) ([]string, error) {
 	return inverted[org], nil
 }
 
-func (c *Context) TeamMembers(org, teamName string) ([]string, error) {
+func (c *Context) TeamMembers(team string) ([]string, error) {
 	if c.TeamMembershipError != nil {
 		return nil, c.TeamMembershipError
 	}
@@ -190,7 +188,7 @@ func (c *Context) TeamMembers(org, teamName string) ([]string, error) {
 		}
 	}
 
-	return c.TeamMemberships[fmt.Sprintf("%s/%s", org, teamName)], nil
+	return c.TeamMemberships[team], nil
 }
 
 func (c *Context) HasReveiwers() (bool, error) {

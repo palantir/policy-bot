@@ -104,10 +104,11 @@ func (c *CrossOrgMembershipContext) OrganizationMembers(org string) ([]string, e
 	return mbrCtx.OrganizationMembers(org)
 }
 
-func (c *CrossOrgMembershipContext) TeamMembers(org, teamName string) ([]string, error) {
+func (c *CrossOrgMembershipContext) TeamMembers(team string) ([]string, error) {
+	org := strings.Split(team, "/")[0]
 	mbrCtx, err := c.getCtxForOrg(org)
 	if err != nil {
 		return nil, err
 	}
-	return mbrCtx.TeamMembers(org, teamName)
+	return mbrCtx.TeamMembers(team)
 }

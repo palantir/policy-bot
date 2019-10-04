@@ -45,18 +45,10 @@ func membershipKey(group, user string) string {
 
 func (mc *GitHubMembershipContext) IsTeamMember(team, user string) (bool, error) {
 	key := membershipKey(team, user)
-	org := strings.Split(team, "/")[0]
 
-	id, ok := mc.teamIDs[team]
-	if !ok {
-		if err := mc.cacheTeamIDs(org); err != nil {
-			return false, err
-		}
-
-		id, ok = mc.teamIDs[team]
-		if !ok {
-			return false, errors.Errorf("failed to get ID for team %s", team)
-		}
+	id, err := mc.getTeamID(team)
+	if err != nil {
+		return false, errors.Errorf("failed to get ID for team %s", team)
 	}
 
 	isMember, ok := mc.membership[key]
@@ -73,6 +65,22 @@ func (mc *GitHubMembershipContext) IsTeamMember(team, user string) (bool, error)
 
 	mc.membership[key] = isMember
 	return isMember, nil
+}
+
+func (mc *GitHubMembershipContext) getTeamID(team string) (int64, error) {
+	org := strings.Split(team, "/")[0]
+	id, ok := mc.teamIDs[team]
+	if !ok {
+		if err := mc.cacheTeamIDs(org); err != nil {
+			return 0, err
+		}
+
+		id, ok = mc.teamIDs[team]
+		if !ok {
+			return 0, errors.Errorf("failed to get ID for team %s", team)
+		}
+	}
+	return id, nil
 }
 
 func (mc *GitHubMembershipContext) cacheTeamIDs(org string) error {
@@ -139,6 +147,8 @@ func (mc *GitHubMembershipContext) OrganizationMembers(org string) ([]string, er
 		}
 		for _, u := range users {
 			allUsers = append(allUsers, u.GetLogin())
+			// And cache these values for later lookups
+			mc.membership[membershipKey(org, u.GetLogin())] = true
 		}
 		if resp.NextPage == 0 {
 			break
@@ -149,28 +159,30 @@ func (mc *GitHubMembershipContext) OrganizationMembers(org string) ([]string, er
 	return allUsers, nil
 }
 
-func (mc *GitHubMembershipContext) TeamMembers(org, teamName string) ([]string, error) {
+func (mc *GitHubMembershipContext) TeamMembers(team string) ([]string, error) {
 	opt := &github.TeamListTeamMembersOptions{
 		ListOptions: github.ListOptions{
 			PerPage: 100,
 		},
 	}
 
-	team, _, err := mc.client.Teams.GetTeamBySlug(mc.ctx, org, teamName)
+	teamID, err := mc.getTeamID(team)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Unable to get information for team %s/%s", org, team)
+		return nil, errors.Wrapf(err, "Unable to get information for team %s", team)
 	}
 
 	// get all pages of results
 	var allUsers []string
 
 	for {
-		users, resp, err := mc.client.Teams.ListTeamMembers(mc.ctx, team.GetID(), opt)
+		users, resp, err := mc.client.Teams.ListTeamMembers(mc.ctx, teamID, opt)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to list team %s/%s members page %d", org, teamName, opt.Page)
+			return nil, errors.Wrapf(err, "failed to list team %s members page %d", team, opt.Page)
 		}
 		for _, u := range users {
 			allUsers = append(allUsers, u.GetLogin())
+			// And cache these values for later lookups
+			mc.membership[membershipKey(team, u.GetLogin())] = true
 		}
 		if resp.NextPage == 0 {
 			break

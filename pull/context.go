@@ -32,7 +32,7 @@ type MembershipContext interface {
 	IsCollaborator(org, repo, user, desiredPerm string) (bool, error)
 
 	// TeamMembers returns the list of usernames in the given organization's team.
-	TeamMembers(org, team string) ([]string, error)
+	TeamMembers(team string) ([]string, error)
 
 	// OrganizationMembers returns the list of usernames in the given organization.
 	OrganizationMembers(org string) ([]string, error)

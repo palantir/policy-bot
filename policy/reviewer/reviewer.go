@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -82,8 +81,7 @@ func shoveIntoMap(m map[string]struct{}, u []string) {
 
 func selectTeamMembers(prctx pull.Context, allTeams []string, r *rand.Rand) ([]string, error) {
 	randomTeam := allTeams[r.Intn(len(allTeams))]
-	teamInfo := strings.Split(randomTeam, "/")
-	teamMembers, err := prctx.TeamMembers(teamInfo[0], teamInfo[1])
+	teamMembers, err := prctx.TeamMembers(randomTeam)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get member listing for team %s", randomTeam)
 	}
