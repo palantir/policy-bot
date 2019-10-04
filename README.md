@@ -31,6 +31,7 @@ UI to view the detailed approval status of any pull request.
     - [Cross-organization Membership Tests](#cross-organization-membership-tests)
     - [Update Merges](#update-merges)
     - [Private Repositories](#private-repositories)
+    - [Automatically Requesting Reviewers](#automatically-requesting-reviewers)
 * [Deployment](#deployment)
 * [Development](#development)
 * [Contributing](#contributing)
@@ -362,6 +363,47 @@ unapproved code by exploiting the conflict editor.
 `policy-bot` works with private repositories, but currently does not support
 pull requests from private _forks_ of private repositories due to GitHub API
 limitations. Please file an issue if this functionality is important to you.
+
+#### Automatically Requesting Reviewers
+
+`policy-bot` can automatically request reviewers for all pending rules
+when Pull Requests are opened by setting the `request_review` option.
+
+```yaml
+options:
+  request_review:
+    # False by default
+    enabled: true
+```
+
+A number of reviewers will be randomly requested based on the `requires` rules
+so that all rules will be satisfied once the set of requested reviewers complete
+and approve the Pull Request.
+
+The set of requested reviewers will not include the author of the Pull Request or
+users who are not collaborators on the repository.
+
+#### Automatically Requesting Reviewers Example
+
+Given the following example requirement rule,
+
+```yaml
+  requires:
+    count: 2
+    users: ["user1", "user2"]
+    organizations: ["org1", "org2"]
+    teams: ["org1/team1", "org2/team2"]
+```
+
+`policy-bot` will attempt to request 2 reviewers randomly from the expanded
+set of users of in
+
+```yaml
+["user1", "user2", "users in org1", "users in org2", "users in org1/team1", "users in org2/team"]
+```
+
+Where the Pull Request Author and any non direct collaborators have been removed
+from the set.
 
 ## Deployment
 
