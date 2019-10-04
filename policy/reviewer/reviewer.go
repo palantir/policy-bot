@@ -83,11 +83,20 @@ func shoveIntoMap(m map[string]struct{}, u []string) {
 func selectTeamMembers(prctx pull.Context, allTeams []string, r *rand.Rand) ([]string, error) {
 	randomTeam := allTeams[r.Intn(len(allTeams))]
 	teamInfo := strings.Split(randomTeam, "/")
-	teamMembers, err := prctx.ListTeamMembers(teamInfo[0], teamInfo[1])
+	teamMembers, err := prctx.TeamMembers(teamInfo[0], teamInfo[1])
 	if err != nil {
-		return nil, errors.Wrapf(err, "Unable to get member listing for team %s", randomTeam)
+		return nil, errors.Wrapf(err, "failed to get member listing for team %s", randomTeam)
 	}
 	return teamMembers, nil
+}
+
+func selectOrgMembers(prctx pull.Context, allOrgs []string, r *rand.Rand) ([]string, error) {
+	randomOrg := allOrgs[r.Intn(len(allOrgs))]
+	orgMembers, err := prctx.OrganizationMembers(randomOrg)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get member listing for org %s", randomOrg)
+	}
+	return orgMembers, nil
 }
 
 func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common.Result, r *rand.Rand) ([]string, error) {
@@ -110,15 +119,14 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 		}
 
 		if len(child.ReviewRequestRule.Organizations) > 0 {
-			randomOrg := child.ReviewRequestRule.Organizations[r.Intn(len(child.ReviewRequestRule.Organizations))]
-			orgMembers, err := prctx.ListOrganizationMembers(randomOrg)
+			orgMembers, err := selectOrgMembers(prctx, child.ReviewRequestRule.Organizations, r)
 			if err != nil {
-				logger.Warn().Err(err).Msgf("Unable to get member listing for org %s, skipping org member selection", randomOrg)
+				logger.Warn().Err(err).Msg("Unable to get member listing for org, skipping org member selection")
 			}
 			shoveIntoMap(allUsers, orgMembers)
 		}
 
-		allCollaboratorPermissions, err := prctx.ListRepositoryCollaborators()
+		allCollaboratorPermissions, err := prctx.RepositoryCollaborators()
 		if err != nil {
 			return nil, errors.Wrap(err, "Unable to list repository collaborators")
 		}
@@ -145,8 +153,8 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 
 		var allUserList []string
 		for u := range allUsers {
-			// Remove any users who aren't collaborators or the author, since github will fail to assign _anyone_
-			// if the request contains one of these
+			// Remove the author and any users who aren't collaborators
+			// since github will fail to assign _anyone_ if the request contains one of these
 			_, ok := allCollaboratorPermissions[u]
 			if u != prctx.Author() && ok {
 				allUserList = append(allUserList, u)

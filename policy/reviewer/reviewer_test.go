@@ -57,7 +57,7 @@ func TestFindRandomRequesters(t *testing.T) {
 
 	prctx := makeContext()
 
-	collabPerms, err := prctx.ListRepositoryCollaborators()
+	collabPerms, err := prctx.RepositoryCollaborators()
 	var collabs []string
 	for c := range collabPerms {
 		collabs = append(collabs, c)

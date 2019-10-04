@@ -122,7 +122,7 @@ func (mc *GitHubMembershipContext) IsCollaborator(org, repo, user, desiredPerm s
 	return perm.GetPermission() == desiredPerm, nil
 }
 
-func (mc *GitHubMembershipContext) ListOrganizationMembers(org string) ([]string, error) {
+func (mc *GitHubMembershipContext) OrganizationMembers(org string) ([]string, error) {
 	opt := &github.ListMembersOptions{
 		ListOptions: github.ListOptions{
 			PerPage: 100,
@@ -149,7 +149,7 @@ func (mc *GitHubMembershipContext) ListOrganizationMembers(org string) ([]string
 	return allUsers, nil
 }
 
-func (mc *GitHubMembershipContext) ListTeamMembers(org, teamName string) ([]string, error) {
+func (mc *GitHubMembershipContext) TeamMembers(org, teamName string) ([]string, error) {
 	opt := &github.TeamListTeamMembersOptions{
 		ListOptions: github.ListOptions{
 			PerPage: 100,

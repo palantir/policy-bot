@@ -142,7 +142,7 @@ func (c *Context) IsCollaborator(org, repo, user, desiredPerm string) (bool, err
 	return false, nil
 }
 
-func (c *Context) ListRepositoryCollaborators() (map[string]string, error) {
+func (c *Context) RepositoryCollaborators() (map[string]string, error) {
 	if c.CollaboratorMembershipError != nil {
 		return nil, c.CollaboratorMembershipError
 	}
@@ -153,7 +153,7 @@ func (c *Context) ListRepositoryCollaborators() (map[string]string, error) {
 	return users, nil
 }
 
-func (c *Context) ListOrganizationMembers(org string) ([]string, error) {
+func (c *Context) OrganizationMembers(org string) ([]string, error) {
 	if c.OrgMembershipError != nil {
 		return nil, c.OrgMembershipError
 	}
@@ -173,7 +173,7 @@ func (c *Context) ListOrganizationMembers(org string) ([]string, error) {
 	return inverted[org], nil
 }
 
-func (c *Context) ListTeamMembers(org, teamName string) ([]string, error) {
+func (c *Context) TeamMembers(org, teamName string) ([]string, error) {
 	if c.TeamMembershipError != nil {
 		return nil, c.TeamMembershipError
 	}

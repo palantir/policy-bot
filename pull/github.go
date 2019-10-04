@@ -267,7 +267,7 @@ func (ghc *GitHubContext) Reviews() ([]*Review, error) {
 	return ghc.reviews, nil
 }
 
-func (ghc *GitHubContext) ListRepositoryCollaborators() (map[string]string, error) {
+func (ghc *GitHubContext) RepositoryCollaborators() (map[string]string, error) {
 	if ghc.collaborators == nil {
 		if err := ghc.loadCollaboratorData(); err != nil {
 			return nil, err
@@ -280,7 +280,7 @@ func (ghc *GitHubContext) HasReveiwers() (bool, error) {
 	// Intentionally kept to a small result size, since we just want to determine if there are existing reviewers
 	subsetCurrentReviewers, _, err := ghc.client.PullRequests.ListReviewers(ghc.ctx, ghc.owner, ghc.repo, ghc.number, &github.ListOptions{
 		Page:    0,
-		PerPage: 10,
+		PerPage: 1,
 	})
 	if err != nil {
 		return false, errors.Wrap(err, "Unable to list request reviewers")
@@ -348,7 +348,6 @@ func (ghc *GitHubContext) loadPagedData() error {
 }
 
 func (ghc *GitHubContext) loadCollaboratorData() error {
-	// this is a minor optimization: make max(c,r) requests instead of c+r
 	var q struct {
 		Repository struct {
 			Collaborators struct {
@@ -369,7 +368,6 @@ func (ghc *GitHubContext) loadCollaboratorData() error {
 
 	collaborators := make(map[string]string)
 	for {
-		complete := 0
 		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
 			return errors.Wrap(err, "failed to load pull request data")
 		}
@@ -378,10 +376,6 @@ func (ghc *GitHubContext) loadCollaboratorData() error {
 			collaborators[c.Node.Login] = strings.ToLower(c.Permission)
 		}
 		if !q.Repository.Collaborators.PageInfo.UpdateCursor(qvars, "collaboratorCursor") {
-			complete++
-		}
-
-		if complete == 1 {
 			break
 		}
 	}
