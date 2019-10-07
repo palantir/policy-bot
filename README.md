@@ -203,6 +203,8 @@ options:
   request_review:
     # False by default
     enabled: true
+    # Include organization owners in automatic review. False by default.
+    org_owner: false
 
   # "methods" defines how users may express approval. The defaults are below.
   methods:

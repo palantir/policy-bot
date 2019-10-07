@@ -151,6 +151,21 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 
 		var allUserList []string
 		for u := range allUsers {
+			// Remove org owners if we explicitly want to ignore them
+			if !child.ReviewRequestRule.OrgOwners {
+				orgOwners, err := prctx.OrganizationOwners(prctx.RepositoryOwner())
+				if err != nil {
+					logger.Warn().Err(err).Msg("Unable to get list of org owners")
+				}
+
+				for _, owner := range orgOwners {
+					_, ok := allCollaboratorPermissions[owner]
+					if ok {
+						delete(allCollaboratorPermissions, owner)
+					}
+				}
+			}
+
 			// Remove the author and any users who aren't collaborators
 			// since github will fail to assign _anyone_ if the request contains one of these
 			_, ok := allCollaboratorPermissions[u]

@@ -64,7 +64,7 @@ func TestFindRandomRequesters(t *testing.T) {
 	}
 	sort.Strings(collabs)
 	require.NoError(t, err)
-	require.Equal(t, []string{"contributor-author", "contributor-committer", "mhaypenny", "review-approver"}, collabs)
+	require.Equal(t, []string{"contributor-author", "contributor-committer", "mhaypenny", "org-owner", "review-approver"}, collabs)
 
 	reviewers, err := FindRandomRequesters(context.Background(), prctx, results, r)
 	require.NoError(t, err)
@@ -72,6 +72,7 @@ func TestFindRandomRequesters(t *testing.T) {
 	require.Contains(t, reviewers, "review-approver", "at least review-approver must be selected")
 	require.NotContains(t, reviewers, "mhaypenny", "the author cannot be requested")
 	require.NotContains(t, reviewers, "not-a-collaborator", "a non collaborator cannot be requested")
+	require.NotContains(t, reviewers, "org-owner", "org-owner should not be requested")
 }
 
 func makeResults() common.Result {
@@ -101,6 +102,19 @@ func makeResults() common.Result {
 				Status:            common.StatusDisapproved,
 				ReviewRequestRule: common.ReviewRequestRule{},
 				Error:             errors.New("foo"),
+				Children:          nil,
+			},
+			{
+				Name:              "Owner",
+				Description:       "",
+				Status:      common.StatusPending,
+				ReviewRequestRule: common.ReviewRequestRule{
+					OrgOwners:     false,
+					Admins:        false,
+					Users:         []string{"org-owner"},
+					RequiredCount: 1,
+				},
+				Error:             nil,
 				Children:          nil,
 			},
 			{
@@ -135,6 +149,10 @@ func makeContext() pull.Context {
 		CommentsValue: []*pull.Comment{},
 		ReviewsValue:  []*pull.Review{},
 
+		OrgOwners: []string{
+			"org-owner",
+		},
+
 		OrgMemberships: map[string][]string{
 			"mhaypenny":             {"everyone"},
 			"contributor-author":    {"everyone"},
@@ -144,6 +162,7 @@ func makeContext() pull.Context {
 		},
 		CollaboratorMemberships: map[string][]string{
 			"mhaypenny":             {common.GithubAdminPermission},
+			"org-owner":             {common.GithubAdminPermission},
 			"contributor-committer": {common.GithubAdminPermission},
 			"contributor-author":    {common.GithubWritePermission},
 			"review-approver":       {common.GithubWritePermission},

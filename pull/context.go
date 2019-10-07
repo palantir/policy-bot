@@ -36,6 +36,9 @@ type MembershipContext interface {
 
 	// OrganizationMembers returns the list of usernames in the given organization.
 	OrganizationMembers(org string) ([]string, error)
+
+	// OrganizationMembers returns the list of owner usernames in the given organization.
+	OrganizationOwners(org string) ([]string, error)
 }
 
 // Context is the context for a pull request. It defines methods to get

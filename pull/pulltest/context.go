@@ -47,6 +47,9 @@ type Context struct {
 	OrgMemberships     map[string][]string
 	OrgMembershipError error
 
+	OrgOwners     []string
+	OrgOwnerError error
+
 	CollaboratorMemberships     map[string][]string
 	CollaboratorMembershipError error
 
@@ -169,6 +172,14 @@ func (c *Context) OrganizationMembers(org string) ([]string, error) {
 	}
 
 	return inverted[org], nil
+}
+
+func (c *Context) OrganizationOwners(org string) ([]string, error) {
+	if c.OrgOwnerError != nil {
+		return nil, c.OrgOwnerError
+	}
+
+	return c.OrgOwners, nil
 }
 
 func (c *Context) TeamMembers(team string) ([]string, error) {
