@@ -49,6 +49,11 @@ type Context struct {
 
 	CollaboratorMemberships     map[string][]string
 	CollaboratorMembershipError error
+
+	HasReviewersValue bool
+	HasReviewersError error
+
+	Draft bool
 }
 
 func (c *Context) RepositoryOwner() string {
@@ -78,6 +83,10 @@ func (c *Context) Author() string {
 
 func (c *Context) HeadSHA() string {
 	return c.HeadSHAValue
+}
+
+func (c *Context) IsDraft() bool {
+	return c.Draft
 }
 
 func (c *Context) Branches() (base string, head string) {
@@ -129,6 +138,61 @@ func (c *Context) IsCollaborator(org, repo, user, desiredPerm string) (bool, err
 		}
 	}
 	return false, nil
+}
+
+func (c *Context) RepositoryCollaborators() (map[string]string, error) {
+	if c.CollaboratorMembershipError != nil {
+		return nil, c.CollaboratorMembershipError
+	}
+	users := make(map[string]string)
+	for u, p := range c.CollaboratorMemberships {
+		users[u] = p[0]
+	}
+	return users, nil
+}
+
+func (c *Context) OrganizationMembers(org string) ([]string, error) {
+	if c.OrgMembershipError != nil {
+		return nil, c.OrgMembershipError
+	}
+
+	inverted := make(map[string][]string)
+
+	for user, orgs := range c.OrgMemberships {
+		for _, o := range orgs {
+			if _, ok := inverted[o]; ok {
+				inverted[o] = append(inverted[o], user)
+			} else {
+				inverted[o] = []string{user}
+			}
+		}
+	}
+
+	return inverted[org], nil
+}
+
+func (c *Context) TeamMembers(team string) ([]string, error) {
+	if c.TeamMembershipError != nil {
+		return nil, c.TeamMembershipError
+	}
+
+	inverted := make(map[string][]string)
+
+	for user, teams := range c.TeamMemberships {
+		for _, t := range teams {
+			if _, ok := inverted[t]; ok {
+				inverted[t] = append(inverted[t], user)
+			} else {
+				inverted[t] = []string{user}
+			}
+		}
+	}
+
+	return c.TeamMemberships[team], nil
+}
+
+func (c *Context) HasReveiwers() (bool, error) {
+	return c.HasReviewersValue, c.HasReviewersError
 }
 
 func (c *Context) Comments() ([]*pull.Comment, error) {

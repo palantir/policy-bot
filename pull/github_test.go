@@ -423,6 +423,7 @@ func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest) Conte
 func defaultTestPR() *github.PullRequest {
 	return &github.PullRequest{
 		Number: github.Int(123),
+		Draft:  github.Bool(false),
 		User: &github.User{
 			Login: github.String("mhaypenny"),
 		},

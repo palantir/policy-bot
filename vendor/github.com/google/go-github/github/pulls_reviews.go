@@ -14,6 +14,7 @@ import (
 // PullRequestReview represents a review of a pull request.
 type PullRequestReview struct {
 	ID             *int64     `json:"id,omitempty"`
+	NodeID         *string    `json:"node_id,omitempty"`
 	User           *User      `json:"user,omitempty"`
 	Body           *string    `json:"body,omitempty"`
 	SubmittedAt    *time.Time `json:"submitted_at,omitempty"`
@@ -40,6 +41,7 @@ func (c DraftReviewComment) String() string {
 
 // PullRequestReviewRequest represents a request to create a review.
 type PullRequestReviewRequest struct {
+	NodeID   *string               `json:"node_id,omitempty"`
 	CommitID *string               `json:"commit_id,omitempty"`
 	Body     *string               `json:"body,omitempty"`
 	Event    *string               `json:"event,omitempty"`
@@ -185,6 +187,29 @@ func (s *PullRequestsService) CreateReview(ctx context.Context, owner, repo stri
 	}
 
 	return r, resp, nil
+}
+
+// UpdateReview updates the review summary on the specified pull request.
+//
+// GitHub API docs: https://developer.github.com/v3/pulls/reviews/#update-a-pull-request-review
+func (s *PullRequestsService) UpdateReview(ctx context.Context, owner, repo string, number int, reviewID int64, body string) (*PullRequestReview, *Response, error) {
+	opts := &struct {
+		Body string `json:"body"`
+	}{Body: body}
+	u := fmt.Sprintf("repos/%v/%v/pulls/%d/reviews/%d", owner, repo, number, reviewID)
+
+	req, err := s.client.NewRequest("PUT", u, opts)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	review := &PullRequestReview{}
+	resp, err := s.client.Do(ctx, req, review)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return review, resp, nil
 }
 
 // SubmitReview submits a specified review on the specified pull request.

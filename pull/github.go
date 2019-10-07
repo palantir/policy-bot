@@ -57,6 +57,7 @@ type Locator struct {
 func (loc Locator) IsComplete() bool {
 	switch {
 	case loc.Value == nil:
+	case loc.Value.Draft == nil:
 	case loc.Value.GetUser().GetLogin() == "":
 	case loc.Value.GetBase().GetRef() == "":
 	case loc.Value.GetBase().GetRepo().GetID() == 0:
@@ -98,6 +99,7 @@ func (loc Locator) toV4(ctx context.Context, client *githubv4.Client) (*v4PullRe
 	v4.HeadRepository.Name = loc.Value.GetHead().GetRepo().GetName()
 	v4.HeadRepository.Owner.Login = loc.Value.GetHead().GetRepo().GetOwner().GetLogin()
 	v4.BaseRefName = loc.Value.GetBase().GetRef()
+	v4.IsDraft = loc.Value.GetDraft()
 	return &v4, nil
 }
 
@@ -116,12 +118,13 @@ type GitHubContext struct {
 	pr     *v4PullRequest
 
 	// cached fields
-	files      []*File
-	commits    []*Commit
-	comments   []*Comment
-	reviews    []*Review
-	teamIDs    map[string]int64
-	membership map[string]bool
+	files         []*File
+	commits       []*Commit
+	comments      []*Comment
+	reviews       []*Review
+	collaborators map[string]string
+	teamIDs       map[string]int64
+	membership    map[string]bool
 }
 
 // NewGitHubContext creates a new pull.Context that makes GitHub requests to
@@ -170,6 +173,10 @@ func (ghc *GitHubContext) Author() string {
 
 func (ghc *GitHubContext) HeadSHA() string {
 	return ghc.pr.HeadRefOID
+}
+
+func (ghc *GitHubContext) IsDraft() bool {
+	return ghc.pr.IsDraft
 }
 
 // Branches returns the names of the base and head branch. If the head branch
@@ -260,6 +267,28 @@ func (ghc *GitHubContext) Reviews() ([]*Review, error) {
 	return ghc.reviews, nil
 }
 
+func (ghc *GitHubContext) RepositoryCollaborators() (map[string]string, error) {
+	if ghc.collaborators == nil {
+		if err := ghc.loadCollaboratorData(); err != nil {
+			return nil, err
+		}
+	}
+	return ghc.collaborators, nil
+}
+
+func (ghc *GitHubContext) HasReveiwers() (bool, error) {
+	// Intentionally kept to a small result size, since we just want to determine if there are existing reviewers
+	subsetCurrentReviewers, _, err := ghc.client.PullRequests.ListReviewers(ghc.ctx, ghc.owner, ghc.repo, ghc.number, &github.ListOptions{
+		Page:    0,
+		PerPage: 1,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "Unable to list request reviewers")
+	}
+
+	return len(subsetCurrentReviewers.Users) > 0 || len(subsetCurrentReviewers.Teams) > 0, nil
+}
+
 func (ghc *GitHubContext) loadPagedData() error {
 	// this is a minor optimization: make max(c,r) requests instead of c+r
 	var q struct {
@@ -315,6 +344,43 @@ func (ghc *GitHubContext) loadPagedData() error {
 
 	ghc.comments = comments
 	ghc.reviews = reviews
+	return nil
+}
+
+func (ghc *GitHubContext) loadCollaboratorData() error {
+	var q struct {
+		Repository struct {
+			Collaborators struct {
+				PageInfo v4PageInfo
+				Edges    []struct {
+					Permission string  `graphql:"permission"`
+					Node       v4Actor `graphql:"node"`
+				}
+			} `graphql:"collaborators(first: 100, after: $collaboratorCursor, affiliation: DIRECT)"`
+		} `graphql:"repository(owner: $owner, name: $name)"`
+	}
+	qvars := map[string]interface{}{
+		"owner": githubv4.String(ghc.owner),
+		"name":  githubv4.String(ghc.repo),
+
+		"collaboratorCursor": (*githubv4.String)(nil),
+	}
+
+	collaborators := make(map[string]string)
+	for {
+		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
+			return errors.Wrap(err, "failed to load pull request data")
+		}
+
+		for _, c := range q.Repository.Collaborators.Edges {
+			collaborators[c.Node.Login] = strings.ToLower(c.Permission)
+		}
+		if !q.Repository.Collaborators.PageInfo.UpdateCursor(qvars, "collaboratorCursor") {
+			break
+		}
+	}
+
+	ghc.collaborators = collaborators
 	return nil
 }
 
@@ -481,6 +547,7 @@ type v4PullRequest struct {
 	Author v4Actor
 
 	IsCrossRepository bool
+	IsDraft           bool
 
 	HeadRefOID     string
 	HeadRefName    string

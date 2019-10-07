@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -57,7 +58,7 @@ type updateRefRequest struct {
 // GitHub API docs: https://developer.github.com/v3/git/refs/#get-a-reference
 func (s *GitService) GetRef(ctx context.Context, owner string, repo string, ref string) (*Reference, *Response, error) {
 	ref = strings.TrimPrefix(ref, "refs/")
-	u := fmt.Sprintf("repos/%v/%v/git/refs/%v", owner, repo, ref)
+	u := fmt.Sprintf("repos/%v/%v/git/refs/%v", owner, repo, url.QueryEscape(ref))
 	req, err := s.client.NewRequest("GET", u, nil)
 	if err != nil {
 		return nil, nil, err
@@ -67,7 +68,10 @@ func (s *GitService) GetRef(ctx context.Context, owner string, repo string, ref 
 	resp, err := s.client.Do(ctx, req, r)
 	if _, ok := err.(*json.UnmarshalTypeError); ok {
 		// Multiple refs, means there wasn't an exact match.
-		return nil, resp, errors.New("no exact match found for this ref")
+		return nil, resp, errors.New("multiple matches found for this ref")
+	} else if _, ok := err.(*ErrorResponse); ok && resp.StatusCode == 404 {
+		// No ref, there was no match for the ref
+		return nil, resp, errors.New("no match found for this ref")
 	} else if err != nil {
 		return nil, resp, err
 	}
@@ -88,7 +92,7 @@ func (s *GitService) GetRef(ctx context.Context, owner string, repo string, ref 
 // GitHub API docs: https://developer.github.com/v3/git/refs/#get-a-reference
 func (s *GitService) GetRefs(ctx context.Context, owner string, repo string, ref string) ([]*Reference, *Response, error) {
 	ref = strings.TrimPrefix(ref, "refs/")
-	u := fmt.Sprintf("repos/%v/%v/git/refs/%v", owner, repo, ref)
+	u := fmt.Sprintf("repos/%v/%v/git/refs/%v", owner, repo, url.QueryEscape(ref))
 	req, err := s.client.NewRequest("GET", u, nil)
 	if err != nil {
 		return nil, nil, err
@@ -208,7 +212,7 @@ func (s *GitService) UpdateRef(ctx context.Context, owner string, repo string, r
 // GitHub API docs: https://developer.github.com/v3/git/refs/#delete-a-reference
 func (s *GitService) DeleteRef(ctx context.Context, owner string, repo string, ref string) (*Response, error) {
 	ref = strings.TrimPrefix(ref, "refs/")
-	u := fmt.Sprintf("repos/%v/%v/git/refs/%v", owner, repo, ref)
+	u := fmt.Sprintf("repos/%v/%v/git/refs/%v", owner, repo, url.QueryEscape(ref))
 	req, err := s.client.NewRequest("DELETE", u, nil)
 	if err != nil {
 		return nil, err

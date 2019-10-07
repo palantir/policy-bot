@@ -37,10 +37,20 @@ func (s EvaluationStatus) String() string {
 	return "unknown"
 }
 
+type ReviewRequestRule struct {
+	Teams              []string
+	Users              []string
+	Organizations      []string
+	Admins             bool
+	WriteCollaborators bool
+	RequiredCount      int
+}
+
 type Result struct {
-	Name        string
-	Description string
-	Status      EvaluationStatus
+	Name              string
+	Description       string
+	Status            EvaluationStatus
+	ReviewRequestRule ReviewRequestRule
 
 	Error error
 

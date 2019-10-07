@@ -36,12 +36,17 @@ type Rule struct {
 }
 
 type Options struct {
-	AllowAuthor        bool `yaml:"allow_author"`
-	AllowContributor   bool `yaml:"allow_contributor"`
-	InvalidateOnPush   bool `yaml:"invalidate_on_push"`
-	IgnoreUpdateMerges bool `yaml:"ignore_update_merges"`
+	AllowAuthor        bool          `yaml:"allow_author"`
+	AllowContributor   bool          `yaml:"allow_contributor"`
+	InvalidateOnPush   bool          `yaml:"invalidate_on_push"`
+	IgnoreUpdateMerges bool          `yaml:"ignore_update_merges"`
+	RequestReview      RequestReview `yaml:"request_review"`
 
 	Methods *common.Methods `yaml:"methods"`
+}
+
+type RequestReview struct {
+	Enabled bool `yaml:"enabled"`
 }
 
 func (opts *Options) GetMethods() *common.Methods {
@@ -102,6 +107,17 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 		res.Status = common.StatusApproved
 	} else {
 		res.Status = common.StatusPending
+
+		if r.Options.RequestReview.Enabled {
+			res.ReviewRequestRule = common.ReviewRequestRule{
+				Users:              r.Requires.Users,
+				Teams:              r.Requires.Teams,
+				Organizations:      r.Requires.Organizations,
+				Admins:             r.Requires.Admins,
+				WriteCollaborators: r.Requires.WriteCollaborators,
+				RequiredCount:      r.Requires.Count,
+			}
+		}
 	}
 	return
 }

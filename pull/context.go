@@ -30,6 +30,12 @@ type MembershipContext interface {
 
 	// IsCollaborator returns true if the user meets the desiredPerm of the given organzation's repository.
 	IsCollaborator(org, repo, user, desiredPerm string) (bool, error)
+
+	// TeamMembers returns the list of usernames in the given organization's team.
+	TeamMembers(team string) ([]string, error)
+
+	// OrganizationMembers returns the list of usernames in the given organization.
+	OrganizationMembers(org string) ([]string, error)
 }
 
 // Context is the context for a pull request. It defines methods to get
@@ -76,6 +82,16 @@ type Context interface {
 	// Reviews lists all reviews on a Pull Request. The review order is
 	// implementation dependent.
 	Reviews() ([]*Review, error)
+
+	// IsDraft returns the draft status of the Pull Request.
+	IsDraft() bool
+
+	// RepositoryCollaborators lists the set of Direct collaborators, along with
+	// their respective permission on a repo.
+	RepositoryCollaborators() (map[string]string, error)
+
+	// HasReviewers returns true if the Pull Request has reviewers
+	HasReveiwers() (bool, error)
 }
 
 type FileStatus int

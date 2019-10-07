@@ -97,7 +97,7 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 		logger.Warn().Str(LogKeyAudit, "issue_comment").Msg("Skipped tampering check because the policy is not valid")
 	}
 
-	return h.EvaluateFetchedConfig(ctx, prctx, client, fetchedConfig)
+	return h.EvaluateFetchedConfig(ctx, prctx, false, client, fetchedConfig)
 }
 
 func (h *IssueComment) detectAndLogTampering(ctx context.Context, prctx pull.Context, client *github.Client, event github.IssueCommentEvent, config *policy.Config) (bool, error) {
