@@ -159,7 +159,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 			}
 		}
 
-		logger.Debug().Msgf("Found %d total candidates for review after removing author and non-collaborators; randomly selecting %d", len(allUsers), child.ReviewRequestRule.RequiredCount)
+		logger.Debug().Msgf("Found %d total candidates for review after removing author and non-collaborators; randomly selecting %d", len(allUserList), child.ReviewRequestRule.RequiredCount)
 		randomSelection := selectRandomUsers(child.ReviewRequestRule.RequiredCount, allUserList, r)
 		requestedUsers = append(requestedUsers, randomSelection...)
 	}

@@ -356,7 +356,7 @@ func (ghc *GitHubContext) loadCollaboratorData() error {
 					Permission string  `graphql:"permission"`
 					Node       v4Actor `graphql:"node"`
 				}
-			} `graphql:"collaborators(first: 100, after: $collaboratorCursor, affiliation: DIRECT)"`
+			} `graphql:"collaborators(first: 100, after: $collaboratorCursor)"`
 		} `graphql:"repository(owner: $owner, name: $name)"`
 	}
 	qvars := map[string]interface{}{
