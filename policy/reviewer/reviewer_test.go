@@ -32,7 +32,7 @@ import (
 func TestFindLeafResults(t *testing.T) {
 	results := makeResults()
 	actualResults := findLeafChildren(results)
-	require.Len(t, actualResults, 2, "incorrect number of results")
+	require.Len(t, actualResults, 3, "incorrect number of leaf results")
 }
 
 func TestSelectRandomUsers(t *testing.T) {
@@ -105,8 +105,8 @@ func makeResults() common.Result {
 				Children:          nil,
 			},
 			{
-				Name:              "Owner",
-				Description:       "",
+				Name:        "Owner",
+				Description: "",
 				Status:      common.StatusPending,
 				ReviewRequestRule: common.ReviewRequestRule{
 					OrgOwners:     false,
@@ -114,8 +114,8 @@ func makeResults() common.Result {
 					Users:         []string{"org-owner"},
 					RequiredCount: 1,
 				},
-				Error:             nil,
-				Children:          nil,
+				Error:    nil,
+				Children: nil,
 			},
 			{
 				Name:              "Four",
