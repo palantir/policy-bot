@@ -278,6 +278,8 @@ func makeResults(result *common.Result) common.Result {
 
 func makeContext(directCollaborators map[string][]string) pull.Context {
 	return &pulltest.Context{
+		OwnerValue: "everyone",
+
 		AuthorValue:   "mhaypenny",
 		CommentsValue: []*pull.Comment{},
 		ReviewsValue:  []*pull.Review{},
@@ -304,8 +306,8 @@ func makeContext(directCollaborators map[string][]string) pull.Context {
 			"review-approver":       {common.GithubWritePermission},
 		},
 		TeamsValue: map[string]string{
-			"everyone/team-write": common.GithubWritePermission,
-			"everyone/team-admin": common.GithubAdminPermission,
+			"team-write": common.GithubWritePermission,
+			"team-admin": common.GithubAdminPermission,
 		},
 		TeamMemberships: map[string][]string{
 			"user-team-admin": {"everyone/team-admin"},

@@ -295,8 +295,7 @@ func (ghc *GitHubContext) Teams() (map[string]string, error) {
 	}
 
 	// get all pages of results
-	var allTeams map[string]string
-
+	allTeams := make(map[string]string)
 	for {
 		teams, resp, err := ghc.client.Repositories.ListTeams(ghc.ctx, ghc.RepositoryOwner(), ghc.RepositoryName(), opt)
 		if err != nil {
