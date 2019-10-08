@@ -35,6 +35,7 @@ func TestParsePolicy(t *testing.T) {
    - rule5
 - and:
   - rule6
+  - rule7
 `
 
 	ruleText := `
@@ -61,6 +62,13 @@ func TestParsePolicy(t *testing.T) {
 - name: rule6
   options:
     allow_contributor: true
+- name: rule7
+  options:
+    request_review:
+      enabled: true
+      admin_scope: org
+  requires:
+    admins: true
 `
 
 	var policy Policy
@@ -109,6 +117,9 @@ func TestParsePolicy(t *testing.T) {
 					requirements: []common.Evaluator{
 						&RuleRequirement{
 							rule: rules[5],
+						},
+						&RuleRequirement{
+							rule: rules[6],
 						},
 					},
 				},
