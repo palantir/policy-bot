@@ -118,13 +118,14 @@ type GitHubContext struct {
 	pr     *v4PullRequest
 
 	// cached fields
-	files         []*File
-	commits       []*Commit
-	comments      []*Comment
-	reviews       []*Review
-	collaborators map[string]string
-	teamIDs       map[string]int64
-	membership    map[string]bool
+	files               []*File
+	commits             []*Commit
+	comments            []*Comment
+	reviews             []*Review
+	collaborators       map[string]string
+	directCollaborators map[string]string
+	teamIDs             map[string]int64
+	membership          map[string]bool
 }
 
 // NewGitHubContext creates a new pull.Context that makes GitHub requests to
@@ -268,12 +269,11 @@ func (ghc *GitHubContext) Reviews() ([]*Review, error) {
 }
 
 func (ghc *GitHubContext) RepositoryCollaborators() (map[string]string, error) {
-	if ghc.collaborators == nil {
-		if err := ghc.loadCollaboratorData(); err != nil {
-			return nil, err
-		}
-	}
-	return ghc.collaborators, nil
+	return ghc.loadCollaboratorData(false)
+}
+
+func (ghc *GitHubContext) DirectRepositoryCollaborators() (map[string]string, error) {
+	return ghc.loadCollaboratorData(true)
 }
 
 func (ghc *GitHubContext) HasReveiwers() (bool, error) {
@@ -287,6 +287,31 @@ func (ghc *GitHubContext) HasReveiwers() (bool, error) {
 	}
 
 	return len(subsetCurrentReviewers.Users) > 0 || len(subsetCurrentReviewers.Teams) > 0, nil
+}
+
+func (ghc *GitHubContext) Teams() (map[string]string, error) {
+	opt := &github.ListOptions{
+		PerPage: 100,
+	}
+
+	// get all pages of results
+	var allTeams map[string]string
+
+	for {
+		teams, resp, err := ghc.client.Repositories.ListTeams(ghc.ctx, ghc.RepositoryOwner(), ghc.RepositoryName(), opt)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to list teams page %d", opt.Page)
+		}
+		for _, t := range teams {
+			allTeams[t.GetName()] = t.GetPermission()
+		}
+		if resp.NextPage == 0 {
+			break
+		}
+		opt.Page = resp.NextPage
+	}
+
+	return allTeams, nil
 }
 
 func (ghc *GitHubContext) loadPagedData() error {
@@ -347,7 +372,7 @@ func (ghc *GitHubContext) loadPagedData() error {
 	return nil
 }
 
-func (ghc *GitHubContext) loadCollaboratorData() error {
+func (ghc *GitHubContext) loadCollaboratorData(direct bool) (map[string]string, error) {
 	var q struct {
 		Repository struct {
 			Collaborators struct {
@@ -356,12 +381,28 @@ func (ghc *GitHubContext) loadCollaboratorData() error {
 					Permission string  `graphql:"permission"`
 					Node       v4Actor `graphql:"node"`
 				}
-			} `graphql:"collaborators(first: 100, after: $collaboratorCursor)"`
+			} `graphql:"collaborators(first: 100, after: $collaboratorCursor, affiliation: $affiliation)"`
 		} `graphql:"repository(owner: $owner, name: $name)"`
 	}
+	affiliation := githubv4.CollaboratorAffiliationAll
+	if direct {
+		affiliation = githubv4.CollaboratorAffiliationDirect
+	}
+
+	if direct {
+		if ghc.directCollaborators != nil {
+			return ghc.directCollaborators, nil
+		}
+	} else {
+		if ghc.collaborators != nil {
+			return ghc.collaborators, nil
+		}
+	}
+
 	qvars := map[string]interface{}{
-		"owner": githubv4.String(ghc.owner),
-		"name":  githubv4.String(ghc.repo),
+		"owner":       githubv4.String(ghc.owner),
+		"name":        githubv4.String(ghc.repo),
+		"affiliation": affiliation,
 
 		"collaboratorCursor": (*githubv4.String)(nil),
 	}
@@ -369,7 +410,7 @@ func (ghc *GitHubContext) loadCollaboratorData() error {
 	collaborators := make(map[string]string)
 	for {
 		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
-			return errors.Wrap(err, "failed to load pull request data")
+			return nil, errors.Wrap(err, "failed to load pull request data")
 		}
 
 		for _, c := range q.Repository.Collaborators.Edges {
@@ -380,8 +421,12 @@ func (ghc *GitHubContext) loadCollaboratorData() error {
 		}
 	}
 
-	ghc.collaborators = collaborators
-	return nil
+	if direct {
+		ghc.directCollaborators = collaborators
+	} else {
+		ghc.collaborators = collaborators
+	}
+	return collaborators, nil
 }
 
 func (ghc *GitHubContext) loadCommits() ([]*Commit, error) {

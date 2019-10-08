@@ -34,6 +34,9 @@ func findLeafChildren(result common.Result) []common.Result {
 		}
 	} else {
 		for _, c := range result.Children {
+			if c == nil {
+				continue
+			}
 			if c.Status == common.StatusPending {
 				r = append(r, findLeafChildren(*c)...)
 			}
@@ -129,16 +132,6 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 			return nil, errors.Wrap(err, "Unable to list repository collaborators")
 		}
 
-		if child.ReviewRequestRule.Admins {
-			var repoAdmins []string
-			for user, perm := range allCollaboratorPermissions {
-				if perm == common.GithubAdminPermission {
-					repoAdmins = append(repoAdmins, user)
-				}
-			}
-			shoveIntoMap(allUsers, repoAdmins)
-		}
-
 		if child.ReviewRequestRule.WriteCollaborators {
 			var repoCollaborators []string
 			for user, perm := range allCollaboratorPermissions {
@@ -149,23 +142,68 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 			shoveIntoMap(allUsers, repoCollaborators)
 		}
 
-		var allUserList []string
-		for u := range allUsers {
-			// Remove org owners if we explicitly want to ignore them
-			if !child.ReviewRequestRule.OrgOwners {
-				orgOwners, err := prctx.OrganizationOwners(prctx.RepositoryOwner())
+		if child.ReviewRequestRule.Admins {
+			// Determine what the scope of requested admins should be
+
+			switch child.ReviewRequestRule.AdminScope {
+			case common.User:
+				// Only request review for admins who are directly added to the repo
+				directCollaborators, err := prctx.DirectRepositoryCollaborators()
 				if err != nil {
-					logger.Warn().Err(err).Msg("Unable to get list of org owners")
+					logger.Error().Err(err).Msgf("Unable to get list of direct collaborators on %s", prctx.RepositoryName())
 				}
 
-				for _, owner := range orgOwners {
-					_, ok := allCollaboratorPermissions[owner]
-					if ok {
-						delete(allCollaboratorPermissions, owner)
+				var repoAdmins []string
+				for user, perm := range directCollaborators {
+					if perm == common.GithubAdminPermission {
+						repoAdmins = append(repoAdmins, user)
 					}
 				}
-			}
+				shoveIntoMap(allUsers, repoAdmins)
 
+				break
+			case common.Team:
+				// Only request review for admins that are added as a team
+				// Resolve all admin teams on the repo, and resolve their user membership
+				teams, err := prctx.Teams()
+				if err != nil {
+					logger.Error().Err(err).Msg("Unable to get list of teams collaborators")
+				}
+
+				var adminUsers []string
+				for team, perm := range teams {
+					if perm == common.GithubAdminPermission {
+						admins, err := prctx.TeamMembers(team)
+						if err != nil {
+							logger.Error().Err(err).Msgf("Unable to get list of members for %s", team)
+						}
+						adminUsers = append(adminUsers, admins...)
+					}
+				}
+
+				shoveIntoMap(allUsers, adminUsers)
+
+				break
+			case common.Org:
+				// Only request review for admins who are admin based on their org permission
+				// Don't remove any users
+				orgOwners, err := prctx.OrganizationOwners(prctx.RepositoryOwner())
+				if err != nil {
+					logger.Error().Err(err).Msgf("Unable to get list of org owners for %s", prctx.RepositoryOwner())
+				}
+
+				for _, o := range orgOwners {
+					allUsers[o] = struct{}{}
+				}
+				break
+			default:
+				// unknown option, log error and don't make any assumptions
+				logger.Warn().Msgf("Unknown AdminScope %s, ignoring", child.ReviewRequestRule.AdminScope)
+			}
+		}
+
+		var allUserList []string
+		for u := range allUsers {
 			// Remove the author and any users who aren't collaborators
 			// since github will fail to assign _anyone_ if the request contains one of these
 			_, ok := allCollaboratorPermissions[u]

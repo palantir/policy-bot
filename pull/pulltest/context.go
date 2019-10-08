@@ -44,6 +44,9 @@ type Context struct {
 	TeamMemberships     map[string][]string
 	TeamMembershipError error
 
+	TeamsValue map[string]string
+	TeamsError error
+
 	OrgMemberships     map[string][]string
 	OrgMembershipError error
 
@@ -52,6 +55,9 @@ type Context struct {
 
 	CollaboratorMemberships     map[string][]string
 	CollaboratorMembershipError error
+
+	DirectCollaboratorMemberships     map[string][]string
+	DirectCollaboratorMembershipError error
 
 	HasReviewersValue bool
 	HasReviewersError error
@@ -142,6 +148,16 @@ func (c *Context) IsCollaborator(org, repo, user, desiredPerm string) (bool, err
 	}
 	return false, nil
 }
+func (c *Context) DirectRepositoryCollaborators() (map[string]string, error) {
+	if c.DirectCollaboratorMembershipError != nil {
+		return nil, c.DirectCollaboratorMembershipError
+	}
+	users := make(map[string]string)
+	for u, p := range c.DirectCollaboratorMemberships {
+		users[u] = p[0]
+	}
+	return users, nil
+}
 
 func (c *Context) RepositoryCollaborators() (map[string]string, error) {
 	if c.CollaboratorMembershipError != nil {
@@ -199,7 +215,7 @@ func (c *Context) TeamMembers(team string) ([]string, error) {
 		}
 	}
 
-	return c.TeamMemberships[team], nil
+	return inverted[team], nil
 }
 
 func (c *Context) HasReveiwers() (bool, error) {
@@ -212,6 +228,10 @@ func (c *Context) Comments() ([]*pull.Comment, error) {
 
 func (c *Context) Reviews() ([]*pull.Review, error) {
 	return c.ReviewsValue, c.ReviewsError
+}
+
+func (c *Context) Teams() (map[string]string, error) {
+	return c.TeamsValue, c.TeamsError
 }
 
 // assert that the test object implements the full interface
