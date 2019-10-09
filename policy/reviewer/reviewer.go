@@ -76,12 +76,6 @@ func selectRandomUsers(n int, users []string, r *rand.Rand) []string {
 	return selections
 }
 
-func shoveIntoMap(m map[string]struct{}, u []string) {
-	for _, n := range u {
-		m[n] = struct{}{}
-	}
-}
-
 func selectTeamMembers(prctx pull.Context, allTeams []string, r *rand.Rand) ([]string, error) {
 	randomTeam := allTeams[r.Intn(len(allTeams))]
 	teamMembers, err := prctx.TeamMembers(randomTeam)
@@ -168,14 +162,21 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 
 	for _, child := range pendingLeafNodes {
 		allUsers := make(map[string]struct{})
-		shoveIntoMap(allUsers, child.ReviewRequestRule.Users)
+
+		if len(child.ReviewRequestRule.Users) > 0 {
+			for _, user := range child.ReviewRequestRule.Users {
+				allUsers[user] = struct{}{}
+			}
+		}
 
 		if len(child.ReviewRequestRule.Teams) > 0 {
 			teamMembers, err := selectTeamMembers(prctx, child.ReviewRequestRule.Teams, r)
 			if err != nil {
 				logger.Warn().Err(err).Msgf("Unable to get member listing for teams, skipping team member selection")
 			}
-			shoveIntoMap(allUsers, teamMembers)
+			for _, user := range teamMembers {
+				allUsers[user] = struct{}{}
+			}
 		}
 
 		if len(child.ReviewRequestRule.Organizations) > 0 {
@@ -183,7 +184,9 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 			if err != nil {
 				logger.Warn().Err(err).Msg("Unable to get member listing for org, skipping org member selection")
 			}
-			shoveIntoMap(allUsers, orgMembers)
+			for _, user := range orgMembers {
+				allUsers[user] = struct{}{}
+			}
 		}
 
 		collaboratorsToConsider := make(map[string]string)
@@ -193,13 +196,11 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 		}
 
 		if child.ReviewRequestRule.WriteCollaborators {
-			var repoCollaborators []string
 			for user, perm := range allCollaborators {
 				if perm == common.GithubWritePermission {
-					repoCollaborators = append(repoCollaborators, user)
+					allUsers[user] = struct{}{}
 				}
 			}
-			shoveIntoMap(allUsers, repoCollaborators)
 		}
 
 		// When admins are selected for review, only collect the desired set of admins instead of
@@ -213,8 +214,8 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 				return nil, errors.Wrap(err, "Unable to select admins")
 			}
 
-			shoveIntoMap(allUsers, admins)
 			for _, admin := range admins {
+				allUsers[admin] = struct{}{}
 				collaboratorsToConsider[admin] = common.GithubAdminPermission
 			}
 		}
