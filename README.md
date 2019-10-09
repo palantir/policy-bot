@@ -379,6 +379,8 @@ options:
   request_review:
     # False by default
     enabled: true
+    # Modifies how admins are selected if using require admins
+    admin_scope: (user|team|org)
 ```
 
 A number of reviewers will be randomly requested based on the `requires` rules
@@ -387,6 +389,11 @@ and approve the Pull Request.
 
 The set of requested reviewers will not include the author of the Pull Request or
 users who are not collaborators on the repository.
+
+When requiring admin approval, the set of admins can be determine by using `admin_scope`.
+Setting `admin_scope: "user"` will only select users directly added
+to the repository as admins; the `"team"` scope will automatically select users from admin teams;
+and the `"org"` scope will select any available admin on the org.
 
 #### Automatically Requesting Reviewers Example
 
