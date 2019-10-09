@@ -94,13 +94,9 @@ func selectOrgMembers(prctx pull.Context, allOrgs []string, r *rand.Rand) ([]str
 	return orgMembers, nil
 }
 
-func selectAdmins(ctx context.Context, prctx pull.Context) ([]string, error) {
-	logger := zerolog.Ctx(ctx)
-
-	var adminUsers []string
-
+func selectAdmins(prctx pull.Context) ([]string, error) {
 	// Resolve all admin teams on the repo, and resolve their user membership
-	logger.Debug().Msg("Selecting admin users from teams")
+	var adminUsers []string
 	teams, err := prctx.Teams()
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to get list of teams collaborators")
@@ -176,7 +172,8 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 			// When not looking for admins, we want to check with all possible collaborators
 			collaboratorsToConsider = allCollaborators
 		} else {
-			admins, err := selectAdmins(ctx, prctx)
+			logger.Debug().Msg("Selecting admins for review")
+			admins, err := selectAdmins(prctx)
 			if err != nil {
 				return nil, errors.Wrap(err, "Unable to select admins")
 			}
