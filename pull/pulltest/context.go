@@ -50,14 +50,8 @@ type Context struct {
 	OrgMemberships     map[string][]string
 	OrgMembershipError error
 
-	OrgOwners     []string
-	OrgOwnerError error
-
 	CollaboratorMemberships     map[string][]string
 	CollaboratorMembershipError error
-
-	DirectCollaboratorMemberships     map[string][]string
-	DirectCollaboratorMembershipError error
 
 	HasReviewersValue bool
 	HasReviewersError error
@@ -148,16 +142,6 @@ func (c *Context) IsCollaborator(org, repo, user, desiredPerm string) (bool, err
 	}
 	return false, nil
 }
-func (c *Context) DirectRepositoryCollaborators() (map[string]string, error) {
-	if c.DirectCollaboratorMembershipError != nil {
-		return nil, c.DirectCollaboratorMembershipError
-	}
-	users := make(map[string]string)
-	for u, p := range c.DirectCollaboratorMemberships {
-		users[u] = p[0]
-	}
-	return users, nil
-}
 
 func (c *Context) RepositoryCollaborators() (map[string]string, error) {
 	if c.CollaboratorMembershipError != nil {
@@ -176,7 +160,6 @@ func (c *Context) OrganizationMembers(org string) ([]string, error) {
 	}
 
 	inverted := make(map[string][]string)
-
 	for user, orgs := range c.OrgMemberships {
 		for _, o := range orgs {
 			if _, ok := inverted[o]; ok {
@@ -188,10 +171,6 @@ func (c *Context) OrganizationMembers(org string) ([]string, error) {
 	}
 
 	return inverted[org], nil
-}
-
-func (c *Context) OrganizationOwners(org string) ([]string, error) {
-	return c.OrgOwners, c.OrgOwnerError
 }
 
 func (c *Context) TeamMembers(team string) ([]string, error) {

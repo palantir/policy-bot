@@ -94,60 +94,27 @@ func selectOrgMembers(prctx pull.Context, allOrgs []string, r *rand.Rand) ([]str
 	return orgMembers, nil
 }
 
-func selectAdmins(ctx context.Context, prctx pull.Context, adminScope common.AdminScope, r *rand.Rand) ([]string, error) {
+func selectAdmins(ctx context.Context, prctx pull.Context) ([]string, error) {
 	logger := zerolog.Ctx(ctx)
 
 	var adminUsers []string
 
-	// Determine what the scope of requested admins should be
-	switch adminScope {
-	case common.AdminScopeUser:
-		logger.Debug().Msg("Selecting admin users with direct collaboration rights")
-		directCollaborators, err := prctx.DirectRepositoryCollaborators()
-		if err != nil {
-			return nil, errors.Wrapf(err, "Unable to get list of direct collaborators on %s", prctx.RepositoryName())
-		}
+	// Resolve all admin teams on the repo, and resolve their user membership
+	logger.Debug().Msg("Selecting admin users from teams")
+	teams, err := prctx.Teams()
+	if err != nil {
+		return nil, errors.Wrap(err, "Unable to get list of teams collaborators")
+	}
 
-		var repoAdmins []string
-		for user, perm := range directCollaborators {
-			if perm == common.GithubAdminPermission {
-				repoAdmins = append(repoAdmins, user)
+	for team, perm := range teams {
+		if perm == common.GithubAdminPermission {
+			fullTeamName := fmt.Sprintf("%s/%s", prctx.RepositoryOwner(), team)
+			admins, err := prctx.TeamMembers(fullTeamName)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Unable to get list of members for %s", team)
 			}
+			adminUsers = append(adminUsers, admins...)
 		}
-
-		adminUsers = append(adminUsers, repoAdmins...)
-	case common.AdminScopeTeam:
-		// Only request review for admins that are added as a team
-		// Resolve all admin teams on the repo, and resolve their user membership
-		logger.Debug().Msg("Selecting admin users from teams")
-		teams, err := prctx.Teams()
-		if err != nil {
-			return nil, errors.Wrap(err, "Unable to get list of teams collaborators")
-		}
-
-		for team, perm := range teams {
-			if perm == common.GithubAdminPermission {
-				fullTeamName := fmt.Sprintf("%s/%s", prctx.RepositoryOwner(), team)
-				admins, err := prctx.TeamMembers(fullTeamName)
-				if err != nil {
-					return nil, errors.Wrapf(err, "Unable to get list of members for %s", team)
-				}
-				adminUsers = append(adminUsers, admins...)
-			}
-		}
-	case common.AdminScopeOrg:
-		logger.Debug().Msg("Selecting admin users from the org")
-		orgOwners, err := prctx.OrganizationOwners(prctx.RepositoryOwner())
-		if err != nil {
-			return nil, errors.Wrapf(err, "Unable to get list of org owners for %s", prctx.RepositoryOwner())
-		}
-
-		for _, o := range orgOwners {
-			adminUsers = append(adminUsers, o)
-		}
-	default:
-		// unknown option, error and don't make any assumptions
-		return nil, errors.Errorf("Unknown AdminScope %s, ignoring", adminScope)
 	}
 
 	return adminUsers, nil
@@ -209,7 +176,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 			// When not looking for admins, we want to check with all possible collaborators
 			collaboratorsToConsider = allCollaborators
 		} else {
-			admins, err := selectAdmins(ctx, prctx, child.ReviewRequestRule.AdminScope, r)
+			admins, err := selectAdmins(ctx, prctx)
 			if err != nil {
 				return nil, errors.Wrap(err, "Unable to select admins")
 			}

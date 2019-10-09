@@ -37,14 +37,6 @@ func (s EvaluationStatus) String() string {
 	return "unknown"
 }
 
-type AdminScope string
-
-const (
-	AdminScopeUser AdminScope = "user"
-	AdminScopeTeam AdminScope = "team"
-	AdminScopeOrg  AdminScope = "org"
-)
-
 type ReviewRequestRule struct {
 	Teams              []string
 	Users              []string
@@ -52,7 +44,6 @@ type ReviewRequestRule struct {
 	Admins             bool
 	WriteCollaborators bool
 	RequiredCount      int
-	AdminScope         AdminScope
 }
 
 type Result struct {

@@ -46,8 +46,7 @@ type Options struct {
 }
 
 type RequestReview struct {
-	Enabled    bool              `yaml:"enabled"`
-	AdminScope common.AdminScope `yaml:"admin_scope"`
+	Enabled bool `yaml:"enabled"`
 }
 
 func (opts *Options) GetMethods() *common.Methods {
@@ -117,7 +116,6 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 				Admins:             r.Requires.Admins,
 				WriteCollaborators: r.Requires.WriteCollaborators,
 				RequiredCount:      r.Requires.Count,
-				AdminScope:         r.Options.RequestReview.AdminScope,
 			}
 		}
 	}

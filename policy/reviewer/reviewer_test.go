@@ -70,8 +70,6 @@ func TestFindRandomRequesters(t *testing.T) {
 		Description: "",
 		Status:      common.StatusPending,
 		ReviewRequestRule: common.ReviewRequestRule{
-			// Require admins from direct users, but org-owner isn't directly added
-			AdminScope:    common.AdminScopeUser,
 			Admins:        true,
 			RequiredCount: 1,
 		},
@@ -83,92 +81,11 @@ func TestFindRandomRequesters(t *testing.T) {
 
 	reviewers, err := FindRandomRequesters(context.Background(), prctx, results, r)
 	require.NoError(t, err)
-	require.Len(t, reviewers, 2, "policy should request two people")
+	require.Len(t, reviewers, 3, "policy should request three people")
 	require.Contains(t, reviewers, "review-approver", "at least review-approver must be selected")
 	require.NotContains(t, reviewers, "mhaypenny", "the author cannot be requested")
 	require.NotContains(t, reviewers, "not-a-collaborator", "a non collaborator cannot be requested")
 	require.NotContains(t, reviewers, "org-owner", "org-owner should not be requested")
-}
-
-func TestFindRandomRequesters_OrgAdmin(t *testing.T) {
-	r := rand.New(rand.NewSource(42))
-	results := makeResults(&common.Result{
-		Name:        "Team",
-		Description: "",
-		Status:      common.StatusPending,
-		ReviewRequestRule: common.ReviewRequestRule{
-			// Require admins from the Org, and org-owner is an org admin
-			AdminScope:    common.AdminScopeOrg,
-			Admins:        true,
-			RequiredCount: 1,
-		},
-		Error:    nil,
-		Children: nil,
-	})
-
-	prctx := makeContext(nil)
-	reviewers, err := FindRandomRequesters(context.Background(), prctx, results, r)
-	require.NoError(t, err)
-	require.Len(t, reviewers, 3, "policy should request three people")
-	require.Contains(t, reviewers, "review-approver", "at least review-approver must be selected")
-	require.Contains(t, reviewers, "org-owner", "at least org-owner must be selected")
-	require.NotContains(t, reviewers, "mhaypenny", "the author cannot be requested")
-	require.NotContains(t, reviewers, "not-a-collaborator", "a non collaborator cannot be requested")
-}
-
-func TestFindRandomRequesters_TeamAdmin(t *testing.T) {
-	r := rand.New(rand.NewSource(42))
-	results := makeResults(&common.Result{
-		Name:        "Team",
-		Description: "",
-		Status:      common.StatusPending,
-		ReviewRequestRule: common.ReviewRequestRule{
-			// Require admins from a Team, and user-team-admin is on an admin team
-			AdminScope:    common.AdminScopeTeam,
-			Admins:        true,
-			RequiredCount: 1,
-		},
-		Error:    nil,
-		Children: nil,
-	})
-
-	prctx := makeContext(nil)
-	reviewers, err := FindRandomRequesters(context.Background(), prctx, results, r)
-	require.NoError(t, err)
-	require.Len(t, reviewers, 3, "policy should request three people")
-	require.Contains(t, reviewers, "review-approver", "at least review-approver must be selected")
-	require.Contains(t, reviewers, "user-team-admin", "at least user-team-admin must be selected")
-	require.NotContains(t, reviewers, "mhaypenny", "the author cannot be requested")
-	require.NotContains(t, reviewers, "not-a-collaborator", "a non collaborator cannot be requested")
-}
-
-func TestFindRandomRequesters_DirectAdmin(t *testing.T) {
-	r := rand.New(rand.NewSource(42))
-	results := makeResults(&common.Result{
-		Name:        "Team",
-		Description: "",
-		Status:      common.StatusPending,
-		ReviewRequestRule: common.ReviewRequestRule{
-			// Require admins from direct users, and user-direct-admin is added directly
-			AdminScope:    common.AdminScopeUser,
-			Admins:        true,
-			RequiredCount: 1,
-		},
-		Error:    nil,
-		Children: nil,
-	})
-
-	direct := map[string][]string{
-		"user-direct-admin": {common.GithubAdminPermission},
-	}
-	prctx := makeContext(direct)
-	reviewers, err := FindRandomRequesters(context.Background(), prctx, results, r)
-	require.NoError(t, err)
-	require.Len(t, reviewers, 3, "policy should request three people")
-	require.Contains(t, reviewers, "review-approver", "at least review-approver must be selected")
-	require.Contains(t, reviewers, "user-direct-admin", "at least user-team-admin must be selected")
-	require.NotContains(t, reviewers, "mhaypenny", "the author cannot be requested")
-	require.NotContains(t, reviewers, "not-a-collaborator", "a non collaborator cannot be requested")
 }
 
 func TestFindRandomRequesters_Team(t *testing.T) {
@@ -284,9 +201,6 @@ func makeContext(directCollaborators map[string][]string) pull.Context {
 		CommentsValue: []*pull.Comment{},
 		ReviewsValue:  []*pull.Review{},
 
-		OrgOwners: []string{
-			"org-owner",
-		},
 		OrgMemberships: map[string][]string{
 			"mhaypenny":             {"everyone"},
 			"contributor-author":    {"everyone"},
@@ -294,7 +208,6 @@ func makeContext(directCollaborators map[string][]string) pull.Context {
 			"comment-approver":      {"everyone", "cool-org"},
 			"review-approver":       {"everyone", "even-cooler-org"},
 		},
-		DirectCollaboratorMemberships: directCollaborators,
 		CollaboratorMemberships: map[string][]string{
 			"mhaypenny":             {common.GithubAdminPermission},
 			"org-owner":             {common.GithubAdminPermission},

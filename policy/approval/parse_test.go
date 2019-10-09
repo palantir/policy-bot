@@ -66,7 +66,6 @@ func TestParsePolicy(t *testing.T) {
   options:
     request_review:
       enabled: true
-      admin_scope: org
   requires:
     admins: true
 `

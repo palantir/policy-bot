@@ -34,11 +34,8 @@ type MembershipContext interface {
 	// TeamMembers returns the list of usernames in the given organization's team.
 	TeamMembers(team string) ([]string, error)
 
-	// OrganizationMembers returns the list of usernames in the given organization.
+	// OrganizationMembers returns the list of org member usernames in the given organization.
 	OrganizationMembers(org string) ([]string, error)
-
-	// OrganizationOwners returns the list of owner usernames in the given organization.
-	OrganizationOwners(org string) ([]string, error)
 }
 
 // Context is the context for a pull request. It defines methods to get
@@ -92,10 +89,6 @@ type Context interface {
 	// RepositoryCollaborators lists the set of collaborators, along with
 	// their respective permission on a repo.
 	RepositoryCollaborators() (map[string]string, error)
-
-	// DirectRepositoryCollaborators lists the set of Direct collaborators, along with
-	// their respective permission on a repo.
-	DirectRepositoryCollaborators() (map[string]string, error)
 
 	// Teams lists the set of team collaborators, along with
 	// their respective permission on a repo.
