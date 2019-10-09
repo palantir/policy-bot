@@ -71,7 +71,7 @@ func TestFindRandomRequesters(t *testing.T) {
 		Status:      common.StatusPending,
 		ReviewRequestRule: common.ReviewRequestRule{
 			// Require admins from direct users, but org-owner isn't directly added
-			AdminScope:    common.User,
+			AdminScope:    common.AdminScopeUser,
 			Admins:        true,
 			RequiredCount: 1,
 		},
@@ -98,7 +98,7 @@ func TestFindRandomRequesters_OrgAdmin(t *testing.T) {
 		Status:      common.StatusPending,
 		ReviewRequestRule: common.ReviewRequestRule{
 			// Require admins from the Org, and org-owner is an org admin
-			AdminScope:    common.Org,
+			AdminScope:    common.AdminScopeOrg,
 			Admins:        true,
 			RequiredCount: 1,
 		},
@@ -124,7 +124,7 @@ func TestFindRandomRequesters_TeamAdmin(t *testing.T) {
 		Status:      common.StatusPending,
 		ReviewRequestRule: common.ReviewRequestRule{
 			// Require admins from a Team, and user-team-admin is on an admin team
-			AdminScope:    common.Team,
+			AdminScope:    common.AdminScopeTeam,
 			Admins:        true,
 			RequiredCount: 1,
 		},
@@ -150,7 +150,7 @@ func TestFindRandomRequesters_DirectAdmin(t *testing.T) {
 		Status:      common.StatusPending,
 		ReviewRequestRule: common.ReviewRequestRule{
 			// Require admins from direct users, and user-direct-admin is added directly
-			AdminScope:    common.User,
+			AdminScope:    common.AdminScopeUser,
 			Admins:        true,
 			RequiredCount: 1,
 		},

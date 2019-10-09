@@ -130,9 +130,9 @@ func (mc *GitHubMembershipContext) IsCollaborator(org, repo, user, desiredPerm s
 	return perm.GetPermission() == desiredPerm, nil
 }
 
-func (mc *GitHubMembershipContext) organizationMembers(org, perm string) ([]string, error) {
+func (mc *GitHubMembershipContext) organizationMembers(org, role string) ([]string, error) {
 	opt := &github.ListMembersOptions{
-		Role: perm,
+		Role: role,
 		ListOptions: github.ListOptions{
 			PerPage: 100,
 		},

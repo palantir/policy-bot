@@ -37,7 +37,7 @@ type MembershipContext interface {
 	// OrganizationMembers returns the list of usernames in the given organization.
 	OrganizationMembers(org string) ([]string, error)
 
-	// OrganizationMembers returns the list of owner usernames in the given organization.
+	// OrganizationOwners returns the list of owner usernames in the given organization.
 	OrganizationOwners(org string) ([]string, error)
 }
 

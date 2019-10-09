@@ -151,7 +151,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 		} else {
 			// Determine what the scope of requested admins should be
 			switch child.ReviewRequestRule.AdminScope {
-			case common.User:
+			case common.AdminScopeUser:
 				logger.Debug().Msg("Selecting admin users with direct collaboration rights")
 				directCollaborators, err := prctx.DirectRepositoryCollaborators()
 				if err != nil {
@@ -170,7 +170,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 				}
 
 				break
-			case common.Team:
+			case common.AdminScopeTeam:
 				// Only request review for admins that are added as a team
 				// Resolve all admin teams on the repo, and resolve their user membership
 				logger.Debug().Msg("Selecting admin users from teams")
@@ -197,7 +197,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 				}
 
 				break
-			case common.Org:
+			case common.AdminScopeOrg:
 				logger.Debug().Msg("Selecting admin users from the org")
 				orgOwners, err := prctx.OrganizationOwners(prctx.RepositoryOwner())
 				if err != nil {

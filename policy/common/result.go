@@ -40,9 +40,9 @@ func (s EvaluationStatus) String() string {
 type AdminScope string
 
 const (
-	User AdminScope = "user"
-	Team AdminScope = "team"
-	Org  AdminScope = "org"
+	AdminScopeUser AdminScope = "user"
+	AdminScopeTeam AdminScope = "team"
+	AdminScopeOrg  AdminScope = "org"
 )
 
 type ReviewRequestRule struct {

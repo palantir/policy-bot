@@ -203,8 +203,11 @@ options:
   request_review:
     # False by default
     enabled: true
-    # Include organization owners in automatic review. False by default.
-    org_owner: false
+    # If admins are required for review, they can be automatically selected.
+    # Admin of a repo is granted in three ways: direct user admin on the Repository, team admin on the repository,
+    # or as an Organization Owner.
+    # To reflect these permission sources, admin_scope can be set to (user|team|org)
+    admin_scope: "org"
 
   # "methods" defines how users may express approval. The defaults are below.
   methods:

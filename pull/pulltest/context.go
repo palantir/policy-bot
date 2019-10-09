@@ -191,11 +191,7 @@ func (c *Context) OrganizationMembers(org string) ([]string, error) {
 }
 
 func (c *Context) OrganizationOwners(org string) ([]string, error) {
-	if c.OrgOwnerError != nil {
-		return nil, c.OrgOwnerError
-	}
-
-	return c.OrgOwners, nil
+	return c.OrgOwners, c.OrgOwnerError
 }
 
 func (c *Context) TeamMembers(team string) ([]string, error) {
