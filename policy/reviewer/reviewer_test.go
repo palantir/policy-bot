@@ -30,7 +30,13 @@ import (
 )
 
 func TestFindLeafResults(t *testing.T) {
-	results := makeResults(nil)
+	results := makeResults(&common.Result{
+		Name:        "Skipped",
+		Description: "",
+		Status:      common.StatusSkipped,
+		Error:       nil,
+		Children:    nil,
+	})
 	actualResults := findLeafChildren(results)
 	require.Len(t, actualResults, 2, "incorrect number of leaf results")
 }
@@ -52,7 +58,7 @@ func TestSelectRandomUsers(t *testing.T) {
 }
 
 func TestFindRepositoryCollaborators(t *testing.T) {
-	prctx := makeContext(nil)
+	prctx := makeContext()
 	collabPerms, err := prctx.RepositoryCollaborators()
 	var collabs []string
 	for c := range collabPerms {
@@ -77,7 +83,7 @@ func TestFindRandomRequesters(t *testing.T) {
 		Children: nil,
 	})
 
-	prctx := makeContext(nil)
+	prctx := makeContext()
 
 	reviewers, err := FindRandomRequesters(context.Background(), prctx, results, r)
 	require.NoError(t, err)
@@ -103,7 +109,7 @@ func TestFindRandomRequesters_Team(t *testing.T) {
 		Children: nil,
 	})
 
-	prctx := makeContext(nil)
+	prctx := makeContext()
 	reviewers, err := FindRandomRequesters(context.Background(), prctx, results, r)
 	require.NoError(t, err)
 	require.Len(t, reviewers, 3, "policy should request three people")
@@ -128,7 +134,7 @@ func TestFindRandomRequesters_Org(t *testing.T) {
 		Children: nil,
 	})
 
-	prctx := makeContext(nil)
+	prctx := makeContext()
 	reviewers, err := FindRandomRequesters(context.Background(), prctx, results, r)
 	require.NoError(t, err)
 	require.Len(t, reviewers, 3, "policy should request three people")
@@ -193,7 +199,7 @@ func makeResults(result *common.Result) common.Result {
 	return results
 }
 
-func makeContext(directCollaborators map[string][]string) pull.Context {
+func makeContext() pull.Context {
 	return &pulltest.Context{
 		OwnerValue: "everyone",
 

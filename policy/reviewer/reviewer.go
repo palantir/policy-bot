@@ -34,9 +34,6 @@ func findLeafChildren(result common.Result) []common.Result {
 		}
 	} else {
 		for _, c := range result.Children {
-			if c == nil {
-				continue
-			}
 			if c.Status == common.StatusPending {
 				r = append(r, findLeafChildren(*c)...)
 			}
@@ -99,7 +96,7 @@ func selectAdmins(prctx pull.Context) ([]string, error) {
 	var adminUsers []string
 	teams, err := prctx.Teams()
 	if err != nil {
-		return nil, errors.Wrap(err, "Unable to get list of teams collaborators")
+		return nil, errors.Wrap(err, "failed to get list of teams collaborators")
 	}
 
 	for team, perm := range teams {
@@ -126,16 +123,14 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 	for _, child := range pendingLeafNodes {
 		allUsers := make(map[string]struct{})
 
-		if len(child.ReviewRequestRule.Users) > 0 {
-			for _, user := range child.ReviewRequestRule.Users {
-				allUsers[user] = struct{}{}
-			}
+		for _, user := range child.ReviewRequestRule.Users {
+			allUsers[user] = struct{}{}
 		}
 
 		if len(child.ReviewRequestRule.Teams) > 0 {
 			teamMembers, err := selectTeamMembers(prctx, child.ReviewRequestRule.Teams, r)
 			if err != nil {
-				logger.Warn().Err(err).Msgf("Unable to get member listing for teams, skipping team member selection")
+				logger.Warn().Err(err).Msgf("failed to get member listing for teams, skipping team member selection")
 			}
 			for _, user := range teamMembers {
 				allUsers[user] = struct{}{}
@@ -145,7 +140,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 		if len(child.ReviewRequestRule.Organizations) > 0 {
 			orgMembers, err := selectOrgMembers(prctx, child.ReviewRequestRule.Organizations, r)
 			if err != nil {
-				logger.Warn().Err(err).Msg("Unable to get member listing for org, skipping org member selection")
+				logger.Warn().Err(err).Msg("failed to get member listing for org, skipping org member selection")
 			}
 			for _, user := range orgMembers {
 				allUsers[user] = struct{}{}
@@ -155,7 +150,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 		collaboratorsToConsider := make(map[string]string)
 		allCollaborators, err := prctx.RepositoryCollaborators()
 		if err != nil {
-			return nil, errors.Wrap(err, "Unable to list repository collaborators")
+			return nil, errors.Wrap(err, "failed to list repository collaborators")
 		}
 
 		if child.ReviewRequestRule.WriteCollaborators {
@@ -175,7 +170,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 			logger.Debug().Msg("Selecting admins for review")
 			admins, err := selectAdmins(prctx)
 			if err != nil {
-				return nil, errors.Wrap(err, "Unable to select admins")
+				return nil, errors.Wrap(err, "failed to select admins")
 			}
 
 			for _, admin := range admins {
