@@ -59,7 +59,7 @@ func selectRandomUsers(n int, users []string, r *rand.Rand) []string {
 			// Upper bound the number of attempts to uniquely select random users to n*5
 			if j > n*5 {
 				// We haven't been able to select a random value, bail loudly
-				panic(fmt.Sprintf("Unable to select random value for %d %d", n, len(users)))
+				panic(fmt.Sprintf("failed to select random value for %d %d", n, len(users)))
 			}
 			m := r.Intn(len(users))
 			if !selected[m] {
@@ -175,7 +175,6 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 
 			for _, admin := range admins {
 				allUsers[admin] = struct{}{}
-				collaboratorsToConsider[admin] = common.GithubAdminPermission
 			}
 		}
 
