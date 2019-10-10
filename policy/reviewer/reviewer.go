@@ -73,22 +73,30 @@ func selectRandomUsers(n int, users []string, r *rand.Rand) []string {
 	return selections
 }
 
-func selectTeamMembers(prctx pull.Context, allTeams []string, r *rand.Rand) ([]string, error) {
-	randomTeam := allTeams[r.Intn(len(allTeams))]
-	teamMembers, err := prctx.TeamMembers(randomTeam)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get member listing for team %s", randomTeam)
+func selectTeamMembers(prctx pull.Context, allTeams []string) ([]string, error) {
+	var allTeamsMembers []string
+	for _, team := range allTeams {
+		teamMembers, err := prctx.TeamMembers(team)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get member listing for team %s", team)
+		}
+		allTeamsMembers = append(allTeamsMembers, teamMembers...)
 	}
-	return teamMembers, nil
+
+	return allTeamsMembers, nil
 }
 
-func selectOrgMembers(prctx pull.Context, allOrgs []string, r *rand.Rand) ([]string, error) {
-	randomOrg := allOrgs[r.Intn(len(allOrgs))]
-	orgMembers, err := prctx.OrganizationMembers(randomOrg)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get member listing for org %s", randomOrg)
+func selectOrgMembers(prctx pull.Context, allOrgs []string) ([]string, error) {
+	var allOrgsMembers []string
+	for _, org := range allOrgs {
+		orgMembers, err := prctx.OrganizationMembers(org)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get member listing for org %s", org)
+		}
+		allOrgsMembers = append(allOrgsMembers, orgMembers...)
 	}
-	return orgMembers, nil
+
+	return allOrgsMembers, nil
 }
 
 func selectAdmins(prctx pull.Context) ([]string, error) {
@@ -115,10 +123,8 @@ func selectAdmins(prctx pull.Context) ([]string, error) {
 
 func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common.Result, r *rand.Rand) ([]string, error) {
 	logger := zerolog.Ctx(ctx)
-	pendingLeafNodes := findLeafChildren(result)
 	var usersToRequest []string
-
-	logger.Debug().Msgf("Collecting reviewers for %d pending leaf nodes", len(pendingLeafNodes))
+	pendingLeafNodes := findLeafChildren(result)
 
 	for _, child := range pendingLeafNodes {
 		allUsers := make(map[string]struct{})
@@ -128,7 +134,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 		}
 
 		if len(child.ReviewRequestRule.Teams) > 0 {
-			teamMembers, err := selectTeamMembers(prctx, child.ReviewRequestRule.Teams, r)
+			teamMembers, err := selectTeamMembers(prctx, child.ReviewRequestRule.Teams)
 			if err != nil {
 				logger.Warn().Err(err).Msgf("failed to get member listing for teams, skipping team member selection")
 			}
@@ -138,7 +144,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 		}
 
 		if len(child.ReviewRequestRule.Organizations) > 0 {
-			orgMembers, err := selectOrgMembers(prctx, child.ReviewRequestRule.Organizations, r)
+			orgMembers, err := selectOrgMembers(prctx, child.ReviewRequestRule.Organizations)
 			if err != nil {
 				logger.Warn().Err(err).Msg("failed to get member listing for org, skipping org member selection")
 			}
@@ -183,9 +189,13 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 			}
 		}
 
-		logger.Debug().Msgf("Found %d total candidates for review after removing author and non-collaborators; randomly selecting %d", len(possibleReviewers), child.ReviewRequestRule.RequiredCount)
-		randomSelection := selectRandomUsers(child.ReviewRequestRule.RequiredCount, possibleReviewers, r)
-		usersToRequest = append(usersToRequest, randomSelection...)
+		if len(possibleReviewers) > 0 {
+			logger.Debug().Msgf("Found %d total candidates for review after removing author and non-collaborators; randomly selecting %d", len(possibleReviewers), child.ReviewRequestRule.RequiredCount)
+			randomSelection := selectRandomUsers(child.ReviewRequestRule.RequiredCount, possibleReviewers, r)
+			usersToRequest = append(usersToRequest, randomSelection...)
+		} else {
+			logger.Debug().Msg("Did not find candidates for review after removing author and non-collaborators")
+		}
 	}
 
 	return usersToRequest, nil
