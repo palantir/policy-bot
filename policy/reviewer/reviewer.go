@@ -116,7 +116,7 @@ func selectAdmins(prctx pull.Context) ([]string, error) {
 func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common.Result, r *rand.Rand) ([]string, error) {
 	logger := zerolog.Ctx(ctx)
 	pendingLeafNodes := findLeafChildren(result)
-	var requestedUsers []string
+	var usersToRequest []string
 
 	logger.Debug().Msgf("Collecting reviewers for %d pending leaf nodes", len(pendingLeafNodes))
 
@@ -147,26 +147,20 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 			}
 		}
 
-		collaboratorsToConsider := make(map[string]string)
-		allCollaborators, err := prctx.RepositoryCollaborators()
+		collaboratorsToConsider, err := prctx.RepositoryCollaborators()
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to list repository collaborators")
 		}
 
 		if child.ReviewRequestRule.WriteCollaborators {
-			for user, perm := range allCollaborators {
+			for user, perm := range collaboratorsToConsider {
 				if perm == common.GithubWritePermission {
 					allUsers[user] = struct{}{}
 				}
 			}
 		}
 
-		// When admins are selected for review, only collect the desired set of admins instead of
-		// everyone, which includes org admins
-		if !child.ReviewRequestRule.Admins {
-			// When not looking for admins, we want to check with all possible collaborators
-			collaboratorsToConsider = allCollaborators
-		} else {
+		if child.ReviewRequestRule.Admins {
 			logger.Debug().Msg("Selecting admins for review")
 			admins, err := selectAdmins(prctx)
 			if err != nil {
@@ -179,20 +173,20 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 			}
 		}
 
-		var allUserList []string
+		var possibleReviewers []string
 		for u := range allUsers {
 			// Remove the author and any users who aren't collaborators
 			// since github will fail to assign _anyone_ if the request contains one of these
 			_, ok := collaboratorsToConsider[u]
 			if u != prctx.Author() && ok {
-				allUserList = append(allUserList, u)
+				possibleReviewers = append(possibleReviewers, u)
 			}
 		}
 
-		logger.Debug().Msgf("Found %d total candidates for review after removing author and non-collaborators; randomly selecting %d", len(allUserList), child.ReviewRequestRule.RequiredCount)
-		randomSelection := selectRandomUsers(child.ReviewRequestRule.RequiredCount, allUserList, r)
-		requestedUsers = append(requestedUsers, randomSelection...)
+		logger.Debug().Msgf("Found %d total candidates for review after removing author and non-collaborators; randomly selecting %d", len(possibleReviewers), child.ReviewRequestRule.RequiredCount)
+		randomSelection := selectRandomUsers(child.ReviewRequestRule.RequiredCount, possibleReviewers, r)
+		usersToRequest = append(usersToRequest, randomSelection...)
 	}
 
-	return requestedUsers, nil
+	return usersToRequest, nil
 }
