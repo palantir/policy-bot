@@ -573,7 +573,9 @@ type v4PullRequest struct {
 	Author v4Actor
 
 	IsCrossRepository bool
-	IsDraft           bool
+
+	// This field is in GraphQL Preview, so don't ask for it just yet
+	IsDraft bool `graphql:""`
 
 	HeadRefOID     string
 	HeadRefName    string
