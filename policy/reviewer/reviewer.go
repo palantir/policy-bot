@@ -59,7 +59,7 @@ func selectRandomUsers(n int, users []string, r *rand.Rand) []string {
 			// Upper bound the number of attempts to uniquely select random users to n*5
 			if j > n*5 {
 				// We haven't been able to select a random value, bail loudly
-				panic(fmt.Sprintf("Unable to select random value for %d %d", n, len(users)))
+				panic(fmt.Sprintf("failed to select random value for %d %d", n, len(users)))
 			}
 			m := r.Intn(len(users))
 			if !selected[m] {
@@ -73,96 +73,129 @@ func selectRandomUsers(n int, users []string, r *rand.Rand) []string {
 	return selections
 }
 
-func shoveIntoMap(m map[string]struct{}, u []string) {
-	for _, n := range u {
-		m[n] = struct{}{}
+func selectTeamMembers(prctx pull.Context, allTeams []string) ([]string, error) {
+	var allTeamsMembers []string
+	for _, team := range allTeams {
+		teamMembers, err := prctx.TeamMembers(team)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get member listing for team %s", team)
+		}
+		allTeamsMembers = append(allTeamsMembers, teamMembers...)
 	}
+
+	return allTeamsMembers, nil
 }
 
-func selectTeamMembers(prctx pull.Context, allTeams []string, r *rand.Rand) ([]string, error) {
-	randomTeam := allTeams[r.Intn(len(allTeams))]
-	teamMembers, err := prctx.TeamMembers(randomTeam)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get member listing for team %s", randomTeam)
+func selectOrgMembers(prctx pull.Context, allOrgs []string) ([]string, error) {
+	var allOrgsMembers []string
+	for _, org := range allOrgs {
+		orgMembers, err := prctx.OrganizationMembers(org)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get member listing for org %s", org)
+		}
+		allOrgsMembers = append(allOrgsMembers, orgMembers...)
 	}
-	return teamMembers, nil
+
+	return allOrgsMembers, nil
 }
 
-func selectOrgMembers(prctx pull.Context, allOrgs []string, r *rand.Rand) ([]string, error) {
-	randomOrg := allOrgs[r.Intn(len(allOrgs))]
-	orgMembers, err := prctx.OrganizationMembers(randomOrg)
+func selectAdmins(prctx pull.Context) ([]string, error) {
+	// Resolve all admin teams on the repo, and resolve their user membership
+	var adminUsers []string
+	teams, err := prctx.Teams()
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get member listing for org %s", randomOrg)
+		return nil, errors.Wrap(err, "failed to get list of teams collaborators")
 	}
-	return orgMembers, nil
+
+	for team, perm := range teams {
+		if perm == common.GithubAdminPermission {
+			fullTeamName := fmt.Sprintf("%s/%s", prctx.RepositoryOwner(), team)
+			admins, err := prctx.TeamMembers(fullTeamName)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Unable to get list of members for %s", team)
+			}
+			adminUsers = append(adminUsers, admins...)
+		}
+	}
+
+	return adminUsers, nil
 }
 
 func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common.Result, r *rand.Rand) ([]string, error) {
 	logger := zerolog.Ctx(ctx)
+	var usersToRequest []string
 	pendingLeafNodes := findLeafChildren(result)
-	var requestedUsers []string
-
-	logger.Debug().Msgf("Collecting reviewers for %d pending leaf nodes", len(pendingLeafNodes))
 
 	for _, child := range pendingLeafNodes {
 		allUsers := make(map[string]struct{})
-		shoveIntoMap(allUsers, child.ReviewRequestRule.Users)
+
+		for _, user := range child.ReviewRequestRule.Users {
+			allUsers[user] = struct{}{}
+		}
 
 		if len(child.ReviewRequestRule.Teams) > 0 {
-			teamMembers, err := selectTeamMembers(prctx, child.ReviewRequestRule.Teams, r)
+			teamMembers, err := selectTeamMembers(prctx, child.ReviewRequestRule.Teams)
 			if err != nil {
-				logger.Warn().Err(err).Msgf("Unable to get member listing for teams, skipping team member selection")
+				logger.Warn().Err(err).Msgf("failed to get member listing for teams, skipping team member selection")
 			}
-			shoveIntoMap(allUsers, teamMembers)
+			for _, user := range teamMembers {
+				allUsers[user] = struct{}{}
+			}
 		}
 
 		if len(child.ReviewRequestRule.Organizations) > 0 {
-			orgMembers, err := selectOrgMembers(prctx, child.ReviewRequestRule.Organizations, r)
+			orgMembers, err := selectOrgMembers(prctx, child.ReviewRequestRule.Organizations)
 			if err != nil {
-				logger.Warn().Err(err).Msg("Unable to get member listing for org, skipping org member selection")
+				logger.Warn().Err(err).Msg("failed to get member listing for org, skipping org member selection")
 			}
-			shoveIntoMap(allUsers, orgMembers)
+			for _, user := range orgMembers {
+				allUsers[user] = struct{}{}
+			}
 		}
 
-		allCollaboratorPermissions, err := prctx.RepositoryCollaborators()
+		collaboratorsToConsider, err := prctx.RepositoryCollaborators()
 		if err != nil {
-			return nil, errors.Wrap(err, "Unable to list repository collaborators")
-		}
-
-		if child.ReviewRequestRule.Admins {
-			var repoAdmins []string
-			for user, perm := range allCollaboratorPermissions {
-				if perm == common.GithubAdminPermission {
-					repoAdmins = append(repoAdmins, user)
-				}
-			}
-			shoveIntoMap(allUsers, repoAdmins)
+			return nil, errors.Wrap(err, "failed to list repository collaborators")
 		}
 
 		if child.ReviewRequestRule.WriteCollaborators {
-			var repoCollaborators []string
-			for user, perm := range allCollaboratorPermissions {
+			for user, perm := range collaboratorsToConsider {
 				if perm == common.GithubWritePermission {
-					repoCollaborators = append(repoCollaborators, user)
+					allUsers[user] = struct{}{}
 				}
 			}
-			shoveIntoMap(allUsers, repoCollaborators)
 		}
 
-		var allUserList []string
+		if child.ReviewRequestRule.Admins {
+			logger.Debug().Msg("Selecting admins for review")
+			admins, err := selectAdmins(prctx)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to select admins")
+			}
+
+			for _, admin := range admins {
+				allUsers[admin] = struct{}{}
+			}
+		}
+
+		var possibleReviewers []string
 		for u := range allUsers {
 			// Remove the author and any users who aren't collaborators
 			// since github will fail to assign _anyone_ if the request contains one of these
-			_, ok := allCollaboratorPermissions[u]
+			_, ok := collaboratorsToConsider[u]
 			if u != prctx.Author() && ok {
-				allUserList = append(allUserList, u)
+				possibleReviewers = append(possibleReviewers, u)
 			}
 		}
 
-		logger.Debug().Msgf("Found %d total candidates for review after removing author and non-collaborators; randomly selecting %d", len(allUserList), child.ReviewRequestRule.RequiredCount)
-		randomSelection := selectRandomUsers(child.ReviewRequestRule.RequiredCount, allUserList, r)
-		requestedUsers = append(requestedUsers, randomSelection...)
+		if len(possibleReviewers) > 0 {
+			logger.Debug().Msgf("Found %d total candidates for review after removing author and non-collaborators; randomly selecting %d", len(possibleReviewers), child.ReviewRequestRule.RequiredCount)
+			randomSelection := selectRandomUsers(child.ReviewRequestRule.RequiredCount, possibleReviewers, r)
+			usersToRequest = append(usersToRequest, randomSelection...)
+		} else {
+			logger.Debug().Msg("Did not find candidates for review after removing author and non-collaborators")
+		}
 	}
 
-	return requestedUsers, nil
+	return usersToRequest, nil
 }

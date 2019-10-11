@@ -44,6 +44,9 @@ type Context struct {
 	TeamMemberships     map[string][]string
 	TeamMembershipError error
 
+	TeamsValue map[string]string
+	TeamsError error
+
 	OrgMemberships     map[string][]string
 	OrgMembershipError error
 
@@ -157,7 +160,6 @@ func (c *Context) OrganizationMembers(org string) ([]string, error) {
 	}
 
 	inverted := make(map[string][]string)
-
 	for user, orgs := range c.OrgMemberships {
 		for _, o := range orgs {
 			if _, ok := inverted[o]; ok {
@@ -188,7 +190,7 @@ func (c *Context) TeamMembers(team string) ([]string, error) {
 		}
 	}
 
-	return c.TeamMemberships[team], nil
+	return inverted[team], nil
 }
 
 func (c *Context) HasReveiwers() (bool, error) {
@@ -201,6 +203,10 @@ func (c *Context) Comments() ([]*pull.Comment, error) {
 
 func (c *Context) Reviews() ([]*pull.Review, error) {
 	return c.ReviewsValue, c.ReviewsError
+}
+
+func (c *Context) Teams() (map[string]string, error) {
+	return c.TeamsValue, c.TeamsError
 }
 
 // assert that the test object implements the full interface

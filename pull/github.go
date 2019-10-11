@@ -273,6 +273,7 @@ func (ghc *GitHubContext) RepositoryCollaborators() (map[string]string, error) {
 			return nil, err
 		}
 	}
+
 	return ghc.collaborators, nil
 }
 
@@ -287,6 +288,30 @@ func (ghc *GitHubContext) HasReveiwers() (bool, error) {
 	}
 
 	return len(subsetCurrentReviewers.Users) > 0 || len(subsetCurrentReviewers.Teams) > 0, nil
+}
+
+func (ghc *GitHubContext) Teams() (map[string]string, error) {
+	opt := &github.ListOptions{
+		PerPage: 100,
+	}
+
+	// get all pages of results
+	allTeams := make(map[string]string)
+	for {
+		teams, resp, err := ghc.client.Repositories.ListTeams(ghc.ctx, ghc.RepositoryOwner(), ghc.RepositoryName(), opt)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to list teams page %d", opt.Page)
+		}
+		for _, t := range teams {
+			allTeams[t.GetName()] = t.GetPermission()
+		}
+		if resp.NextPage == 0 {
+			break
+		}
+		opt.Page = resp.NextPage
+	}
+
+	return allTeams, nil
 }
 
 func (ghc *GitHubContext) loadPagedData() error {
@@ -359,6 +384,7 @@ func (ghc *GitHubContext) loadCollaboratorData() error {
 			} `graphql:"collaborators(first: 100, after: $collaboratorCursor)"`
 		} `graphql:"repository(owner: $owner, name: $name)"`
 	}
+
 	qvars := map[string]interface{}{
 		"owner": githubv4.String(ghc.owner),
 		"name":  githubv4.String(ghc.repo),

@@ -30,9 +30,15 @@ import (
 )
 
 func TestFindLeafResults(t *testing.T) {
-	results := makeResults()
+	results := makeResults(&common.Result{
+		Name:        "Skipped",
+		Description: "",
+		Status:      common.StatusSkipped,
+		Error:       nil,
+		Children:    nil,
+	})
 	actualResults := findLeafChildren(results)
-	require.Len(t, actualResults, 2, "incorrect number of results")
+	require.Len(t, actualResults, 2, "incorrect number of leaf results")
 }
 
 func TestSelectRandomUsers(t *testing.T) {
@@ -51,12 +57,8 @@ func TestSelectRandomUsers(t *testing.T) {
 	assert.Equal(t, []string{"c", "e", "b", "f"}, multiplePseudoRandom)
 }
 
-func TestFindRandomRequesters(t *testing.T) {
-	r := rand.New(rand.NewSource(42))
-	results := makeResults()
-
+func TestFindRepositoryCollaborators(t *testing.T) {
 	prctx := makeContext()
-
 	collabPerms, err := prctx.RepositoryCollaborators()
 	var collabs []string
 	for c := range collabPerms {
@@ -64,17 +66,84 @@ func TestFindRandomRequesters(t *testing.T) {
 	}
 	sort.Strings(collabs)
 	require.NoError(t, err)
-	require.Equal(t, []string{"contributor-author", "contributor-committer", "mhaypenny", "review-approver"}, collabs)
+	require.Equal(t, []string{"contributor-author", "contributor-committer", "mhaypenny", "org-owner", "review-approver", "user-direct-admin", "user-team-admin", "user-team-write"}, collabs)
+}
+
+func TestFindRandomRequesters(t *testing.T) {
+	r := rand.New(rand.NewSource(42))
+	results := makeResults(&common.Result{
+		Name:        "Owner",
+		Description: "",
+		Status:      common.StatusPending,
+		ReviewRequestRule: common.ReviewRequestRule{
+			Admins:        true,
+			RequiredCount: 1,
+		},
+		Error:    nil,
+		Children: nil,
+	})
+
+	prctx := makeContext()
 
 	reviewers, err := FindRandomRequesters(context.Background(), prctx, results, r)
 	require.NoError(t, err)
-	require.Len(t, reviewers, 2, "policy should request two people")
+	require.Len(t, reviewers, 3, "policy should request three people")
+	require.Contains(t, reviewers, "review-approver", "at least review-approver must be selected")
+	require.NotContains(t, reviewers, "mhaypenny", "the author cannot be requested")
+	require.NotContains(t, reviewers, "not-a-collaborator", "a non collaborator cannot be requested")
+	require.NotContains(t, reviewers, "org-owner", "org-owner should not be requested")
+}
+
+func TestFindRandomRequesters_Team(t *testing.T) {
+	r := rand.New(rand.NewSource(42))
+	results := makeResults(&common.Result{
+		Name:        "Team",
+		Description: "",
+		Status:      common.StatusPending,
+		ReviewRequestRule: common.ReviewRequestRule{
+			// Require a team approval
+			Teams:         []string{"everyone/team-write"},
+			RequiredCount: 1,
+		},
+		Error:    nil,
+		Children: nil,
+	})
+
+	prctx := makeContext()
+	reviewers, err := FindRandomRequesters(context.Background(), prctx, results, r)
+	require.NoError(t, err)
+	require.Len(t, reviewers, 3, "policy should request three people")
+	require.Contains(t, reviewers, "review-approver", "at least review-approver must be selected")
+	require.Contains(t, reviewers, "user-team-write", "at least user-team-write must be selected")
+	require.NotContains(t, reviewers, "mhaypenny", "the author cannot be requested")
+	require.NotContains(t, reviewers, "not-a-collaborator", "a non collaborator cannot be requested")
+}
+
+func TestFindRandomRequesters_Org(t *testing.T) {
+	r := rand.New(rand.NewSource(42))
+	results := makeResults(&common.Result{
+		Name:        "Team",
+		Description: "",
+		Status:      common.StatusPending,
+		ReviewRequestRule: common.ReviewRequestRule{
+			// Require everyone org approval
+			Organizations: []string{"everyone"},
+			RequiredCount: 1,
+		},
+		Error:    nil,
+		Children: nil,
+	})
+
+	prctx := makeContext()
+	reviewers, err := FindRandomRequesters(context.Background(), prctx, results, r)
+	require.NoError(t, err)
+	require.Len(t, reviewers, 3, "policy should request three people")
 	require.Contains(t, reviewers, "review-approver", "at least review-approver must be selected")
 	require.NotContains(t, reviewers, "mhaypenny", "the author cannot be requested")
 	require.NotContains(t, reviewers, "not-a-collaborator", "a non collaborator cannot be requested")
 }
 
-func makeResults() common.Result {
+func makeResults(result *common.Result) common.Result {
 	results := common.Result{
 		Name:        "One",
 		Description: "",
@@ -95,6 +164,7 @@ func makeResults() common.Result {
 			Error:    nil,
 			Children: nil,
 		},
+			result,
 			{
 				Name:              "Three",
 				Description:       "",
@@ -117,7 +187,7 @@ func makeResults() common.Result {
 						Users:              []string{"contributor-committer", "contributor-author", "not-a-collaborator"},
 						RequiredCount:      1,
 						WriteCollaborators: true,
-						Admins:             true,
+						Admins:             false,
 					},
 					Error:    nil,
 					Children: nil,
@@ -131,6 +201,8 @@ func makeResults() common.Result {
 
 func makeContext() pull.Context {
 	return &pulltest.Context{
+		OwnerValue: "everyone",
+
 		AuthorValue:   "mhaypenny",
 		CommentsValue: []*pull.Comment{},
 		ReviewsValue:  []*pull.Review{},
@@ -144,9 +216,21 @@ func makeContext() pull.Context {
 		},
 		CollaboratorMemberships: map[string][]string{
 			"mhaypenny":             {common.GithubAdminPermission},
-			"contributor-committer": {common.GithubAdminPermission},
+			"org-owner":             {common.GithubAdminPermission},
+			"user-team-admin":       {common.GithubAdminPermission},
+			"user-direct-admin":     {common.GithubAdminPermission},
+			"user-team-write":       {common.GithubWritePermission},
+			"contributor-committer": {common.GithubWritePermission},
 			"contributor-author":    {common.GithubWritePermission},
 			"review-approver":       {common.GithubWritePermission},
+		},
+		TeamsValue: map[string]string{
+			"team-write": common.GithubWritePermission,
+			"team-admin": common.GithubAdminPermission,
+		},
+		TeamMemberships: map[string][]string{
+			"user-team-admin": {"everyone/team-admin"},
+			"user-team-write": {"everyone/team-write"},
 		},
 	}
 }
