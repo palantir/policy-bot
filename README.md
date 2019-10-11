@@ -434,6 +434,7 @@ The app requires these permissions:
 | Permission | Access | Reason |
 | ---------- | ------ | ------ |
 | Repository contents | Read-only | Read configuration and commit metadata |
+| Repository administration | Read-only | Read admin team(s) membership |
 | Issues | Read-only | Read pull request comments |
 | Repository metadata | Read-only | Basic repository data |
 | Pull requests | Read & write | Receive pull request events, read metadata. Assign reviewers |
