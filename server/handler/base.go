@@ -217,7 +217,7 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, pe
 			// check again if someone assigned a reviewer while we were calculating users to request
 			hasReviewersAfter, err := prctx.HasReveiwers()
 			if err != nil {
-				logger.Warn().Err(err).Msg("Unable to list request reviewers a second time")
+				logger.Warn().Err(err).Msg("Unable to double-check existing reviewers, assuming original state is still valid")
 			}
 
 			if len(requestedUsers) > 0 && !hasReviewersAfter {
