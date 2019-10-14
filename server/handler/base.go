@@ -202,12 +202,17 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, pe
 	}
 
 	if performActions && statusState == "pending" && !prctx.IsDraft() {
-		hasReviewers, err := prctx.HasReveiwers()
+		hasReviewers, err := prctx.HasReviewers()
 		if err != nil {
 			logger.Warn().Err(err).Msg("Unable to list request reviewers")
 		}
 
-		if !hasReviewers {
+		hasReviews, err := prctx.HasReviews()
+		if err != nil {
+			logger.Warn().Err(err).Msg("Unable to list reviews")
+		}
+
+		if !hasReviewers && !hasReviews {
 			r := rand.New(rand.NewSource(time.Now().UnixNano()))
 			requestedUsers, err := reviewer.FindRandomRequesters(ctx, prctx, result, r)
 			if err != nil {
@@ -215,7 +220,7 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, pe
 			}
 
 			// check again if someone assigned a reviewer while we were calculating users to request
-			hasReviewersAfter, err := prctx.HasReveiwers()
+			hasReviewersAfter, err := prctx.HasReviewers()
 			if err != nil {
 				logger.Warn().Err(err).Msg("Unable to double-check existing reviewers, assuming original state is still valid")
 			}

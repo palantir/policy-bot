@@ -95,7 +95,10 @@ type Context interface {
 	Teams() (map[string]string, error)
 
 	// HasReviewers returns true if the Pull Request has reviewers
-	HasReveiwers() (bool, error)
+	HasReviewers() (bool, error)
+
+	// HasReviews returns true if the Pull Request has reviews
+	HasReviews() (bool, error)
 }
 
 type FileStatus int

@@ -277,7 +277,7 @@ func (ghc *GitHubContext) RepositoryCollaborators() (map[string]string, error) {
 	return ghc.collaborators, nil
 }
 
-func (ghc *GitHubContext) HasReveiwers() (bool, error) {
+func (ghc *GitHubContext) HasReviewers() (bool, error) {
 	// Intentionally kept to a small result size, since we just want to determine if there are existing reviewers
 	subsetCurrentReviewers, _, err := ghc.client.PullRequests.ListReviewers(ghc.ctx, ghc.owner, ghc.repo, ghc.number, &github.ListOptions{
 		Page:    0,
@@ -288,6 +288,19 @@ func (ghc *GitHubContext) HasReveiwers() (bool, error) {
 	}
 
 	return len(subsetCurrentReviewers.Users) > 0 || len(subsetCurrentReviewers.Teams) > 0, nil
+}
+
+func (ghc *GitHubContext) HasReviews() (bool, error) {
+	// Intentionally kept to a small result size, since we just want to determine if there are existing reviews
+	subsetCurrentReviews, _, err := ghc.client.PullRequests.ListReviews(ghc.ctx, ghc.owner, ghc.repo, ghc.number, &github.ListOptions{
+		Page:    0,
+		PerPage: 1,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "Unable to list request reviewers")
+	}
+
+	return len(subsetCurrentReviews) > 0, nil
 }
 
 func (ghc *GitHubContext) Teams() (map[string]string, error) {
