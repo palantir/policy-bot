@@ -214,7 +214,13 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, pe
 				logger.Warn().Err(err).Msg("Unable to select random request reviewers")
 			}
 
-			if len(requestedUsers) > 0 {
+			// check again if someone assigned a reviewer while we were calculating users to request
+			hasReviewersAfter, err := prctx.HasReveiwers()
+			if err != nil {
+				logger.Warn().Err(err).Msg("Unable to list request reviewers a second time")
+			}
+
+			if len(requestedUsers) > 0 && !hasReviewersAfter {
 				reviewers := github.ReviewersRequest{
 					Reviewers:     requestedUsers,
 					TeamReviewers: []string{},
@@ -226,7 +232,7 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, pe
 					logger.Warn().Err(err).Msg("Unable to request reviewers")
 				}
 			} else {
-				logger.Debug().Msg("No users found for review, or no users were requested")
+				logger.Debug().Msg("No users found for review, no users were requested, or users were assigned during review calculation")
 			}
 		} else {
 			logger.Debug().Msg("PR has existing reviewers, not adding anyone")
