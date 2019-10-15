@@ -193,7 +193,7 @@ func (c *Context) TeamMembers(team string) ([]string, error) {
 	return inverted[team], nil
 }
 
-func (c *Context) HasReveiwers() (bool, error) {
+func (c *Context) HasReviewers() (bool, error) {
 	return c.HasReviewersValue, c.HasReviewersError
 }
 

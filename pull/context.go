@@ -94,8 +94,8 @@ type Context interface {
 	// their respective permission on a repo.
 	Teams() (map[string]string, error)
 
-	// HasReviewers returns true if the Pull Request has reviewers
-	HasReveiwers() (bool, error)
+	// HasReviewers returns true if the Pull Request has reviewers or any reviews
+	HasReviewers() (bool, error)
 }
 
 type FileStatus int

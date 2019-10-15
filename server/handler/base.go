@@ -202,22 +202,22 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, pe
 	}
 
 	if performActions && statusState == "pending" && !prctx.IsDraft() {
-		hasReviewers, err := prctx.HasReveiwers()
+		hasReviewers, err := prctx.HasReviewers()
 		if err != nil {
-			logger.Warn().Err(err).Msg("Unable to list request reviewers")
+			return errors.Wrap(err, "Unable to list request reviewers")
 		}
 
 		if !hasReviewers {
 			r := rand.New(rand.NewSource(time.Now().UnixNano()))
 			requestedUsers, err := reviewer.FindRandomRequesters(ctx, prctx, result, r)
 			if err != nil {
-				logger.Warn().Err(err).Msg("Unable to select random request reviewers")
+				return errors.Wrap(err, "Unable to select random request reviewers")
 			}
 
 			// check again if someone assigned a reviewer while we were calculating users to request
-			hasReviewersAfter, err := prctx.HasReveiwers()
+			hasReviewersAfter, err := prctx.HasReviewers()
 			if err != nil {
-				logger.Warn().Err(err).Msg("Unable to double-check existing reviewers, assuming original state is still valid")
+				return errors.Wrap(err, "Unable to double-check existing reviewers, assuming original state is still valid")
 			}
 
 			if len(requestedUsers) > 0 && !hasReviewersAfter {
@@ -229,7 +229,7 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, pe
 				logger.Debug().Msgf("PR is not in draft, there are no current reviewers, and reviews are requested from %q users", requestedUsers)
 				_, _, err = client.PullRequests.RequestReviewers(ctx, prctx.RepositoryOwner(), prctx.RepositoryName(), prctx.Number(), reviewers)
 				if err != nil {
-					logger.Warn().Err(err).Msg("Unable to request reviewers")
+					return errors.Wrap(err, "Unable to request reviewers")
 				}
 			} else {
 				logger.Debug().Msg("No users found for review, no users were requested, or users were assigned during review calculation")
