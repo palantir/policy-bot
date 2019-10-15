@@ -56,9 +56,6 @@ type Context struct {
 	HasReviewersValue bool
 	HasReviewersError error
 
-	HasReviewsValue bool
-	HasReviewsError error
-
 	Draft bool
 }
 
@@ -198,10 +195,6 @@ func (c *Context) TeamMembers(team string) ([]string, error) {
 
 func (c *Context) HasReviewers() (bool, error) {
 	return c.HasReviewersValue, c.HasReviewersError
-}
-
-func (c *Context) HasReviews() (bool, error) {
-	return c.HasReviewsValue, c.HasReviewsError
 }
 
 func (c *Context) Comments() ([]*pull.Comment, error) {
