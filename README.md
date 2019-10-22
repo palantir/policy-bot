@@ -198,11 +198,13 @@ options:
 
   # Automatically request reviewers when a Pull Request is opened
   # if this rule is pending, there are no assigned reviewers, and if the
-  # Pull Request is not in Draft. Reviewers are selected randomly
-  # based on the set of requirements for this rule.
+  # Pull Request is not in Draft. If add_everyone is false,
+  # Reviewers are selected randomly based on the set of requirements for this rule.
+  # If add_everyone is true, all possible reviewers are requested for review.
   request_review:
     # False by default
     enabled: true
+    add_everyone: false
 
   # "methods" defines how users may express approval. The defaults are below.
   methods:
@@ -374,11 +376,15 @@ options:
   request_review:
     # False by default
     enabled: true
+    add_everyone: false
 ```
 
-A number of reviewers will be randomly requested based on the `requires` rules
-so that all rules will be satisfied once the set of requested reviewers complete
-and approve the Pull Request.
+If `add_everyone` is false, a number of reviewers will be randomly requested
+based on the `requires` rules so that all rules will be satisfied once the
+set of requested reviewers complete and approve the Pull Request.
+
+If `add_everone` is true, all possible reviewers that match the pending
+criteria will be added as reviewers.
 
 The set of requested reviewers will not include the author of the Pull Request or
 users who are not collaborators on the repository.

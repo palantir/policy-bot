@@ -44,6 +44,8 @@ type ReviewRequestRule struct {
 	Admins             bool
 	WriteCollaborators bool
 	RequiredCount      int
+
+	AddEveryone bool
 }
 
 type Result struct {
