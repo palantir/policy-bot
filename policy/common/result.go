@@ -37,6 +37,13 @@ func (s EvaluationStatus) String() string {
 	return "unknown"
 }
 
+type RequestMode string
+
+const (
+	RequestModeAllUsers    RequestMode = "all-users"
+	RequestModeRandomUsers RequestMode = "random-users"
+)
+
 type ReviewRequestRule struct {
 	Teams              []string
 	Users              []string
@@ -45,7 +52,7 @@ type ReviewRequestRule struct {
 	WriteCollaborators bool
 	RequiredCount      int
 
-	AddEveryone bool
+	Mode RequestMode
 }
 
 type Result struct {

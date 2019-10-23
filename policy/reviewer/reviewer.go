@@ -121,7 +121,7 @@ func selectAdmins(prctx pull.Context) ([]string, error) {
 	return adminUsers, nil
 }
 
-func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common.Result, r *rand.Rand) ([]string, error) {
+func SelectReviewers(ctx context.Context, prctx pull.Context, result common.Result, r *rand.Rand) ([]string, error) {
 	logger := zerolog.Ctx(ctx)
 	var usersToRequest []string
 	pendingLeafNodes := findLeafChildren(result)
@@ -189,10 +189,12 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 		}
 
 		if len(possibleReviewers) > 0 {
-			if child.ReviewRequestRule.AddEveryone {
+			switch child.ReviewRequestRule.Mode {
+			case common.RequestModeAllUsers:
 				logger.Debug().Msgf("Found %d total reviewers after removing author and non-collaborators; requesting all", len(possibleReviewers))
 				usersToRequest = append(usersToRequest, possibleReviewers...)
-			} else {
+			case common.RequestModeRandomUsers:
+			default:
 				logger.Debug().Msgf("Found %d total candidates for review after removing author and non-collaborators; randomly selecting %d", len(possibleReviewers), child.ReviewRequestRule.RequiredCount)
 				randomSelection := selectRandomUsers(child.ReviewRequestRule.RequiredCount, possibleReviewers, r)
 				usersToRequest = append(usersToRequest, randomSelection...)

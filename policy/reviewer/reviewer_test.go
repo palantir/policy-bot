@@ -69,7 +69,7 @@ func TestFindRepositoryCollaborators(t *testing.T) {
 	require.Equal(t, []string{"contributor-author", "contributor-committer", "mhaypenny", "org-owner", "review-approver", "user-direct-admin", "user-team-admin", "user-team-write"}, collabs)
 }
 
-func TestFindRandomRequesters(t *testing.T) {
+func TestSelectReviewers(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
 	results := makeResults(&common.Result{
 		Name:        "Owner",
@@ -85,7 +85,7 @@ func TestFindRandomRequesters(t *testing.T) {
 
 	prctx := makeContext()
 
-	reviewers, err := FindRandomRequesters(context.Background(), prctx, results, r)
+	reviewers, err := SelectReviewers(context.Background(), prctx, results, r)
 	require.NoError(t, err)
 	require.Len(t, reviewers, 3, "policy should request three people")
 	require.Contains(t, reviewers, "review-approver", "at least review-approver must be selected")
@@ -94,7 +94,7 @@ func TestFindRandomRequesters(t *testing.T) {
 	require.NotContains(t, reviewers, "org-owner", "org-owner should not be requested")
 }
 
-func TestFindRandomRequesters_Team(t *testing.T) {
+func TestSelectReviewers_Team(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
 	results := makeResults(&common.Result{
 		Name:        "Team",
@@ -110,7 +110,7 @@ func TestFindRandomRequesters_Team(t *testing.T) {
 	})
 
 	prctx := makeContext()
-	reviewers, err := FindRandomRequesters(context.Background(), prctx, results, r)
+	reviewers, err := SelectReviewers(context.Background(), prctx, results, r)
 	require.NoError(t, err)
 	require.Len(t, reviewers, 3, "policy should request three people")
 	require.Contains(t, reviewers, "review-approver", "at least review-approver must be selected")
@@ -119,7 +119,7 @@ func TestFindRandomRequesters_Team(t *testing.T) {
 	require.NotContains(t, reviewers, "not-a-collaborator", "a non collaborator cannot be requested")
 }
 
-func TestFindRandomRequesters_Org(t *testing.T) {
+func TestSelectReviewers_Org(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
 	results := makeResults(&common.Result{
 		Name:        "Team",
@@ -135,7 +135,7 @@ func TestFindRandomRequesters_Org(t *testing.T) {
 	})
 
 	prctx := makeContext()
-	reviewers, err := FindRandomRequesters(context.Background(), prctx, results, r)
+	reviewers, err := SelectReviewers(context.Background(), prctx, results, r)
 	require.NoError(t, err)
 	require.Len(t, reviewers, 3, "policy should request three people")
 	require.Contains(t, reviewers, "review-approver", "at least review-approver must be selected")

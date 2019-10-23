@@ -209,7 +209,7 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, pe
 
 		if !hasReviewers {
 			r := rand.New(rand.NewSource(time.Now().UnixNano()))
-			requestedUsers, err := reviewer.FindRandomRequesters(ctx, prctx, result, r)
+			requestedUsers, err := reviewer.SelectReviewers(ctx, prctx, result, r)
 			if err != nil {
 				return errors.Wrap(err, "Unable to select random request reviewers")
 			}
