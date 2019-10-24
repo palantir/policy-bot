@@ -65,3 +65,11 @@ type Result struct {
 
 	Children []*Result
 }
+
+func (r Result) GetMode() RequestMode {
+	mode := RequestModeRandomUsers
+	if r.ReviewRequestRule.Mode != "" {
+		mode = r.ReviewRequestRule.Mode
+	}
+	return mode
+}
