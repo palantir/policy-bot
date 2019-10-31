@@ -126,13 +126,12 @@ func selectAdmins(prctx pull.Context) ([]string, error) {
 }
 
 func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common.Result, r *rand.Rand) ([]string, error) {
-	logger := *zerolog.Ctx(ctx)
 	var usersToRequest []string
 	pendingLeafNodes := findLeafChildren(result)
+	zerolog.Ctx(ctx).Debug().Msgf("Found %d pending leaf nodes for review selection", len(pendingLeafNodes))
 
-	logger.Debug().Msgf("Found %d pending leaf nodes for review selection", len(pendingLeafNodes))
 	for _, child := range pendingLeafNodes {
-		logger = logger.With().Str(LogKeyLeafNode, child.Name).Logger()
+		logger := zerolog.Ctx(ctx).With().Str(LogKeyLeafNode, child.Name).Logger()
 
 		allUsers := make(map[string]struct{})
 
