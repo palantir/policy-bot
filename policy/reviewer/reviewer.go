@@ -26,6 +26,10 @@ import (
 	"github.com/palantir/policy-bot/pull"
 )
 
+const (
+	LogKeyLeafNode = "leaf_node"
+)
+
 func findLeafChildren(result common.Result) []common.Result {
 	var r []common.Result
 	if len(result.Children) == 0 {
@@ -122,11 +126,13 @@ func selectAdmins(prctx pull.Context) ([]string, error) {
 }
 
 func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common.Result, r *rand.Rand) ([]string, error) {
-	logger := zerolog.Ctx(ctx)
 	var usersToRequest []string
 	pendingLeafNodes := findLeafChildren(result)
+	zerolog.Ctx(ctx).Debug().Msgf("Found %d pending leaf nodes for review selection", len(pendingLeafNodes))
 
 	for _, child := range pendingLeafNodes {
+		logger := zerolog.Ctx(ctx).With().Str(LogKeyLeafNode, child.Name).Logger()
+
 		allUsers := make(map[string]struct{})
 
 		for _, user := range child.ReviewRequestRule.Users {
@@ -134,6 +140,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 		}
 
 		if len(child.ReviewRequestRule.Teams) > 0 {
+			logger.Debug().Msg("Selecting from teams for review")
 			teamMembers, err := selectTeamMembers(prctx, child.ReviewRequestRule.Teams)
 			if err != nil {
 				logger.Warn().Err(err).Msgf("failed to get member listing for teams, skipping team member selection")
@@ -144,6 +151,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 		}
 
 		if len(child.ReviewRequestRule.Organizations) > 0 {
+			logger.Debug().Msg("Selecting from organizations for review")
 			orgMembers, err := selectOrgMembers(prctx, child.ReviewRequestRule.Organizations)
 			if err != nil {
 				logger.Warn().Err(err).Msg("failed to get member listing for org, skipping org member selection")
@@ -159,6 +167,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 		}
 
 		if child.ReviewRequestRule.WriteCollaborators {
+			logger.Debug().Msg("Selecting from write collaborators for review")
 			for user, perm := range collaboratorsToConsider {
 				if perm == common.GithubWritePermission {
 					allUsers[user] = struct{}{}
@@ -167,7 +176,7 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 		}
 
 		if child.ReviewRequestRule.Admins {
-			logger.Debug().Msg("Selecting admins for review")
+			logger.Debug().Msg("Selecting from admins for review")
 			admins, err := selectAdmins(prctx)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to select admins")
