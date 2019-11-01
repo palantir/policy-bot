@@ -182,7 +182,9 @@ options:
   allow_author: false
 
   # If true, the approvals of someone who has committed to the pull request are
-  # considered when calculating the status. False by default.
+  # considered when calculating the status. The pull request author is considered
+  # a contributor. If allow_author and allow_contributor would disagree, this option
+  # always wins. False by default.
   allow_contributor: false
 
   # If true, pushing new commits to a pull request will invalidate existing
