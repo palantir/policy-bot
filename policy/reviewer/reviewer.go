@@ -125,7 +125,7 @@ func selectAdmins(prctx pull.Context) ([]string, error) {
 	return adminUsers, nil
 }
 
-func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common.Result, r *rand.Rand) ([]string, error) {
+func SelectReviewers(ctx context.Context, prctx pull.Context, result common.Result, r *rand.Rand) ([]string, error) {
 	var usersToRequest []string
 	pendingLeafNodes := findLeafChildren(result)
 	zerolog.Ctx(ctx).Debug().Msgf("Found %d pending leaf nodes for review selection", len(pendingLeafNodes))
@@ -198,9 +198,17 @@ func FindRandomRequesters(ctx context.Context, prctx pull.Context, result common
 		}
 
 		if len(possibleReviewers) > 0 {
-			logger.Debug().Msgf("Found %d total candidates for review after removing author and non-collaborators; randomly selecting %d", len(possibleReviewers), child.ReviewRequestRule.RequiredCount)
-			randomSelection := selectRandomUsers(child.ReviewRequestRule.RequiredCount, possibleReviewers, r)
-			usersToRequest = append(usersToRequest, randomSelection...)
+			switch child.GetMode() {
+			case common.RequestModeAllUsers:
+				logger.Debug().Msgf("Found %d total reviewers after removing author and non-collaborators; requesting all", len(possibleReviewers))
+				usersToRequest = append(usersToRequest, possibleReviewers...)
+			case common.RequestModeRandomUsers:
+				logger.Debug().Msgf("Found %d total candidates for review after removing author and non-collaborators; randomly selecting %d", len(possibleReviewers), child.ReviewRequestRule.RequiredCount)
+				randomSelection := selectRandomUsers(child.ReviewRequestRule.RequiredCount, possibleReviewers, r)
+				usersToRequest = append(usersToRequest, randomSelection...)
+			default:
+				return nil, fmt.Errorf("unknown mode '%s' supplied", child.ReviewRequestRule.Mode)
+			}
 		} else {
 			logger.Debug().Msg("Did not find candidates for review after removing author and non-collaborators")
 		}

@@ -200,11 +200,17 @@ options:
 
   # Automatically request reviewers when a Pull Request is opened
   # if this rule is pending, there are no assigned reviewers, and if the
-  # Pull Request is not in Draft. Reviewers are selected randomly
-  # based on the set of requirements for this rule.
+  # Pull Request is not in Draft.
+  # Reviewers are selected based on the set of requirements for this rule
+  # and reviewers can be augmented using the mode option.
   request_review:
     # False by default
     enabled: true
+    # mode modifies how users are selected. `all-users` will request all users
+    # who are able to approve the pending rule. `random-users` selects a small
+    # set of random users based on the required count of approvals.
+    # defaults to 'random-users'
+    mode: all-users|random-users
 
   # "methods" defines how users may express approval. The defaults are below.
   methods:
@@ -371,16 +377,17 @@ limitations. Please file an issue if this functionality is important to you.
 `policy-bot` can automatically request reviewers for all pending rules
 when Pull Requests are opened by setting the `request_review` option.
 
+The `mode` enum modifies how users are selected. There are currently two
+supported options:
+ * `all-users` to request all users who can approve
+ * `random-users` to randomly select the number of users that are required
+
 ```yaml
 options:
   request_review:
-    # False by default
     enabled: true
+    mode: all-users|random-users
 ```
-
-A number of reviewers will be randomly requested based on the `requires` rules
-so that all rules will be satisfied once the set of requested reviewers complete
-and approve the Pull Request.
 
 The set of requested reviewers will not include the author of the Pull Request or
 users who are not collaborators on the repository.
