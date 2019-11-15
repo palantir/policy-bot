@@ -56,6 +56,9 @@ type Context struct {
 	HasReviewersValue bool
 	HasReviewersError error
 
+	LatestStatusesValue map[string]string
+	LatestStatusesError error
+
 	Draft bool
 }
 
@@ -207,6 +210,10 @@ func (c *Context) Reviews() ([]*pull.Review, error) {
 
 func (c *Context) Teams() (map[string]string, error) {
 	return c.TeamsValue, c.TeamsError
+}
+
+func (c *Context) LatestStatuses() (map[string]string, error) {
+	return c.LatestStatusesValue, c.LatestStatusesError
 }
 
 // assert that the test object implements the full interface

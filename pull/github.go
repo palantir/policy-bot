@@ -319,6 +319,25 @@ func (ghc *GitHubContext) Teams() (map[string]string, error) {
 	return allTeams, nil
 }
 
+func (ghc *GitHubContext) LatestStatuses() (map[string]string, error) {
+	latestStatuses := make(map[string]string)
+
+	statuses, _, err := ghc.client.Repositories.ListStatuses(ghc.ctx, ghc.owner, ghc.repo, ghc.HeadSHA(), &github.ListOptions{})
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get statuses for %s", ghc.HeadSHA())
+	}
+
+	// Statuses are returned in reverse chronological order (i.e. latest item first), only keep the latest status
+	for _, s := range statuses {
+		_, ok := latestStatuses[s.GetContext()]
+		if !ok {
+			latestStatuses[s.GetContext()] = s.GetState()
+		}
+	}
+
+	return latestStatuses, nil
+}
+
 func (ghc *GitHubContext) loadPagedData() error {
 	// this is a minor optimization: make max(c,r) requests instead of c+r
 	var q struct {

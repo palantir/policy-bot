@@ -96,6 +96,9 @@ type Context interface {
 
 	// HasReviewers returns true if the Pull Request has reviewers or any reviews
 	HasReviewers() (bool, error)
+
+	// LatestStatuses returns a map of status check names to the latest result
+	LatestStatuses() (map[string]string, error)
 }
 
 type FileStatus int

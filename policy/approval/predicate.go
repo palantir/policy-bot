@@ -30,6 +30,8 @@ type Predicates struct {
 	TargetsBranch *predicate.TargetsBranch `yaml:"targets_branch"`
 
 	ModifiedLines *predicate.ModifiedLines `yaml:"modified_lines"`
+
+	HasSuccessfulStatus *predicate.HasSuccessfulStatus `yaml:"has_successful_status"`
 }
 
 func (p *Predicates) Predicates() []predicate.Predicate {
@@ -60,6 +62,10 @@ func (p *Predicates) Predicates() []predicate.Predicate {
 	}
 	if p.ModifiedLines != nil {
 		ps = append(ps, predicate.Predicate(p.ModifiedLines))
+	}
+
+	if p.HasSuccessfulStatus != nil {
+		ps = append(ps, predicate.Predicate(p.HasSuccessfulStatus))
 	}
 
 	return ps
