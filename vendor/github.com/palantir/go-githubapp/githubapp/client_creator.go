@@ -340,15 +340,17 @@ func cacheControl(alwaysValidate bool) ClientMiddleware {
 		if !alwaysValidate {
 			return next
 		}
+
+		// Force validation to occur when the cache is disabled by setting
+		// max-age=0 so that cached results will always appear to be stale
 		return roundTripperFunc(func(r *http.Request) (*http.Response, error) {
 			resp, err := next.RoundTrip(r)
-
-			// Force validation to occur when the cache is disabled by setting max-age=0,
-			// as the cache results will always appear as stale
-			cacheControl := resp.Header.Get("Cache-Control")
-			if cacheControl != "" {
-				newCacheControl := maxAgeRegex.ReplaceAllString(cacheControl, "max-age=0")
-				resp.Header.Set("Cache-Control", newCacheControl)
+			if resp != nil {
+				cacheControl := resp.Header.Get("Cache-Control")
+				if cacheControl != "" {
+					newCacheControl := maxAgeRegex.ReplaceAllString(cacheControl, "max-age=0")
+					resp.Header.Set("Cache-Control", newCacheControl)
+				}
 			}
 			return resp, err
 		})
