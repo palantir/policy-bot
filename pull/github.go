@@ -125,6 +125,7 @@ type GitHubContext struct {
 	collaborators map[string]string
 	teamIDs       map[string]int64
 	membership    map[string]bool
+	statuses      map[string]string
 }
 
 // NewGitHubContext creates a new pull.Context that makes GitHub requests to
@@ -320,22 +321,27 @@ func (ghc *GitHubContext) Teams() (map[string]string, error) {
 }
 
 func (ghc *GitHubContext) LatestStatuses() (map[string]string, error) {
-	latestStatuses := make(map[string]string)
-
-	statuses, _, err := ghc.client.Repositories.ListStatuses(ghc.ctx, ghc.owner, ghc.repo, ghc.HeadSHA(), &github.ListOptions{})
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get statuses for %s", ghc.HeadSHA())
-	}
-
-	// Statuses are returned in reverse chronological order (i.e. latest item first), only keep the latest status
-	for _, s := range statuses {
-		_, ok := latestStatuses[s.GetContext()]
-		if !ok {
-			latestStatuses[s.GetContext()] = s.GetState()
+	if ghc.statuses == nil {
+		opt := &github.ListOptions{
+			PerPage: 100,
+		}
+		// get all pages of results
+		ghc.statuses = make(map[string]string)
+		for {
+			combinedStatus, resp, err := ghc.client.Repositories.GetCombinedStatus(ghc.ctx, ghc.owner, ghc.repo, ghc.HeadSHA(), opt)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to get statuses for page %d", opt.Page)
+			}
+			for _, s := range combinedStatus.Statuses {
+				ghc.statuses[s.GetContext()] = s.GetState()
+			}
+			if resp.NextPage == 0 {
+				break
+			}
+			opt.Page = resp.NextPage
 		}
 	}
-
-	return latestStatuses, nil
+	return ghc.statuses, nil
 }
 
 func (ghc *GitHubContext) loadPagedData() error {

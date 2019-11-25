@@ -25,12 +25,42 @@ import (
 )
 
 func TestHasSuccessfulStatus(t *testing.T) {
-	p := HasSuccessfulStatus("status-name")
+	p := HasSuccessfulStatus([]string{"status-name", "status-name-2"})
 
 	runStatusTestCase(t, p, []StatusTestCase{
 		{
-			"status succeeds",
+			"all statuses succeed",
 			true,
+			&pulltest.Context{
+				LatestStatusesValue: map[string]string{
+					"status-name":   "success",
+					"status-name-2": "success",
+				},
+			},
+		},
+		{
+			"a status fails",
+			false,
+			&pulltest.Context{
+				LatestStatusesValue: map[string]string{
+					"status-name":   "success",
+					"status-name-2": "failure",
+				},
+			},
+		},
+		{
+			"multiple statuses fail",
+			false,
+			&pulltest.Context{
+				LatestStatusesValue: map[string]string{
+					"status-name":   "failure",
+					"status-name-2": "failure",
+				},
+			},
+		},
+		{
+			"a status does not exist",
+			false,
 			&pulltest.Context{
 				LatestStatusesValue: map[string]string{
 					"status-name": "success",
@@ -38,16 +68,7 @@ func TestHasSuccessfulStatus(t *testing.T) {
 			},
 		},
 		{
-			"status fails",
-			false,
-			&pulltest.Context{
-				LatestStatusesValue: map[string]string{
-					"status-name": "failure",
-				},
-			},
-		},
-		{
-			"status does not exist",
+			"multiple statuses do not exist",
 			false,
 			&pulltest.Context{},
 		},

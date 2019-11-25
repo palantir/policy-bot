@@ -174,9 +174,12 @@ if:
     deletions: "> 100"
     total: "> 200"
   
-  # "has_successful_status" is satisfied if the status check specified is marked
-  # successful on the head commit of the pull request.
-  has_successful_status: "status-name"
+  # "has_successful_status" is satisfied if the status checks that are specified
+  # are marked successful on the head commit of the pull request.
+  has_successful_status:
+    - "status-name-1"
+    - "status-name-2"
+    - "status-name-3"
 
 # "options" specifies a set of restrictions on approvals. If the block does not
 # exist, the default values are used.

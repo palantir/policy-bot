@@ -42,7 +42,10 @@ func (h *Status) Handle(ctx context.Context, eventType, deliveryID string, paylo
 	}
 
 	if !strings.HasPrefix(event.GetContext(), h.PullOpts.StatusCheckContext) {
-		return h.processOthers(ctx, event)
+		if event.GetState() == "success" {
+			return h.processOthers(ctx, event)
+		}
+		return nil
 	}
 
 	return h.processOwn(ctx, event)
@@ -109,13 +112,22 @@ func (h *Status) processOthers(ctx context.Context, event github.StatusEvent) er
 
 	ctx, logger := githubapp.PrepareRepoContext(ctx, installationID, repo)
 
-	// Get all PRs for which the event commit references the head of a PR
-	prs, _, err := client.PullRequests.List(ctx, ownerName, repoName, &github.PullRequestListOptions{Head: commitSHA})
+	// In practice, there should only be one or two open PRs for a given commit. In exceptional cases, if there are
+	// more than 100 open PRs, only process the most recent 100.
+	prs, _, err := client.PullRequests.List(
+		ctx,
+		ownerName,
+		repoName,
+		&github.PullRequestListOptions{
+			Head:        commitSHA,
+			ListOptions: github.ListOptions{PerPage: 100},
+		})
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to list pull requests for SHA %s", commitSHA)
 	}
 	logger.Debug().Msgf("Context event is for '%s', found %d PRs", event.GetContext(), len(prs))
 
+	evaluationFailures := 0
 	for _, pr := range prs {
 		err = h.Evaluate(ctx, installationID, true, pull.Locator{
 			Owner:  ownerName,
@@ -123,6 +135,12 @@ func (h *Status) processOthers(ctx context.Context, event github.StatusEvent) er
 			Number: pr.GetNumber(),
 			Value:  pr,
 		})
+		if err != nil {
+			evaluationFailures++
+		}
 	}
-	return err
+	if evaluationFailures == 0 {
+		return nil
+	}
+	return errors.Errorf("failed to evaluate %d pull requests", evaluationFailures)
 }

@@ -17,15 +17,16 @@ package predicate
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 
 	"github.com/palantir/policy-bot/pull"
 )
 
-type HasSuccessfulStatus string
+type HasSuccessfulStatus []string
 
-var _ Predicate = HasSuccessfulStatus("")
+var _ Predicate = HasSuccessfulStatus([]string{})
 
 func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
 	statuses, err := prctx.LatestStatuses()
@@ -33,13 +34,30 @@ func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context
 		return false, "", errors.Wrap(err, "failed to list commit statuses")
 	}
 
-	status, ok := statuses[string(pred)]
-	if !ok {
-		return false, fmt.Sprintf("%q has not been executed on this commit", pred), nil
-	}
-	if status == "success" {
-		return true, "", nil
+	missingResults := make([]string, 0)
+	failingStatuses := make([]string, 0)
+	for _, status := range pred {
+		result, ok := statuses[status]
+		if !ok {
+			missingResults = append(missingResults, status)
+		}
+		if result != "success" {
+			failingStatuses = append(failingStatuses, status)
+		}
 	}
 
-	return false, fmt.Sprintf("%q has not passed", pred), nil
+	if len(missingResults) == 1 {
+		return false, fmt.Sprintf("%q has not been executed on this commit", missingResults[0]), nil
+	} else if len(missingResults) > 1 {
+		missingResultsStr := strings.Join(missingResults, ",")
+		return false, fmt.Sprintf("%q have not been executed on this commit", missingResultsStr), nil
+	}
+
+	if len(failingStatuses) == 1 {
+		return false, fmt.Sprintf("%q has not passed", failingStatuses[0]), nil
+	} else if len(failingStatuses) > 1 {
+		failingStatusesStr := strings.Join(failingStatuses, ",")
+		return false, fmt.Sprintf("The statuses %q have not passed", failingStatusesStr), nil
+	}
+	return true, "", nil
 }
