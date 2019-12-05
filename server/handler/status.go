@@ -24,6 +24,7 @@ import (
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/pkg/errors"
 
+
 	"github.com/palantir/policy-bot/pull"
 )
 
@@ -113,12 +114,14 @@ func (h *Status) processOthers(ctx context.Context, event github.StatusEvent) er
 
 	ctx, logger := githubapp.PrepareRepoContext(ctx, installationID, repo)
 
+
 	// In practice, there should only be one or two open PRs for a given commit. In exceptional cases, if there are
 	// more than 100 open PRs, only process the most recent 100.
-	prs, _, err := client.PullRequests.List(
+	prs, _, err := client.PullRequests.ListPullRequestsWithCommit(
 		ctx,
 		ownerName,
 		repoName,
+		commitSHA,
 		&github.PullRequestListOptions{
 			Head:        commitSHA,
 			ListOptions: github.ListOptions{PerPage: 100},
