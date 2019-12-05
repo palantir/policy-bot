@@ -41,14 +41,15 @@ func (h *Status) Handle(ctx context.Context, eventType, deliveryID string, paylo
 		return errors.Wrap(err, "failed to parse status event payload")
 	}
 
-	if !strings.HasPrefix(event.GetContext(), h.PullOpts.StatusCheckContext) {
-		if event.GetState() == "success" {
-			return h.processOthers(ctx, event)
-		}
-		return nil
+	if strings.HasPrefix(event.GetContext(), h.PullOpts.StatusCheckContext) {
+		return h.processOwn(ctx, event)
 	}
 
-	return h.processOwn(ctx, event)
+	if event.GetState() == "success" {
+		return h.processOthers(ctx, event)
+	}
+
+	return nil
 }
 
 func (h *Status) processOwn(ctx context.Context, event github.StatusEvent) error {
