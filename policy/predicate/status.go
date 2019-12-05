@@ -16,7 +16,6 @@ package predicate
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -46,18 +45,12 @@ func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context
 		}
 	}
 
-	if len(missingResults) == 1 {
-		return false, fmt.Sprintf("%q has not been executed on this commit", missingResults[0]), nil
-	} else if len(missingResults) > 1 {
-		missingResultsStr := strings.Join(missingResults, ",")
-		return false, fmt.Sprintf("%q have not been executed on this commit", missingResultsStr), nil
+	if len(missingResults) > 0 {
+		return false, "One or more statuses is missing: " + strings.Join(missingResults, ", "), nil
 	}
 
-	if len(failingStatuses) == 1 {
-		return false, fmt.Sprintf("%q has not passed", failingStatuses[0]), nil
-	} else if len(failingStatuses) > 1 {
-		failingStatusesStr := strings.Join(failingStatuses, ",")
-		return false, fmt.Sprintf("The statuses %q have not passed", failingStatusesStr), nil
+	if len(failingStatuses) > 0 {
+		return false, "One or more statuses has not passed: " + strings.Join(failingStatuses, ","), nil
 	}
 	return true, "", nil
 }
