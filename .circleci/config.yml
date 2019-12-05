@@ -42,7 +42,7 @@ jobs:
     environment:
       TESTS_DIR: *results-dir
     docker:
-      - image: circleci/golang:1.12.4-stretch
+      - image: circleci/golang:1.13.4-stretch
     steps:
       - checkout
       - *restore-godel-cache
@@ -75,7 +75,7 @@ jobs:
   dist:
     working_directory: /go/src/github.com/palantir/policy-bot
     docker:
-      - image: circleci/golang:1.12.4-stretch
+      - image: circleci/golang:1.13.4-stretch
     steps:
       - checkout
       - setup_remote_docker
