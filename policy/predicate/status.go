@@ -34,8 +34,8 @@ func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context
 		return false, "", errors.Wrap(err, "failed to list commit statuses")
 	}
 
-	missingResults := make([]string, 0)
-	failingStatuses := make([]string, 0)
+	var missingResults []string
+	var failingStatuses []string
 	for _, status := range pred {
 		result, ok := statuses[status]
 		if !ok {
