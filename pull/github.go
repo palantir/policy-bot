@@ -326,21 +326,23 @@ func (ghc *GitHubContext) LatestStatuses() (map[string]string, error) {
 			PerPage: 100,
 		}
 		// get all pages of results
-		ghc.statuses = make(map[string]string)
+		statuses := make(map[string]string)
 		for {
 			combinedStatus, resp, err := ghc.client.Repositories.GetCombinedStatus(ghc.ctx, ghc.owner, ghc.repo, ghc.HeadSHA(), opt)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get statuses for page %d", opt.Page)
 			}
 			for _, s := range combinedStatus.Statuses {
-				ghc.statuses[s.GetContext()] = s.GetState()
+				statuses[s.GetContext()] = s.GetState()
 			}
 			if resp.NextPage == 0 {
 				break
 			}
 			opt.Page = resp.NextPage
 		}
+		ghc.statuses = statuses
 	}
+
 	return ghc.statuses, nil
 }
 
