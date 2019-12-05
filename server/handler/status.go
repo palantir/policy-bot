@@ -121,7 +121,6 @@ func (h *Status) processOthers(ctx context.Context, event github.StatusEvent) er
 		repoName,
 		commitSHA,
 		&github.PullRequestListOptions{
-			Head:        commitSHA,
 			ListOptions: github.ListOptions{PerPage: 100},
 		})
 	if err != nil {
