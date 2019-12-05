@@ -43,7 +43,12 @@ func Validate() http.Handler {
 			baseapp.WriteJSON(w, http.StatusBadRequest, &ValidateCheck{Message: "Unable to read policy file from request", Version: version.GetVersion()})
 			return
 		}
-		defer file.Close()
+		defer func() {
+			ferr := file.Close()
+			if ferr != nil {
+				logger.Error().Err(ferr).Msg("Unable to close file")
+			}
+		}()
 
 		var policyBuf bytes.Buffer
 		_, err = io.Copy(&policyBuf, file)
