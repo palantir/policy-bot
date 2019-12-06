@@ -138,7 +138,7 @@ func (h *Status) processOthers(ctx context.Context, event github.StatusEvent) er
 		})
 		if err != nil {
 			evaluationFailures++
-			logger.Error().Err(err).Msgf("failed to evaluate pull request '%d' for SHA '%s'", pr.GetNumber(),
+			logger.Error().Err(err).Msgf("Failed to evaluate pull request '%d' for SHA '%s'", pr.GetNumber(),
 				commitSHA)
 
 		}
