@@ -125,6 +125,7 @@ type GitHubContext struct {
 	collaborators map[string]string
 	teamIDs       map[string]int64
 	membership    map[string]bool
+	statuses      map[string]string
 }
 
 // NewGitHubContext creates a new pull.Context that makes GitHub requests to
@@ -317,6 +318,32 @@ func (ghc *GitHubContext) Teams() (map[string]string, error) {
 	}
 
 	return allTeams, nil
+}
+
+func (ghc *GitHubContext) LatestStatuses() (map[string]string, error) {
+	if ghc.statuses == nil {
+		opt := &github.ListOptions{
+			PerPage: 100,
+		}
+		// get all pages of results
+		statuses := make(map[string]string)
+		for {
+			combinedStatus, resp, err := ghc.client.Repositories.GetCombinedStatus(ghc.ctx, ghc.owner, ghc.repo, ghc.HeadSHA(), opt)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to get statuses for page %d", opt.Page)
+			}
+			for _, s := range combinedStatus.Statuses {
+				statuses[s.GetContext()] = s.GetState()
+			}
+			if resp.NextPage == 0 {
+				break
+			}
+			opt.Page = resp.NextPage
+		}
+		ghc.statuses = statuses
+	}
+
+	return ghc.statuses, nil
 }
 
 func (ghc *GitHubContext) loadPagedData() error {
