@@ -15,8 +15,7 @@
 package handler
 
 import (
-	"bytes"
-	"io"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/palantir/go-baseapp/baseapp"
@@ -38,38 +37,31 @@ func Validate() http.Handler {
 		logger := zerolog.Ctx(ctx)
 
 		logger.Info().Msg("Attempting to validate policy file")
-		file, _, err := r.FormFile("policy")
-		if err != nil {
-			baseapp.WriteJSON(w, http.StatusBadRequest, &ValidateCheck{Message: "Unable to read policy file from request", Version: version.GetVersion()})
-			return
-		}
-		defer func() {
-			ferr := file.Close()
-			if ferr != nil {
-				logger.Error().Err(ferr).Msg("Unable to close file")
-			}
-		}()
+		check := ValidateCheck{Version: version.GetVersion()}
 
-		var policyBuf bytes.Buffer
-		_, err = io.Copy(&policyBuf, file)
+		requestPolicy, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			baseapp.WriteJSON(w, http.StatusBadRequest, &ValidateCheck{Message: "Unable to read policy file buffer", Version: version.GetVersion()})
+			check.Message = "Unable to read policy file buffer"
+			baseapp.WriteJSON(w, http.StatusBadRequest, &check)
 			return
 		}
 
 		var policyConfig policy.Config
-		err = yaml.UnmarshalStrict(policyBuf.Bytes(), &policyConfig)
+		err = yaml.UnmarshalStrict(requestPolicy, &policyConfig)
 		if err != nil {
-			baseapp.WriteJSON(w, http.StatusBadRequest, &ValidateCheck{Message: err.Error(), Version: version.GetVersion()})
+			check.Message = err.Error()
+			baseapp.WriteJSON(w, http.StatusBadRequest, &check)
 			return
 		}
 
 		_, err = policy.ParsePolicy(&policyConfig)
 		if err != nil {
-			baseapp.WriteJSON(w, http.StatusBadRequest, &ValidateCheck{Message: err.Error(), Version: version.GetVersion()})
+			check.Message = err.Error()
+			baseapp.WriteJSON(w, http.StatusUnprocessableEntity, &check)
 			return
 		}
 
-		baseapp.WriteJSON(w, http.StatusOK, &ValidateCheck{Message: "Policy file is valid", Version: version.GetVersion()})
+		check.Message = "Policy file is valid"
+		baseapp.WriteJSON(w, http.StatusOK, &check)
 	})
 }
