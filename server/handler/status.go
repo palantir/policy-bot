@@ -113,8 +113,8 @@ func (h *Status) processOthers(ctx context.Context, event github.StatusEvent) er
 
 	ctx, logger := githubapp.PrepareRepoContext(ctx, installationID, repo)
 
-	// In practice, there should only be one or two open PRs for a given commit. In exceptional cases, if there are
-	// more than 100 open PRs, only process the most recent 100.
+	// In practice, there should be well under 100 PRs for a given commit. In exceptional cases, if there are
+	// more than 100 PRs, only process the most recent 100.
 	prs, _, err := client.PullRequests.ListPullRequestsWithCommit(
 		ctx,
 		ownerName,
@@ -130,17 +130,19 @@ func (h *Status) processOthers(ctx context.Context, event github.StatusEvent) er
 
 	evaluationFailures := 0
 	for _, pr := range prs {
-		err = h.Evaluate(ctx, installationID, true, pull.Locator{
-			Owner:  ownerName,
-			Repo:   repoName,
-			Number: pr.GetNumber(),
-			Value:  pr,
-		})
-		if err != nil {
-			evaluationFailures++
-			logger.Error().Err(err).Msgf("Failed to evaluate pull request '%d' for SHA '%s'", pr.GetNumber(),
-				commitSHA)
+		if pr.GetState() == "open" {
+			err = h.Evaluate(ctx, installationID, true, pull.Locator{
+				Owner:  ownerName,
+				Repo:   repoName,
+				Number: pr.GetNumber(),
+				Value:  pr,
+			})
+			if err != nil {
+				evaluationFailures++
+				logger.Error().Err(err).Msgf("Failed to evaluate pull request '%d' for SHA '%s'", pr.GetNumber(),
+					commitSHA)
 
+			}
 		}
 	}
 	if evaluationFailures == 0 {
