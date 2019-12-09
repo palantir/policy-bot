@@ -328,17 +328,17 @@ Sometimes it is useful to test if a given policy file is valid, especially in a 
 An API endpoint exists at `/api/validate` to validate the syntax of the yaml and policy configuration,
 however it cannot validate that the rules are semantically correct for a given use case.
 
-The API can be used as such, noting the use of `--data-binary` to preserve yaml indentation:
+The API can be used as such:
 
 ```sh
-$ curl https://policybot.domain/api/validate -XPOST --data-binary @path/to/policy.yml
+$ curl https://policybot.domain/api/validate -XPUT -T path/to/policy.yml
 {"message":"failed to parse approval policy: failed to parse subpolicies for 'and': policy references undefined rule 'the devtools team has approved', allowed values: [the devtools team has]","version":"1.12.5"}
 ```
 
 You can combine the HTTP response code to automatically detect failures
 
 ```sh
-$ rcode=$(curl https://policybot.domain/api/validate -XPOST --data-binary @path/to/policy.yml -s -w "%{http_code}" -o /tmp/response)
+$ rcode=$(curl https://policybot.domain/api/validate -XPUT -T path/to/policy.yml -s -w "%{http_code}" -o /tmp/response)
 $ if [[ "${rcode}" -gt 299 ]]; then cat /tmp/response && exit 1; fi
 ```
 
