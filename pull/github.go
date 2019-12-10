@@ -309,7 +309,7 @@ func (ghc *GitHubContext) Teams() (map[string]string, error) {
 			return nil, errors.Wrapf(err, "failed to list teams page %d", opt.Page)
 		}
 		for _, t := range teams {
-			allTeams[t.GetName()] = t.GetPermission()
+			allTeams[t.GetSlug()] = t.GetPermission()
 		}
 		if resp.NextPage == 0 {
 			break
