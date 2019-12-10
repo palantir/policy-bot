@@ -335,7 +335,7 @@ $ curl https://policybot.domain/api/validate -XPUT -T path/to/policy.yml
 {"message":"failed to parse approval policy: failed to parse subpolicies for 'and': policy references undefined rule 'the devtools team has approved', allowed values: [the devtools team has]","version":"1.12.5"}
 ```
 
-You can combine the HTTP response code to automatically detect failures
+You can examine the HTTP response code to automatically detect failures
 
 ```sh
 $ rcode=$(curl https://policybot.domain/api/validate -XPUT -T path/to/policy.yml -s -w "%{http_code}" -o /tmp/response)

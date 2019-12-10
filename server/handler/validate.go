@@ -42,7 +42,7 @@ func Validate() http.Handler {
 		requestPolicy, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			check.Message = "Unable to read policy file buffer"
-			baseapp.WriteJSON(w, http.StatusBadRequest, &check)
+			baseapp.WriteJSON(w, http.StatusInternalServerError, &check)
 			return
 		}
 
