@@ -26,7 +26,8 @@ import (
 )
 
 type ChangedFiles struct {
-	Paths []string `yaml:"paths"`
+	Paths       []string `yaml:"paths"`
+	IgnorePaths []string `yaml:"ignore"`
 }
 
 var _ Predicate = &ChangedFiles{}
@@ -37,13 +38,25 @@ func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (boo
 		return false, "", errors.Wrap(err, "failed to parse paths")
 	}
 
+	ignorePaths, err := pathsToRegexps(pred.IgnorePaths)
+	if err != nil {
+		return false, "", errors.Wrap(err, "failed to parse ignore paths")
+	}
+
 	files, err := prctx.ChangedFiles()
 	if err != nil {
 		return false, "", errors.Wrap(err, "failed to list changed files")
 	}
 
+	var cleanedFilenames []string
 	for _, f := range files {
-		if anyMatches(paths, f.Filename) {
+		if !anyMatches(ignorePaths, f.Filename) {
+			cleanedFilenames = append(cleanedFilenames, f.Filename)
+		}
+	}
+
+	for _, filename := range cleanedFilenames {
+		if anyMatches(paths, filename) {
 			return true, "", nil
 		}
 	}
