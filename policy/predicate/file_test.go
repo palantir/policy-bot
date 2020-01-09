@@ -120,6 +120,9 @@ func TestOnlyChangedFiles(t *testing.T) {
 			"app/.*\\.go",
 			"server/.*\\.go",
 		},
+		IgnorePaths: []string{
+			".*/special\\.go",
+		},
 	}
 
 	runFileTests(t, p, []FileTestCase{
@@ -166,6 +169,20 @@ func TestOnlyChangedFiles(t *testing.T) {
 				},
 				{
 					Filename: "model/user.go",
+					Status:   pull.FileModified,
+				},
+			},
+		},
+		{
+			"ignoreSome",
+			true,
+			[]*pull.File{
+				{
+					Filename: "app/normal.go",
+					Status:   pull.FileDeleted,
+				},
+				{
+					Filename: "other/special.go",
 					Status:   pull.FileModified,
 				},
 			},
