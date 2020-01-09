@@ -120,17 +120,23 @@ name: "example rule"
 # exist, the rule applies to every pull request.
 if:
   # "changed_files" is satisfied if any file in the pull request matches any
-  # regular expression in the list.
+  # regular expression in the list. The "ignore" list is optional and will
+  # ignore any files that match the regular expressions listed.
   changed_files:
     paths:
       - "config/.*"
       - "server/views/.*\\.tmpl"
+    ignore:
+      - "config/special\\.file"
 
   # "only_changed_files" is satisfied if all files changed by the pull request
-  # match at least one regular expression in the list.
+  # match at least one regular expression in the list. The "ignore" list is
+  # optional and will ignore any files that match the regular expressions listed.
   only_changed_files:
     paths:
       - "config/.*"
+    ignore:
+      - "config/special\\.file"
 
   # "has_author_in" is satisfied if the user who opened the pull request is in
   # the users list or belongs to any of the listed organizations or teams.
