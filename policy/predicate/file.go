@@ -48,14 +48,14 @@ func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (boo
 		return false, "", errors.Wrap(err, "failed to list changed files")
 	}
 
-	var cleanedFilenames []string
+	var relevantFiles []string
 	for _, f := range files {
 		if !anyMatches(ignorePaths, f.Filename) {
-			cleanedFilenames = append(cleanedFilenames, f.Filename)
+			relevantFiles = append(relevantFiles, f.Filename)
 		}
 	}
 
-	for _, filename := range cleanedFilenames {
+	for _, filename := range relevantFiles {
 		if anyMatches(paths, filename) {
 			return true, "", nil
 		}
