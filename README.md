@@ -120,11 +120,15 @@ name: "example rule"
 # exist, the rule applies to every pull request.
 if:
   # "changed_files" is satisfied if any file in the pull request matches any
-  # regular expression in the list.
+  # regular expression in the "paths" list. If the "ignore" list is present,
+  # files in the pull request matching these regular expressions are ignored
+  # by this rule.
   changed_files:
     paths:
       - "config/.*"
       - "server/views/.*\\.tmpl"
+    ignore:
+      - "config/special\\.file"
 
   # "only_changed_files" is satisfied if all files changed by the pull request
   # match at least one regular expression in the list.
