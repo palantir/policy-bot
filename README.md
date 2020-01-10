@@ -134,8 +134,6 @@ if:
   only_changed_files:
     paths:
       - "config/.*"
-    ignore:
-      - "config/special\\.file"
 
   # "has_author_in" is satisfied if the user who opened the pull request is in
   # the users list or belongs to any of the listed organizations or teams.
