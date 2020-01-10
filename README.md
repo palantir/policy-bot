@@ -130,8 +130,7 @@ if:
       - "config/special\\.file"
 
   # "only_changed_files" is satisfied if all files changed by the pull request
-  # match at least one regular expression in the list. The "ignore" list is
-  # optional and will ignore any files that match the regular expressions listed.
+  # match at least one regular expression in the list.
   only_changed_files:
     paths:
       - "config/.*"

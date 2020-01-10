@@ -66,8 +66,7 @@ func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (boo
 }
 
 type OnlyChangedFiles struct {
-	Paths       []string `yaml:"paths"`
-	IgnorePaths []string `yaml:"ignore"`
+	Paths []string `yaml:"paths"`
 }
 
 var _ Predicate = &OnlyChangedFiles{}
@@ -78,32 +77,20 @@ func (pred *OnlyChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) 
 		return false, "", errors.Wrap(err, "failed to parse paths")
 	}
 
-	ignorePaths, err := pathsToRegexps(pred.IgnorePaths)
-	if err != nil {
-		return false, "", errors.Wrap(err, "failed to parse ignore paths")
-	}
-
 	files, err := prctx.ChangedFiles()
 	if err != nil {
 		return false, "", errors.Wrap(err, "failed to list changed files")
 	}
 
-	var relevantFiles []string
 	for _, f := range files {
-		if !anyMatches(ignorePaths, f.Filename) {
-			relevantFiles = append(relevantFiles, f.Filename)
-		}
-	}
-
-	for _, filename := range relevantFiles {
-		if anyMatches(paths, filename) {
+		if anyMatches(paths, f.Filename) {
 			continue
 		}
 		desc := "A changed file does not match the required pattern"
 		return false, desc, nil
 	}
 
-	filesChanged := len(relevantFiles) > 0
+	filesChanged := len(files) > 0
 
 	desc := ""
 	if !filesChanged {
