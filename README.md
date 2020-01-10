@@ -120,8 +120,9 @@ name: "example rule"
 # exist, the rule applies to every pull request.
 if:
   # "changed_files" is satisfied if any file in the pull request matches any
-  # regular expression in the list. The "ignore" list is optional and will
-  # ignore any files that match the regular expressions listed.
+  # regular expression in the "paths" list. If the "ignore" list is present,
+  # files in the pull request matching these regular expressions are ignored
+  # by this rule.
   changed_files:
     paths:
       - "config/.*"
