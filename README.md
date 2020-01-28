@@ -187,7 +187,7 @@ if:
   
   # "has_label_applied" is satisfied if the pull request has the specified labels
   # applied
-  has_label_applied:
+  has_labels:
     - "label-1"
     - "label-2"
 
