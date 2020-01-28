@@ -352,7 +352,7 @@ func (ghc *GitHubContext) Labels() ([]string, error) {
 		var labels []string
 		issueLabels, _, err := ghc.client.Issues.ListLabelsByIssue(ghc.ctx, ghc.owner, ghc.repo, ghc.number, &github.ListOptions{
 			Page:    0,
-			PerPage: 1,
+			PerPage: 100,
 		})
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to list labels")

@@ -23,13 +23,12 @@ import (
 	"github.com/palantir/policy-bot/pull"
 )
 
-type HasLabelApplied []string
+type HasLabels []string
 
-var _ Predicate = HasLabelApplied([]string{})
+var _ Predicate = HasLabels([]string{})
 
-func (pred HasLabelApplied) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
+func (pred HasLabels) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
 	if len(pred) > 0 {
-
 		labels, err := prctx.Labels()
 		if err != nil {
 			return false, "", errors.Wrap(err, "failed to list pull request labels")
@@ -37,7 +36,7 @@ func (pred HasLabelApplied) Evaluate(ctx context.Context, prctx pull.Context) (b
 
 		for _, requiredLabel := range pred {
 			if !contains(labels, strings.ToLower(requiredLabel)) {
-				return false, "Missing label:" + requiredLabel, nil
+				return false, "Missing label: " + requiredLabel, nil
 			}
 		}
 	}

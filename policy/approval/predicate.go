@@ -33,7 +33,7 @@ type Predicates struct {
 
 	HasSuccessfulStatus *predicate.HasSuccessfulStatus `yaml:"has_successful_status"`
 
-	HasLabelApplied *predicate.HasLabelApplied `yaml:"has_label_applied"`
+	HasLabels *predicate.HasLabels `yaml:"has_labels"`
 }
 
 func (p *Predicates) Predicates() []predicate.Predicate {
@@ -70,8 +70,8 @@ func (p *Predicates) Predicates() []predicate.Predicate {
 		ps = append(ps, predicate.Predicate(p.HasSuccessfulStatus))
 	}
 
-	if p.HasLabelApplied != nil {
-		ps = append(ps, predicate.Predicate(p.HasLabelApplied))
+	if p.HasLabels != nil {
+		ps = append(ps, predicate.Predicate(p.HasLabels))
 	}
 
 	return ps
