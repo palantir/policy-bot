@@ -99,6 +99,9 @@ type Context interface {
 
 	// LatestStatuses returns a map of status check names to the latest result
 	LatestStatuses() (map[string]string, error)
+
+	// Labels returns a list of labels applied on the Pull Request
+	Labels() ([]string, error)
 }
 
 type FileStatus int

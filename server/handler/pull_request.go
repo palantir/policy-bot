@@ -48,7 +48,7 @@ func (h *PullRequest) Handle(ctx context.Context, eventType, deliveryID string, 
 	}
 
 	switch event.GetAction() {
-	case "opened", "reopened", "synchronize", "edited", "ready_for_review":
+	case "opened", "reopened", "synchronize", "edited", "ready_for_review", "labeled", "unlabeled":
 		return h.Evaluate(ctx, installationID, performActions, pull.Locator{
 			Owner:  event.GetRepo().GetOwner().GetLogin(),
 			Repo:   event.GetRepo().GetName(),

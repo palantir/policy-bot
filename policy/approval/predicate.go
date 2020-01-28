@@ -32,6 +32,8 @@ type Predicates struct {
 	ModifiedLines *predicate.ModifiedLines `yaml:"modified_lines"`
 
 	HasSuccessfulStatus *predicate.HasSuccessfulStatus `yaml:"has_successful_status"`
+
+	HasLabelApplied *predicate.HasLabelApplied `yaml:"has_label_applied"`
 }
 
 func (p *Predicates) Predicates() []predicate.Predicate {
@@ -66,6 +68,10 @@ func (p *Predicates) Predicates() []predicate.Predicate {
 
 	if p.HasSuccessfulStatus != nil {
 		ps = append(ps, predicate.Predicate(p.HasSuccessfulStatus))
+	}
+
+	if p.HasLabelApplied != nil {
+		ps = append(ps, predicate.Predicate(p.HasLabelApplied))
 	}
 
 	return ps

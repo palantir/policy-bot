@@ -59,6 +59,9 @@ type Context struct {
 	LatestStatusesValue map[string]string
 	LatestStatusesError error
 
+	LabelsValue []string
+	LabelsError error
+
 	Draft bool
 }
 
@@ -214,6 +217,10 @@ func (c *Context) Teams() (map[string]string, error) {
 
 func (c *Context) LatestStatuses() (map[string]string, error) {
 	return c.LatestStatusesValue, c.LatestStatusesError
+}
+
+func (c *Context) Labels() ([]string, error) {
+	return c.LabelsValue, c.LabelsError
 }
 
 // assert that the test object implements the full interface
