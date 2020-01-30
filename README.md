@@ -184,6 +184,12 @@ if:
     - "status-name-1"
     - "status-name-2"
     - "status-name-3"
+  
+  # "has_labels" is satisfied if the pull request has the specified labels
+  # applied
+  has_labels:
+    - "label-1"
+    - "label-2"
 
 # "options" specifies a set of restrictions on approvals. If the block does not
 # exist, the default values are used.

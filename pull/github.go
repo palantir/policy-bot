@@ -126,6 +126,7 @@ type GitHubContext struct {
 	teamIDs       map[string]int64
 	membership    map[string]bool
 	statuses      map[string]string
+	labels        []string
 }
 
 // NewGitHubContext creates a new pull.Context that makes GitHub requests to
@@ -344,6 +345,25 @@ func (ghc *GitHubContext) LatestStatuses() (map[string]string, error) {
 	}
 
 	return ghc.statuses, nil
+}
+
+func (ghc *GitHubContext) Labels() ([]string, error) {
+	if ghc.labels == nil {
+		var labels []string
+		issueLabels, _, err := ghc.client.Issues.ListLabelsByIssue(ghc.ctx, ghc.owner, ghc.repo, ghc.number, &github.ListOptions{
+			Page:    0,
+			PerPage: 100,
+		})
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to list labels")
+		}
+
+		for _, label := range issueLabels {
+			labels = append(labels, strings.ToLower(label.GetName()))
+		}
+		ghc.labels = labels
+	}
+	return ghc.labels, nil
 }
 
 func (ghc *GitHubContext) loadPagedData() error {
