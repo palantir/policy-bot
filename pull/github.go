@@ -36,12 +36,6 @@ const (
 	MaxPullRequestCommits = 250
 )
 
-var (
-	// 5 attempts, exponential 1000ms delay = 15s max wait
-	commitLoadMaxAttempts = 5
-	commitLoadBaseDelay   = 1000 * time.Millisecond
-)
-
 // Locator identifies a pull request and optionally contains a full or partial
 // pull request object.
 type Locator struct {
@@ -465,52 +459,50 @@ func (ghc *GitHubContext) loadCollaboratorData() error {
 func (ghc *GitHubContext) loadCommits() ([]*Commit, error) {
 	log := zerolog.Ctx(ghc.ctx)
 
-	// github does not always return the latest commit information for a PR
-	// immediately after it was updated; if we're missing data, try again
-	attempts := 0
-	for {
-		rawCommits, err := ghc.loadRawCommits()
-		if err != nil {
+	rawCommits, err := ghc.loadRawCommits()
+	if err != nil {
+		return nil, err
+	}
+
+	var head *Commit
+	commits := make([]*Commit, 0, len(rawCommits))
+
+	for _, r := range rawCommits {
+		c := r.Commit.ToCommit()
+		if c.SHA == ghc.pr.HeadRefOID {
+			head = c
+		}
+		commits = append(commits, c)
+	}
+
+	// fail early if head is missing from the pull request
+	if head == nil {
+		return nil, errors.Errorf("head commit %.10s is missing, probably due to a force-push", ghc.pr.HeadRefOID)
+	}
+
+	// As of 2020-02-05, the pushed data may be missing when loaded via the
+	// pull request APIs if:
+	//
+	//  - the commit comes from a fork (always missing in this case)
+	//  - the data has not propagated yet
+	//
+	// In the second case, retrying after a delay can fix things, but the delay
+	// can be 15+ seconds in practice, so using the alternate API should
+	// improve latency at the cost of more API requests.
+	if head.PushedAt == nil {
+		log.Debug().
+			Bool("fork", ghc.pr.IsCrossRepository).
+			Msgf("failed to load pushed date via pull request, falling back to commit APIs")
+
+		if err := ghc.loadPushedAt(commits); err != nil {
 			return nil, err
 		}
-
-		var head *Commit
-		commits := make([]*Commit, 0, len(rawCommits))
-
-		for _, r := range rawCommits {
-			c := r.Commit.ToCommit()
-			if c.SHA == ghc.pr.HeadRefOID {
-				head = c
-			}
-			commits = append(commits, c)
-		}
-
-		// if head is missing from the pull request, retrying won't find it
-		if head == nil {
-			return nil, errors.Errorf("head commit %.10s is missing, probably due to a force-push", ghc.pr.HeadRefOID)
-		}
-
-		// as of 2019-05-01, the GitHub API does not return pushed date
-		// for commits from forks, so we must load that separately
-		if ghc.pr.IsCrossRepository && head.PushedAt == nil {
-			if err := ghc.loadPushedAt(commits); err != nil {
-				return nil, err
-			}
-		}
-
-		if head.PushedAt != nil {
-			return commits, nil
-		}
-
-		attempts++
-		if attempts >= commitLoadMaxAttempts {
-			return nil, errors.Errorf("head commit %.10s is missing pushed date; this is probably a bug", ghc.pr.HeadRefOID)
-		}
-
-		delay := time.Duration(1<<uint(attempts-1)) * commitLoadBaseDelay
-		log.Debug().Msgf("failed to load pushed date on attempt %d, sleeping %s and trying again", attempts, delay)
-		time.Sleep(delay)
 	}
+
+	if head.PushedAt == nil {
+		return nil, errors.Errorf("head commit %.10s is missing pushed date; this is probably a bug", ghc.pr.HeadRefOID)
+	}
+	return commits, nil
 }
 
 func (ghc *GitHubContext) loadRawCommits() ([]*v4PullRequestCommit, error) {
@@ -572,7 +564,8 @@ func (ghc *GitHubContext) loadPushedAt(commits []*Commit) error {
 		"cursor": (*githubv4.String)(nil),
 	}
 
-	for len(commitsBySHA) > 0 {
+	loaded := 0
+	for {
 		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
 			return errors.Wrap(err, "failed to load commit pushed dates")
 		}
@@ -582,6 +575,12 @@ func (ghc *GitHubContext) loadPushedAt(commits []*Commit) error {
 				delete(commitsBySHA, n.OID)
 			}
 		}
+
+		loaded += len(q.Repository.Object.Commit.History.Nodes)
+		if loaded > len(commits) {
+			break
+		}
+
 		if !q.Repository.Object.Commit.History.PageInfo.UpdateCursor(qvars, "cursor") {
 			break
 		}

@@ -27,12 +27,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func init() {
-	// adjust attempts/delays for faster tests
-	commitLoadMaxAttempts = 2
-	commitLoadBaseDelay = time.Millisecond
-}
-
 func TestChangedFiles(t *testing.T) {
 	rp := &ResponsePlayer{}
 	filesRule := rp.AddRule(
@@ -129,11 +123,15 @@ func TestCommits(t *testing.T) {
 	assert.Equal(t, 2, dataRule.Count, "cached commits were not used")
 }
 
-func TestCommitsRetry(t *testing.T) {
+func TestCommitsFallback(t *testing.T) {
 	rp := &ResponsePlayer{}
-	dataRule := rp.AddRule(
+	pullRule := rp.AddRule(
 		GraphQLNodePrefixMatcher("repository.pullRequest.commits"),
-		"testdata/responses/pull_commits_retry.yml",
+		"testdata/responses/pull_commits_fallback.yml",
+	)
+	historyRule := rp.AddRule(
+		GraphQLNodePrefixMatcher("repository.object"),
+		"testdata/responses/pull_commits_history.yml",
 	)
 
 	ctx := makeContext(t, rp, nil)
@@ -142,7 +140,8 @@ func TestCommitsRetry(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, commits, 3, "incorrect number of commits")
-	assert.Equal(t, 2, dataRule.Count, "incorrect number of http requests")
+	assert.Equal(t, 1, pullRule.Count, "incorrect number of pull request http requests")
+	assert.Equal(t, 1, historyRule.Count, "incorrect number of http requests")
 
 	expectedTime, err := time.Parse(time.RFC3339, "2018-12-04T12:34:56Z")
 	assert.NoError(t, err)
