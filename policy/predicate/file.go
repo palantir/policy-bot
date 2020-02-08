@@ -22,38 +22,29 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 )
 
 type ChangedFiles struct {
-	Paths       []string `yaml:"paths"`
-	IgnorePaths []string `yaml:"ignore"`
+	Paths       []common.Regexp `yaml:"paths"`
+	IgnorePaths []common.Regexp `yaml:"ignore"`
 }
 
 var _ Predicate = &ChangedFiles{}
 
 func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
-	paths, err := pathsToRegexps(pred.Paths)
-	if err != nil {
-		return false, "", errors.Wrap(err, "failed to parse paths")
-	}
-
-	ignorePaths, err := pathsToRegexps(pred.IgnorePaths)
-	if err != nil {
-		return false, "", errors.Wrap(err, "failed to parse ignore paths")
-	}
-
 	files, err := prctx.ChangedFiles()
 	if err != nil {
 		return false, "", errors.Wrap(err, "failed to list changed files")
 	}
 
 	for _, f := range files {
-		if anyMatches(ignorePaths, f.Filename) {
+		if anyMatches(pred.IgnorePaths, f.Filename) {
 			continue
 		}
 
-		if anyMatches(paths, f.Filename) {
+		if anyMatches(pred.Paths, f.Filename) {
 			return true, "", nil
 		}
 	}
@@ -63,24 +54,19 @@ func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (boo
 }
 
 type OnlyChangedFiles struct {
-	Paths []string `yaml:"paths"`
+	Paths []common.Regexp `yaml:"paths"`
 }
 
 var _ Predicate = &OnlyChangedFiles{}
 
 func (pred *OnlyChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
-	paths, err := pathsToRegexps(pred.Paths)
-	if err != nil {
-		return false, "", errors.Wrap(err, "failed to parse paths")
-	}
-
 	files, err := prctx.ChangedFiles()
 	if err != nil {
 		return false, "", errors.Wrap(err, "failed to list changed files")
 	}
 
 	for _, f := range files {
-		if anyMatches(paths, f.Filename) {
+		if anyMatches(pred.Paths, f.Filename) {
 			continue
 		}
 		desc := "A changed file does not match the required pattern"
@@ -166,23 +152,11 @@ func (pred *ModifiedLines) Evaluate(ctx context.Context, prctx pull.Context) (bo
 
 var _ Predicate = &ModifiedLines{}
 
-func anyMatches(re []*regexp.Regexp, s string) bool {
+func anyMatches(re []common.Regexp, s string) bool {
 	for _, r := range re {
-		if r.MatchString(s) {
+		if r.Matches(s) {
 			return true
 		}
 	}
 	return false
-}
-
-func pathsToRegexps(paths []string) ([]*regexp.Regexp, error) {
-	var re []*regexp.Regexp
-	for _, p := range paths {
-		r, err := regexp.Compile(p)
-		if err != nil {
-			return re, err
-		}
-		re = append(re, r)
-	}
-	return re, nil
 }

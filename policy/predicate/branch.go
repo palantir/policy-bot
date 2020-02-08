@@ -17,27 +17,20 @@ package predicate
 import (
 	"context"
 	"fmt"
-	"regexp"
 
-	"github.com/pkg/errors"
-
+	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 )
 
 type TargetsBranch struct {
-	Pattern string `yaml:"pattern"`
+	Pattern common.Regexp `yaml:"pattern"`
 }
 
 var _ Predicate = &TargetsBranch{}
 
 func (pred *TargetsBranch) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
-	pattern, err := regexp.Compile(pred.Pattern)
-	if err != nil {
-		return false, "", errors.Wrap(err, "failed to compile the target regex")
-	}
-
 	targetName, _ := prctx.Branches()
-	matches := pattern.MatchString(targetName)
+	matches := pred.Pattern.Matches(targetName)
 
 	desc := ""
 	if !matches {
