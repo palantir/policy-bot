@@ -215,6 +215,16 @@ options:
   # commonly created by using the "Update branch" button in the UI.
   ignore_update_merges: false
 
+  # If present, commits authored and committed by users meeting the conditions
+  # are ignored for the purposes of approval. This means the users will not
+  # count as contributors and their commits will not invalidate approval if
+  # invalidate_on_push is enabled. Both the author and the committer must match
+  # the conditions to ignore the commit.
+  ignore_commits_by:
+    users: ["bulldozer[bot]"]
+    organizatons: ["org1']
+    teams: ["org1/team1"]
+
   # Automatically request reviewers when a Pull Request is opened
   # if this rule is pending, there are no assigned reviewers, and if the
   # Pull Request is not in Draft.

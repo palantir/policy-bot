@@ -42,7 +42,7 @@ const (
 
 // IsEmpty returns true if no conditions for actors are defined.
 func (a *Actors) IsEmpty() bool {
-	return a == nil || (len(a.Users) == 0 && len(a.Teams) == 0 && len(a.Organizations) == 0)
+	return a == nil || (len(a.Users) == 0 && len(a.Teams) == 0 && len(a.Organizations) == 0 && !a.Admins && !a.WriteCollaborators)
 }
 
 // IsActor returns true if the given user satisfies at least one of the
