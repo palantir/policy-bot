@@ -136,17 +136,9 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 		return true, "No approval required", nil
 	}
 
-	candidates, err := r.Options.GetMethods().Candidates(ctx, prctx)
+	candidates, err := r.filteredCandidates(ctx, prctx)
 	if err != nil {
-		return false, "", errors.Wrap(err, "failed to get approval candidates")
-	}
-	sort.Stable(common.CandidatesByCreationTime(candidates))
-
-	if r.Options.InvalidateOnPush {
-		candidates, err = r.removeInvalidCandidates(ctx, prctx, candidates)
-		if err != nil {
-			return false, "", err
-		}
+		return false, "", err
 	}
 
 	log.Debug().Msgf("found %d candidates for approval", len(candidates))
@@ -217,8 +209,18 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 	return false, msg, nil
 }
 
-func (r *Rule) removeInvalidCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, error) {
+func (r *Rule) filteredCandidates(ctx context.Context, prctx pull.Context) ([]*common.Candidate, error) {
 	log := zerolog.Ctx(ctx)
+
+	candidates, err := r.Options.GetMethods().Candidates(ctx, prctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get approval candidates")
+	}
+	sort.Stable(common.CandidatesByCreationTime(candidates))
+
+	if !r.Options.InvalidateOnPush {
+		return candidates, nil
+	}
 
 	commits, err := r.filteredCommits(ctx, prctx)
 	if err != nil {
@@ -315,6 +317,7 @@ func isIgnoredCommit(ctx context.Context, prctx pull.Context, actors *common.Act
 			return false, nil
 		}
 	}
+	// either all users are ignored or the commit has no users; only ignore in the first case
 	return len(c.Users()) > 0, nil
 }
 
