@@ -412,7 +412,7 @@ These will all be true after updating a branch using the UI, but historic
 merges on long-running branches or merges created with the API may not be
 ignored. If this happens, you will need to reapprove the pull request.
 
-This feature has [security implications](#update-merges).
+This feature has [security implications](#update-merge-conflicts).
 
 #### Private Repositories
 
@@ -510,7 +510,7 @@ failure modes in this process:
 If using GitHub Enterprise, both of these issues are avoidable by using the
 [commit-current-user-check][] pre-receive hook.
 
-### Update Merges
+### Update Merge Conflicts
 
 When using the `ignore_update_merges` option, `policy-bot` cannot tell the
 difference between clean merges and merges that contain conflict resolution.
