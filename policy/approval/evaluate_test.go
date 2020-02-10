@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -68,10 +69,14 @@ func TestRules(t *testing.T) {
 			Name: "rule1",
 			Predicates: Predicates{
 				ChangedFiles: &predicate.ChangedFiles{
-					Paths: []string{"path1"},
+					Paths: []common.Regexp{
+						common.NewCompiledRegexp(regexp.MustCompile("path1")),
+					},
 				},
 				OnlyChangedFiles: &predicate.OnlyChangedFiles{
-					Paths: []string{"path2"},
+					Paths: []common.Regexp{
+						common.NewCompiledRegexp(regexp.MustCompile("path2")),
+					},
 				},
 				HasAuthorIn: &predicate.HasAuthorIn{
 					Actors: common.Actors{

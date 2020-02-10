@@ -16,22 +16,24 @@ package predicate
 
 import (
 	"context"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/pull/pulltest"
 )
 
 func TestChangedFiles(t *testing.T) {
 	p := &ChangedFiles{
-		Paths: []string{
-			"app/.*\\.go",
-			"server/.*\\.go",
+		Paths: []common.Regexp{
+			common.NewCompiledRegexp(regexp.MustCompile("app/.*\\.go")),
+			common.NewCompiledRegexp(regexp.MustCompile("server/.*\\.go")),
 		},
-		IgnorePaths: []string{
-			".*/special\\.go",
+		IgnorePaths: []common.Regexp{
+			common.NewCompiledRegexp(regexp.MustCompile(".*/special\\.go")),
 		},
 	}
 
@@ -116,9 +118,9 @@ func TestChangedFiles(t *testing.T) {
 
 func TestOnlyChangedFiles(t *testing.T) {
 	p := &OnlyChangedFiles{
-		Paths: []string{
-			"app/.*\\.go",
-			"server/.*\\.go",
+		Paths: []common.Regexp{
+			common.NewCompiledRegexp(regexp.MustCompile("app/.*\\.go")),
+			common.NewCompiledRegexp(regexp.MustCompile("server/.*\\.go")),
 		},
 	}
 

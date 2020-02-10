@@ -16,17 +16,19 @@ package predicate
 
 import (
 	"context"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/pull/pulltest"
 )
 
 func TestTargetsBranch(t *testing.T) {
 	p := &TargetsBranch{
-		Pattern: "^master$",
+		Pattern: common.NewCompiledRegexp(regexp.MustCompile("^master$")),
 	}
 
 	runTargetsTestCase(t, p, []targetsTestCase{
@@ -54,7 +56,7 @@ func TestTargetsBranch(t *testing.T) {
 	})
 
 	pMatchAll := &TargetsBranch{
-		Pattern: ".*",
+		Pattern: common.NewCompiledRegexp(regexp.MustCompile(".*")),
 	}
 
 	runTargetsTestCase(t, pMatchAll, []targetsTestCase{
@@ -75,7 +77,7 @@ func TestTargetsBranch(t *testing.T) {
 	})
 
 	pRegex := &TargetsBranch{
-		Pattern: "(prod|staging)",
+		Pattern: common.NewCompiledRegexp(regexp.MustCompile("(prod|staging)")),
 	}
 
 	runTargetsTestCase(t, pRegex, []targetsTestCase{
