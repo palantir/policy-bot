@@ -23,8 +23,9 @@ import (
 )
 
 type Methods struct {
-	Comments     []string `yaml:"comments,omitempty"`
-	GithubReview bool     `yaml:"github_review,omitempty"`
+	Comments        []string `yaml:"comments,omitempty"`
+	CommentPatterns []Regexp `yaml:"comment_patterns,omitempty"`
+	GithubReview    bool     `yaml:"github_review,omitempty"`
 
 	// If GithubReview is true, GithubReviewState is the state a review must
 	// have to be considered a candidated. It is currently excluded from
@@ -52,7 +53,7 @@ func (cs CandidatesByCreationTime) Less(i, j int) bool {
 func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candidate, error) {
 	var candidates []*Candidate
 
-	if len(m.Comments) > 0 {
+	if len(m.Comments) > 0 || len(m.CommentPatterns) > 0 {
 		comments, err := prctx.Comments()
 		if err != nil {
 			return nil, err
@@ -110,6 +111,10 @@ func (m *Methods) CommentMatches(commentBody string) bool {
 			return true
 		}
 	}
-
+	for _, pattern := range m.CommentPatterns {
+		if pattern.Matches(commentBody) {
+			return true
+		}
+	}
 	return false
 }
