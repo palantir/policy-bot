@@ -36,11 +36,14 @@ type Rule struct {
 }
 
 type Options struct {
-	AllowAuthor        bool          `yaml:"allow_author"`
-	AllowContributor   bool          `yaml:"allow_contributor"`
-	InvalidateOnPush   bool          `yaml:"invalidate_on_push"`
+	AllowAuthor      bool `yaml:"allow_author"`
+	AllowContributor bool `yaml:"allow_contributor"`
+	InvalidateOnPush bool `yaml:"invalidate_on_push"`
+
 	IgnoreUpdateMerges bool          `yaml:"ignore_update_merges"`
-	RequestReview      RequestReview `yaml:"request_review"`
+	IgnoreCommitsBy    common.Actors `yaml:"ignore_commits_by"`
+
+	RequestReview RequestReview `yaml:"request_review"`
 
 	Methods *common.Methods `yaml:"methods"`
 }
@@ -133,36 +136,9 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 		return true, "No approval required", nil
 	}
 
-	candidates, err := r.Options.GetMethods().Candidates(ctx, prctx)
+	candidates, err := r.filteredCandidates(ctx, prctx)
 	if err != nil {
-		return false, "", errors.Wrap(err, "failed to get approval candidates")
-	}
-	sort.Stable(common.CandidatesByCreationTime(candidates))
-
-	if r.Options.InvalidateOnPush {
-		commits, err := r.filteredCommits(prctx)
-		if err != nil {
-			return false, "", err
-		}
-
-		last := findLastPushed(commits)
-		if last == nil {
-			return false, "", errors.New("no commit contained a push date")
-		}
-
-		var allowedCandidates []*common.Candidate
-		for _, candidate := range candidates {
-			if candidate.CreatedAt.After(*last.PushedAt) {
-				allowedCandidates = append(allowedCandidates, candidate)
-			}
-		}
-
-		log.Debug().Msgf("discarded %d candidates invalidated by push of %s at %s",
-			len(candidates)-len(allowedCandidates),
-			last.SHA,
-			last.PushedAt.Format(time.RFC3339))
-
-		candidates = allowedCandidates
+		return false, "", err
 	}
 
 	log.Debug().Msgf("found %d candidates for approval", len(candidates))
@@ -179,7 +155,7 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 
 	// "contributor" is any user who added a commit to the PR
 	if !r.Options.AllowContributor {
-		commits, err := r.filteredCommits(prctx)
+		commits, err := r.filteredCommits(ctx, prctx)
 		if err != nil {
 			return false, "", err
 		}
@@ -233,24 +209,79 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 	return false, msg, nil
 }
 
-func (r *Rule) filteredCommits(prctx pull.Context) ([]*pull.Commit, error) {
+func (r *Rule) filteredCandidates(ctx context.Context, prctx pull.Context) ([]*common.Candidate, error) {
+	log := zerolog.Ctx(ctx)
+
+	candidates, err := r.Options.GetMethods().Candidates(ctx, prctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get approval candidates")
+	}
+	sort.Stable(common.CandidatesByCreationTime(candidates))
+
+	if !r.Options.InvalidateOnPush {
+		return candidates, nil
+	}
+
+	commits, err := r.filteredCommits(ctx, prctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(commits) == 0 {
+		return candidates, nil
+	}
+
+	last := findLastPushed(commits)
+	if last == nil {
+		return nil, errors.New("no commit contained a push date")
+	}
+
+	var allowedCandidates []*common.Candidate
+	for _, candidate := range candidates {
+		if candidate.CreatedAt.After(*last.PushedAt) {
+			allowedCandidates = append(allowedCandidates, candidate)
+		}
+	}
+
+	log.Debug().Msgf("discarded %d candidates invalidated by push of %s at %s",
+		len(candidates)-len(allowedCandidates),
+		last.SHA,
+		last.PushedAt.Format(time.RFC3339))
+
+	return allowedCandidates, nil
+}
+
+func (r *Rule) filteredCommits(ctx context.Context, prctx pull.Context) ([]*pull.Commit, error) {
 	commits, err := prctx.Commits()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list commits")
 	}
 
-	needsFiltering := r.Options.IgnoreUpdateMerges
-	if !needsFiltering {
+	ignoreUpdates := r.Options.IgnoreUpdateMerges
+	ignoreCommits := !r.Options.IgnoreCommitsBy.IsEmpty()
+
+	if !ignoreUpdates && !ignoreCommits {
 		return commits, nil
 	}
 
 	var filtered []*pull.Commit
 	for _, c := range commits {
-		switch {
-		case isUpdateMerge(commits, c):
-		default:
-			filtered = append(filtered, c)
+		if ignoreUpdates {
+			if isUpdateMerge(commits, c) {
+				continue
+			}
 		}
+
+		if ignoreCommits {
+			ignore, err := isIgnoredCommit(ctx, prctx, &r.Options.IgnoreCommitsBy, c)
+			if err != nil {
+				return nil, err
+			}
+			if ignore {
+				continue
+			}
+		}
+
+		filtered = append(filtered, c)
 	}
 	return filtered, nil
 }
@@ -274,6 +305,20 @@ func isUpdateMerge(commits []*pull.Commit, c *pull.Commit) bool {
 	// first parent must exist: it is a commit on the head branch
 	// second parent must not exist: it is already in the base branch
 	return shas[c.Parents[0]] && !shas[c.Parents[1]]
+}
+
+func isIgnoredCommit(ctx context.Context, prctx pull.Context, actors *common.Actors, c *pull.Commit) (bool, error) {
+	for _, u := range c.Users() {
+		ignored, err := actors.IsActor(ctx, prctx, u)
+		if err != nil {
+			return false, err
+		}
+		if !ignored {
+			return false, nil
+		}
+	}
+	// either all users are ignored or the commit has no users; only ignore in the first case
+	return len(c.Users()) > 0, nil
 }
 
 func findLastPushed(commits []*pull.Commit) *pull.Commit {

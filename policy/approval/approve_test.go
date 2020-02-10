@@ -366,6 +366,77 @@ func TestIsApproved(t *testing.T) {
 		r.Options.IgnoreUpdateMerges = true
 		assertApproved(t, prctx, r, "Approved by merge-committer")
 	})
+
+	t.Run("ignoreCommits", func(t *testing.T) {
+		prctx := basePullContext()
+		prctx.CommitsValue = append(prctx.CommitsValue, &pull.Commit{
+			SHA:       "ea9be5fcd016dc41d70dc457dfee2e64a8f951c1",
+			Author:    "comment-approver",
+			Committer: "comment-approver",
+		})
+
+		r := &Rule{
+			Requires: Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Users: []string{"comment-approver"},
+				},
+			},
+		}
+		assertPending(t, prctx, r, "0/1 approvals required. Ignored 5 approvals from disqualified users")
+
+		r.Options.IgnoreCommitsBy = common.Actors{
+			Users: []string{"comment-approver"},
+		}
+		assertApproved(t, prctx, r, "Approved by comment-approver")
+	})
+
+	t.Run("ignoreCommitsMixedAuthorCommiter", func(t *testing.T) {
+		prctx := basePullContext()
+
+		r := &Rule{
+			Requires: Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Users: []string{"contributor-author"},
+				},
+			},
+			Options: Options{
+				IgnoreCommitsBy: common.Actors{
+					Users: []string{"contributor-author"},
+				},
+			},
+		}
+		assertPending(t, prctx, r, "0/1 approvals required. Ignored 5 approvals from disqualified users")
+	})
+
+	t.Run("ignoreCommitsInvalidateOnPush", func(t *testing.T) {
+		prctx := basePullContext()
+		prctx.CommitsValue = []*pull.Commit{
+			{
+				PushedAt:  newTime(now.Add(25 * time.Second)),
+				SHA:       "c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
+				Author:    "mhaypenny",
+				Committer: "mhaypenny",
+			},
+		}
+
+		r := &Rule{
+			Requires: Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Users: []string{"comment-approver"},
+				},
+			},
+		}
+		assertApproved(t, prctx, r, "Approved by comment-approver")
+
+		r.Options.InvalidateOnPush = true
+		r.Options.IgnoreCommitsBy = common.Actors{
+			Users: []string{"mhaypenny"},
+		}
+		assertApproved(t, prctx, r, "Approved by comment-approver")
+	})
 }
 
 func newTime(t time.Time) *time.Time {
