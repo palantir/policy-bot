@@ -489,7 +489,7 @@ relevant audit logs.
 This issue can also be minimized by limiting write access and making
 contributions from forks.
 
-## Comment Edits
+### Comment Edits
 
 GitHub users with sufficient permissions can edit the comments of other users,
 possibly chaning an unrelated comment into one that enables approval.
