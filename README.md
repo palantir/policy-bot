@@ -32,6 +32,7 @@ UI to view the detailed approval status of any pull request.
     - [Update Merges](#update-merges)
     - [Private Repositories](#private-repositories)
     - [Automatically Requesting Reviewers](#automatically-requesting-reviewers)
+* [Security](#security)
 * [Deployment](#deployment)
 * [Development](#development)
 * [Contributing](#contributing)
@@ -219,7 +220,8 @@ options:
   # are ignored for the purposes of approval. This means the users will not
   # count as contributors and their commits will not invalidate approval if
   # invalidate_on_push is enabled. Both the author and the committer must match
-  # the conditions to ignore the commit.
+  # the conditions to ignore the commit. This option has security implications,
+  # see the README for more details.
   ignore_commits_by:
     users: ["bulldozer[bot]"]
     organizatons: ["org1']
@@ -410,9 +412,7 @@ These will all be true after updating a branch using the UI, but historic
 merges on long-running branches or merges created with the API may not be
 ignored. If this happens, you will need to reapprove the pull request.
 
-Note that `policy-bot` cannot detect if an update merge contains any merge
-conflict resolutions. If you enable this option, users _may_ be able to merge
-unapproved code by exploiting the conflict editor.
+This feature has [security implications](#update-merge-conflicts).
 
 #### Private Repositories
 
@@ -461,6 +461,69 @@ set of users of in
 
 Where the Pull Request Author and any non direct collaborators have been removed
 from the set.
+
+## Security
+
+While `policy-bot` can be used to implement security controls on GitHub
+repositories, there are important limitations to be aware of before adopting
+this approach.
+
+### Status Checks
+
+`policy-bot` reports approval status to GitHub using [commit statuses][]. While
+statuses cannot be deleted, they can be overwritten by any user with write
+access to a repository. `policy-bot` contains an auditing feature to detect
+this case and rewrite the correct status, but a well-timed attempt can still
+approve and merge a pull request before `policy-bot` can detect the problem.
+Organizations concerned about this case should monitor and alert on the
+relevant audit logs.
+
+This issue can also be minimized by limiting write access and making
+contributions from forks.
+
+## Comment Edits
+
+GitHub users with sufficient permissions can edit the comments of other users,
+possibly chaning an unrelated comment into one that enables approval.
+`policy-bot` also contains audting for this event, but as with statuses, a
+well-timed edit can approve and merge a pull request before `policy-bot` can
+detect the problem. Organizations concerned about this case should monitor and
+alert on the relevant audit logs.
+
+This issue can also be minimized by only using GitHub reviews for approval, at
+the expense of removing the ability to self-approve pull requests.
+
+### Commit Users
+
+GitHub associates commits with users by mapping the email address in a commit
+to email addresses associated with GitHub user accounts. `policy-bot` then uses
+the GitHub username to evaluate user-based rules and options. There are two
+failure modes in this process:
+
+1. If GitHub does not recognize either the author or committer email of a
+   commit, `policy-bot` cannot evaluate the commit with respect to user-based
+   rules and the commit is effectively ignored.
+
+2. If emails are manipulated when creating a commit, a user can trick GitHub
+   and `policy-bot` into attributing the commit to a different user.
+
+If using GitHub Enterprise, both of these issues are avoidable by using the
+[commit-current-user-check][] pre-receive hook.
+
+### Update Merge Conflicts
+
+When using the `ignore_update_merges` option, `policy-bot` cannot tell the
+difference between clean merges and merges that contain conflict resolution.
+This means that a user who carefully crafts a pull request to generate a
+conflict can use the web conflict editor to add unapproved changes to the file
+containing the conflict.
+
+Depending on the author of the merge commits, it may be possible to avoid this
+issue by using the `ignore_commits_by` option in combination with the
+[commit-current-user-check][] pre-receive hook.
+
+[commit statuses]: https://developer.github.com/v3/repos/statuses/
+[commit-current-user-check]: https://github.com/github/platform-samples/blob/master/pre-receive-hooks/commit-current-user-check.sh
 
 ## Deployment
 
