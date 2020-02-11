@@ -16,6 +16,7 @@ package common
 
 import (
 	"context"
+	"regexp"
 	"sort"
 	"testing"
 	"time"
@@ -47,6 +48,11 @@ func TestCandidates(t *testing.T) {
 				CreatedAt: now.Add(4 * time.Minute),
 				Body:      ":lgtm:",
 				Author:    "ttest",
+			},
+			{
+				CreatedAt: now.Add(8 * time.Minute),
+				Body:      "I approve this, because it looks good to me.",
+				Author:    "wstrawmoney",
 			},
 		},
 		ReviewsValue: []*pull.Review{
@@ -81,6 +87,22 @@ func TestCandidates(t *testing.T) {
 		require.Len(t, cs, 2, "incorrect number of candidates found")
 		assert.Equal(t, "mhaypenny", cs[0].User)
 		assert.Equal(t, "ttest", cs[1].User)
+	})
+
+	t.Run("commentPatterns", func(t *testing.T) {
+		m := &Methods{
+			CommentPatterns: []Regexp{
+				NewCompiledRegexp(regexp.MustCompile("^(?i:looks good to me)")),
+			},
+		}
+
+		cs, err := m.Candidates(ctx, prctx)
+		require.NoError(t, err)
+
+		sort.Sort(CandidatesByCreationTime(cs))
+
+		require.Len(t, cs, 1, "incorrect number of candidates found")
+		assert.Equal(t, "mhaypenny", cs[0].User)
 	})
 
 	t.Run("reviews", func(t *testing.T) {

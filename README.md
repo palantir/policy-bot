@@ -151,7 +151,7 @@ if:
     users: ["user1", "user2", ...]
     organizations: ["org1", "org2", ...]
     teams: ["org1/team1", "org2/team2", ...]
-    
+
   # "only_has_contributors_in" is satisfied if all of the commits on the pull
   # request have an author or committer in the users list or that belong to
   # any of the listed organizations or teams.
@@ -178,14 +178,14 @@ if:
     additions: "> 100"
     deletions: "> 100"
     total: "> 200"
-  
+
   # "has_successful_status" is satisfied if the status checks that are specified
   # are marked successful on the head commit of the pull request.
   has_successful_status:
     - "status-name-1"
     - "status-name-2"
     - "status-name-3"
-  
+
   # "has_labels" is satisfied if the pull request has the specified labels
   # applied
   has_labels:
@@ -241,11 +241,19 @@ options:
     # defaults to 'random-users'
     mode: all-users|random-users
 
-  # "methods" defines how users may express approval. The defaults are below.
+  # "methods" defines how users may express approval.
   methods:
+    # If a comment contains a string in this list, it counts as approval. Use
+    # the "comment_patterns" option if you want to match full comments. The
+    # default values are shown.
     comments:
       - ":+1:"
       - "👍"
+    # If a comment matches a regular expression in this list, it counts as
+    # approval. Defaults to an empty list.
+    comment_patterns:
+      - "^Signed-off by \\s+$"
+    # If true, GitHub reviews can be used for approval. Default is true.
     github_review: true
 
 # "requires" specifies the approval requirements for the rule. If the block
