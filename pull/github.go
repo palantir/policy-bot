@@ -29,7 +29,7 @@ import (
 const (
 	// MaxPullRequestFiles is the max number of files returned by GitHub
 	// https://developer.github.com/v3/pulls/#list-pull-requests-files
-	MaxPullRequestFiles = 300
+	MaxPullRequestFiles = 3000
 
 	// MaxPullRequestCommits is the max number of commits returned by GitHub
 	// https://developer.github.com/v3/pulls/#list-commits-on-a-pull-request
