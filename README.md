@@ -468,7 +468,7 @@ set of users of in
 ```
 
 Where the Pull Request Author and any non direct collaborators have been removed
-from the set. For github teams encounter the same behaviour, e.g. team without **direct** read access to the repository will be removed from the set.
+from the set. For github, teams encounter the same behaviour, e.g. team without **direct** read access to the repository will be removed from the set.
 
 ## Security
 
