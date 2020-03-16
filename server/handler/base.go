@@ -58,6 +58,10 @@ type PullEvaluationOptions struct {
 	// pattern: <StatusCheckContext>: <Base Branch Name>
 	StatusCheckContext string `yaml:"status_check_context"`
 
+	// StatusCheckWithoutBase causes policy bot to not include the name of the base branch in the status check.
+	// The context will be simply <StatusCheckContext>
+	StatusCheckWithoutBase bool `yaml:"status_check_without_base"`
+
 	// PostInsecureStatusChecks enables the sending of a second status using just StatusCheckContext as the context,
 	// no templating. This is turned off by default. This is to support legacy workflows that depend on the original
 	// context behaviour, and will be removed in 2.0
@@ -87,7 +91,12 @@ func (b *Base) PostStatus(ctx context.Context, prctx pull.Context, client *githu
 	publicURL := strings.TrimSuffix(b.BaseConfig.PublicURL, "/")
 	detailsURL := fmt.Sprintf("%s/details/%s/%s/%d", publicURL, owner, repo, prctx.Number())
 
-	contextWithBranch := fmt.Sprintf("%s: %s", b.PullOpts.StatusCheckContext, base)
+	var contextWithBranch string
+	if b.PullOpts.StatusCheckWithoutBase {
+		contextWithBranch = b.PullOpts.StatusCheckContext
+	} else {
+		contextWithBranch = fmt.Sprintf("%s: %s", b.PullOpts.StatusCheckContext, base)
+	}
 	status := &github.RepoStatus{
 		Context:     &contextWithBranch,
 		State:       &state,
