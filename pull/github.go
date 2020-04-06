@@ -317,28 +317,70 @@ func (ghc *GitHubContext) Teams() (map[string]string, error) {
 
 func (ghc *GitHubContext) LatestStatuses() (map[string]string, error) {
 	if ghc.statuses == nil {
-		opt := &github.ListOptions{
-			PerPage: 100,
+		statuses, err := ghc.getStatuses()
+		if err != nil {
+			return nil, err
 		}
-		// get all pages of results
-		statuses := make(map[string]string)
-		for {
-			combinedStatus, resp, err := ghc.client.Repositories.GetCombinedStatus(ghc.ctx, ghc.owner, ghc.repo, ghc.HeadSHA(), opt)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to get statuses for page %d", opt.Page)
-			}
-			for _, s := range combinedStatus.Statuses {
-				statuses[s.GetContext()] = s.GetState()
-			}
-			if resp.NextPage == 0 {
-				break
-			}
-			opt.Page = resp.NextPage
+
+		checkStatuses, err := ghc.getCheckStatuses()
+		if err != nil {
+			return nil, err
 		}
+
+		for k, v := range checkStatuses {
+			statuses[k] = v
+		}
+
 		ghc.statuses = statuses
 	}
 
 	return ghc.statuses, nil
+}
+
+func (ghc *GitHubContext) getStatuses() (map[string]string, error) {
+	opt := &github.ListOptions{
+		PerPage: 100,
+	}
+	// get all pages of results
+	statuses := make(map[string]string)
+	for {
+		combinedStatus, resp, err := ghc.client.Repositories.GetCombinedStatus(ghc.ctx, ghc.owner, ghc.repo, ghc.HeadSHA(), opt)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get statuses for page %d", opt.Page)
+		}
+		for _, s := range combinedStatus.Statuses {
+			statuses[s.GetContext()] = s.GetState()
+		}
+		if resp.NextPage == 0 {
+			break
+		}
+		opt.Page = resp.NextPage
+	}
+	return statuses, nil
+}
+
+func (ghc *GitHubContext) getCheckStatuses() (map[string]string, error) {
+	opt := &github.ListCheckRunsOptions{
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+		},
+	}
+	// get all pages of results
+	statuses := make(map[string]string)
+	for {
+		checkRuns, resp, err := ghc.client.Checks.ListCheckRunsForRef(ghc.ctx, ghc.owner, ghc.owner, ghc.HeadSHA(), opt)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get check runs for page %d", opt.Page)
+		}
+		for _, checkRun := range checkRuns.CheckRuns {
+			statuses[checkRun.GetName()] = checkRun.GetConclusion()
+		}
+		if resp.NextPage == 0 {
+			break
+		}
+		opt.Page = resp.NextPage
+	}
+	return statuses, nil
 }
 
 func (ghc *GitHubContext) Labels() ([]string, error) {
