@@ -562,6 +562,7 @@ The app requires these permissions:
 | Permission | Access | Reason |
 | ---------- | ------ | ------ |
 | Repository contents | Read-only | Read configuration and commit metadata |
+| Checks | Read-only | Read check run results |
 | Repository administration | Read-only | Read admin team(s) membership |
 | Issues | Read-only | Read pull request comments |
 | Repository metadata | Read-only | Basic repository data |
@@ -571,10 +572,11 @@ The app requires these permissions:
 
 The app should be subscribed to these events:
 
+* Check run
 * Issue comment
 * Pull request
-* Status
 * Pull request review
+* Status
 
 There is a [`logo.png`](https://github.com/palantir/policy-bot/blob/develop/logo.png)
 provided if you'd like to use it as the GitHub application logo. The background
