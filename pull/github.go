@@ -368,7 +368,7 @@ func (ghc *GitHubContext) getCheckStatuses() (map[string]string, error) {
 	// get all pages of results
 	statuses := make(map[string]string)
 	for {
-		checkRuns, resp, err := ghc.client.Checks.ListCheckRunsForRef(ghc.ctx, ghc.owner, ghc.owner, ghc.HeadSHA(), opt)
+		checkRuns, resp, err := ghc.client.Checks.ListCheckRunsForRef(ghc.ctx, ghc.owner, ghc.repo, ghc.HeadSHA(), opt)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get check runs for page %d", opt.Page)
 		}
