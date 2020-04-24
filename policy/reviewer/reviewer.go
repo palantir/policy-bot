@@ -200,10 +200,10 @@ func SelectReviewers(ctx context.Context, prctx pull.Context, result common.Resu
 				return nil, nil, errors.Wrap(err, "failed to select admins")
 			}
 			for team, members := range adminTeams {
+				allTeamsWithUsers[team] = members
 				for _, admin := range members {
 					allUsers[admin] = struct{}{}
 				}
-				allTeamsWithUsers[team] = members
 			}
 		}
 
