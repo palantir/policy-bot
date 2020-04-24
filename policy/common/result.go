@@ -42,6 +42,7 @@ type RequestMode string
 const (
 	RequestModeAllUsers    RequestMode = "all-users"
 	RequestModeRandomUsers RequestMode = "random-users"
+	RequestModePreferTeams RequestMode = "prefer-teams"
 )
 
 type ReviewRequestRule struct {

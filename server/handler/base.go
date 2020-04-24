@@ -209,7 +209,7 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, pe
 
 		if !hasReviewers {
 			r := rand.New(rand.NewSource(time.Now().UnixNano()))
-			requestedUsers, err := reviewer.SelectReviewers(ctx, prctx, result, r)
+			requestedUsers, requestedTeams, err := reviewer.SelectReviewers(ctx, prctx, result, r)
 			if err != nil {
 				return errors.Wrap(err, "Unable to select random request reviewers")
 			}
@@ -220,10 +220,10 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, pe
 				return errors.Wrap(err, "Unable to double-check existing reviewers, assuming original state is still valid")
 			}
 
-			if len(requestedUsers) > 0 && !hasReviewersAfter {
+			if (len(requestedUsers) > 0 || len(requestedTeams) > 0) && !hasReviewersAfter {
 				reviewers := github.ReviewersRequest{
 					Reviewers:     requestedUsers,
-					TeamReviewers: []string{},
+					TeamReviewers: requestedTeams,
 				}
 
 				logger.Debug().Msgf("PR is not in draft, there are no current reviewers, and reviews are requested from %q users", requestedUsers)
