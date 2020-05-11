@@ -240,7 +240,7 @@ options:
     # set of random users based on the required count of approvals.
     # "prefer-teams" will request teams to review if possible.
     # defaults to 'random-users'
-    mode: all-users|random-users
+    mode: all-users|random-users|teams
 
   # "methods" defines how users may express approval.
   methods:
@@ -438,13 +438,13 @@ The `mode` enum modifies how reviewers are selected. There are currently three
 supported options:
  * `all-users` to request all users who can approve
  * `random-users` to randomly select the number of users that are required
- * `prefer-teams` to request users as teams if possible, otherwise behaves like `random-users`
+ * `teams` to request users as teams if possible, otherwise behaves like `random-users`
 
 ```yaml
 options:
   request_review:
     enabled: true
-    mode: all-users|random-users|prefer-teams
+    mode: all-users|random-users|teams
 ```
 
 The set of requested reviewers will not include the author of the Pull Request or

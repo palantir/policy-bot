@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -103,7 +104,7 @@ func selectOrgMembers(prctx pull.Context, allOrgs []string) ([]string, error) {
 	return allOrgsMembers, nil
 }
 
-func selectAdmins(prctx pull.Context) (map[string][]string, error) {
+func selectAdminTeamMembers(prctx pull.Context) (map[string][]string, error) {
 	// Resolve all admin teams on the repo, and resolve their user membership
 	adminTeams := make(map[string][]string)
 	teams, err := prctx.Teams()
@@ -125,9 +126,9 @@ func selectAdmins(prctx pull.Context) (map[string][]string, error) {
 	return adminTeams, nil
 }
 
-func getPossibleReviewers(prctx pull.Context, users []string, collaboratorsToConsider map[string]string) []string {
+func getPossibleReviewers(prctx pull.Context, users map[string]struct{}, collaboratorsToConsider map[string]string) []string {
 	var possibleReviewers []string
-	for _, u := range users {
+	for u := range users {
 		// Remove the author and any users who aren't collaborators
 		// since github will fail to assign _anyone_ if the request contains one of these
 		_, ok := collaboratorsToConsider[u]
@@ -138,9 +139,17 @@ func getPossibleReviewers(prctx pull.Context, users []string, collaboratorsToCon
 	return possibleReviewers
 }
 
+func stripOrg(teamWithOrg string) (string, error) {
+	split := strings.Split(teamWithOrg, "/")
+	if len(split) < 0 {
+		return "", fmt.Errorf("Expected org with team: '%s'", teamWithOrg)
+	}
+	return split[1], nil
+}
+
 func SelectReviewers(ctx context.Context, prctx pull.Context, result common.Result, r *rand.Rand) ([]string, []string, error) {
-	var usersToRequest []string
-	var teamsToRequest []string
+	usersToRequest := make([]string, 0)
+	teamsToRequest := make([]string, 0)
 	pendingLeafNodes := findLeafChildren(result)
 	zerolog.Ctx(ctx).Debug().Msgf("Found %d pending leaf nodes for review selection", len(pendingLeafNodes))
 
@@ -195,7 +204,7 @@ func SelectReviewers(ctx context.Context, prctx pull.Context, result common.Resu
 
 		if child.ReviewRequestRule.Admins {
 			logger.Debug().Msg("Selecting from admins for review")
-			adminTeams, err := selectAdmins(prctx)
+			adminTeams, err := selectAdminTeamMembers(prctx)
 			if err != nil {
 				return nil, nil, errors.Wrap(err, "failed to select admins")
 			}
@@ -207,40 +216,43 @@ func SelectReviewers(ctx context.Context, prctx pull.Context, result common.Resu
 			}
 		}
 
-		allUsersKeys := make([]string, 0, len(allUsers))
-		for k := range allUsers {
-			allUsersKeys = append(allUsersKeys, k)
-		}
-
-		possibleReviewers := getPossibleReviewers(prctx, allUsersKeys, collaboratorsToConsider)
-		if child.GetMode() == common.RequestModePreferTeams {
+		switch child.GetMode() {
+		case common.RequestModeTeams:
 			var possibleTeams []string
-			teamMembersCount := 0
-			for team, users := range allTeamsWithUsers {
-				possibleReviewersInTeamCount := len(getPossibleReviewers(prctx, users, collaboratorsToConsider))
-				if possibleReviewersInTeamCount > 0 {
+			permissionedTeams, err := prctx.Teams()
+			if err != nil {
+				return nil, nil, err
+			}
+			for team := range allTeamsWithUsers {
+				formattedTeam, err := stripOrg(team)
+				if err != nil {
+					return nil, nil, err
+				}
+				if _, ok := permissionedTeams[formattedTeam]; ok {
 					possibleTeams = append(possibleTeams, team)
-					teamMembersCount += possibleReviewersInTeamCount
 				}
 			}
-			if len(possibleTeams) > 0 && teamMembersCount >= child.ReviewRequestRule.RequiredCount {
-				logger.Debug().Msgf("Found %d total teams with a collective %d eligible members; requesting teams", len(possibleTeams), teamMembersCount)
-				teamsToRequest = append(teamsToRequest, possibleTeams...)
-				continue
-			}
-		}
-
-		if len(possibleReviewers) > 0 {
-			if child.GetMode() == common.RequestModeAllUsers {
+			logger.Debug().Msgf("Found %d total teams; requesting teams", len(possibleTeams))
+			teamsToRequest = append(teamsToRequest, possibleTeams...)
+		case common.RequestModeAllUsers:
+			possibleReviewers := getPossibleReviewers(prctx, allUsers, collaboratorsToConsider)
+			if len(possibleReviewers) > 0 {
 				logger.Debug().Msgf("Found %d total reviewers after removing author and non-collaborators; requesting all", len(possibleReviewers))
 				usersToRequest = append(usersToRequest, possibleReviewers...)
-				continue
+			} else {
+				logger.Debug().Msg("Did not find candidates for review after removing author and non-collaborators")
 			}
-			logger.Debug().Msgf("Found %d total candidates for review after removing author and non-collaborators; randomly selecting %d", len(possibleReviewers), child.ReviewRequestRule.RequiredCount)
-			randomSelection := selectRandomUsers(child.ReviewRequestRule.RequiredCount, possibleReviewers, r)
-			usersToRequest = append(usersToRequest, randomSelection...)
-		} else {
-			logger.Debug().Msg("Did not find candidates for review after removing author and non-collaborators")
+		case common.RequestModeRandomUsers:
+			possibleReviewers := getPossibleReviewers(prctx, allUsers, collaboratorsToConsider)
+			if len(possibleReviewers) > 0 {
+				logger.Debug().Msgf("Found %d total candidates for review after removing author and non-collaborators; randomly selecting %d", len(possibleReviewers), child.ReviewRequestRule.RequiredCount)
+				randomSelection := selectRandomUsers(child.ReviewRequestRule.RequiredCount, possibleReviewers, r)
+				usersToRequest = append(usersToRequest, randomSelection...)
+			} else {
+				logger.Debug().Msg("Did not find candidates for review after removing author and non-collaborators")
+			}
+		default:
+			return nil, nil, fmt.Errorf("unknown mode '%s' supplied", child.ReviewRequestRule.Mode)
 		}
 	}
 
