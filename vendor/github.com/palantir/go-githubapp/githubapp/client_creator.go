@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	"github.com/bradleyfalzon/ghinstallation"
-	"github.com/google/go-github/github"
+	"github.com/google/go-github/v31/github"
 	"github.com/gregjones/httpcache"
 	"github.com/pkg/errors"
 	"github.com/shurcooL/githubv4"
@@ -96,7 +96,7 @@ const installationKey = key("installationID")
 
 // NewClientCreator returns a ClientCreator that creates a GitHub client for
 // installations of the app specified by the provided arguments.
-func NewClientCreator(v3BaseURL, v4BaseURL string, integrationID int, privKeyBytes []byte, opts ...ClientOption) ClientCreator {
+func NewClientCreator(v3BaseURL, v4BaseURL string, integrationID int64, privKeyBytes []byte, opts ...ClientOption) ClientCreator {
 	cc := &clientCreator{
 		v3BaseURL:     v3BaseURL,
 		v4BaseURL:     v4BaseURL,
@@ -121,7 +121,7 @@ func NewClientCreator(v3BaseURL, v4BaseURL string, integrationID int, privKeyByt
 type clientCreator struct {
 	v3BaseURL      string
 	v4BaseURL      string
-	integrationID  int
+	integrationID  int64
 	privKeyBytes   []byte
 	userAgent      string
 	middleware     []ClientMiddleware
@@ -202,7 +202,7 @@ func (c *clientCreator) NewAppV4Client() (*githubv4.Client, error) {
 
 func (c *clientCreator) NewInstallationClient(installationID int64) (*github.Client, error) {
 	base := &http.Client{Transport: http.DefaultTransport}
-	installation, transportError := newInstallation(c.integrationID, int(installationID), c.privKeyBytes, c.v3BaseURL)
+	installation, transportError := newInstallation(c.integrationID, installationID, c.privKeyBytes, c.v3BaseURL)
 
 	middleware := []ClientMiddleware{installation}
 	if c.cacheFunc != nil {
@@ -221,7 +221,7 @@ func (c *clientCreator) NewInstallationClient(installationID int64) (*github.Cli
 
 func (c *clientCreator) NewInstallationV4Client(installationID int64) (*githubv4.Client, error) {
 	base := &http.Client{Transport: http.DefaultTransport}
-	installation, transportError := newInstallation(c.integrationID, int(installationID), c.privKeyBytes, c.v3BaseURL)
+	installation, transportError := newInstallation(c.integrationID, installationID, c.privKeyBytes, c.v3BaseURL)
 
 	// The v4 API primarily uses POST requests (except for introspection queries)
 	// which we cannot cache, so don't construct the middleware
@@ -295,7 +295,7 @@ func applyMiddleware(base *http.Client, middleware [][]ClientMiddleware) {
 	}
 }
 
-func newAppInstallation(integrationID int, privKeyBytes []byte, v3BaseURL string) (ClientMiddleware, *error) {
+func newAppInstallation(integrationID int64, privKeyBytes []byte, v3BaseURL string) (ClientMiddleware, *error) {
 	var transportError error
 	installation := func(next http.RoundTripper) http.RoundTripper {
 		itr, err := ghinstallation.NewAppsTransport(next, integrationID, privKeyBytes)
@@ -310,7 +310,7 @@ func newAppInstallation(integrationID int, privKeyBytes []byte, v3BaseURL string
 	return installation, &transportError
 }
 
-func newInstallation(integrationID, installationID int, privKeyBytes []byte, v3BaseURL string) (ClientMiddleware, *error) {
+func newInstallation(integrationID, installationID int64, privKeyBytes []byte, v3BaseURL string) (ClientMiddleware, *error) {
 	var transportError error
 	installation := func(next http.RoundTripper) http.RoundTripper {
 		itr, err := ghinstallation.New(next, integrationID, installationID, privKeyBytes)

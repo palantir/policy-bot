@@ -8,8 +8,8 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/shurcooL/go/ctxhttp"
 	"github.com/shurcooL/graphql/internal/jsonutil"
+	"golang.org/x/net/context/ctxhttp"
 )
 
 // Client is a GraphQL client.

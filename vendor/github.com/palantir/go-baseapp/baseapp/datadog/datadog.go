@@ -38,10 +38,9 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
+	"github.com/palantir/go-baseapp/baseapp"
 	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
-
-	"github.com/palantir/go-baseapp/baseapp"
 )
 
 const (
@@ -119,41 +118,41 @@ func (e *Emitter) EmitOnce() {
 			// this by reporting the difference in value between calls
 			value := m.Count()
 			value, e.counters[key] = value-e.counters[key], value
-			e.client.Count(name, value, tags, 1)
+			_ = e.client.Count(name, value, tags, 1)
 
 		case metrics.Gauge:
-			e.client.Gauge(name, float64(m.Value()), tags, 1)
+			_ = e.client.Gauge(name, float64(m.Value()), tags, 1)
 
 		case metrics.GaugeFloat64:
-			e.client.Gauge(name, m.Value(), tags, 1)
+			_ = e.client.Gauge(name, m.Value(), tags, 1)
 
 		case metrics.Histogram:
 			ms := m.Snapshot()
-			e.client.Gauge(name+".avg", ms.Mean(), tags, 1)
-			e.client.Gauge(name+".count", float64(ms.Count()), tags, 1)
-			e.client.Gauge(name+".max", float64(ms.Max()), tags, 1)
-			e.client.Gauge(name+".median", ms.Percentile(0.5), tags, 1)
-			e.client.Gauge(name+".min", float64(ms.Min()), tags, 1)
-			e.client.Gauge(name+".sum", float64(ms.Sum()), tags, 1)
-			e.client.Gauge(name+".95percentile", ms.Percentile(0.95), tags, 1)
+			_ = e.client.Gauge(name+".avg", ms.Mean(), tags, 1)
+			_ = e.client.Gauge(name+".count", float64(ms.Count()), tags, 1)
+			_ = e.client.Gauge(name+".max", float64(ms.Max()), tags, 1)
+			_ = e.client.Gauge(name+".median", ms.Percentile(0.5), tags, 1)
+			_ = e.client.Gauge(name+".min", float64(ms.Min()), tags, 1)
+			_ = e.client.Gauge(name+".sum", float64(ms.Sum()), tags, 1)
+			_ = e.client.Gauge(name+".95percentile", ms.Percentile(0.95), tags, 1)
 
 		case metrics.Meter:
 			ms := m.Snapshot()
-			e.client.Gauge(name+".avg", ms.RateMean(), tags, 1)
-			e.client.Gauge(name+".count", float64(ms.Count()), tags, 1)
-			e.client.Gauge(name+".rate1", ms.Rate1(), tags, 1)
-			e.client.Gauge(name+".rate5", ms.Rate5(), tags, 1)
-			e.client.Gauge(name+".rate15", ms.Rate15(), tags, 1)
+			_ = e.client.Gauge(name+".avg", ms.RateMean(), tags, 1)
+			_ = e.client.Gauge(name+".count", float64(ms.Count()), tags, 1)
+			_ = e.client.Gauge(name+".rate1", ms.Rate1(), tags, 1)
+			_ = e.client.Gauge(name+".rate5", ms.Rate5(), tags, 1)
+			_ = e.client.Gauge(name+".rate15", ms.Rate15(), tags, 1)
 
 		case metrics.Timer:
 			ms := m.Snapshot()
-			e.client.Gauge(name+".avg", ms.Mean(), tags, 1)
-			e.client.Gauge(name+".count", float64(ms.Count()), tags, 1)
-			e.client.Gauge(name+".max", float64(ms.Max()), tags, 1)
-			e.client.Gauge(name+".median", ms.Percentile(0.5), tags, 1)
-			e.client.Gauge(name+".min", float64(ms.Min()), tags, 1)
-			e.client.Gauge(name+".sum", float64(ms.Sum()), tags, 1)
-			e.client.Gauge(name+".95percentile", ms.Percentile(0.95), tags, 1)
+			_ = e.client.Gauge(name+".avg", ms.Mean(), tags, 1)
+			_ = e.client.Gauge(name+".count", float64(ms.Count()), tags, 1)
+			_ = e.client.Gauge(name+".max", float64(ms.Max()), tags, 1)
+			_ = e.client.Gauge(name+".median", ms.Percentile(0.5), tags, 1)
+			_ = e.client.Gauge(name+".min", float64(ms.Min()), tags, 1)
+			_ = e.client.Gauge(name+".sum", float64(ms.Sum()), tags, 1)
+			_ = e.client.Gauge(name+".95percentile", ms.Percentile(0.95), tags, 1)
 		}
 	})
 }

@@ -84,7 +84,7 @@ func DefaultErrorCallback(w http.ResponseWriter, r *http.Request, err error) {
 		return
 	}
 	if _, ok := err.(LoginError); ok {
-		http.Error(w, fmt.Sprintf("ouaht2 error: %v", err.Error()), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("oauth2 error: %v", err.Error()), http.StatusBadRequest)
 		return
 	}
 	http.Error(w, err.Error(), http.StatusInternalServerError)

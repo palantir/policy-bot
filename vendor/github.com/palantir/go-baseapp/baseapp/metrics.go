@@ -79,9 +79,8 @@ func RegisterDefaultMetrics(registry metrics.Registry) {
 	})
 }
 
-// CountRequest is an hlog access handler that records metrics about the
-// request.
-func CountRequest(r *http.Request, status, _ int, _ time.Duration) {
+// CountRequest is an AccessCallback that records metrics about the request.
+func CountRequest(r *http.Request, status int, _ int64, _ time.Duration) {
 	registry := MetricsCtx(r.Context())
 
 	if c := registry.Get(MetricsKeyRequests); c != nil {

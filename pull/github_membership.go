@@ -18,7 +18,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/google/go-github/github"
+	"github.com/google/go-github/v31/github"
 	"github.com/pkg/errors"
 )
 
@@ -56,7 +56,7 @@ func (mc *GitHubMembershipContext) IsTeamMember(team, user string) (bool, error)
 		return isMember, nil
 	}
 
-	membership, _, err := mc.client.Teams.GetTeamMembership(mc.ctx, id, user)
+	membership, _, err := GetTeamMembership(mc.ctx, mc.client, id, user)
 	if err != nil && !isNotFound(err) {
 		return false, errors.Wrap(err, "failed to get team membership")
 	}
@@ -175,7 +175,7 @@ func (mc *GitHubMembershipContext) TeamMembers(team string) ([]string, error) {
 	var allUsers []string
 
 	for {
-		users, resp, err := mc.client.Teams.ListTeamMembers(mc.ctx, teamID, opt)
+		users, resp, err := ListTeamMembers(mc.ctx, mc.client, teamID, opt)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to list team %s members page %d", team, opt.Page)
 		}

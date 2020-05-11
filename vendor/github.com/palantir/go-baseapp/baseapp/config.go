@@ -14,6 +14,10 @@
 
 package baseapp
 
+import (
+	"time"
+)
+
 type TLSConfig struct {
 	CertFile string `yaml:"cert_file" json:"certFile"`
 	KeyFile  string `yaml:"key_file" json:"keyFile"`
@@ -26,6 +30,8 @@ type HTTPConfig struct {
 	Port      int        `yaml:"port" json:"port"`
 	PublicURL string     `yaml:"public_url" json:"publicUrl"`
 	TLSConfig *TLSConfig `yaml:"tls_config" json:"tlsConfig"`
+
+	ShutdownWaitTime *time.Duration `yaml:"shutdown_wait_time" json:"shutdownWaitTime"`
 }
 
 // LoggingConfig contains options for logging, such as log level and textual representation.

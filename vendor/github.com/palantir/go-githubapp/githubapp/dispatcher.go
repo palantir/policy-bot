@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/google/go-github/github"
+	"github.com/google/go-github/v31/github"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
@@ -54,7 +54,7 @@ type ResponseCallback func(w http.ResponseWriter, r *http.Request, event string,
 // DispatcherOption configures properties of an event dispatcher.
 type DispatcherOption func(*eventDispatcher)
 
-// WithErrorCallback sets the error callback for an event dispatcher.
+// WithErrorCallback sets the error callback for a dispatcher.
 func WithErrorCallback(onError ErrorCallback) DispatcherOption {
 	return func(d *eventDispatcher) {
 		if onError != nil {
@@ -68,6 +68,20 @@ func WithResponseCallback(onResponse ResponseCallback) DispatcherOption {
 	return func(d *eventDispatcher) {
 		if onResponse != nil {
 			d.onResponse = onResponse
+		}
+	}
+}
+
+// WithScheduler sets the scheduler used to process events. Setting a
+// non-default scheduler can enable asynchronous processing. When a scheduler
+// is asynchronous, the dispatcher validatates event payloads, queues valid
+// events for handling, and then responds to GitHub without waiting for the
+// handler to complete.  This is useful when handlers may take longer than
+// GitHub's timeout for webhook deliveries.
+func WithScheduler(s Scheduler) DispatcherOption {
+	return func(d *eventDispatcher) {
+		if s != nil {
+			d.scheduler = s
 		}
 	}
 }
@@ -88,6 +102,7 @@ type eventDispatcher struct {
 	handlerMap map[string]EventHandler
 	secret     string
 
+	scheduler  Scheduler
 	onError    ErrorCallback
 	onResponse ResponseCallback
 }
@@ -118,6 +133,7 @@ func NewEventDispatcher(handlers []EventHandler, secret string, opts ...Dispatch
 	d := &eventDispatcher{
 		handlerMap: handlerMap,
 		secret:     secret,
+		scheduler:  DefaultScheduler(),
 		onError:    DefaultErrorCallback,
 		onResponse: DefaultResponseCallback,
 	}
@@ -134,10 +150,7 @@ func (d *eventDispatcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// initialize context for SetResponder/GetResponder
-	// we store a pointer in the context so that functions deeper in the call
-	// tree can modify the value without creating a new context
-	var responder func(http.ResponseWriter, *http.Request)
-	ctx = context.WithValue(ctx, responderKey{}, &responder)
+	ctx = InitializeResponder(ctx)
 	r = r.WithContext(ctx)
 
 	eventType := r.Header.Get("X-GitHub-Event")
@@ -175,7 +188,12 @@ func (d *eventDispatcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	handler, ok := d.handlerMap[eventType]
 	if ok {
-		if err := handler.Handle(ctx, eventType, deliveryID, payloadBytes); err != nil {
+		if err := d.scheduler.Schedule(ctx, Dispatch{
+			Handler:    handler,
+			EventType:  eventType,
+			DeliveryID: deliveryID,
+			Payload:    payloadBytes,
+		}); err != nil {
 			d.onError(w, r, err)
 			return
 		}
@@ -187,13 +205,19 @@ func (d *eventDispatcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func DefaultErrorCallback(w http.ResponseWriter, r *http.Request, err error) {
 	logger := zerolog.Ctx(r.Context())
 
-	if ve, ok := err.(ValidationError); ok {
+	var ve ValidationError
+	if errors.As(err, &ve) {
 		logger.Warn().Err(ve.Cause).Msgf("Received invalid webhook headers or payload")
 		http.Error(w, "Invalid webhook headers or payload", http.StatusBadRequest)
 		return
 	}
+	if errors.Is(err, ErrCapacityExceeded) {
+		logger.Warn().Msg("Dropping webhook event due to over-capacity scheduler")
+		http.Error(w, "No capacity available to processes this event", http.StatusServiceUnavailable)
+		return
+	}
 
-	logger.Error().Err(err).Msg("Unexpected error handling webhook request")
+	logger.Error().Err(err).Msg("Unexpected error handling webhook")
 	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 }
 
@@ -216,9 +240,17 @@ func DefaultResponseCallback(w http.ResponseWriter, r *http.Request, event strin
 
 type responderKey struct{}
 
+// InitializeResponder prepares the context to work with SetResponder and
+// GetResponder. It is used to test handlers that call SetResponder or to
+// implement custom event dispatchers that support responders.
+func InitializeResponder(ctx context.Context) context.Context {
+	var responder func(http.ResponseWriter, *http.Request)
+	return context.WithValue(ctx, responderKey{}, &responder)
+}
+
 // SetResponder sets a function that sends a response to GitHub after event
-// processing completes. This function may only be called from event handler
-// functions invoked by the event dispatcher.
+// processing completes. The context must be initialized by InitializeResponder.
+// The event dispatcher does this automatically before calling a handler.
 //
 // Customizing individual handler responses should be rare. Applications that
 // want to modify the standard responses should consider registering a response
@@ -226,7 +258,7 @@ type responderKey struct{}
 func SetResponder(ctx context.Context, responder func(http.ResponseWriter, *http.Request)) {
 	r, ok := ctx.Value(responderKey{}).(*func(http.ResponseWriter, *http.Request))
 	if !ok || r == nil {
-		panic("SetResponder() must be called from an event handler invoked by the go-githubapp event dispatcher")
+		panic("SetResponder() must be called with an initialized context, such as one from the event dispatcher")
 	}
 	*r = responder
 }

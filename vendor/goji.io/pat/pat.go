@@ -170,18 +170,6 @@ func New(pat string) *Pattern {
 	return p
 }
 
-func newWithMethods(pat string, methods ...string) *Pattern {
-	p := New(pat)
-
-	methodSet := make(map[string]struct{}, len(methods))
-	for _, method := range methods {
-		methodSet[method] = struct{}{}
-	}
-	p.methods = methodSet
-
-	return p
-}
-
 /*
 Match runs the Pat pattern on the given request, returning a non-nil output
 request if the input request matches the pattern.
