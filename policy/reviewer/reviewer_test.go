@@ -114,7 +114,7 @@ func TestSelectAdminTeam(t *testing.T) {
 	reviewers, teams, err := SelectReviewers(context.Background(), prctx, results, r)
 	require.NoError(t, err)
 	require.Len(t, teams, 1, "admin team should be selected")
-	require.Contains(t, teams, "everyone/team-admin", "admin team seleted")
+	require.Contains(t, teams, "team-admin", "admin team seleted")
 
 	require.Len(t, reviewers, 0, "policy should request no people")
 }
@@ -166,7 +166,7 @@ func TestSelectReviewers_Team_teams(t *testing.T) {
 	reviewers, teams, err := SelectReviewers(context.Background(), prctx, results, r)
 	require.NoError(t, err)
 	require.Len(t, teams, 1, "one team should be returned")
-	require.Contains(t, teams, "everyone/team-write", "team-write should be selected")
+	require.Contains(t, teams, "team-write", "team-write should be selected")
 	require.Len(t, reviewers, 2, "policy should request 2 people")
 	require.Contains(t, reviewers, "review-approver", "at least review-approver must be selected")
 	require.NotContains(t, reviewers, "user-team-write", "user-team-write should not be selected")

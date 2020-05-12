@@ -142,7 +142,7 @@ func getPossibleReviewers(prctx pull.Context, users map[string]struct{}, collabo
 func stripOrg(teamWithOrg string) (string, error) {
 	split := strings.Split(teamWithOrg, "/")
 	if len(split) < 0 {
-		return "", fmt.Errorf("Expected org with team: '%s'", teamWithOrg)
+		return "", fmt.Errorf("expected org with team: '%s'", teamWithOrg)
 	}
 	return split[1], nil
 }
@@ -224,12 +224,12 @@ func SelectReviewers(ctx context.Context, prctx pull.Context, result common.Resu
 				return nil, nil, err
 			}
 			for team := range allTeamsWithUsers {
-				formattedTeam, err := stripOrg(team)
+				slug, err := stripOrg(team)
 				if err != nil {
 					return nil, nil, err
 				}
-				if _, ok := permissionedTeams[formattedTeam]; ok {
-					possibleTeams = append(possibleTeams, team)
+				if _, ok := permissionedTeams[slug]; ok {
+					possibleTeams = append(possibleTeams, slug)
 				}
 			}
 			logger.Debug().Msgf("Found %d total teams; requesting teams", len(possibleTeams))
