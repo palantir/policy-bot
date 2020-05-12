@@ -20,10 +20,19 @@ logging:
   # Choose from: debug, info, warn, error
   level: debug
 
-# Options for the HTTP Cache
-cache:
-  # The maximum size of the cache (specified in human readable units)
-  max_size: 50 MB
+# Options for the GitHub response cache. When the cache reaches max_size, the
+# oldest entries are evicted. Size properties can use any format supported by
+# https://github.com/c2h5oh/datasize
+#
+# cache:
+#   max_size: "50MB"
+
+# Options for webhook processing workers. Events are dropped if the queue is
+# full. The defaults are shown below.
+#
+# workers:
+#   workers: 10
+#   queue_size: 100
 
 # Options for connecting to GitHub
 github:
