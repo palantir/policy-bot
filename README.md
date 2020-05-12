@@ -237,9 +237,8 @@ options:
     enabled: true
     # mode modifies how reviewers are selected. `all-users` will request all users
     # who are able to approve the pending rule. `random-users` selects a small
-    # set of random users based on the required count of approvals.
-    # "prefer-teams" will request teams to review if possible.
-    # defaults to 'random-users'
+    # set of random users based on the required count of approvals. `teams` will 
+    # request teams to review if possible. Defaults to 'random-users'.
     mode: all-users|random-users|teams
 
   # "methods" defines how users may express approval.
@@ -438,7 +437,8 @@ The `mode` enum modifies how reviewers are selected. There are currently three
 supported options:
  * `all-users` to request all users who can approve
  * `random-users` to randomly select the number of users that are required
- * `teams` to request users as teams if possible, otherwise behaves like `random-users`
+ * `teams` to request teams for review. Teams must be repository collaborators
+   with at least read access.
 
 ```yaml
 options:
