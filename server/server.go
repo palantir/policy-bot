@@ -118,12 +118,28 @@ func New(c *Config) (*Server, error) {
 		},
 	}
 
-	dispatcher := githubapp.NewDefaultEventDispatcher(c.Github,
-		&handler.PullRequest{Base: basePolicyHandler},
-		&handler.PullRequestReview{Base: basePolicyHandler},
-		&handler.IssueComment{Base: basePolicyHandler},
-		&handler.Status{Base: basePolicyHandler},
-		&handler.CheckRun{Base: basePolicyHandler},
+	queueSize := c.Workers.QueueSize
+	if queueSize < 1 {
+		queueSize = 100
+	}
+
+	workers := c.Workers.Workers
+	if workers < 1 {
+		workers = 10
+	}
+
+	dispatcher := githubapp.NewEventDispatcher(
+		[]githubapp.EventHandler{
+			&handler.PullRequest{Base: basePolicyHandler},
+			&handler.PullRequestReview{Base: basePolicyHandler},
+			&handler.IssueComment{Base: basePolicyHandler},
+			&handler.Status{Base: basePolicyHandler},
+			&handler.CheckRun{Base: basePolicyHandler},
+		},
+		c.Github.App.WebhookSecret,
+		githubapp.WithScheduler(
+			githubapp.QueueAsyncScheduler(queueSize, workers, githubapp.WithSchedulingMetrics(base.Registry())),
+		),
 	)
 
 	templates, err := handler.LoadTemplates(&c.Files)

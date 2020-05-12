@@ -36,6 +36,7 @@ type Config struct {
 	Options  handler.PullEvaluationOptions `yaml:"options"`
 	Files    handler.FilesConfig           `yaml:"files"`
 	Datadog  datadog.Config                `yaml:"datadog"`
+	Workers  WorkerConfig                  `yaml:"workers"`
 }
 
 type LoggingConfig struct {
@@ -45,6 +46,11 @@ type LoggingConfig struct {
 
 type CachingConfig struct {
 	MaxSize datasize.ByteSize `yaml:"max_size"`
+}
+
+type WorkerConfig struct {
+	Workers   int `yaml:"workers"`
+	QueueSize int `yaml:"queue_size"`
 }
 
 type SessionsConfig struct {
