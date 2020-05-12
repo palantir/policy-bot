@@ -15,13 +15,14 @@
 package baseapp
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
 	"github.com/bluekeyes/hatpear"
-	"github.com/rs/zerolog/hlog"
-
 	"github.com/palantir/go-baseapp/pkg/errfmt"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/hlog"
 )
 
 // RichErrorMarshalFunc is a zerolog error marshaller that formats the error as
@@ -35,17 +36,28 @@ func RichErrorMarshalFunc(err error) interface{} {
 	}
 }
 
-// HandleRouteError is a hatpear error handler that logs the error and sends a
-// 500 Internal Server Error response to clients.
+// HandleRouteError is a hatpear error handler that logs the error and sends
+// an error response to the client
 func HandleRouteError(w http.ResponseWriter, r *http.Request, err error) {
-	hlog.FromRequest(r).
-		Error().
-		Str("method", r.Method).
-		Str("path", r.URL.String()).
-		Err(err).
-		Msg("Unhandled error while serving route")
 
-	WriteJSON(w, http.StatusInternalServerError, map[string]string{
-		"error": http.StatusText(http.StatusInternalServerError),
-	})
+	var log *zerolog.Event
+	// Either the deadline has passed or the request was canceled
+	// 499 is an NGINX style response code for 'Client Closed Connection'
+	// and is a non-standard, but widely used, HTTP status code
+	if cerr := r.Context().Err(); cerr == context.Canceled {
+		log = hlog.FromRequest(r).Debug()
+		WriteJSON(w, 499, map[string]string{
+			"error": "Client Closed Connection",
+		})
+	} else {
+		log = hlog.FromRequest(r).Error().Err(err)
+
+		WriteJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": http.StatusText(http.StatusInternalServerError),
+		})
+	}
+
+	log.Str("method", r.Method).
+		Str("path", r.URL.String()).
+		Msg("Unhandled error while serving route")
 }

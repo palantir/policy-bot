@@ -25,7 +25,7 @@ type Config struct {
 	V4APIURL string `yaml:"v4_api_url" json:"v4ApiUrl"`
 
 	App struct {
-		IntegrationID int    `yaml:"integration_id" json:"integrationId"`
+		IntegrationID int64  `yaml:"integration_id" json:"integrationId"`
 		WebhookSecret string `yaml:"webhook_secret" json:"webhookSecret"`
 		PrivateKey    string `yaml:"private_key" json:"privateKey"`
 	} `yaml:"app" json:"app"`
@@ -58,9 +58,9 @@ func setStringFromEnv(key, prefix string, value *string) {
 	}
 }
 
-func setIntFromEnv(key, prefix string, value *int) {
+func setIntFromEnv(key, prefix string, value *int64) {
 	if v, ok := os.LookupEnv(prefix + key); ok {
-		if i, err := strconv.Atoi(v); err == nil {
+		if i, err := strconv.ParseInt(v, 10, 0); err == nil {
 			*value = i
 		}
 	}

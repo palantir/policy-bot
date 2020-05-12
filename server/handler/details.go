@@ -23,7 +23,7 @@ import (
 
 	"github.com/alexedwards/scs"
 	"github.com/bluekeyes/templatetree"
-	"github.com/google/go-github/github"
+	"github.com/google/go-github/v31/github"
 	"github.com/pkg/errors"
 	"goji.io/pat"
 

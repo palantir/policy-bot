@@ -40,7 +40,7 @@ func DefaultMiddleware(logger zerolog.Logger, registry metrics.Registry) []func(
 		hlog.NewHandler(logger),
 		NewMetricsHandler(registry),
 		hlog.RequestIDHandler("rid", "X-Request-ID"),
-		hlog.AccessHandler(RecordRequest),
+		AccessHandler(RecordRequest),
 		hatpear.Catch(HandleRouteError),
 		hatpear.Recover(),
 	}
@@ -57,20 +57,36 @@ func NewMetricsHandler(registry metrics.Registry) func(http.Handler) http.Handle
 	}
 }
 
-// LogRequest is an hlog access handler that logs request information.
-func LogRequest(r *http.Request, status, size int, elapsed time.Duration) {
+// LogRequest is an AccessCallback that logs request information.
+func LogRequest(r *http.Request, status int, size int64, elapsed time.Duration) {
 	hlog.FromRequest(r).Info().
 		Str("method", r.Method).
 		Str("path", r.URL.String()).
+		Str("client_ip", r.RemoteAddr).
 		Int("status", status).
-		Int("size", size).
+		Int64("size", size).
 		Dur("elapsed", elapsed).
+		Str("user_agent", r.UserAgent()).
 		Msg("http_request")
 }
 
-// RecordRequest is an hlog access handler that logs request information and
+// RecordRequest is an AccessCallback that logs request information and
 // records request metrics.
-func RecordRequest(r *http.Request, status, size int, elapsed time.Duration) {
+func RecordRequest(r *http.Request, status int, size int64, elapsed time.Duration) {
 	LogRequest(r, status, size, elapsed)
 	CountRequest(r, status, size, elapsed)
+}
+
+type AccessCallback func(r *http.Request, status int, size int64, duration time.Duration)
+
+// AccessHandler returns a handler that call f after each request.
+func AccessHandler(f AccessCallback) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
+			wrapped := WrapWriter(w)
+			next.ServeHTTP(wrapped, r)
+			f(r, wrapped.Status(), wrapped.BytesWritten(), time.Since(start))
+		})
+	}
 }

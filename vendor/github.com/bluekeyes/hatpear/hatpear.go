@@ -86,6 +86,12 @@ func Try(h Handler) http.Handler {
 	})
 }
 
+// TryFunc converts a handler function to a standard http.Handler, storing any
+// error in the request's context.
+func TryFunc(h func(http.ResponseWriter, *http.Request) error) http.Handler {
+	return Try(HandlerFunc(h))
+}
+
 var (
 	// RecoverStackDepth is the max depth of stack trace to recover on panic.
 	RecoverStackDepth = 32
