@@ -6,7 +6,7 @@
   {{ $appsPath = "apps" }}
 {{ end }}
 {{ $appURL := printf "%s/%s/%s" .GitHubURL $appsPath .AppName }}
-{{ $docsURL := printf "https://github.com/palantir/policy-bot/blob/%s/README.md" .Version }}
+{{ $docsURL := printf "https://github.com/palantir/policy-bot/blob/v%s/README.md" .Version }}
 <header class="p-4 mb-8 text-white flex flex-col items-center">
   <div class="logo mb-4 drop-shadow-sm"></div>
   <h1 class="mb-4 text-5xl">PolicyBot</h1>
