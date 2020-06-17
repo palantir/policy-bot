@@ -125,7 +125,7 @@ func (b *Base) PreparePRContext(ctx context.Context, installationID int64, pr *g
 	return ctx, logger
 }
 
-func (b *Base) Evaluate(ctx context.Context, installationID int64, performActions bool, loc pull.Locator) error {
+func (b *Base) Evaluate(ctx context.Context, installationID int64, requestReviews bool, loc pull.Locator) error {
 	client, err := b.NewInstallationClient(installationID)
 	if err != nil {
 		return err
@@ -147,10 +147,10 @@ func (b *Base) Evaluate(ctx context.Context, installationID int64, performAction
 		return errors.WithMessage(err, fmt.Sprintf("failed to fetch policy: %s", fetchedConfig))
 	}
 
-	return b.EvaluateFetchedConfig(ctx, prctx, performActions, client, fetchedConfig)
+	return b.EvaluateFetchedConfig(ctx, prctx, requestReviews, client, fetchedConfig)
 }
 
-func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, performActions bool, client *github.Client, fetchedConfig FetchedConfig) error {
+func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, requestReviews bool, client *github.Client, fetchedConfig FetchedConfig) error {
 	logger := zerolog.Ctx(ctx)
 
 	if fetchedConfig.Missing() {
@@ -201,7 +201,7 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, pe
 		return err
 	}
 
-	if performActions && statusState == "pending" && !prctx.IsDraft() {
+	if requestReviews && statusState == "pending" && !prctx.IsDraft() {
 		hasReviewers, err := prctx.HasReviewers()
 		if err != nil {
 			return errors.Wrap(err, "Unable to list request reviewers")
