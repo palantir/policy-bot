@@ -43,14 +43,14 @@ func (h *PullRequest) Handle(ctx context.Context, eventType, deliveryID string, 
 	ctx, _ = h.PreparePRContext(ctx, installationID, event.GetPullRequest())
 
 	switch event.GetAction() {
-	case "opened", "reopened", "ready_for_review", "labeled":
+	case "opened", "reopened", "ready_for_review":
 		return h.Evaluate(ctx, installationID, true, pull.Locator{
 			Owner:  event.GetRepo().GetOwner().GetLogin(),
 			Repo:   event.GetRepo().GetName(),
 			Number: event.GetPullRequest().GetNumber(),
 			Value:  event.GetPullRequest(),
 		})
-	case "synchronize", "edited", "unlabeled":
+	case "synchronize", "edited", "labeled", "unlabeled":
 		return h.Evaluate(ctx, installationID, false, pull.Locator{
 			Owner:  event.GetRepo().GetOwner().GetLogin(),
 			Repo:   event.GetRepo().GetName(),
