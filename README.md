@@ -227,7 +227,7 @@ options:
     organizatons: ["org1']
     teams: ["org1/team1"]
 
-  # Automatically request reviewers when a Pull Request is opened
+  # Automatically request reviewers when a Pull Request is opened or modified
   # if this rule is pending, there are no assigned reviewers, and if the
   # Pull Request is not in Draft.
   # Reviewers are selected based on the set of requirements for this rule
