@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"sort"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -136,6 +137,11 @@ func getPossibleReviewers(prctx pull.Context, users map[string]struct{}, collabo
 			possibleReviewers = append(possibleReviewers, u)
 		}
 	}
+
+	// Because possibleReviewers is built from map iteration, its order changes
+	// each time. While fine in real operation, for testing we need consistent
+	// order so that random selection with a fixed seed is also consistent.
+	sort.Strings(possibleReviewers)
 	return possibleReviewers
 }
 
