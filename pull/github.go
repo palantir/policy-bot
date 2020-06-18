@@ -189,7 +189,10 @@ func (ghc *GitHubContext) Branches() (base string, head string) {
 
 func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
 	if ghc.files == nil {
-		var opt github.ListOptions
+		opt := github.ListOptions{
+			PerPage: 100,
+		}
+
 		var allFiles []*github.CommitFile
 		for {
 			files, res, err := ghc.client.PullRequests.ListFiles(ghc.ctx, ghc.owner, ghc.repo, ghc.number, &opt)
