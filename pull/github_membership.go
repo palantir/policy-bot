@@ -26,16 +26,20 @@ type GitHubMembershipContext struct {
 	ctx    context.Context
 	client *github.Client
 
-	teamIDs    map[string]int64
-	membership map[string]bool
+	teamIDs     map[string]int64
+	membership  map[string]bool
+	orgMembers  map[string][]string
+	teamMembers map[string][]string
 }
 
 func NewGitHubMembershipContext(ctx context.Context, client *github.Client) *GitHubMembershipContext {
 	return &GitHubMembershipContext{
-		ctx:        ctx,
-		client:     client,
-		teamIDs:    make(map[string]int64),
-		membership: make(map[string]bool),
+		ctx:         ctx,
+		client:      client,
+		teamIDs:     make(map[string]int64),
+		membership:  make(map[string]bool),
+		orgMembers:  make(map[string][]string),
+		teamMembers: make(map[string][]string),
 	}
 }
 
@@ -131,64 +135,64 @@ func (mc *GitHubMembershipContext) IsCollaborator(org, repo, user, desiredPerm s
 }
 
 func (mc *GitHubMembershipContext) OrganizationMembers(org string) ([]string, error) {
-	opt := &github.ListMembersOptions{
-		ListOptions: github.ListOptions{
-			PerPage: 100,
-		},
+	members, ok := mc.orgMembers[org]
+	if !ok {
+		opt := &github.ListMembersOptions{
+			ListOptions: github.ListOptions{
+				PerPage: 100,
+			},
+		}
+
+		for {
+			users, resp, err := mc.client.Organizations.ListMembers(mc.ctx, org, opt)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to list members of org %s page %d", org, opt.Page)
+			}
+			for _, u := range users {
+				members = append(members, u.GetLogin())
+				// And cache these values for later lookups
+				mc.membership[membershipKey(org, u.GetLogin())] = true
+			}
+			if resp.NextPage == 0 {
+				break
+			}
+			opt.Page = resp.NextPage
+		}
+		mc.orgMembers[org] = members
 	}
-
-	// get all pages of results
-	var allUsers []string
-
-	for {
-		users, resp, err := mc.client.Organizations.ListMembers(mc.ctx, org, opt)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to list members of org %s page %d", org, opt.Page)
-		}
-		for _, u := range users {
-			allUsers = append(allUsers, u.GetLogin())
-			// And cache these values for later lookups
-			mc.membership[membershipKey(org, u.GetLogin())] = true
-		}
-		if resp.NextPage == 0 {
-			break
-		}
-		opt.Page = resp.NextPage
-	}
-
-	return allUsers, nil
+	return members, nil
 }
 
 func (mc *GitHubMembershipContext) TeamMembers(team string) ([]string, error) {
-	opt := &github.TeamListTeamMembersOptions{
-		ListOptions: github.ListOptions{
-			PerPage: 100,
-		},
-	}
+	members, ok := mc.teamMembers[team]
+	if !ok {
+		opt := &github.TeamListTeamMembersOptions{
+			ListOptions: github.ListOptions{
+				PerPage: 100,
+			},
+		}
 
-	teamID, err := mc.getTeamID(team)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Unable to get information for team %s", team)
-	}
-
-	// get all pages of results
-	var allUsers []string
-
-	for {
-		users, resp, err := ListTeamMembers(mc.ctx, mc.client, teamID, opt)
+		teamID, err := mc.getTeamID(team)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to list team %s members page %d", team, opt.Page)
+			return nil, errors.Wrapf(err, "Unable to get information for team %s", team)
 		}
-		for _, u := range users {
-			allUsers = append(allUsers, u.GetLogin())
-			// And cache these values for later lookups
-			mc.membership[membershipKey(team, u.GetLogin())] = true
-		}
-		if resp.NextPage == 0 {
-			break
-		}
-		opt.Page = resp.NextPage
-	}
 
-	return allUsers, nil
+		for {
+			users, resp, err := ListTeamMembers(mc.ctx, mc.client, teamID, opt)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to list team %s members page %d", team, opt.Page)
+			}
+			for _, u := range users {
+				members = append(members, u.GetLogin())
+				// And cache these values for later lookups
+				mc.membership[membershipKey(team, u.GetLogin())] = true
+			}
+			if resp.NextPage == 0 {
+				break
+			}
+			opt.Page = resp.NextPage
+		}
+		mc.teamMembers[team] = members
+	}
+	return members, nil
 }

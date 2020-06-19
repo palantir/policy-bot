@@ -117,6 +117,7 @@ type GitHubContext struct {
 	comments      []*Comment
 	reviews       []*Review
 	collaborators map[string]string
+	teams         map[string]string
 	teamIDs       map[string]int64
 	membership    map[string]bool
 	statuses      map[string]string
@@ -189,7 +190,10 @@ func (ghc *GitHubContext) Branches() (base string, head string) {
 
 func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
 	if ghc.files == nil {
-		var opt github.ListOptions
+		opt := github.ListOptions{
+			PerPage: 100,
+		}
+
 		var allFiles []*github.CommitFile
 		for {
 			files, res, err := ghc.client.PullRequests.ListFiles(ghc.ctx, ghc.owner, ghc.repo, ghc.number, &opt)
@@ -269,7 +273,6 @@ func (ghc *GitHubContext) RepositoryCollaborators() (map[string]string, error) {
 			return nil, err
 		}
 	}
-
 	return ghc.collaborators, nil
 }
 
@@ -292,27 +295,28 @@ func (ghc *GitHubContext) HasReviewers() (bool, error) {
 }
 
 func (ghc *GitHubContext) Teams() (map[string]string, error) {
-	opt := &github.ListOptions{
-		PerPage: 100,
-	}
+	if ghc.teams == nil {
+		opt := &github.ListOptions{
+			PerPage: 100,
+		}
 
-	// get all pages of results
-	allTeams := make(map[string]string)
-	for {
-		teams, resp, err := ghc.client.Repositories.ListTeams(ghc.ctx, ghc.RepositoryOwner(), ghc.RepositoryName(), opt)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to list teams page %d", opt.Page)
+		allTeams := make(map[string]string)
+		for {
+			teams, resp, err := ghc.client.Repositories.ListTeams(ghc.ctx, ghc.RepositoryOwner(), ghc.RepositoryName(), opt)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to list teams page %d", opt.Page)
+			}
+			for _, t := range teams {
+				allTeams[t.GetSlug()] = t.GetPermission()
+			}
+			if resp.NextPage == 0 {
+				break
+			}
+			opt.Page = resp.NextPage
 		}
-		for _, t := range teams {
-			allTeams[t.GetSlug()] = t.GetPermission()
-		}
-		if resp.NextPage == 0 {
-			break
-		}
-		opt.Page = resp.NextPage
+		ghc.teams = allTeams
 	}
-
-	return allTeams, nil
+	return ghc.teams, nil
 }
 
 func (ghc *GitHubContext) LatestStatuses() (map[string]string, error) {
