@@ -85,10 +85,15 @@ func parsePolicyR(policy interface{}, rules map[string]*Rule, depth int) (common
 		}
 
 		var subrequirements []common.Evaluator
-		for _, subpolicy := range values {
+		for index, subpolicy := range values {
 			subreq, err := parsePolicyR(subpolicy, rules, depth+1)
 			if err != nil {
-				return nil, errors.WithMessage(err, fmt.Sprintf("failed to parse subpolicies for '%s'", op))
+				errMsg := fmt.Sprintf("failed to parse subpolicy (index=%d) for '%s'", index, op)
+				if depth == 0 {
+					errMsg = fmt.Sprintf("failed to parse policy (index=%d)", index)
+				}
+
+				return nil, errors.WithMessage(err, errMsg)
 			}
 			subrequirements = append(subrequirements, subreq)
 		}

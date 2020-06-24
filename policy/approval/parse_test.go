@@ -16,6 +16,7 @@ package approval
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -156,6 +157,35 @@ func TestParsePolicyError_unknownRule(t *testing.T) {
 
 	_, err := loadAndParsePolicy(t, policy, rules)
 	require.Error(t, err)
+}
+
+func TestParsePolicyError_indexedError(t *testing.T) {
+	// Non-existing rule
+	policy := `
+- rule1
+- or:
+   - rule2
+   - ruleUnknown
+   - rule3
+`
+
+	rules := `
+- name: rule1
+- name: rule2
+- name: rule3
+`
+
+	_, err := loadAndParsePolicy(t, policy, rules)
+	require.Error(t, err)
+
+	// failed to parse policy (index=1): failed to parse subpolicy (index=1) for 'or': policy references undefined rule 'ruleUnknown', allowed values: [rule1 rule2 rule3]
+	expectedErrMsg := strings.Join([]string{
+		"failed to parse policy (index=1)",
+		"failed to parse subpolicy (index=1) for 'or'",
+		"policy references undefined rule 'ruleUnknown', allowed values: [rule1 rule2 rule3]",
+	}, ": ")
+
+	require.Equal(t, expectedErrMsg, err.Error())
 }
 
 func TestParsePolicyError_illegalType(t *testing.T) {
