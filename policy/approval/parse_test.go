@@ -165,8 +165,8 @@ func TestParsePolicyError_indexedError(t *testing.T) {
 - rule1
 - or:
    - rule2
-   - ruleUnknown
    - rule3
+   - ruleUnknown
 `
 
 	rules := `
@@ -181,7 +181,7 @@ func TestParsePolicyError_indexedError(t *testing.T) {
 	// failed to parse policy (index=1): failed to parse subpolicy (index=1) for 'or': policy references undefined rule 'ruleUnknown', allowed values: [rule1 rule2 rule3]
 	expectedErrMsg := strings.Join([]string{
 		"failed to parse policy (index=1)",
-		"failed to parse subpolicy (index=1) for 'or'",
+		"failed to parse subpolicy (index=2) for 'or'",
 		"policy references undefined rule 'ruleUnknown', allowed values: [rule1 rule2 rule3]",
 	}, ": ")
 
