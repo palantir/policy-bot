@@ -182,10 +182,10 @@ func TestParsePolicyError_indexedError(t *testing.T) {
 	expectedErrMsg := strings.Join([]string{
 		"failed to parse policy (index=1)",
 		"failed to parse subpolicy (index=2) for 'or'",
-		"policy references undefined rule 'ruleUnknown', allowed values: [rule1 rule2 rule3]",
+		"policy references undefined rule 'ruleUnknown', allowed values: [",
 	}, ": ")
 
-	require.Equal(t, expectedErrMsg, err.Error())
+	require.Contains(t, err.Error(), expectedErrMsg)
 }
 
 func TestParsePolicyError_illegalType(t *testing.T) {
