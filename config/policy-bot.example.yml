@@ -86,9 +86,13 @@ options:
   # in the GitHub UI, this value should be set to "policy-bot".
   app_name: policy-bot
 
-# Options for frontend assets
-files:
-  # The filesystem path to static CSS and JS assets
-  static: build/static
-  # The filesystem path to HTML template files
-  templates: server/templates
+# Options for locating the frontend files. By default, the server uses appropriate
+# paths for the binary distribution and Docker container. For local development,
+# uncomment this section to use the alternate paths below.
+# 
+# 'static' is the file system path to the assembled CSS and JS assets.
+# 'templates' is the file system path to the Go template files.
+#
+# files:
+#   static: build/static
+#   templates: server/templates
