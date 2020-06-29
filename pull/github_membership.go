@@ -88,7 +88,10 @@ func (mc *GitHubMembershipContext) getTeamID(team string) (int64, error) {
 }
 
 func (mc *GitHubMembershipContext) cacheTeamIDs(org string) error {
-	var opt github.ListOptions
+	opt := github.ListOptions{
+		PerPage: 100,
+	}
+
 	for {
 		teams, res, err := mc.client.Teams.ListTeams(mc.ctx, org, &opt)
 		if err != nil {
