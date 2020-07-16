@@ -52,7 +52,7 @@ type CachingConfig struct {
 type WorkerConfig struct {
 	Workers       int           `yaml:"workers"`
 	QueueSize     int           `yaml:"queue_size"`
-	ClientTimeout time.Duration `yaml:"client_timeout"`
+	GithubTimeout time.Duration `yaml:"github_timeout"`
 }
 
 type SessionsConfig struct {

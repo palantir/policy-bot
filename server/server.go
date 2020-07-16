@@ -86,11 +86,16 @@ func New(c *Config) (*Server, error) {
 		maxSize = int64(c.Cache.MaxSize)
 	}
 
+	githubTimeout := c.Workers.GithubTimeout
+	if githubTimeout == 0 {
+		githubTimeout = 10 * time.Second
+	}
+
 	userAgent := fmt.Sprintf("%s/%s", c.Options.AppName, version.GetVersion())
 	cc, err := githubapp.NewDefaultCachingClientCreator(
 		c.Github,
 		githubapp.WithClientUserAgent(userAgent),
-		githubapp.WithClientTimeout(c.Workers.ClientTimeout),
+		githubapp.WithClientTimeout(githubTimeout),
 		githubapp.WithClientCaching(true, func() httpcache.Cache {
 			return lrucache.New(maxSize, 0)
 		}),
