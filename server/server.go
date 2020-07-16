@@ -90,6 +90,7 @@ func New(c *Config) (*Server, error) {
 	cc, err := githubapp.NewDefaultCachingClientCreator(
 		c.Github,
 		githubapp.WithClientUserAgent(userAgent),
+		githubapp.WithClientTimeout(c.Workers.ClientTimeout),
 		githubapp.WithClientCaching(true, func() httpcache.Cache {
 			return lrucache.New(maxSize, 0)
 		}),
