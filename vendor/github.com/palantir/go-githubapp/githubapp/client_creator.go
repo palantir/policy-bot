@@ -21,9 +21,10 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/bradleyfalzon/ghinstallation"
-	"github.com/google/go-github/v31/github"
+	"github.com/google/go-github/v32/github"
 	"github.com/gregjones/httpcache"
 	"github.com/pkg/errors"
 	"github.com/shurcooL/githubv4"
@@ -127,6 +128,7 @@ type clientCreator struct {
 	middleware     []ClientMiddleware
 	cacheFunc      func() httpcache.Cache
 	alwaysValidate bool
+	timeout        time.Duration
 }
 
 var _ ClientCreator = &clientCreator{}
@@ -156,6 +158,13 @@ func WithClientCaching(alwaysValidate bool, cache func() httpcache.Cache) Client
 	}
 }
 
+// WithClientTimeout sets a request timeout for requests made by all created clients.
+func WithClientTimeout(timeout time.Duration) ClientOption {
+	return func(c *clientCreator) {
+		c.timeout = timeout
+	}
+}
+
 // WithClientMiddleware adds middleware that is applied to all created clients.
 func WithClientMiddleware(middleware ...ClientMiddleware) ClientOption {
 	return func(c *clientCreator) {
@@ -164,7 +173,7 @@ func WithClientMiddleware(middleware ...ClientMiddleware) ClientOption {
 }
 
 func (c *clientCreator) NewAppClient() (*github.Client, error) {
-	base := &http.Client{Transport: http.DefaultTransport}
+	base := c.newHTTPClient()
 	installation, transportError := newAppInstallation(c.integrationID, c.privKeyBytes, c.v3BaseURL)
 
 	middleware := []ClientMiddleware{installation}
@@ -183,7 +192,7 @@ func (c *clientCreator) NewAppClient() (*github.Client, error) {
 }
 
 func (c *clientCreator) NewAppV4Client() (*githubv4.Client, error) {
-	base := &http.Client{Transport: http.DefaultTransport}
+	base := c.newHTTPClient()
 	installation, transportError := newAppInstallation(c.integrationID, c.privKeyBytes, c.v3BaseURL)
 
 	// The v4 API primarily uses POST requests (except for introspection queries)
@@ -201,7 +210,7 @@ func (c *clientCreator) NewAppV4Client() (*githubv4.Client, error) {
 }
 
 func (c *clientCreator) NewInstallationClient(installationID int64) (*github.Client, error) {
-	base := &http.Client{Transport: http.DefaultTransport}
+	base := c.newHTTPClient()
 	installation, transportError := newInstallation(c.integrationID, installationID, c.privKeyBytes, c.v3BaseURL)
 
 	middleware := []ClientMiddleware{installation}
@@ -220,7 +229,7 @@ func (c *clientCreator) NewInstallationClient(installationID int64) (*github.Cli
 }
 
 func (c *clientCreator) NewInstallationV4Client(installationID int64) (*githubv4.Client, error) {
-	base := &http.Client{Transport: http.DefaultTransport}
+	base := c.newHTTPClient()
 	installation, transportError := newInstallation(c.integrationID, installationID, c.privKeyBytes, c.v3BaseURL)
 
 	// The v4 API primarily uses POST requests (except for introspection queries)
@@ -247,6 +256,13 @@ func (c *clientCreator) NewTokenV4Client(token string) (*githubv4.Client, error)
 	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
 	tc := oauth2.NewClient(context.Background(), ts)
 	return c.newV4Client(tc, nil, "oauth token")
+}
+
+func (c *clientCreator) newHTTPClient() *http.Client {
+	return &http.Client{
+		Transport: http.DefaultTransport,
+		Timeout:   c.timeout,
+	}
 }
 
 func (c *clientCreator) newClient(base *http.Client, middleware []ClientMiddleware, details string, installID int64) (*github.Client, error) {

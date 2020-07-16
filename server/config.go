@@ -16,6 +16,7 @@ package server
 
 import (
 	"os"
+	"time"
 
 	"github.com/c2h5oh/datasize"
 	"github.com/palantir/go-baseapp/baseapp"
@@ -49,8 +50,9 @@ type CachingConfig struct {
 }
 
 type WorkerConfig struct {
-	Workers   int `yaml:"workers"`
-	QueueSize int `yaml:"queue_size"`
+	Workers       int           `yaml:"workers"`
+	QueueSize     int           `yaml:"queue_size"`
+	GithubTimeout time.Duration `yaml:"github_timeout"`
 }
 
 type SessionsConfig struct {

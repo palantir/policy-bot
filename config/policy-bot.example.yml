@@ -33,6 +33,7 @@ logging:
 # workers:
 #   workers: 10
 #   queue_size: 100
+#   github_timeout: 10s
 
 # Options for connecting to GitHub
 github:
