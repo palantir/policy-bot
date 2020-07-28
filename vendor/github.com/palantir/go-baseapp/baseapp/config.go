@@ -34,6 +34,19 @@ type HTTPConfig struct {
 	ShutdownWaitTime *time.Duration `yaml:"shutdown_wait_time" json:"shutdownWaitTime"`
 }
 
+// SetValuesFromEnv sets values in the configuration from coresponding
+// environment variables, if they exist. The optional prefix is added to the
+// start of the environment variable names.
+func (c *HTTPConfig) SetValuesFromEnv(prefix string) {
+	setStringFromEnv("SERVER_PUBLIC_URL", prefix, &c.PublicURL)
+}
+
+func setStringFromEnv(key, prefix string, value *string) {
+	if v, ok := os.LookupEnv(prefix + key); ok {
+		*value = v
+	}
+}
+
 // LoggingConfig contains options for logging, such as log level and textual representation.
 // It is usually embedded in a larger configuration struct.
 type LoggingConfig struct {
