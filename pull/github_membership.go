@@ -45,7 +45,7 @@ func membershipKey(group, user string) string {
 	return group + ":" + user
 }
 
-func splitTeam(team string) (org, name string, err error) {
+func splitTeam(team string) (org, slug string, err error) {
 	parts := strings.Split(team, "/")
 	if len(parts) != 2 {
 		return "", "", errors.Errorf("invalid team format: %s", team)
@@ -56,7 +56,7 @@ func splitTeam(team string) (org, name string, err error) {
 func (mc *GitHubMembershipContext) IsTeamMember(team, user string) (bool, error) {
 	key := membershipKey(team, user)
 
-	org, name, err := splitTeam(team)
+	org, slug, err := splitTeam(team)
 	if err != nil {
 		return false, err
 	}
@@ -66,7 +66,7 @@ func (mc *GitHubMembershipContext) IsTeamMember(team, user string) (bool, error)
 		return isMember, nil
 	}
 
-	membership, _, err := mc.client.Teams.GetTeamMembershipBySlug(mc.ctx, org, name, user)
+	membership, _, err := mc.client.Teams.GetTeamMembershipBySlug(mc.ctx, org, slug, user)
 	if err != nil && !isNotFound(err) {
 		return false, errors.Wrap(err, "failed to get team membership")
 	}
@@ -141,13 +141,13 @@ func (mc *GitHubMembershipContext) TeamMembers(team string) ([]string, error) {
 			},
 		}
 
-		org, name, err := splitTeam(team)
+		org, slug, err := splitTeam(team)
 		if err != nil {
 			return nil, err
 		}
 
 		for {
-			users, resp, err := mc.client.Teams.ListTeamMembersBySlug(mc.ctx, org, name, opt)
+			users, resp, err := mc.client.Teams.ListTeamMembersBySlug(mc.ctx, org, slug, opt)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to list team %s members page %d", team, opt.Page)
 			}
