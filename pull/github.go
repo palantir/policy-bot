@@ -389,7 +389,6 @@ func (ghc *GitHubContext) getCheckStatuses() (map[string]string, error) {
 
 func (ghc *GitHubContext) Labels() ([]string, error) {
 	if ghc.labels == nil {
-		var labels []string
 		issueLabels, _, err := ghc.client.Issues.ListLabelsByIssue(ghc.ctx, ghc.owner, ghc.repo, ghc.number, &github.ListOptions{
 			Page:    0,
 			PerPage: 100,
@@ -398,8 +397,9 @@ func (ghc *GitHubContext) Labels() ([]string, error) {
 			return nil, errors.Wrapf(err, "failed to list labels")
 		}
 
-		for _, label := range issueLabels {
-			labels = append(labels, strings.ToLower(label.GetName()))
+		labels := make([]string, len(issueLabels))
+		for i, label := range issueLabels {
+			labels[i] = strings.ToLower(label.GetName())
 		}
 		ghc.labels = labels
 	}
