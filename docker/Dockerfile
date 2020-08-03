@@ -2,6 +2,9 @@ FROM scratch
 
 STOPSIGNAL SIGINT
 
+# add the default configuration file
+COPY config/policy-bot.example.yml /secrets/policy-bot.yml
+
 # add static files
 COPY ca-certificates.crt /etc/ssl/certs/
 COPY mime.types /etc/

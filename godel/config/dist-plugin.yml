@@ -37,6 +37,7 @@ products:
           script: |
             #!/usr/bin/env bash
             cp -R docker/* ${CONTEXT_DIR}
+            cp -R config ${CONTEXT_DIR}
           tag-templates:
             version: "{{Repository}}palantirtechnologies/policy-bot:{{Version}}"
             latest: "{{Repository}}palantirtechnologies/policy-bot:latest"

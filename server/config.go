@@ -67,6 +67,7 @@ func ParseConfig(bytes []byte) (*Config, error) {
 	}
 
 	c.Options.FillDefaults()
+	c.Server.SetValuesFromEnv("POLICYBOT_")
 	c.Github.SetValuesFromEnv("")
 
 	if v, ok := os.LookupEnv("POLICYBOT_SESSIONS_KEY"); ok {
