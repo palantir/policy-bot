@@ -32,7 +32,7 @@ github.com/hashicorp/golang-lru
 github.com/hashicorp/golang-lru/simplelru
 # github.com/inconshreveable/mousetrap v1.0.0
 github.com/inconshreveable/mousetrap
-# github.com/palantir/go-baseapp v0.2.0
+# github.com/palantir/go-baseapp v0.2.1
 github.com/palantir/go-baseapp/baseapp
 github.com/palantir/go-baseapp/baseapp/datadog
 github.com/palantir/go-baseapp/pkg/errfmt
