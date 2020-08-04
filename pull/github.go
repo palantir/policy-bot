@@ -269,11 +269,38 @@ func (ghc *GitHubContext) Reviews() ([]*Review, error) {
 
 func (ghc *GitHubContext) RepositoryCollaborators() (map[string]string, error) {
 	if ghc.collaborators == nil {
-		if err := ghc.loadCollaboratorData(); err != nil {
-			return nil, err
+		opts := github.ListCollaboratorsOptions{
+			ListOptions: github.ListOptions{
+				PerPage: 100,
+			},
 		}
+
+		collaborators := make(map[string]string)
+		for {
+			users, res, err := ghc.client.Repositories.ListCollaborators(ghc.ctx, ghc.owner, ghc.repo, &opts)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to list repository collaborators")
+			}
+			for _, u := range users {
+				collaborators[u.GetLogin()] = coalescePermission(u.GetPermissions())
+			}
+			if res.NextPage == 0 {
+				break
+			}
+			opts.Page = res.NextPage
+		}
+		ghc.collaborators = collaborators
 	}
 	return ghc.collaborators, nil
+}
+
+func coalescePermission(perms map[string]bool) string {
+	for _, p := range []string{"admin", "push", "pull"} {
+		if perms[p] {
+			return p
+		}
+	}
+	return "none"
 }
 
 func (ghc *GitHubContext) HasReviewers() (bool, error) {
@@ -461,44 +488,6 @@ func (ghc *GitHubContext) loadPagedData() error {
 
 	ghc.comments = comments
 	ghc.reviews = reviews
-	return nil
-}
-
-func (ghc *GitHubContext) loadCollaboratorData() error {
-	var q struct {
-		Repository struct {
-			Collaborators struct {
-				PageInfo v4PageInfo
-				Edges    []struct {
-					Permission string  `graphql:"permission"`
-					Node       v4Actor `graphql:"node"`
-				}
-			} `graphql:"collaborators(first: 100, after: $collaboratorCursor)"`
-		} `graphql:"repository(owner: $owner, name: $name)"`
-	}
-
-	qvars := map[string]interface{}{
-		"owner": githubv4.String(ghc.owner),
-		"name":  githubv4.String(ghc.repo),
-
-		"collaboratorCursor": (*githubv4.String)(nil),
-	}
-
-	collaborators := make(map[string]string)
-	for {
-		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
-			return errors.Wrap(err, "failed to load pull request data")
-		}
-
-		for _, c := range q.Repository.Collaborators.Edges {
-			collaborators[c.Node.Login] = strings.ToLower(c.Permission)
-		}
-		if !q.Repository.Collaborators.PageInfo.UpdateCursor(qvars, "collaboratorCursor") {
-			break
-		}
-	}
-
-	ghc.collaborators = collaborators
 	return nil
 }
 
