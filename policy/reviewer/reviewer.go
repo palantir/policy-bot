@@ -32,20 +32,20 @@ const (
 	LogKeyLeafNode = "leaf_node"
 )
 
-func findLeafChildren(result common.Result) []common.Result {
-	var r []common.Result
-	if len(result.Children) == 0 {
-		if result.Status == common.StatusPending && result.Error == nil {
-			return []common.Result{result}
-		}
-	} else {
-		for _, c := range result.Children {
-			if c.Status == common.StatusPending {
-				r = append(r, findLeafChildren(*c)...)
-			}
-		}
+// FindRequests returns all pending leaf results with review requests enabled.
+func FindRequests(result *common.Result) []*common.Result {
+	if result.Status != common.StatusPending {
+		return nil
 	}
-	return r
+
+	var reqs []*common.Result
+	for _, c := range result.Children {
+		reqs = append(reqs, FindRequests(c)...)
+	}
+	if len(result.Children) == 0 && result.ReviewRequestRule != nil && result.Error == nil {
+		reqs = append(reqs, result)
+	}
+	return reqs
 }
 
 // select n random values from the list of users without reuse
@@ -153,13 +153,11 @@ func stripOrg(teamWithOrg string) (string, error) {
 	return split[1], nil
 }
 
-func SelectReviewers(ctx context.Context, prctx pull.Context, result common.Result, r *rand.Rand) ([]string, []string, error) {
+func SelectReviewers(ctx context.Context, prctx pull.Context, results []*common.Result, r *rand.Rand) ([]string, []string, error) {
 	usersToRequest := make([]string, 0)
 	teamsToRequest := make([]string, 0)
-	pendingLeafNodes := findLeafChildren(result)
-	zerolog.Ctx(ctx).Debug().Msgf("Found %d pending leaf nodes for review selection", len(pendingLeafNodes))
 
-	for _, child := range pendingLeafNodes {
+	for _, child := range results {
 		logger := zerolog.Ctx(ctx).With().Str(LogKeyLeafNode, child.Name).Logger()
 
 		allUsers := make(map[string]struct{})
@@ -222,7 +220,7 @@ func SelectReviewers(ctx context.Context, prctx pull.Context, result common.Resu
 			}
 		}
 
-		switch child.GetMode() {
+		switch child.ReviewRequestRule.Mode {
 		case common.RequestModeTeams:
 			var possibleTeams []string
 			permissionedTeams, err := prctx.Teams()

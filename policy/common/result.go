@@ -57,20 +57,12 @@ type ReviewRequestRule struct {
 }
 
 type Result struct {
-	Name              string
-	Description       string
-	Status            EvaluationStatus
-	ReviewRequestRule ReviewRequestRule
+	Name        string
+	Description string
+	Status      EvaluationStatus
+	Error       error
 
-	Error error
+	ReviewRequestRule *ReviewRequestRule
 
 	Children []*Result
-}
-
-func (r Result) GetMode() RequestMode {
-	mode := RequestModeRandomUsers
-	if r.ReviewRequestRule.Mode != "" {
-		mode = r.ReviewRequestRule.Mode
-	}
-	return mode
 }
