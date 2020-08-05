@@ -295,10 +295,14 @@ func (ghc *GitHubContext) RepositoryCollaborators() (map[string]string, error) {
 }
 
 func coalescePermission(perms map[string]bool) string {
-	for _, p := range []string{"admin", "push", "pull"} {
-		if perms[p] {
-			return p
-		}
+	// standardize to new-style values used by GraphQL and other endpoints
+	switch {
+	case perms["admin"]:
+		return "admin"
+	case perms["push"] || perms["write"]:
+		return "write"
+	case perms["pull"] || perms["read"]:
+		return "read"
 	}
 	return "none"
 }
