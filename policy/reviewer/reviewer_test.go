@@ -30,14 +30,14 @@ import (
 )
 
 func TestFindLeafResults(t *testing.T) {
-	results := makeResults(&common.Result{
+	result := makeResult(&common.Result{
 		Name:        "Skipped",
 		Description: "",
 		Status:      common.StatusSkipped,
 		Error:       nil,
 		Children:    nil,
 	}, "random-users")
-	actualResults := findLeafChildren(results)
+	actualResults := FindRequests(result)
 	require.Len(t, actualResults, 2, "incorrect number of leaf results")
 }
 
@@ -75,9 +75,10 @@ func TestSelectReviewers(t *testing.T) {
 		Name:        "Owner",
 		Description: "",
 		Status:      common.StatusPending,
-		ReviewRequestRule: common.ReviewRequestRule{
+		ReviewRequestRule: &common.ReviewRequestRule{
 			Admins:        true,
 			RequiredCount: 1,
+			Mode:          common.RequestModeRandomUsers,
 		},
 		Error:    nil,
 		Children: nil,
@@ -100,7 +101,7 @@ func TestSelectAdminTeam(t *testing.T) {
 		Name:        "Owner",
 		Description: "",
 		Status:      common.StatusPending,
-		ReviewRequestRule: common.ReviewRequestRule{
+		ReviewRequestRule: &common.ReviewRequestRule{
 			Admins:        true,
 			RequiredCount: 1,
 			Mode:          "teams",
@@ -125,10 +126,11 @@ func TestSelectReviewers_Team(t *testing.T) {
 		Name:        "Team",
 		Description: "",
 		Status:      common.StatusPending,
-		ReviewRequestRule: common.ReviewRequestRule{
+		ReviewRequestRule: &common.ReviewRequestRule{
 			// Require a team approval
 			Teams:         []string{"everyone/team-write"},
 			RequiredCount: 1,
+			Mode:          common.RequestModeRandomUsers,
 		},
 		Error:    nil,
 		Children: nil,
@@ -151,7 +153,7 @@ func TestSelectReviewers_Team_teams(t *testing.T) {
 		Name:        "Team",
 		Description: "",
 		Status:      common.StatusPending,
-		ReviewRequestRule: common.ReviewRequestRule{
+		ReviewRequestRule: &common.ReviewRequestRule{
 			// Require a team approval
 			Teams:         []string{"everyone/team-write", "everyone/team-not-collaborators"},
 			Users:         []string{"user-team-write"},
@@ -180,7 +182,7 @@ func TestSelectReviewers_Team_teamsDefaultsToNothing(t *testing.T) {
 		Name:        "Team",
 		Description: "",
 		Status:      common.StatusPending,
-		ReviewRequestRule: common.ReviewRequestRule{
+		ReviewRequestRule: &common.ReviewRequestRule{
 			// Require a team approval
 			Teams:         []string{"everyone/team-not-collaborators"},
 			Users:         []string{"user-team-write"},
@@ -204,10 +206,11 @@ func TestSelectReviewers_Org(t *testing.T) {
 		Name:        "Team",
 		Description: "",
 		Status:      common.StatusPending,
-		ReviewRequestRule: common.ReviewRequestRule{
+		ReviewRequestRule: &common.ReviewRequestRule{
 			// Require everyone org approval
 			Organizations: []string{"everyone"},
 			RequiredCount: 1,
+			Mode:          common.RequestModeRandomUsers,
 		},
 		Error:    nil,
 		Children: nil,
@@ -222,35 +225,40 @@ func TestSelectReviewers_Org(t *testing.T) {
 	require.NotContains(t, reviewers, "not-a-collaborator", "a non collaborator cannot be requested")
 }
 
-func makeResults(result *common.Result, mode string) common.Result {
-	results := common.Result{
+func makeResults(result *common.Result, mode string) []*common.Result {
+	return FindRequests(makeResult(result, mode))
+}
+
+func makeResult(result *common.Result, mode string) *common.Result {
+	return &common.Result{
 		Name:        "One",
 		Description: "",
 		Status:      common.StatusPending,
-		ReviewRequestRule: common.ReviewRequestRule{
+		ReviewRequestRule: &common.ReviewRequestRule{
 			Users:         []string{"neverappears"},
 			RequiredCount: 0,
 			Mode:          common.RequestMode(mode),
 		},
 		Error: nil,
-		Children: []*common.Result{{
-			Name:        "Two",
-			Description: "",
-			Status:      common.StatusPending,
-			ReviewRequestRule: common.ReviewRequestRule{
-				Users:         []string{"mhaypenny", "review-approver"},
-				RequiredCount: 1,
-				Mode:          common.RequestMode(mode),
+		Children: []*common.Result{
+			{
+				Name:        "Two",
+				Description: "",
+				Status:      common.StatusPending,
+				ReviewRequestRule: &common.ReviewRequestRule{
+					Users:         []string{"mhaypenny", "review-approver"},
+					RequiredCount: 1,
+					Mode:          common.RequestMode(mode),
+				},
+				Error:    nil,
+				Children: nil,
 			},
-			Error:    nil,
-			Children: nil,
-		},
 			result,
 			{
 				Name:              "Three",
 				Description:       "",
 				Status:            common.StatusDisapproved,
-				ReviewRequestRule: common.ReviewRequestRule{},
+				ReviewRequestRule: &common.ReviewRequestRule{},
 				Error:             errors.New("foo"),
 				Children:          nil,
 			},
@@ -258,27 +266,27 @@ func makeResults(result *common.Result, mode string) common.Result {
 				Name:              "Four",
 				Description:       "",
 				Status:            common.StatusPending,
-				ReviewRequestRule: common.ReviewRequestRule{},
+				ReviewRequestRule: &common.ReviewRequestRule{},
 				Error:             nil,
-				Children: []*common.Result{{
-					Name:        "Five",
-					Description: "",
-					Status:      common.StatusPending,
-					ReviewRequestRule: common.ReviewRequestRule{
-						Users:              []string{"contributor-committer", "contributor-author", "not-a-collaborator"},
-						RequiredCount:      1,
-						WriteCollaborators: true,
-						Admins:             false,
-						Mode:               common.RequestMode(mode),
+				Children: []*common.Result{
+					{
+						Name:        "Five",
+						Description: "",
+						Status:      common.StatusPending,
+						ReviewRequestRule: &common.ReviewRequestRule{
+							Users:              []string{"contributor-committer", "contributor-author", "not-a-collaborator"},
+							RequiredCount:      1,
+							WriteCollaborators: true,
+							Admins:             false,
+							Mode:               common.RequestMode(mode),
+						},
+						Error:    nil,
+						Children: nil,
 					},
-					Error:    nil,
-					Children: nil,
-				},
 				},
 			},
 		},
 	}
-	return results
 }
 
 func makeContext() pull.Context {

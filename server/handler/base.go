@@ -202,42 +202,58 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, re
 	}
 
 	if requestReviews && statusState == "pending" && !prctx.IsDraft() {
-		hasReviewers, err := prctx.HasReviewers()
-		if err != nil {
-			return errors.Wrap(err, "Unable to list request reviewers")
+		if reqs := reviewer.FindRequests(&result); len(reqs) > 0 {
+			logger.Debug().Msgf("Found %d pending rules with review requests enabled", len(reqs))
+			return b.requestReviews(ctx, prctx, client, reqs)
 		}
-
-		if !hasReviewers {
-			r := rand.New(rand.NewSource(time.Now().UnixNano()))
-			requestedUsers, requestedTeams, err := reviewer.SelectReviewers(ctx, prctx, result, r)
-			if err != nil {
-				return errors.Wrap(err, "Unable to select random request reviewers")
-			}
-
-			// check again if someone assigned a reviewer while we were calculating users to request
-			hasReviewersAfter, err := prctx.HasReviewers()
-			if err != nil {
-				return errors.Wrap(err, "Unable to double-check existing reviewers, assuming original state is still valid")
-			}
-
-			if (len(requestedUsers) > 0 || len(requestedTeams) > 0) && !hasReviewersAfter {
-				reviewers := github.ReviewersRequest{
-					Reviewers:     requestedUsers,
-					TeamReviewers: requestedTeams,
-				}
-
-				logger.Debug().Msgf("PR is not in draft, there are no current reviewers, and reviews are requested from %q users", requestedUsers)
-				_, _, err = client.PullRequests.RequestReviewers(ctx, prctx.RepositoryOwner(), prctx.RepositoryName(), prctx.Number(), reviewers)
-				if err != nil {
-					return errors.Wrap(err, "Unable to request reviewers")
-				}
-			} else {
-				logger.Debug().Msg("No users found for review, no users were requested, or users were assigned during review calculation")
-			}
-		} else {
-			logger.Debug().Msg("PR has existing reviewers, not adding anyone")
-		}
+		logger.Debug().Msgf("No pending rules have review requests enabled, skipping reviewer assignment")
 	}
 
+	return nil
+}
+
+func (b *Base) requestReviews(ctx context.Context, prctx pull.Context, client *github.Client, reqs []*common.Result) error {
+	logger := zerolog.Ctx(ctx)
+
+	hasReviewers, err := prctx.HasReviewers()
+	if err != nil {
+		return errors.Wrap(err, "failed to check existing reviewers")
+	}
+	if hasReviewers {
+		logger.Debug().Msg("PR has existing reviewers, skipping reviewer assignment")
+		return nil
+	}
+
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	requestedUsers, requestedTeams, err := reviewer.SelectReviewers(ctx, prctx, reqs, r)
+	if err != nil {
+		return errors.Wrap(err, "failed to select reviewers")
+	}
+
+	// check again if someone assigned a reviewer while we were calculating users to request
+	hasReviewersAfter, err := prctx.HasReviewers()
+	if err != nil {
+		logger.Warn().Err(err).Msg("Failed to double-check existing reviewers, assuming there are still no reviewers")
+		hasReviewersAfter = false
+	}
+
+	if (len(requestedUsers) > 0 || len(requestedTeams) > 0) && !hasReviewersAfter {
+		reviewers := github.ReviewersRequest{
+			Reviewers:     requestedUsers,
+			TeamReviewers: requestedTeams,
+		}
+
+		logger.Debug().
+			Strs("users", requestedUsers).
+			Strs("teams", requestedTeams).
+			Msgf("Requesting reviews from %d users and %d teams", len(requestedUsers), len(requestedTeams))
+
+		_, _, err = client.PullRequests.RequestReviewers(ctx, prctx.RepositoryOwner(), prctx.RepositoryName(), prctx.Number(), reviewers)
+		if err != nil {
+			return errors.Wrap(err, "failed to request reviewers")
+		}
+	} else {
+		logger.Debug().Msg("No eligible users or teams found for review, or reviewers were assigned during processing")
+	}
 	return nil
 }
