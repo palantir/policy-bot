@@ -121,25 +121,24 @@ func ClientLogging(lvl zerolog.Level) ClientMiddleware {
 			res, err := next.RoundTrip(r)
 			elapsed := time.Now().Sub(start)
 
-			log := zerolog.Ctx(r.Context())
+			evt := zerolog.Ctx(r.Context()).
+				WithLevel(lvl).
+				Str("method", r.Method).
+				Str("path", r.URL.String()).
+				Dur("elapsed", elapsed)
+
 			if res != nil {
-				log.WithLevel(lvl).
-					Str("method", r.Method).
-					Str("path", r.URL.String()).
-					Int("status", res.StatusCode).
+				cached := res.Header.Get(httpcache.XFromCache) != ""
+				evt.Int("status", res.StatusCode).
 					Int64("size", res.ContentLength).
-					Dur("elapsed", elapsed).
-					Msg("github_request")
+					Bool("cached", cached)
 			} else {
-				log.WithLevel(lvl).
-					Str("method", r.Method).
-					Str("path", r.URL.String()).
-					Int("status", -1).
+				evt.Int("status", -1).
 					Int64("size", -1).
-					Dur("elapsed", elapsed).
-					Msg("github_request")
+					Bool("cached", false)
 			}
 
+			evt.Msg("github_request")
 			return res, err
 		})
 	}

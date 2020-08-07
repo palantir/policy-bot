@@ -14,7 +14,7 @@ require (
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/palantir/go-baseapp v0.2.1
-	github.com/palantir/go-githubapp v0.4.0
+	github.com/palantir/go-githubapp v0.5.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.18.0
 	github.com/sergi/go-diff v1.1.0 // indirect

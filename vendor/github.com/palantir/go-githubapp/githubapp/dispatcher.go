@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/go-github/v32/github"
 	"github.com/pkg/errors"
+	"github.com/rcrowley/go-metrics"
 	"github.com/rs/zerolog"
 )
 
@@ -201,24 +202,36 @@ func (d *eventDispatcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	d.onResponse(w, r, eventType, ok)
 }
 
-// DefaultErrorCallback logs errors and responds with a 500 status code.
+// DefaultErrorCallback logs errors and responds with an appropriate status code.
 func DefaultErrorCallback(w http.ResponseWriter, r *http.Request, err error) {
-	logger := zerolog.Ctx(r.Context())
+	defaultErrorCallback(w, r, err)
+}
 
-	var ve ValidationError
-	if errors.As(err, &ve) {
-		logger.Warn().Err(ve.Cause).Msgf("Received invalid webhook headers or payload")
-		http.Error(w, "Invalid webhook headers or payload", http.StatusBadRequest)
-		return
-	}
-	if errors.Is(err, ErrCapacityExceeded) {
-		logger.Warn().Msg("Dropping webhook event due to over-capacity scheduler")
-		http.Error(w, "No capacity available to processes this event", http.StatusServiceUnavailable)
-		return
-	}
+var defaultErrorCallback = MetricsErrorCallback(nil)
 
-	logger.Error().Err(err).Msg("Unexpected error handling webhook")
-	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+// MetricsErrorCallback logs errors, increments an error counter, and responds
+// with an appropriate status code.
+func MetricsErrorCallback(reg metrics.Registry) ErrorCallback {
+	return func(w http.ResponseWriter, r *http.Request, err error) {
+		logger := zerolog.Ctx(r.Context())
+
+		var ve ValidationError
+		if errors.As(err, &ve) {
+			logger.Warn().Err(ve.Cause).Msgf("Received invalid webhook headers or payload")
+			http.Error(w, "Invalid webhook headers or payload", http.StatusBadRequest)
+			return
+		}
+		if errors.Is(err, ErrCapacityExceeded) {
+			logger.Warn().Msg("Dropping webhook event due to over-capacity scheduler")
+			http.Error(w, "No capacity available to processes this event", http.StatusServiceUnavailable)
+			return
+		}
+
+		logger.Error().Err(err).Msg("Unexpected error handling webhook")
+		errorCounter(reg, r.Header.Get("X-Github-Event")).Inc(1)
+
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+	}
 }
 
 // DefaultResponseCallback responds with a 200 OK for handled events and a 202
