@@ -143,8 +143,13 @@ func New(c *Config) (*Server, error) {
 			&handler.CheckRun{Base: basePolicyHandler},
 		},
 		c.Github.App.WebhookSecret,
+		githubapp.WithErrorCallback(githubapp.MetricsErrorCallback(base.Registry())),
 		githubapp.WithScheduler(
-			githubapp.QueueAsyncScheduler(queueSize, workers, githubapp.WithSchedulingMetrics(base.Registry())),
+			githubapp.QueueAsyncScheduler(
+				queueSize, workers,
+				githubapp.WithSchedulingMetrics(base.Registry()),
+				githubapp.WithAsyncErrorCallback(githubapp.MetricsAsyncErrorCallback(base.Registry())),
+			),
 		),
 	)
 

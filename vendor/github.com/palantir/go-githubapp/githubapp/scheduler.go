@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"sync/atomic"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
@@ -27,6 +28,14 @@ import (
 const (
 	MetricsKeyQueueLength   = "github.event.queued"
 	MetricsKeyActiveWorkers = "github.event.workers"
+	MetricsKeyEventAge      = "github.event.age"
+	MetricsKeyDroppedEvents = "github.event.dropped"
+)
+
+const (
+	// values from metrics.NewTimer, which match those used by UNIX load averages
+	histogramReservoirSize = 1028
+	histogramAlpha         = 0.015
 )
 
 var (
@@ -50,11 +59,21 @@ func (d Dispatch) Execute(ctx context.Context) error {
 // AsyncErrorCallback is called by an asynchronous scheduler when an event
 // handler returns an error. The error from the handler is passed directly as
 // the final argument.
-type AsyncErrorCallback func(ctx context.Context, err error)
+type AsyncErrorCallback func(ctx context.Context, d Dispatch, err error)
 
 // DefaultAsyncErrorCallback logs errors.
-func DefaultAsyncErrorCallback(ctx context.Context, err error) {
-	zerolog.Ctx(ctx).Error().Err(err).Msg("Unexpected error handling webhook")
+func DefaultAsyncErrorCallback(ctx context.Context, d Dispatch, err error) {
+	defaultAsyncErrorCallback(ctx, d, err)
+}
+
+var defaultAsyncErrorCallback = MetricsAsyncErrorCallback(nil)
+
+// MetricsAsyncErrorCallback logs errors and increments an error counter.
+func MetricsAsyncErrorCallback(reg metrics.Registry) AsyncErrorCallback {
+	return func(ctx context.Context, d Dispatch, err error) {
+		zerolog.Ctx(ctx).Error().Err(err).Msg("Unexpected error handling webhook")
+		errorCounter(reg, d.EventType).Inc(1)
+	}
 }
 
 // ContextDeriver creates a new independent context from a request's context.
@@ -119,11 +138,16 @@ func WithSchedulingMetrics(r metrics.Registry) SchedulerOption {
 		metrics.NewRegisteredFunctionalGauge(MetricsKeyActiveWorkers, r, func() int64 {
 			return atomic.LoadInt64(&s.activeWorkers)
 		})
+
+		sample := metrics.NewExpDecaySample(histogramReservoirSize, histogramAlpha)
+		s.eventAge = metrics.NewRegisteredHistogram(MetricsKeyEventAge, r, sample)
+		s.dropped = metrics.NewRegisteredCounter(MetricsKeyDroppedEvents, r)
 	}
 }
 
 type queueDispatch struct {
 	ctx context.Context
+	t   time.Time
 	d   Dispatch
 }
 
@@ -134,11 +158,15 @@ type scheduler struct {
 
 	activeWorkers int64
 	queue         chan queueDispatch
+
+	eventAge metrics.Histogram
+	dropped  metrics.Counter
 }
 
 func (s *scheduler) safeExecute(ctx context.Context, d Dispatch) {
 	var err error
 	defer func() {
+		atomic.AddInt64(&s.activeWorkers, -1)
 		if r := recover(); r != nil {
 			if rerr, ok := r.(error); ok {
 				err = rerr
@@ -147,9 +175,8 @@ func (s *scheduler) safeExecute(ctx context.Context, d Dispatch) {
 			}
 		}
 		if err != nil && s.onError != nil {
-			s.onError(ctx, err)
+			s.onError(ctx, d, err)
 		}
-		atomic.AddInt64(&s.activeWorkers, -1)
 	}()
 
 	atomic.AddInt64(&s.activeWorkers, 1)
@@ -224,6 +251,9 @@ func QueueAsyncScheduler(queueSize int, workers int, opts ...SchedulerOption) Sc
 	for i := 0; i < workers; i++ {
 		go func() {
 			for d := range s.queue {
+				if s.eventAge != nil {
+					s.eventAge.Update(time.Since(d.t).Milliseconds())
+				}
 				s.safeExecute(d.ctx, d.d)
 			}
 		}()
@@ -238,8 +268,11 @@ type queueScheduler struct {
 
 func (s *queueScheduler) Schedule(ctx context.Context, d Dispatch) error {
 	select {
-	case s.queue <- queueDispatch{ctx: s.derive(ctx), d: d}:
+	case s.queue <- queueDispatch{ctx: s.derive(ctx), t: time.Now(), d: d}:
 	default:
+		if s.dropped != nil {
+			s.dropped.Inc(1)
+		}
 		return ErrCapacityExceeded
 	}
 	return nil
