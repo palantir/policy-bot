@@ -276,24 +276,20 @@ func TestNoComments(t *testing.T) {
 
 func TestIsTeamMember(t *testing.T) {
 	rp := &ResponsePlayer{}
-	teamsRule := rp.AddRule(
-		ExactPathMatcher("/orgs/testorg/teams"),
-		"testdata/responses/teams_testorg.yml",
-	)
 	yesRule1 := rp.AddRule(
-		ExactPathMatcher("/teams/123/memberships/mhaypenny"),
+		ExactPathMatcher("/orgs/testorg/teams/yes-team/memberships/mhaypenny"),
 		"testdata/responses/membership_team123_mhaypenny.yml",
 	)
 	yesRule2 := rp.AddRule(
-		ExactPathMatcher("/teams/123/memberships/ttest"),
+		ExactPathMatcher("/orgs/testorg/teams/yes-team/memberships/ttest"),
 		"testdata/responses/membership_team123_ttest.yml",
 	)
 	noRule1 := rp.AddRule(
-		ExactPathMatcher("/teams/456/memberships/mhaypenny"),
+		ExactPathMatcher("/orgs/testorg/teams/no-team/memberships/mhaypenny"),
 		"testdata/responses/membership_team456_mhaypenny.yml",
 	)
 	noRule2 := rp.AddRule(
-		ExactPathMatcher("/teams/456/memberships/ttest"),
+		ExactPathMatcher("/orgs/testorg/teams/no-team/memberships/ttest"),
 		"testdata/responses/membership_team456_ttest.yml",
 	)
 
@@ -303,14 +299,12 @@ func TestIsTeamMember(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.True(t, isMember, "user is not a member")
-	assert.Equal(t, 2, teamsRule.Count, "no http request was made for teams")
 	assert.Equal(t, 1, yesRule1.Count, "no http request was made")
 
 	isMember, err = ctx.IsTeamMember("testorg/yes-team", "ttest")
 	require.NoError(t, err)
 
 	assert.True(t, isMember, "user is not a member")
-	assert.Equal(t, 2, teamsRule.Count, "cached team IDs were not used")
 	assert.Equal(t, 1, yesRule2.Count, "no http request was made")
 
 	// not a member because missing from team
@@ -318,7 +312,6 @@ func TestIsTeamMember(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.False(t, isMember, "user is a member")
-	assert.Equal(t, 2, teamsRule.Count, "cached team IDs were not used")
 	assert.Equal(t, 1, noRule1.Count, "no http request was made")
 
 	// not a member because membership state is pending
@@ -326,7 +319,6 @@ func TestIsTeamMember(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.False(t, isMember, "user is a member")
-	assert.Equal(t, 2, teamsRule.Count, "cached team IDs were not used")
 	assert.Equal(t, 1, noRule2.Count, "no http request was made")
 
 	// verify that team membership is cached
@@ -334,7 +326,6 @@ func TestIsTeamMember(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.True(t, isMember, "user is not a member")
-	assert.Equal(t, 2, teamsRule.Count, "cached team IDs were not used")
 	assert.Equal(t, 1, yesRule1.Count, "cached membership was not used")
 }
 

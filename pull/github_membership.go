@@ -26,7 +26,6 @@ type GitHubMembershipContext struct {
 	ctx    context.Context
 	client *github.Client
 
-	teamIDs     map[string]int64
 	membership  map[string]bool
 	orgMembers  map[string][]string
 	teamMembers map[string][]string
@@ -36,7 +35,6 @@ func NewGitHubMembershipContext(ctx context.Context, client *github.Client) *Git
 	return &GitHubMembershipContext{
 		ctx:         ctx,
 		client:      client,
-		teamIDs:     make(map[string]int64),
 		membership:  make(map[string]bool),
 		orgMembers:  make(map[string][]string),
 		teamMembers: make(map[string][]string),
@@ -47,12 +45,20 @@ func membershipKey(group, user string) string {
 	return group + ":" + user
 }
 
+func splitTeam(team string) (org, slug string, err error) {
+	parts := strings.Split(team, "/")
+	if len(parts) != 2 {
+		return "", "", errors.Errorf("invalid team format: %s", team)
+	}
+	return parts[0], parts[1], nil
+}
+
 func (mc *GitHubMembershipContext) IsTeamMember(team, user string) (bool, error) {
 	key := membershipKey(team, user)
 
-	id, err := mc.getTeamID(team)
+	org, slug, err := splitTeam(team)
 	if err != nil {
-		return false, errors.Errorf("failed to get ID for team %s", team)
+		return false, err
 	}
 
 	isMember, ok := mc.membership[key]
@@ -60,55 +66,15 @@ func (mc *GitHubMembershipContext) IsTeamMember(team, user string) (bool, error)
 		return isMember, nil
 	}
 
-	membership, _, err := GetTeamMembership(mc.ctx, mc.client, id, user)
+	membership, _, err := mc.client.Teams.GetTeamMembershipBySlug(mc.ctx, org, slug, user)
 	if err != nil && !isNotFound(err) {
 		return false, errors.Wrap(err, "failed to get team membership")
 	}
 
 	isMember = membership != nil && membership.GetState() == "active"
-
 	mc.membership[key] = isMember
+
 	return isMember, nil
-}
-
-func (mc *GitHubMembershipContext) getTeamID(team string) (int64, error) {
-	org := strings.Split(team, "/")[0]
-	id, ok := mc.teamIDs[team]
-	if !ok {
-		if err := mc.cacheTeamIDs(org); err != nil {
-			return 0, err
-		}
-
-		id, ok = mc.teamIDs[team]
-		if !ok {
-			return 0, errors.Errorf("failed to get ID for team %s", team)
-		}
-	}
-	return id, nil
-}
-
-func (mc *GitHubMembershipContext) cacheTeamIDs(org string) error {
-	opt := github.ListOptions{
-		PerPage: 100,
-	}
-
-	for {
-		teams, res, err := mc.client.Teams.ListTeams(mc.ctx, org, &opt)
-		if err != nil {
-			return errors.Wrap(err, "failed to list organization teams")
-		}
-
-		for _, t := range teams {
-			key := org + "/" + t.GetSlug()
-			mc.teamIDs[key] = t.GetID()
-		}
-
-		if res.NextPage == 0 {
-			break
-		}
-		opt.Page = res.NextPage
-	}
-	return nil
 }
 
 func (mc *GitHubMembershipContext) IsOrgMember(org, user string) (bool, error) {
@@ -175,13 +141,13 @@ func (mc *GitHubMembershipContext) TeamMembers(team string) ([]string, error) {
 			},
 		}
 
-		teamID, err := mc.getTeamID(team)
+		org, slug, err := splitTeam(team)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Unable to get information for team %s", team)
+			return nil, err
 		}
 
 		for {
-			users, resp, err := ListTeamMembers(mc.ctx, mc.client, teamID, opt)
+			users, resp, err := mc.client.Teams.ListTeamMembersBySlug(mc.ctx, org, slug, opt)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to list team %s members page %d", team, opt.Page)
 			}
