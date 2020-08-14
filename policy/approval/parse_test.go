@@ -192,13 +192,18 @@ func TestParsePolicyError_multikey(t *testing.T) {
 }
 
 func TestParsePolicyError_recursiveDepth(t *testing.T) {
-	// Recursive depth 5 is allowed
+	// Recursive depth 10 is allowed
 	policy := `
 - or:
-   - or:
+  - or:
+    - or:
       - or:
-         - or:
-            - rule1
+        - or:
+          - or:
+            - or:
+              - or:
+                - or:
+                  - rule1
 `
 
 	rules := `
@@ -208,14 +213,19 @@ func TestParsePolicyError_recursiveDepth(t *testing.T) {
 	_, err := loadAndParsePolicy(t, policy, rules)
 	require.NoError(t, err)
 
-	// Recursive depth 6 is not allowed
+	// Recursive depth 11 is not allowed
 	policy = `
 - or:
-   - or:
+  - or:
+    - or:
       - or:
-         - or:
+        - or:
+          - or:
             - or:
-               - rule1
+              - or:
+                - or:
+                  - or:
+                    - rule1
 `
 
 	_, err = loadAndParsePolicy(t, policy, rules)

@@ -46,7 +46,7 @@ func (p Policy) Parse(rules map[string]*Rule) (common.Evaluator, error) {
 }
 
 func parsePolicyR(policy interface{}, rules map[string]*Rule, depth int) (common.Evaluator, error) {
-	if depth > 5 {
+	if depth > 10 {
 		return nil, errors.New("reached maximum recursive depth while processing policy")
 	}
 
