@@ -1,18 +1,24 @@
-@tailwind preflight;
+@tailwind base;
+
+html {
+  line-height: theme('lineHeight.tight');
+}
+
+a {
+  color: theme('colors.blue3');
+  text-decoration: underline;
+}
+
+a:hover {
+  color: theme('colors.blue4');
+  text-decoration: underline;
+}
+
 @tailwind components;
 
 /* custom components */
 
-a {
-  color: config('colors.blue3');
-}
-
-a:hover {
-  color: config('colors.blue4');
-}
-
 .tree {
-  @apply list-reset;
   @apply pl-4;
 }
 
@@ -24,7 +30,7 @@ a:hover {
 .tree > li::before {
   content: "";
   @apply block;
-  @apply absolute pin-l pin-t;
+  @apply absolute left-0 top-0;
 
   @apply w-8;
   height: 2.2rem; /* pt-4 (li) + 1.20 (positioning) */
@@ -44,7 +50,7 @@ a:hover {
   display: grid;
 
   grid-template-columns: 1fr fit-content(50%) 1fr;
-  grid-column-gap: config('padding.2');
+  grid-column-gap: theme('padding.2');
   align-items: center;
 }
 
@@ -57,7 +63,9 @@ a:hover {
 }
 
 .status-badge {
-  @apply px-2 py-0.5 ml-2 text-xs text-white rounded-sm;
+  @apply px-2 ml-2 text-xs text-white rounded-sm;
+  padding-left: 0.125rem;
+  padding-right: 0.125rem;
 }
 .status-badge.approved { @apply bg-green3; }
 .status-badge.disapproved { @apply bg-red3; }
@@ -101,7 +109,6 @@ a:hover {
 }
 
 .list-numbers {
-  @apply list-reset;
   @apply ml-10;
 
   counter-reset: index;
