@@ -8,15 +8,12 @@ module.exports = {
   plugins: [
     tailwind('./tailwind.config.js'),
     ...(isProduction ? [
-      // https://tailwindcss.com/docs/controlling-file-size#setting-up-purge-css-manually
       purgecss({
         content: [
           './server/templates/**/*.html.tmpl',
         ],
         defaultExtractor: content => {
-          const broadMatches = content.match(/[^<>"'`\s]*[^<>"'`\s:]/g) || []
-          const innerMatches = content.match(/[^<>"'`\s.()]*[^<>"'`\s.():]/g) || []
-          return broadMatches.concat(innerMatches)
+          return content.match(/[\w-./]*\w/g) || [];
         },
         // status classes are dynamically generated
         whitelist: [
