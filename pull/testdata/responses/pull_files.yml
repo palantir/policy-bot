@@ -33,5 +33,13 @@
         "additions": 103,
         "deletions": 21,
         "changes": 124
+      },
+      {
+        "filename": "path/new.txt",
+        "status": "renamed",
+        "additions": 2,
+        "deletions": 4,
+        "changes": 6,
+        "previous_filename": "path/old.txt"
       }
     ]

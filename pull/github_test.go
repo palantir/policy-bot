@@ -39,7 +39,7 @@ func TestChangedFiles(t *testing.T) {
 	files, err := ctx.ChangedFiles()
 	require.NoError(t, err)
 
-	require.Len(t, files, 3, "incorrect number of files")
+	require.Len(t, files, 5, "incorrect number of files")
 	assert.Equal(t, 2, filesRule.Count, "no http request was made")
 
 	assert.Equal(t, "path/foo.txt", files[0].Filename)
@@ -51,11 +51,21 @@ func TestChangedFiles(t *testing.T) {
 	assert.Equal(t, "README.md", files[2].Filename)
 	assert.Equal(t, FileModified, files[2].Status)
 
+	assert.Equal(t, "path/old.txt", files[3].Filename)
+	assert.Equal(t, FileDeleted, files[3].Status)
+	assert.Equal(t, 0, files[3].Additions)
+	assert.Equal(t, 0, files[3].Deletions)
+
+	assert.Equal(t, "path/new.txt", files[4].Filename)
+	assert.Equal(t, FileAdded, files[4].Status)
+	assert.Equal(t, 2, files[4].Additions)
+	assert.Equal(t, 4, files[4].Deletions)
+
 	// verify that the file list is cached
 	files, err = ctx.ChangedFiles()
 	require.NoError(t, err)
 
-	require.Len(t, files, 3, "incorrect number of files")
+	require.Len(t, files, 5, "incorrect number of files")
 	assert.Equal(t, 2, filesRule.Count, "cached files were not used")
 }
 

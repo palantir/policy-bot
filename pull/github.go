@@ -207,24 +207,34 @@ func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
 			opt.Page = res.NextPage
 		}
 
-		ghc.files = make([]*File, len(allFiles))
-		for i, f := range allFiles {
-			var status FileStatus
+		ghc.files = make([]*File, 0, len(allFiles))
+		for _, f := range allFiles {
+			status := FileModified
 			switch f.GetStatus() {
 			case "added":
 				status = FileAdded
 			case "deleted":
 				status = FileDeleted
-			case "modified":
-				status = FileModified
+			case "renamed":
+				// Break renames into components: the new file is added and we
+				// generate an extra entry for the old file that is deleted.
+				// Attribute all modifications to the new file to avoid double
+				// counting.
+				status = FileAdded
+				ghc.files = append(ghc.files, &File{
+					Filename:  f.GetPreviousFilename(),
+					Status:    FileDeleted,
+					Additions: 0,
+					Deletions: 0,
+				})
 			}
 
-			ghc.files[i] = &File{
+			ghc.files = append(ghc.files, &File{
 				Filename:  f.GetFilename(),
 				Status:    status,
 				Additions: f.GetAdditions(),
 				Deletions: f.GetDeletions(),
-			}
+			})
 		}
 	}
 	if len(ghc.files) >= MaxPullRequestFiles {
