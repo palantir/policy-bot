@@ -1,7 +1,7 @@
 @tailwind base;
 
 html {
-  line-height: theme('lineHeight.tight');
+  line-height: 1.15; /* for compatibility with tailwind 0.x */
 }
 
 a {
@@ -64,8 +64,8 @@ a:hover {
 
 .status-badge {
   @apply px-2 ml-2 text-xs text-white rounded-sm;
-  padding-left: 0.125rem;
-  padding-right: 0.125rem;
+  padding-top: 0.125rem;
+  padding-bottom: 0.125rem;
 }
 .status-badge.approved { @apply bg-green3; }
 .status-badge.disapproved { @apply bg-red3; }

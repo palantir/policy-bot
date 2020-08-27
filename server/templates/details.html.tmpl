@@ -5,10 +5,10 @@
 {{define "body"}}
   <header class="w-full tripart p-4 bg-white shadow-sm z-10 relative">
     <a href="{{.PolicyURL}}" title="View the policy definition on GitHub"
-       class="px-2 py-1 text-xs text-dark-gray3 bg-light-gray3 border border-light-gray2 rounded-sm truncate max-w-full hover:bg-light-gray2 no-underline">
+       class="px-2 py-1 text-xs text-dark-gray3 bg-light-gray3 border border-light-gray2 rounded-sm truncate max-w-full hover:bg-light-gray2 no-underline hover:no-underline">
       {{.PullRequest.GetBase.GetRepo.GetFullName}}: {{.PullRequest.GetBase.GetRef}}
     </a>
-    <h1 class="text-xl font-normal tracking-tighter text-center">
+    <h1 class="text-xl font-normal tracking-tight text-center">
       <a href="{{.PullRequest.GetHTMLURL}}" title="View the pull request on GitHub" class="text-blue3 hover:text-blue4 no-underline">
         #{{.PullRequest.GetNumber}}</a>:
       {{.PullRequest.GetTitle}}
