@@ -1,6 +1,10 @@
 {{/* templatetree:extends page.html.tmpl */}}
 {{define "title"}}{{.PullRequest.GetBase.GetRepo.GetFullName}}#{{.PullRequest.GetNumber}} - Details | PolicyBot{{end}}
 
+{{define "scripts"}}
+<script defer src="/static/js/filter.js"></script>
+{{end}}
+
 {{define "body-class"}}bg-light-gray5 text-dark-gray1 flex flex-col h-screen{{end}}
 {{define "body"}}
   <header class="w-full tripart p-4 bg-white shadow-sm z-10 relative">
@@ -24,9 +28,17 @@
     </div>
   {{else}}
     {{ $s := (or (and .Result.Error "error") (.Result.Status | print)) }}
-    <div class="status-banner {{$s}}">
-      <h2 class="mb-1 text-lg font-bold">Status: {{$s | titlecase}}</h2>
-      <p>{{or .Result.Error .Result.Description}}</p>
+    <div class="status-banner {{$s}} flex flex-wrap items-center justify-between">
+      <div>
+        <h2 class="mb-1 text-lg font-bold">Status: {{$s | titlecase}}</h2>
+        <p>{{or .Result.Error .Result.Description}}</p>
+      </div>
+      <div class="p-2 rounded-md bg-white text-dark-gray1 text-sm text-shadow-none">
+        <div class="toggle">
+            <input id="filter-toggle" type="checkbox" />
+            <label for="filter-toggle">Hide skipped rules</label>
+        </div>
+      </div>
     </div>
     <div class="pl-8 overflow-auto flex-grow">
       <ul class="tree px-4 pb-4">
@@ -38,7 +50,7 @@
 
 {{define "result"}}
 {{ $s := (or (and .Error "error") (.Status | print)) }}
-<li>
+<li data-status="{{$s}}">
   <div class="bg-white p-2 shadow-sm max-w-lg status-stripe {{$s}}">
     {{template "result-details" .}}
   </div>

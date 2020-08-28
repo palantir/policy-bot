@@ -100,7 +100,7 @@ module.exports = {
     },
     boxShadow: {
       // blueprintjs elevation levels
-      // 0 -> xs, 1 -> sm, 2 -> default, 3 - lg, 4 -> xl
+      // 0 -> xs, 1 -> sm, 2 -> default, 3 -> lg, 4 -> xl
       'xs': '0 0 0 1px rgba(16,22,26, 0.15), 0 0 0 rgba(16,22,26, 0), 0 0 0 rgba(16,22,26, 0)',
       'sm': '0 0 0 1px rgba(16,22,26, 0.1), 0 0 0 rgba(16,22,26, 0), 0 1px 1px rgba(16,22,26, 0.2)',
       'default': '0 0 0 1px rgba(16,22,26, 0.1), 0 1px 1px rgba(16,22,26, 0.2), 0 2px 6px rgba(16,22,26, 0.2)',
@@ -111,6 +111,11 @@ module.exports = {
       'inner': 'inset 0 2px 4px 0 rgba(0,0,0,0.06)',
       'outline': '0 0 0 3px rgba(52,144,220,0.5)',
       'none': 'none',
+    },
+    extend: {
+      inset: {
+        '1/2': '50%',
+      },
     },
   },
   corePlugins: {
