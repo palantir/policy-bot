@@ -60,7 +60,7 @@ jobs:
 
   build-frontend:
     docker:
-      - image: circleci/node:8.15.1-stretch
+      - image: cimg/node:12.18.3
     steps:
       - checkout
       - *restore-yarn-cache

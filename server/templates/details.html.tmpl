@@ -5,7 +5,7 @@
 {{define "body"}}
   <header class="w-full tripart p-4 bg-white shadow-sm z-10 relative">
     <a href="{{.PolicyURL}}" title="View the policy definition on GitHub"
-       class="px-2 py-1 text-xs text-dark-gray3 bg-light-gray3 border border-light-gray2 rounded-sm truncate max-w-full hover:bg-light-gray2 no-underline">
+       class="px-2 py-1 text-xs text-dark-gray3 bg-light-gray3 border border-light-gray2 rounded-sm truncate max-w-full hover:bg-light-gray2 no-underline hover:no-underline">
       {{.PullRequest.GetBase.GetRepo.GetFullName}}: {{.PullRequest.GetBase.GetRef}}
     </a>
     <h1 class="text-xl font-normal tracking-tight text-center">
@@ -19,13 +19,13 @@
   </header>
   {{if .Error}}
     <div class="status-banner error">
-      <h2 class="mb-1 text-lg">Error</h2>
+      <h2 class="mb-1 text-lg font-bold">Error</h2>
       <p>{{.Error}}<p>
     </div>
   {{else}}
     {{ $s := (or (and .Result.Error "error") (.Result.Status | print)) }}
     <div class="status-banner {{$s}}">
-      <h2 class="mb-1 text-lg">Status: {{$s | titlecase}}</h2>
+      <h2 class="mb-1 text-lg font-bold">Status: {{$s | titlecase}}</h2>
       <p>{{or .Result.Error .Result.Description}}</p>
     </div>
     <div class="pl-8 overflow-auto flex-grow">
@@ -39,7 +39,7 @@
 {{define "result"}}
 {{ $s := (or (and .Error "error") (.Status | print)) }}
 <li>
-  <div class="bg-white p-2 shadow-sm max-w-sm status-stripe {{$s}}">
+  <div class="bg-white p-2 shadow-sm max-w-lg status-stripe {{$s}}">
     {{template "result-details" .}}
   </div>
   {{if .Children}}
