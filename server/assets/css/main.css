@@ -32,14 +32,15 @@ a:hover {
   @apply block;
   @apply absolute left-0 top-0;
 
-  @apply w-8;
-  height: 2.2rem; /* pt-4 (li) + 1.20 (positioning) */
+  width: calc(theme('width.8') + 1px);
+  height: calc(theme('padding.4') + 1.2rem); /* 1.2 rem is arbitrary, for alignment */
+  margin-left: -1px; /* make border align with parent's border */
 
   @apply border-b border-gray5;
 }
 
 .tree > li:last-child {
-  border-left: none;
+  border-left-color: transparent;
 }
 
 .tree > li:last-child:before {
