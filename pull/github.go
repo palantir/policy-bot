@@ -165,7 +165,7 @@ func (ghc *GitHubContext) Number() int {
 }
 
 func (ghc *GitHubContext) Author() string {
-	return ghc.pr.Author.Login
+	return ghc.pr.Author.GetV3Login()
 }
 
 func (ghc *GitHubContext) HeadSHA() string {
