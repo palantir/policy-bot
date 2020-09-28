@@ -3,3 +3,4 @@ checks:
     filters:
     - value: should have comment or be unexported
     - value: or a comment on this block
+    - value: don't use underscores in Go names; struct field Deprecated_

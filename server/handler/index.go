@@ -38,7 +38,7 @@ func (h *Index) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 		PolicyPath string
 	}
 
-	data.AppName = h.PullOpts.AppName
+	data.AppName = h.AppName
 	data.Version = version.GetVersion()
 	data.GitHubURL = h.GithubConfig.WebURL
 	data.PolicyPath = h.PullOpts.PolicyPath

@@ -36,7 +36,6 @@ import (
 const (
 	DefaultPolicyPath         = ".policy.yml"
 	DefaultStatusCheckContext = "policy-bot"
-	DefaultAppName            = "policy-bot"
 
 	LogKeyGitHubSHA = "github_sha"
 )
@@ -45,13 +44,14 @@ type Base struct {
 	githubapp.ClientCreator
 
 	Installations githubapp.InstallationsService
-	PullOpts      *PullEvaluationOptions
 	ConfigFetcher *ConfigFetcher
 	BaseConfig    *baseapp.HTTPConfig
+	PullOpts      *PullEvaluationOptions
+
+	AppName string
 }
 
 type PullEvaluationOptions struct {
-	AppName    string `yaml:"app_name"`
 	PolicyPath string `yaml:"policy_path"`
 
 	// StatusCheckContext will be used to create the status context. It will be used in the following
@@ -62,6 +62,12 @@ type PullEvaluationOptions struct {
 	// no templating. This is turned off by default. This is to support legacy workflows that depend on the original
 	// context behaviour, and will be removed in 2.0
 	PostInsecureStatusChecks bool `yaml:"post_insecure_status_checks"`
+
+	// This field is unused but is left to avoid breaking configuration files:
+	// yaml.UnmarshalStrict returns an error for unmapped fields
+	//
+	// TODO(bkeyes): remove in version 2.0
+	Deprecated_AppName string `yaml:"app_name"`
 }
 
 func (p *PullEvaluationOptions) FillDefaults() {
@@ -71,10 +77,6 @@ func (p *PullEvaluationOptions) FillDefaults() {
 
 	if p.StatusCheckContext == "" {
 		p.StatusCheckContext = DefaultStatusCheckContext
-	}
-
-	if p.AppName == "" {
-		p.AppName = DefaultAppName
 	}
 }
 
