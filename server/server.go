@@ -15,6 +15,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -91,7 +92,7 @@ func New(c *Config) (*Server, error) {
 		githubTimeout = 10 * time.Second
 	}
 
-	userAgent := fmt.Sprintf("%s/%s", c.Options.AppName, version.GetVersion())
+	userAgent := fmt.Sprintf("policy-bot/%s", version.GetVersion())
 	cc, err := githubapp.NewDefaultCachingClientCreator(
 		c.Github,
 		githubapp.WithClientUserAgent(userAgent),
@@ -113,6 +114,11 @@ func New(c *Config) (*Server, error) {
 		return nil, errors.Wrap(err, "failed to initialize Github app client")
 	}
 
+	app, _, err := appClient.Apps.Get(context.Background(), "")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get configured GitHub app")
+	}
+
 	basePolicyHandler := handler.Base{
 		ClientCreator: cc,
 		BaseConfig:    &c.Server,
@@ -122,6 +128,8 @@ func New(c *Config) (*Server, error) {
 		ConfigFetcher: &handler.ConfigFetcher{
 			PolicyPath: c.Options.PolicyPath,
 		},
+
+		AppName: app.GetSlug(),
 	}
 
 	queueSize := c.Workers.QueueSize
