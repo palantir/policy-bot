@@ -52,6 +52,7 @@ func (loc Locator) IsComplete() bool {
 	switch {
 	case loc.Value == nil:
 	case loc.Value.Draft == nil:
+	case loc.Value.GetCreatedAt().IsZero():
 	case loc.Value.GetUser().GetLogin() == "":
 	case loc.Value.GetBase().GetRef() == "":
 	case loc.Value.GetBase().GetRepo().GetID() == 0:
@@ -86,6 +87,7 @@ func (loc Locator) toV4(ctx context.Context, client *githubv4.Client) (*v4PullRe
 	}
 
 	var v4 v4PullRequest
+	v4.CreatedAt = loc.Value.GetCreatedAt()
 	v4.Author.Login = loc.Value.GetUser().GetLogin()
 	v4.IsCrossRepository = loc.Value.GetHead().GetRepo().GetID() != loc.Value.GetBase().GetRepo().GetID()
 	v4.HeadRefOID = loc.Value.GetHead().GetSHA()
@@ -166,6 +168,10 @@ func (ghc *GitHubContext) Number() int {
 
 func (ghc *GitHubContext) Author() string {
 	return ghc.pr.Author.GetV3Login()
+}
+
+func (ghc *GitHubContext) CreatedAt() time.Time {
+	return ghc.pr.CreatedAt
 }
 
 func (ghc *GitHubContext) HeadSHA() string {
@@ -670,7 +676,8 @@ func backfillPushedAt(commits []*Commit, headSHA string) {
 
 // if adding new fields to this struct, modify Locator#toV4() as well
 type v4PullRequest struct {
-	Author v4Actor
+	Author    v4Actor
+	CreatedAt time.Time
 
 	IsCrossRepository bool
 

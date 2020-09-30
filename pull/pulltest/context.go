@@ -15,6 +15,8 @@
 package pulltest
 
 import (
+	"time"
+
 	"github.com/palantir/policy-bot/pull"
 )
 
@@ -23,8 +25,9 @@ type Context struct {
 	RepoValue   string
 	NumberValue int
 
-	AuthorValue  string
-	HeadSHAValue string
+	AuthorValue    string
+	CreatedAtValue time.Time
+	HeadSHAValue   string
 
 	BranchBaseName string
 	BranchHeadName string
@@ -88,6 +91,10 @@ func (c *Context) Number() int {
 
 func (c *Context) Author() string {
 	return c.AuthorValue
+}
+
+func (c *Context) CreatedAt() time.Time {
+	return c.CreatedAtValue
 }
 
 func (c *Context) HeadSHA() string {

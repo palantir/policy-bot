@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"math/rand"
 	"strings"
-	"time"
 
 	"github.com/google/go-github/v32/github"
 	"github.com/palantir/go-baseapp/baseapp"
@@ -226,7 +225,10 @@ func (b *Base) requestReviews(ctx context.Context, prctx pull.Context, client *g
 		return nil
 	}
 
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	// Seed the random source with the PR creation time so that repeated
+	// evaluations produce the same set of reviewers. This is required to avoid
+	// duplicate requests on later evaluations.
+	r := rand.New(rand.NewSource(prctx.CreatedAt().UnixNano()))
 	requestedUsers, requestedTeams, err := reviewer.SelectReviewers(ctx, prctx, reqs, r)
 	if err != nil {
 		return errors.Wrap(err, "failed to select reviewers")

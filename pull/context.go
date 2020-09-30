@@ -59,6 +59,9 @@ type Context interface {
 	// Author returns the username of the user who opened the pull request.
 	Author() string
 
+	// CreatedAt returns the time when the pull request was created.
+	CreatedAt() time.Time
+
 	// HeadSHA returns the SHA of the head commit of the pull request.
 	HeadSHA() string
 
