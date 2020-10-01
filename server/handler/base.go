@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"math/rand"
 	"strings"
+	"time"
 
 	"github.com/google/go-github/v32/github"
 	"github.com/palantir/go-baseapp/baseapp"
@@ -197,8 +198,7 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, re
 		return errors.Errorf("evaluation resulted in unexpected state: %s", result.Status)
 	}
 
-	err = b.PostStatus(ctx, prctx, client, statusState, statusDescription)
-	if err != nil {
+	if err := b.PostStatus(ctx, prctx, client, statusState, statusDescription); err != nil {
 		return err
 	}
 
@@ -214,16 +214,9 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, re
 }
 
 func (b *Base) requestReviews(ctx context.Context, prctx pull.Context, client *github.Client, reqs []*common.Result) error {
-	logger := zerolog.Ctx(ctx)
+	const maxDelayMillis = 2500
 
-	hasReviewers, err := prctx.HasReviewers()
-	if err != nil {
-		return errors.Wrap(err, "failed to check existing reviewers")
-	}
-	if hasReviewers {
-		logger.Debug().Msg("PR has existing reviewers, skipping reviewer assignment")
-		return nil
-	}
+	logger := zerolog.Ctx(ctx)
 
 	// Seed the random source with the PR creation time so that repeated
 	// evaluations produce the same set of reviewers. This is required to avoid
@@ -234,27 +227,43 @@ func (b *Base) requestReviews(ctx context.Context, prctx pull.Context, client *g
 		return errors.Wrap(err, "failed to select reviewers")
 	}
 
-	// check again if someone assigned a reviewer while we were calculating users to request
-	hasReviewersAfter, err := prctx.HasReviewers()
-	if err != nil {
-		logger.Warn().Err(err).Msg("Failed to double-check existing reviewers, assuming there are still no reviewers")
-		hasReviewersAfter = false
+	if selection.IsEmpty() {
+		logger.Debug().Msg("No eligible users or teams found for review")
+		return nil
 	}
 
-	if !selection.IsEmpty() && !hasReviewersAfter {
-		req := selectionToReviewersRequest(selection)
+	// This is a terrible strategy to avoid conflicts between closely spaced
+	// events assigning the same reviewers, but I expect it to work alright in
+	// practice and it avoids any kind of coordination backend:
+	//
+	// Wait a random amount of time to space out events then check for existing
+	// reviewers and apply the difference. The idea to order two competing
+	// events such that one observes the applied reviewers of the other.
+	//
+	// Use the global random source instead of the per-PR source so that two
+	// events for the same PR don't wait for the same amount of time.
+	delay := time.Duration(rand.Intn(maxDelayMillis)) * time.Millisecond
+	logger.Debug().Msg("Waiting for %s to spread out reviewer processing")
+	time.Sleep(delay)
+
+	// check again if someone assigned a reviewer while we were calculating users to request
+	reviewers, err := prctx.RequestedReviewers()
+	if err != nil {
+		return err
+	}
+
+	if diff := selection.Difference(reviewers); !diff.IsEmpty() {
+		req := selectionToReviewersRequest(diff)
 		logger.Debug().
 			Strs("users", req.Reviewers).
 			Strs("teams", req.TeamReviewers).
 			Msgf("Requesting reviews from %d users and %d teams", len(req.Reviewers), len(req.TeamReviewers))
 
 		_, _, err = client.PullRequests.RequestReviewers(ctx, prctx.RepositoryOwner(), prctx.RepositoryName(), prctx.Number(), req)
-		if err != nil {
-			return errors.Wrap(err, "failed to request reviewers")
-		}
-	} else {
-		logger.Debug().Msg("No eligible users or teams found for review, or reviewers were assigned during processing")
+		return errors.Wrap(err, "failed to request reviewers")
 	}
+
+	logger.Debug().Msg("All selected reviewers are already assigned or were explicitly removed")
 	return nil
 }
 
