@@ -56,8 +56,8 @@ type Context struct {
 	CollaboratorMemberships     map[string][]string
 	CollaboratorMembershipError error
 
-	HasReviewersValue bool
-	HasReviewersError error
+	RequestedReviewersValue []*pull.Reviewer
+	RequestedReviewersError error
 
 	LatestStatusesValue map[string]string
 	LatestStatusesError error
@@ -206,8 +206,8 @@ func (c *Context) TeamMembers(team string) ([]string, error) {
 	return inverted[team], nil
 }
 
-func (c *Context) HasReviewers() (bool, error) {
-	return c.HasReviewersValue, c.HasReviewersError
+func (c *Context) RequestedReviewers() ([]*pull.Reviewer, error) {
+	return c.RequestedReviewersValue, c.RequestedReviewersError
 }
 
 func (c *Context) Comments() ([]*pull.Comment, error) {

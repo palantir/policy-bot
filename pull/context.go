@@ -97,8 +97,9 @@ type Context interface {
 	// their respective permission on a repo.
 	Teams() (map[string]string, error)
 
-	// HasReviewers returns true if the Pull Request has reviewers or any reviews
-	HasReviewers() (bool, error)
+	// RequestedReviewers returns any current and dismissed review requests on
+	// the pull request.
+	RequestedReviewers() ([]*Reviewer, error)
 
 	// LatestStatuses returns a map of status check names to the latest result
 	LatestStatuses() (map[string]string, error)
@@ -176,4 +177,17 @@ type Review struct {
 
 	// ID is the GitHub node ID of the review, used to resolve dismissals
 	ID string
+}
+
+type ReviewerType string
+
+const (
+	ReviewerUser ReviewerType = "user"
+	ReviewerTeam ReviewerType = "team"
+)
+
+type Reviewer struct {
+	Type    ReviewerType
+	Name    string
+	Removed bool
 }

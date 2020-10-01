@@ -118,6 +118,7 @@ type GitHubContext struct {
 	commits       []*Commit
 	comments      []*Comment
 	reviews       []*Review
+	reviewers     []*Reviewer
 	collaborators map[string]string
 	teams         map[string]string
 	teamIDs       map[string]int64
@@ -323,22 +324,74 @@ func coalescePermission(perms map[string]bool) string {
 	return "none"
 }
 
-func (ghc *GitHubContext) HasReviewers() (bool, error) {
-	// Intentionally kept to a small result size, since we just want to determine if there are existing reviewers
-	subsetCurrentReviewers, _, err := ghc.client.PullRequests.ListReviewers(ghc.ctx, ghc.owner, ghc.repo, ghc.number, &github.ListOptions{
-		Page:    0,
-		PerPage: 1,
-	})
-	if err != nil {
-		return false, errors.Wrap(err, "Unable to list request reviewers")
+func (ghc *GitHubContext) RequestedReviewers() ([]*Reviewer, error) {
+	if ghc.reviewers == nil {
+		if err := ghc.loadRequestedReviewers(); err != nil {
+			return nil, err
+		}
+	}
+	return ghc.reviewers, nil
+}
+
+func (ghc *GitHubContext) loadRequestedReviewers() error {
+	var q struct {
+		Repository struct {
+			PullRequest struct {
+				ReviewRequests struct {
+					PageInfo v4PageInfo
+					Nodes    []struct {
+						RequestedReviewer v4RequestedReviewer
+					}
+				} `graphql:"reviewRequests(first: 100, after: $requestCursor)"`
+
+				TimelineItems struct {
+					PageInfo v4PageInfo
+					Nodes    []struct {
+						ReviewRequestRemovedEvent struct {
+							Actor             v4Actor
+							RequestedReviewer v4RequestedReviewer
+						} `graphql:"... on ReviewRequestRemovedEvent"`
+					}
+				} `graphql:"timelineItems(first: 100, after: $timelineCursor, itemTypes: [REVIEW_REQUEST_REMOVED_EVENT])"`
+			} `graphql:"pullRequest(number: $number)"`
+		} `graphql:"repository(owner: $owner, name: $name)"`
+	}
+	qvars := map[string]interface{}{
+		"owner":  githubv4.String(ghc.owner),
+		"name":   githubv4.String(ghc.repo),
+		"number": githubv4.Int(ghc.number),
+
+		"requestCursor":  (*githubv4.String)(nil),
+		"timelineCursor": (*githubv4.String)(nil),
 	}
 
-	reviews, err := ghc.Reviews()
-	if err != nil {
-		return false, errors.Wrap(err, "Unable to list reviews")
-	}
+	reviewers := []*Reviewer{}
+	for {
+		complete := 0
+		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
+			return errors.Wrap(err, "failed to load requested reviewers data")
+		}
 
-	return len(subsetCurrentReviewers.Users) > 0 || len(subsetCurrentReviewers.Teams) > 0 || len(reviews) > 0, nil
+		for _, n := range q.Repository.PullRequest.ReviewRequests.Nodes {
+			reviewers = append(reviewers, n.RequestedReviewer.ToReviewer(false))
+		}
+		if !q.Repository.PullRequest.ReviewRequests.PageInfo.UpdateCursor(qvars, "reviewCursor") {
+			complete++
+		}
+
+		for _, n := range q.Repository.PullRequest.TimelineItems.Nodes {
+			reviewers = append(reviewers, n.ReviewRequestRemovedEvent.RequestedReviewer.ToReviewer(true))
+		}
+		if !q.Repository.PullRequest.TimelineItems.PageInfo.UpdateCursor(qvars, "timelineCursor") {
+			complete++
+		}
+
+		if complete == 2 {
+			break
+		}
+	}
+	ghc.reviewers = reviewers
+	return nil
 }
 
 func (ghc *GitHubContext) Teams() (map[string]string, error) {
@@ -776,6 +829,30 @@ func (c *v4Commit) ToCommit() *Commit {
 		Committer:       c.Committer.GetV3Login(),
 		PushedAt:        c.PushedDate,
 	}
+}
+
+type v4RequestedReviewer struct {
+	User *v4Actor `graphql:"... on User"`
+	Team *v4Team  `graphql:"... on Team"`
+}
+
+func (rr *v4RequestedReviewer) ToReviewer(removed bool) *Reviewer {
+	r := Reviewer{
+		Removed: removed,
+	}
+	switch {
+	case rr.User != nil:
+		r.Type = ReviewerUser
+		r.Name = rr.User.GetV3Login()
+	case rr.Team != nil:
+		r.Type = ReviewerTeam
+		r.Name = rr.Team.Slug
+	}
+	return &r
+}
+
+type v4Team struct {
+	Slug string
 }
 
 type v4Actor struct {
