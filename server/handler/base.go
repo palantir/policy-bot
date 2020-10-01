@@ -229,7 +229,7 @@ func (b *Base) requestReviews(ctx context.Context, prctx pull.Context, client *g
 	// evaluations produce the same set of reviewers. This is required to avoid
 	// duplicate requests on later evaluations.
 	r := rand.New(rand.NewSource(prctx.CreatedAt().UnixNano()))
-	requestedUsers, requestedTeams, err := reviewer.SelectReviewers(ctx, prctx, reqs, r)
+	selection, err := reviewer.SelectReviewers(ctx, prctx, reqs, r)
 	if err != nil {
 		return errors.Wrap(err, "failed to select reviewers")
 	}
@@ -241,18 +241,14 @@ func (b *Base) requestReviews(ctx context.Context, prctx pull.Context, client *g
 		hasReviewersAfter = false
 	}
 
-	if (len(requestedUsers) > 0 || len(requestedTeams) > 0) && !hasReviewersAfter {
-		reviewers := github.ReviewersRequest{
-			Reviewers:     requestedUsers,
-			TeamReviewers: requestedTeams,
-		}
-
+	if !selection.IsEmpty() && !hasReviewersAfter {
+		req := selectionToReviewersRequest(selection)
 		logger.Debug().
-			Strs("users", requestedUsers).
-			Strs("teams", requestedTeams).
-			Msgf("Requesting reviews from %d users and %d teams", len(requestedUsers), len(requestedTeams))
+			Strs("users", req.Reviewers).
+			Strs("teams", req.TeamReviewers).
+			Msgf("Requesting reviews from %d users and %d teams", len(req.Reviewers), len(req.TeamReviewers))
 
-		_, _, err = client.PullRequests.RequestReviewers(ctx, prctx.RepositoryOwner(), prctx.RepositoryName(), prctx.Number(), reviewers)
+		_, _, err = client.PullRequests.RequestReviewers(ctx, prctx.RepositoryOwner(), prctx.RepositoryName(), prctx.Number(), req)
 		if err != nil {
 			return errors.Wrap(err, "failed to request reviewers")
 		}
@@ -260,4 +256,22 @@ func (b *Base) requestReviews(ctx context.Context, prctx pull.Context, client *g
 		logger.Debug().Msg("No eligible users or teams found for review, or reviewers were assigned during processing")
 	}
 	return nil
+}
+
+func selectionToReviewersRequest(s reviewer.Selection) github.ReviewersRequest {
+	req := github.ReviewersRequest{}
+
+	if len(s.Users) > 0 {
+		req.Reviewers = s.Users
+	} else {
+		req.Reviewers = []string{}
+	}
+
+	if len(s.Teams) > 0 {
+		req.TeamReviewers = s.Teams
+	} else {
+		req.TeamReviewers = []string{}
+	}
+
+	return req
 }
