@@ -53,6 +53,10 @@ func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (boo
 	return false, desc, nil
 }
 
+func (pred *ChangedFiles) Trigger() common.Trigger {
+	return common.TriggerCommit
+}
+
 type OnlyChangedFiles struct {
 	Paths []common.Regexp `yaml:"paths"`
 }
@@ -81,6 +85,10 @@ func (pred *OnlyChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) 
 	}
 
 	return filesChanged, desc, nil
+}
+
+func (pred *OnlyChangedFiles) Trigger() common.Trigger {
+	return common.TriggerCommit
 }
 
 type ModifiedLines struct {
@@ -148,6 +156,10 @@ func (pred *ModifiedLines) Evaluate(ctx context.Context, prctx pull.Context) (bo
 		}
 	}
 	return false, fmt.Sprintf("modification of (+%d, -%d) does not match any conditions", additions, deletions), nil
+}
+
+func (pred *ModifiedLines) Trigger() common.Trigger {
+	return common.TriggerCommit
 }
 
 var _ Predicate = &ModifiedLines{}

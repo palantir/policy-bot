@@ -17,10 +17,13 @@ package predicate
 import (
 	"context"
 
+	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 )
 
 type Predicate interface {
+	common.Triggered
+
 	// Evaluate determines if the predicate is satisfied. It also returns an
 	// optional string providing details about the evaluation result.
 	Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error)

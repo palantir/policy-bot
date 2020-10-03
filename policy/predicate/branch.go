@@ -39,3 +39,7 @@ func (pred *TargetsBranch) Evaluate(ctx context.Context, prctx pull.Context) (bo
 
 	return matches, desc, nil
 }
+
+func (pred *TargetsBranch) Trigger() common.Trigger {
+	return common.TriggerPullRequest
+}

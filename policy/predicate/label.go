@@ -20,6 +20,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 )
 
@@ -42,6 +43,10 @@ func (pred HasLabels) Evaluate(ctx context.Context, prctx pull.Context) (bool, s
 	}
 
 	return true, "", nil
+}
+
+func (pred HasLabels) Trigger() common.Trigger {
+	return common.TriggerLabel
 }
 
 func contains(elements []string, value string) bool {

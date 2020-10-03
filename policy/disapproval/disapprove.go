@@ -76,6 +76,20 @@ type Requires struct {
 	common.Actors `yaml:",inline"`
 }
 
+func (p *Policy) Trigger() common.Trigger {
+	dm := p.Options.GetDisapproveMethods()
+	rm := p.Options.GetRevokeMethods()
+
+	t := common.TriggerCommit
+	if len(dm.Comments) > 0 || len(rm.Comments) > 0 {
+		t |= common.TriggerComment
+	}
+	if dm.GithubReview || rm.GithubReview {
+		t |= common.TriggerReview
+	}
+	return t
+}
+
 func (p *Policy) Evaluate(ctx context.Context, prctx pull.Context) (res common.Result) {
 	log := zerolog.Ctx(ctx)
 

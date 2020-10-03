@@ -43,6 +43,10 @@ func (pred *HasAuthorIn) Evaluate(ctx context.Context, prctx pull.Context) (bool
 	return result, desc, err
 }
 
+func (pred *HasAuthorIn) Trigger() common.Trigger {
+	return common.TriggerStatic
+}
+
 type OnlyHasContributorsIn struct {
 	common.Actors `yaml:",inline"`
 }
@@ -75,6 +79,10 @@ func (pred *OnlyHasContributorsIn) Evaluate(ctx context.Context, prctx pull.Cont
 	}
 
 	return true, "", nil
+}
+
+func (pred *OnlyHasContributorsIn) Trigger() common.Trigger {
+	return common.TriggerCommit
 }
 
 type HasContributorIn struct {
@@ -112,6 +120,10 @@ func (pred *HasContributorIn) Evaluate(ctx context.Context, prctx pull.Context) 
 	return false, desc, nil
 }
 
+func (pred *HasContributorIn) Trigger() common.Trigger {
+	return common.TriggerCommit
+}
+
 type AuthorIsOnlyContributor bool
 
 var _ Predicate = AuthorIsOnlyContributor(false)
@@ -136,4 +148,8 @@ func (pred AuthorIsOnlyContributor) Evaluate(ctx context.Context, prctx pull.Con
 		return true, "", nil
 	}
 	return false, fmt.Sprintf("All commits were authored and committed by %s", author), nil
+}
+
+func (pred AuthorIsOnlyContributor) Trigger() common.Trigger {
+	return common.TriggerCommit
 }
