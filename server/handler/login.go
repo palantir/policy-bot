@@ -32,7 +32,7 @@ const (
 	SessionKeyRedirect = "redirect"
 )
 
-func Login(c githubapp.Config, sessions *scs.Manager) oauth2.LoginCallback {
+func Login(c githubapp.Config, basePath string, sessions *scs.Manager) oauth2.LoginCallback {
 	return func(w http.ResponseWriter, r *http.Request, login *oauth2.Login) {
 		client := github.NewClient(login.Client)
 
@@ -62,6 +62,9 @@ func Login(c githubapp.Config, sessions *scs.Manager) oauth2.LoginCallback {
 		if err != nil {
 			hatpear.Store(r, errors.Wrap(err, "failed to read session"))
 			return
+		}
+		if target == "" {
+			target = basePath + "/"
 		}
 
 		http.Redirect(w, r, target, http.StatusFound)
