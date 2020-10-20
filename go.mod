@@ -17,7 +17,7 @@ require (
 	github.com/rs/zerolog v1.18.0
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/shurcooL/githubv4 v0.0.0-20191127044304-8f68eb5628d0
-	github.com/spf13/cobra v1.1.0
+	github.com/spf13/cobra v1.1.1
 	github.com/stretchr/testify v1.4.0
 	github.com/vektah/gqlparser v1.0.0
 	goji.io v2.0.2+incompatible
