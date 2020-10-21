@@ -103,6 +103,34 @@ func TestTargetsBranch(t *testing.T) {
 			},
 		},
 	})
+
+	pSourceMaster := &SourceBranch{
+		Pattern: common.NewCompiledRegexp(regexp.MustCompile("^master$")),
+	}
+
+	runTargetsTestCase(t, pSourceMaster, []targetsTestCase{
+		{
+			"simple match - master",
+			true,
+			&pulltest.Context{
+				BranchHeadName: "master",
+			},
+		},
+		{
+			"simple non match",
+			false,
+			&pulltest.Context{
+				BranchHeadName: "another-branch",
+			},
+		},
+		{
+			"tests anchoring",
+			false,
+			&pulltest.Context{
+				BranchHeadName: "not-master",
+			},
+		},
+	})
 }
 
 // TODO: generalize this and use it all our test cases
