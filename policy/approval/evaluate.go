@@ -32,7 +32,7 @@ func (eval *evaluator) Trigger() common.Trigger {
 	if eval.root != nil {
 		return eval.root.Trigger()
 	}
-	return common.TriggerCommit
+	return common.TriggerStatic
 }
 
 func (eval *evaluator) Evaluate(ctx context.Context, prctx pull.Context) (res common.Result) {

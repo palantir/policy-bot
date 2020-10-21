@@ -54,7 +54,7 @@ var triggerStrings = []struct {
 	{TriggerPullRequest, "PullRequest"},
 }
 
-// Matches returns true if flapg contains any of the flags of this trigger.
+// Matches returns true if flag contains any of the flags of this trigger.
 func (t Trigger) Matches(flags Trigger) bool {
 	return t&flags > 0
 }

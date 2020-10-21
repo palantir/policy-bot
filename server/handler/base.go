@@ -246,13 +246,13 @@ func (b *Base) requestReviews(ctx context.Context, prctx pull.Context, client *g
 	// practice and it avoids any kind of coordination backend:
 	//
 	// Wait a random amount of time to space out events then check for existing
-	// reviewers and apply the difference. The idea to order two competing
+	// reviewers and apply the difference. The idea is to order two competing
 	// events such that one observes the applied reviewers of the other.
 	//
 	// Use the global random source instead of the per-PR source so that two
 	// events for the same PR don't wait for the same amount of time.
 	delay := time.Duration(rand.Intn(maxDelayMillis)) * time.Millisecond
-	logger.Debug().Msg("Waiting for %s to spread out reviewer processing")
+	logger.Debug().Msgf("Waiting for %s to spread out reviewer processing", delay)
 	time.Sleep(delay)
 
 	// check again if someone assigned a reviewer while we were calculating users to request
