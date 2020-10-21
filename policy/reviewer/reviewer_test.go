@@ -41,6 +41,105 @@ func TestFindLeafResults(t *testing.T) {
 	require.Len(t, actualResults, 2, "incorrect number of leaf results")
 }
 
+func TestSelectionDifference(t *testing.T) {
+	tests := map[string]struct {
+		Input     Selection
+		Reviewers []*pull.Reviewer
+		Output    Selection
+	}{
+		"users": {
+			Input: Selection{
+				Users: []string{"a", "b", "c"},
+			},
+			Reviewers: []*pull.Reviewer{
+				{
+					Type: pull.ReviewerUser,
+					Name: "a",
+				},
+				{
+					Type: pull.ReviewerUser,
+					Name: "c",
+				},
+				{
+					Type: pull.ReviewerTeam,
+					Name: "team-a",
+				},
+			},
+			Output: Selection{
+				Users: []string{"b"},
+			},
+		},
+		"teams": {
+			Input: Selection{
+				Teams: []string{"team-a", "team-b", "team-c"},
+			},
+			Reviewers: []*pull.Reviewer{
+				{
+					Type: pull.ReviewerUser,
+					Name: "a",
+				},
+				{
+					Type: pull.ReviewerUser,
+					Name: "c",
+				},
+				{
+					Type: pull.ReviewerTeam,
+					Name: "team-a",
+				},
+			},
+			Output: Selection{
+				Teams: []string{"team-b", "team-c"},
+			},
+		},
+		"dismissedUsers": {
+			Input: Selection{
+				Users: []string{"a", "b", "c"},
+			},
+			Reviewers: []*pull.Reviewer{
+				{
+					Type:    pull.ReviewerUser,
+					Name:    "a",
+					Removed: true,
+				},
+				{
+					Type: pull.ReviewerUser,
+					Name: "c",
+				},
+			},
+			Output: Selection{
+				Users: []string{"b"},
+			},
+		},
+		"dismissedTeams": {
+			Input: Selection{
+				Teams: []string{"team-a", "team-b", "team-c"},
+			},
+			Reviewers: []*pull.Reviewer{
+				{
+					Type: pull.ReviewerTeam,
+					Name: "team-a",
+				},
+				{
+					Type:    pull.ReviewerTeam,
+					Name:    "team-c",
+					Removed: true,
+				},
+			},
+			Output: Selection{
+				Teams: []string{"team-b"},
+			},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			out := test.Input.Difference(test.Reviewers)
+			assert.Equal(t, test.Output.Users, out.Users, "incorrect users in difference")
+			assert.Equal(t, test.Output.Teams, out.Teams, "incorrect users in difference")
+		})
+	}
+}
+
 func TestSelectRandomUsers(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
 
