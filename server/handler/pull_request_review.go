@@ -22,6 +22,7 @@ import (
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/pkg/errors"
 
+	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 )
 
@@ -42,7 +43,7 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 	installationID := githubapp.GetInstallationIDFromEvent(&event)
 	ctx, _ = h.PreparePRContext(ctx, installationID, event.GetPullRequest())
 
-	return h.Evaluate(ctx, installationID, false, pull.Locator{
+	return h.Evaluate(ctx, installationID, common.TriggerReview, pull.Locator{
 		Owner:  event.GetRepo().GetOwner().GetLogin(),
 		Repo:   event.GetRepo().GetName(),
 		Number: event.GetPullRequest().GetNumber(),

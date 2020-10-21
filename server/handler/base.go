@@ -127,7 +127,7 @@ func (b *Base) PreparePRContext(ctx context.Context, installationID int64, pr *g
 	return ctx, logger
 }
 
-func (b *Base) Evaluate(ctx context.Context, installationID int64, requestReviews bool, loc pull.Locator) error {
+func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger common.Trigger, loc pull.Locator) error {
 	client, err := b.NewInstallationClient(installationID)
 	if err != nil {
 		return err
@@ -149,10 +149,10 @@ func (b *Base) Evaluate(ctx context.Context, installationID int64, requestReview
 		return errors.WithMessage(err, fmt.Sprintf("failed to fetch policy: %s", fetchedConfig))
 	}
 
-	return b.EvaluateFetchedConfig(ctx, prctx, requestReviews, client, fetchedConfig)
+	return b.EvaluateFetchedConfig(ctx, prctx, client, fetchedConfig, trigger)
 }
 
-func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, requestReviews bool, client *github.Client, fetchedConfig FetchedConfig) error {
+func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, client *github.Client, fetchedConfig FetchedConfig, trigger common.Trigger) error {
 	logger := zerolog.Ctx(ctx)
 
 	if fetchedConfig.Missing() {
@@ -172,6 +172,15 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, re
 		logger.Debug().Err(err).Msg(statusMessage)
 		err := b.PostStatus(ctx, prctx, client, "error", statusMessage)
 		return err
+	}
+
+	policyTrigger := evaluator.Trigger()
+	if !trigger.Matches(policyTrigger) {
+		logger.Debug().
+			Str("event_trigger", trigger.String()).
+			Str("policy_trigger", policyTrigger.String()).
+			Msg("No evaluation necessary for this trigger, skipping")
+		return nil
 	}
 
 	result := evaluator.Evaluate(ctx, prctx)
@@ -202,7 +211,7 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, re
 		return err
 	}
 
-	if requestReviews && statusState == "pending" && !prctx.IsDraft() {
+	if statusState == "pending" && !prctx.IsDraft() {
 		if reqs := reviewer.FindRequests(&result); len(reqs) > 0 {
 			logger.Debug().Msgf("Found %d pending rules with review requests enabled", len(reqs))
 			return b.requestReviews(ctx, prctx, client, reqs)
