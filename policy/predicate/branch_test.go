@@ -22,132 +22,98 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/palantir/policy-bot/policy/common"
-	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/pull/pulltest"
 )
 
-func TestTargetsBranch(t *testing.T) {
-	p := &TargetsBranch{
-		Pattern: common.NewCompiledRegexp(regexp.MustCompile("^master$")),
-	}
-
-	runTargetsTestCase(t, p, []targetsTestCase{
+func TestBranches(t *testing.T) {
+	runBranchesTestCase(t, "^master$", []branchesTestCase{
 		{
 			"simple match - master",
 			true,
-			&pulltest.Context{
-				BranchBaseName: "master",
-			},
+			"master",
 		},
 		{
 			"simple non match",
 			false,
-			&pulltest.Context{
-				BranchBaseName: "another-branch",
-			},
+			"another-branch",
 		},
 		{
 			"tests anchoring",
 			false,
-			&pulltest.Context{
-				BranchBaseName: "not-master",
-			},
+			"not-master",
 		},
 	})
 
-	pMatchAll := &TargetsBranch{
-		Pattern: common.NewCompiledRegexp(regexp.MustCompile(".*")),
-	}
-
-	runTargetsTestCase(t, pMatchAll, []targetsTestCase{
+	runBranchesTestCase(t, ".*", []branchesTestCase{
 		{
 			"matches all example 1",
 			true,
-			&pulltest.Context{
-				BranchBaseName: "master",
-			},
+			"master",
 		},
 		{
 			"matches all example 2",
 			true,
-			&pulltest.Context{
-				BranchBaseName: "another-one",
-			},
+			"another-one",
 		},
 	})
 
-	pRegex := &TargetsBranch{
-		Pattern: common.NewCompiledRegexp(regexp.MustCompile("(prod|staging)")),
-	}
-
-	runTargetsTestCase(t, pRegex, []targetsTestCase{
+	runBranchesTestCase(t, "(prod|staging)", []branchesTestCase{
 		{
 			"matches pattern - prod",
 			true,
-			&pulltest.Context{
-				BranchBaseName: "prod",
-			},
+			"prod",
 		},
 		{
 			"matches pattern - staging",
 			true,
-			&pulltest.Context{
-				BranchBaseName: "staging",
-			},
+			"staging",
 		},
 		{
 			"matches pattern - not-a-match",
 			false,
-			&pulltest.Context{
-				BranchBaseName: "not-a-match",
-			},
-		},
-	})
-
-	pSourceMaster := &SourceBranch{
-		Pattern: common.NewCompiledRegexp(regexp.MustCompile("^master$")),
-	}
-
-	runTargetsTestCase(t, pSourceMaster, []targetsTestCase{
-		{
-			"simple match - master",
-			true,
-			&pulltest.Context{
-				BranchHeadName: "master",
-			},
-		},
-		{
-			"simple non match",
-			false,
-			&pulltest.Context{
-				BranchHeadName: "another-branch",
-			},
-		},
-		{
-			"tests anchoring",
-			false,
-			&pulltest.Context{
-				BranchHeadName: "not-master",
-			},
+			"not-a-match",
 		},
 	})
 }
 
 // TODO: generalize this and use it all our test cases
-type targetsTestCase struct {
-	name     string
-	expected bool
-	context  pull.Context
+type branchesTestCase struct {
+	name       string
+	expected   bool
+	branchName string
 }
 
-func runTargetsTestCase(t *testing.T, p Predicate, cases []targetsTestCase) {
+func runBranchesTestCase(t *testing.T, regex string, cases []branchesTestCase) {
 	ctx := context.Background()
 
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			ok, _, err := p.Evaluate(ctx, tc.context)
-			if assert.NoError(t, err, "evaluation failed") {
-				assert.Equal(t, tc.expected, ok, "predicate was not correct")
+
+		compiledRegexp := common.NewCompiledRegexp(regexp.MustCompile(regex))
+		targetsPredicate := &TargetsBranch{
+			Pattern: compiledRegexp,
+		}
+		sourcePredicate := &SourceBranch{
+			Pattern: compiledRegexp,
+		}
+
+		targetsContext := &pulltest.Context{
+			BranchBaseName: tc.branchName,
+		}
+		sourceContext := &pulltest.Context{
+			BranchHeadName: tc.branchName,
+		}
+
+		t.Run(tc.name+" targets", func(t *testing.T) {
+			ok, _, err := targetsPredicate.Evaluate(ctx, targetsContext)
+			if assert.NoError(t, err, "targets predicate evaluation failed") {
+				assert.Equal(t, tc.expected, ok, "targets predicate was not correct")
+			}
+		})
+
+		t.Run(tc.name+" source", func(t *testing.T) {
+			ok, _, err := sourcePredicate.Evaluate(ctx, sourceContext)
+			if assert.NoError(t, err, "source predicate evaluation failed") {
+				assert.Equal(t, tc.expected, ok, "source predicate was not correct")
 			}
 		})
 	}
