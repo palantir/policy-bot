@@ -25,16 +25,16 @@ import (
 type Trigger uint32
 
 const (
-	// TriggerStatic is a name for the empty trigger set and means the
-	// computation never needs updating.
-	TriggerStatic Trigger = 0
-
 	TriggerCommit Trigger = 1 << iota
 	TriggerComment
 	TriggerReview
 	TriggerLabel
 	TriggerStatus
 	TriggerPullRequest
+
+	// TriggerStatic is a name for the empty trigger set and means the
+	// computation never needs updating.
+	TriggerStatic Trigger = 0
 
 	// TriggerAll is a name for the full trigger set and means the computation
 	// should update after any changes to the pull request.
