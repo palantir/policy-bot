@@ -92,28 +92,28 @@ func runBranchesTestCase(t *testing.T, regex string, cases []branchesTestCase) {
 		targetsPredicate := &TargetsBranch{
 			Pattern: compiledRegexp,
 		}
-		sourcePredicate := &SourceBranch{
+		fromPredicate := &FromBranch{
 			Pattern: compiledRegexp,
 		}
 
 		targetsContext := &pulltest.Context{
 			BranchBaseName: tc.branchName,
 		}
-		sourceContext := &pulltest.Context{
+		fromContext := &pulltest.Context{
 			BranchHeadName: tc.branchName,
 		}
 
-		t.Run(tc.name+" targets", func(t *testing.T) {
+		t.Run(tc.name+" targets_branch", func(t *testing.T) {
 			ok, _, err := targetsPredicate.Evaluate(ctx, targetsContext)
-			if assert.NoError(t, err, "targets predicate evaluation failed") {
-				assert.Equal(t, tc.expected, ok, "targets predicate was not correct")
+			if assert.NoError(t, err, "targets_branch predicate evaluation failed") {
+				assert.Equal(t, tc.expected, ok, "targets_branch predicate was not correct")
 			}
 		})
 
-		t.Run(tc.name+" source", func(t *testing.T) {
-			ok, _, err := sourcePredicate.Evaluate(ctx, sourceContext)
-			if assert.NoError(t, err, "source predicate evaluation failed") {
-				assert.Equal(t, tc.expected, ok, "source predicate was not correct")
+		t.Run(tc.name+" from_branch", func(t *testing.T) {
+			ok, _, err := fromPredicate.Evaluate(ctx, fromContext)
+			if assert.NoError(t, err, "from_branch predicate evaluation failed") {
+				assert.Equal(t, tc.expected, ok, "from_branch predicate was not correct")
 			}
 		})
 	}

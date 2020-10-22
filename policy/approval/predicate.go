@@ -28,7 +28,7 @@ type Predicates struct {
 	AuthorIsOnlyContributor *predicate.AuthorIsOnlyContributor `yaml:"author_is_only_contributor"`
 
 	TargetsBranch *predicate.TargetsBranch `yaml:"targets_branch"`
-	SourceBranch  *predicate.SourceBranch  `yaml:"source_branch"`
+	FromBranch    *predicate.FromBranch    `yaml:"from_branch"`
 
 	ModifiedLines *predicate.ModifiedLines `yaml:"modified_lines"`
 
