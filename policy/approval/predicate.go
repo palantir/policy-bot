@@ -63,6 +63,10 @@ func (p *Predicates) Predicates() []predicate.Predicate {
 	if p.TargetsBranch != nil {
 		ps = append(ps, predicate.Predicate(p.TargetsBranch))
 	}
+	if p.FromBranch != nil {
+		ps = append(ps, predicate.Predicate(p.FromBranch))
+	}
+
 	if p.ModifiedLines != nil {
 		ps = append(ps, predicate.Predicate(p.ModifiedLines))
 	}
