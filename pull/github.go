@@ -832,8 +832,8 @@ func (c *v4Commit) ToCommit() *Commit {
 }
 
 type v4RequestedReviewer struct {
-	User *v4Actor `graphql:"... on User"`
-	Team *v4Team  `graphql:"... on Team"`
+	User v4Actor `graphql:"... on User"`
+	Team v4Team  `graphql:"... on Team"`
 }
 
 func (rr *v4RequestedReviewer) ToReviewer(removed bool) *Reviewer {
@@ -841,10 +841,10 @@ func (rr *v4RequestedReviewer) ToReviewer(removed bool) *Reviewer {
 		Removed: removed,
 	}
 	switch {
-	case rr.User != nil:
+	case rr.User.Login != "":
 		r.Type = ReviewerUser
 		r.Name = rr.User.GetV3Login()
-	case rr.Team != nil:
+	case rr.Team.Slug != "":
 		r.Type = ReviewerTeam
 		r.Name = rr.Team.Slug
 	}
