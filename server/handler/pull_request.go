@@ -53,6 +53,8 @@ func (h *PullRequest) Handle(ctx context.Context, eventType, deliveryID string, 
 		t = common.TriggerPullRequest
 	case "labeled", "unlabeled":
 		t = common.TriggerLabel
+	default:
+		return nil
 	}
 
 	return h.Evaluate(ctx, installationID, t, pull.Locator{
