@@ -81,11 +81,6 @@ options:
   policy_path: .policy.yml
   # The context prefix for status checks created by the bot
   status_check_context: policy-bot
-  # The user name of the application as registered with GitHub. Note that
-  # GitHub will lowercase the application name and replace forbidden characters
-  # (including spaces) with hyphens, so if the application name is "Policy Bot"
-  # in the GitHub UI, this value should be set to "policy-bot".
-  app_name: policy-bot
 
 # Options for locating the frontend files. By default, the server uses appropriate
 # paths for the binary distribution and Docker container. For local development,
