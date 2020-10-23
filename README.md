@@ -171,6 +171,12 @@ if:
   targets_branch:
     pattern: "^(master|regexPattern)$"
 
+  # "from_branch" is satisfied if the source branch of the pull request
+  # matches the regular expression. Note that source branches from forks will
+  # have the pattern "repo_owner:branch_name"
+  from_branch:
+    pattern: "^(master|regexPattern)$"
+
   # "modified_lines" is satisfied if the number of lines added or deleted by
   # the pull request matches any of the listed conditions. Each expression is
   # an operator (one of '<' or '>'), an optional space, and a number.

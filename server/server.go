@@ -186,7 +186,7 @@ func New(c *Config) (*Server, error) {
 		oauth2.WithStore(&oauth2.SessionStateStore{
 			Sessions: sessions,
 		}),
-		oauth2.OnLogin(handler.Login(c.Github, sessions)),
+		oauth2.OnLogin(handler.Login(c.Github, basePath, sessions)),
 	))
 
 	// additional client routes

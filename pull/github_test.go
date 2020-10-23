@@ -396,6 +396,35 @@ func TestIsOrgMember(t *testing.T) {
 	assert.Equal(t, 1, yesRule.Count, "cached membership was not used")
 }
 
+func TestBranches(t *testing.T) {
+	rp := &ResponsePlayer{}
+	ctx := makeContext(t, rp, nil)
+
+	base, head := ctx.Branches()
+	assert.Equal(t, "develop", base, "base branch was not correctly set")
+	assert.Equal(t, "test-branch", head, "head branch was not correctly set")
+}
+
+func TestCrossRepoBranches(t *testing.T) {
+	rp := &ResponsePlayer{}
+
+	// change the source repo to a forked repo
+	crossRepoPr := defaultTestPR()
+	crossRepoPr.Head.Repo = &github.Repository{
+		ID: github.Int64(12345),
+		Owner: &github.User{
+			Login: github.String("testorg2"),
+		},
+		Name: github.String("testrepofork"),
+	}
+
+	ctx := makeContext(t, rp, crossRepoPr)
+
+	base, head := ctx.Branches()
+	assert.Equal(t, "develop", base, "cross-repo base branch was not correctly set")
+	assert.Equal(t, "testorg2:test-branch", head, "cross-repo head branch was not correctly set")
+}
+
 func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest) Context {
 	ctx := context.Background()
 	client := github.NewClient(&http.Client{Transport: rp})

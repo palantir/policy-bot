@@ -43,3 +43,25 @@ func (pred *TargetsBranch) Evaluate(ctx context.Context, prctx pull.Context) (bo
 func (pred *TargetsBranch) Trigger() common.Trigger {
 	return common.TriggerPullRequest
 }
+
+type FromBranch struct {
+	Pattern common.Regexp `yaml:"pattern"`
+}
+
+var _ Predicate = &FromBranch{}
+
+func (pred *FromBranch) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
+	_, sourceBranchName := prctx.Branches()
+	matches := pred.Pattern.Matches(sourceBranchName)
+
+	desc := ""
+	if !matches {
+		desc = fmt.Sprintf("Source branch %q does not match specified from_branch pattern %q", sourceBranchName, pred.Pattern)
+	}
+
+	return matches, desc, nil
+}
+
+func (pred *FromBranch) Trigger() common.Trigger {
+	return common.TriggerStatic
+}

@@ -28,6 +28,7 @@ type Predicates struct {
 	AuthorIsOnlyContributor *predicate.AuthorIsOnlyContributor `yaml:"author_is_only_contributor"`
 
 	TargetsBranch *predicate.TargetsBranch `yaml:"targets_branch"`
+	FromBranch    *predicate.FromBranch    `yaml:"from_branch"`
 
 	ModifiedLines *predicate.ModifiedLines `yaml:"modified_lines"`
 
@@ -62,6 +63,10 @@ func (p *Predicates) Predicates() []predicate.Predicate {
 	if p.TargetsBranch != nil {
 		ps = append(ps, predicate.Predicate(p.TargetsBranch))
 	}
+	if p.FromBranch != nil {
+		ps = append(ps, predicate.Predicate(p.FromBranch))
+	}
+
 	if p.ModifiedLines != nil {
 		ps = append(ps, predicate.Predicate(p.ModifiedLines))
 	}
