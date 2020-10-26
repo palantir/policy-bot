@@ -21,5 +21,7 @@ import (
 )
 
 type Evaluator interface {
+	Triggered
+
 	Evaluate(ctx context.Context, prctx pull.Context) Result
 }

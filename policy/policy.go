@@ -72,6 +72,10 @@ type evaluator struct {
 	disapproval common.Evaluator
 }
 
+func (e evaluator) Trigger() common.Trigger {
+	return e.approval.Trigger() | e.disapproval.Trigger()
+}
+
 func (e evaluator) Evaluate(ctx context.Context, prctx pull.Context) (res common.Result) {
 	disapproval := e.disapproval.Evaluate(ctx, prctx)
 	approval := e.approval.Evaluate(ctx, prctx)

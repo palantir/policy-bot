@@ -20,6 +20,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 )
 
@@ -53,4 +54,8 @@ func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context
 		return false, "One or more statuses has not passed: " + strings.Join(failingStatuses, ","), nil
 	}
 	return true, "", nil
+}
+
+func (pred HasSuccessfulStatus) Trigger() common.Trigger {
+	return common.TriggerStatus
 }

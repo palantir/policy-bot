@@ -28,6 +28,13 @@ type evaluator struct {
 	root common.Evaluator
 }
 
+func (eval *evaluator) Trigger() common.Trigger {
+	if eval.root != nil {
+		return eval.root.Trigger()
+	}
+	return common.TriggerStatic
+}
+
 func (eval *evaluator) Evaluate(ctx context.Context, prctx pull.Context) (res common.Result) {
 	if eval.root != nil {
 		res = eval.root.Evaluate(ctx, prctx)
@@ -46,6 +53,10 @@ type RuleRequirement struct {
 	rule *Rule
 }
 
+func (r *RuleRequirement) Trigger() common.Trigger {
+	return r.rule.Trigger()
+}
+
 func (r *RuleRequirement) Evaluate(ctx context.Context, prctx pull.Context) common.Result {
 	log := zerolog.Ctx(ctx).With().Str("rule", r.rule.Name).Logger()
 	ctx = log.WithContext(ctx)
@@ -60,6 +71,14 @@ func (r *RuleRequirement) Evaluate(ctx context.Context, prctx pull.Context) comm
 
 type OrRequirement struct {
 	requirements []common.Evaluator
+}
+
+func (r *OrRequirement) Trigger() common.Trigger {
+	var t common.Trigger
+	for _, child := range r.requirements {
+		t |= child.Trigger()
+	}
+	return t
 }
 
 func (r *OrRequirement) Evaluate(ctx context.Context, prctx pull.Context) common.Result {
@@ -112,6 +131,14 @@ func (r *OrRequirement) Evaluate(ctx context.Context, prctx pull.Context) common
 
 type AndRequirement struct {
 	requirements []common.Evaluator
+}
+
+func (r *AndRequirement) Trigger() common.Trigger {
+	var t common.Trigger
+	for _, child := range r.requirements {
+		t |= child.Trigger()
+	}
+	return t
 }
 
 func (r *AndRequirement) Evaluate(ctx context.Context, prctx pull.Context) common.Result {

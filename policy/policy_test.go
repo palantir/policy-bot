@@ -29,6 +29,10 @@ import (
 
 type StaticEvaluator common.Result
 
+func (eval *StaticEvaluator) Trigger() common.Trigger {
+	return common.TriggerStatic
+}
+
 func (eval *StaticEvaluator) Evaluate(ctx context.Context, prctx pull.Context) common.Result {
 	return common.Result(*eval)
 }

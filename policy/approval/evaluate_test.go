@@ -120,6 +120,10 @@ type mockRequirement struct {
 	result *common.Result
 }
 
+func (m *mockRequirement) Trigger() common.Trigger {
+	return common.TriggerStatic
+}
+
 func (m *mockRequirement) Evaluate(ctx context.Context, prctx pull.Context) common.Result {
 	return *m.result
 }

@@ -40,6 +40,10 @@ func (pred *TargetsBranch) Evaluate(ctx context.Context, prctx pull.Context) (bo
 	return matches, desc, nil
 }
 
+func (pred *TargetsBranch) Trigger() common.Trigger {
+	return common.TriggerPullRequest
+}
+
 type FromBranch struct {
 	Pattern common.Regexp `yaml:"pattern"`
 }
@@ -56,4 +60,8 @@ func (pred *FromBranch) Evaluate(ctx context.Context, prctx pull.Context) (bool,
 	}
 
 	return matches, desc, nil
+}
+
+func (pred *FromBranch) Trigger() common.Trigger {
+	return common.TriggerStatic
 }

@@ -41,6 +41,105 @@ func TestFindLeafResults(t *testing.T) {
 	require.Len(t, actualResults, 2, "incorrect number of leaf results")
 }
 
+func TestSelectionDifference(t *testing.T) {
+	tests := map[string]struct {
+		Input     Selection
+		Reviewers []*pull.Reviewer
+		Output    Selection
+	}{
+		"users": {
+			Input: Selection{
+				Users: []string{"a", "b", "c"},
+			},
+			Reviewers: []*pull.Reviewer{
+				{
+					Type: pull.ReviewerUser,
+					Name: "a",
+				},
+				{
+					Type: pull.ReviewerUser,
+					Name: "c",
+				},
+				{
+					Type: pull.ReviewerTeam,
+					Name: "team-a",
+				},
+			},
+			Output: Selection{
+				Users: []string{"b"},
+			},
+		},
+		"teams": {
+			Input: Selection{
+				Teams: []string{"team-a", "team-b", "team-c"},
+			},
+			Reviewers: []*pull.Reviewer{
+				{
+					Type: pull.ReviewerUser,
+					Name: "a",
+				},
+				{
+					Type: pull.ReviewerUser,
+					Name: "c",
+				},
+				{
+					Type: pull.ReviewerTeam,
+					Name: "team-a",
+				},
+			},
+			Output: Selection{
+				Teams: []string{"team-b", "team-c"},
+			},
+		},
+		"dismissedUsers": {
+			Input: Selection{
+				Users: []string{"a", "b", "c"},
+			},
+			Reviewers: []*pull.Reviewer{
+				{
+					Type:    pull.ReviewerUser,
+					Name:    "a",
+					Removed: true,
+				},
+				{
+					Type: pull.ReviewerUser,
+					Name: "c",
+				},
+			},
+			Output: Selection{
+				Users: []string{"b"},
+			},
+		},
+		"dismissedTeams": {
+			Input: Selection{
+				Teams: []string{"team-a", "team-b", "team-c"},
+			},
+			Reviewers: []*pull.Reviewer{
+				{
+					Type: pull.ReviewerTeam,
+					Name: "team-a",
+				},
+				{
+					Type:    pull.ReviewerTeam,
+					Name:    "team-c",
+					Removed: true,
+				},
+			},
+			Output: Selection{
+				Teams: []string{"team-b"},
+			},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			out := test.Input.Difference(test.Reviewers)
+			assert.Equal(t, test.Output.Users, out.Users, "incorrect users in difference")
+			assert.Equal(t, test.Output.Teams, out.Teams, "incorrect users in difference")
+		})
+	}
+}
+
 func TestSelectRandomUsers(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
 
@@ -86,13 +185,13 @@ func TestSelectReviewers(t *testing.T) {
 
 	prctx := makeContext()
 
-	reviewers, _, err := SelectReviewers(context.Background(), prctx, results, r)
+	selection, err := SelectReviewers(context.Background(), prctx, results, r)
 	require.NoError(t, err)
-	require.Len(t, reviewers, 3, "policy should request three people")
-	require.Contains(t, reviewers, "review-approver", "at least review-approver must be selected")
-	require.NotContains(t, reviewers, "mhaypenny", "the author cannot be requested")
-	require.NotContains(t, reviewers, "not-a-collaborator", "a non collaborator cannot be requested")
-	require.NotContains(t, reviewers, "org-owner", "org-owner should not be requested")
+	require.Len(t, selection.Users, 3, "policy should request three people")
+	require.Contains(t, selection.Users, "review-approver", "at least review-approver must be selected")
+	require.NotContains(t, selection.Users, "mhaypenny", "the author cannot be requested")
+	require.NotContains(t, selection.Users, "not-a-collaborator", "a non collaborator cannot be requested")
+	require.NotContains(t, selection.Users, "org-owner", "org-owner should not be requested")
 }
 
 func TestSelectAdminTeam(t *testing.T) {
@@ -112,12 +211,12 @@ func TestSelectAdminTeam(t *testing.T) {
 
 	prctx := makeContext()
 
-	reviewers, teams, err := SelectReviewers(context.Background(), prctx, results, r)
+	selection, err := SelectReviewers(context.Background(), prctx, results, r)
 	require.NoError(t, err)
-	require.Len(t, teams, 1, "admin team should be selected")
-	require.Contains(t, teams, "team-admin", "admin team seleted")
+	require.Len(t, selection.Teams, 1, "admin team should be selected")
+	require.Contains(t, selection.Teams, "team-admin", "admin team seleted")
 
-	require.Len(t, reviewers, 0, "policy should request no people")
+	require.Len(t, selection.Users, 0, "policy should request no people")
 }
 
 func TestSelectReviewers_Team(t *testing.T) {
@@ -137,14 +236,14 @@ func TestSelectReviewers_Team(t *testing.T) {
 	}, "random-users")
 
 	prctx := makeContext()
-	reviewers, teams, err := SelectReviewers(context.Background(), prctx, results, r)
+	selection, err := SelectReviewers(context.Background(), prctx, results, r)
 	require.NoError(t, err)
-	require.Empty(t, teams, "no teams should be returned")
-	require.Len(t, reviewers, 3, "policy should request three people")
-	require.Contains(t, reviewers, "review-approver", "at least review-approver must be selected")
-	require.Contains(t, reviewers, "user-team-write", "at least user-team-write must be selected")
-	require.NotContains(t, reviewers, "mhaypenny", "the author cannot be requested")
-	require.NotContains(t, reviewers, "not-a-collaborator", "a non collaborator cannot be requested")
+	require.Empty(t, selection.Teams, "no teams should be returned")
+	require.Len(t, selection.Users, 3, "policy should request three people")
+	require.Contains(t, selection.Users, "review-approver", "at least review-approver must be selected")
+	require.Contains(t, selection.Users, "user-team-write", "at least user-team-write must be selected")
+	require.NotContains(t, selection.Users, "mhaypenny", "the author cannot be requested")
+	require.NotContains(t, selection.Users, "not-a-collaborator", "a non collaborator cannot be requested")
 }
 
 func TestSelectReviewers_Team_teams(t *testing.T) {
@@ -165,15 +264,15 @@ func TestSelectReviewers_Team_teams(t *testing.T) {
 	}, "random-users")
 
 	prctx := makeContext()
-	reviewers, teams, err := SelectReviewers(context.Background(), prctx, results, r)
+	selection, err := SelectReviewers(context.Background(), prctx, results, r)
 	require.NoError(t, err)
-	require.Len(t, teams, 1, "one team should be returned")
-	require.Contains(t, teams, "team-write", "team-write should be selected")
-	require.Len(t, reviewers, 2, "policy should request 2 people")
-	require.Contains(t, reviewers, "review-approver", "at least review-approver must be selected")
-	require.NotContains(t, reviewers, "user-team-write", "user-team-write should not be selected")
-	require.NotContains(t, reviewers, "mhaypenny", "the author cannot be requested")
-	require.NotContains(t, reviewers, "not-a-collaborator", "a non collaborator cannot be requested")
+	require.Len(t, selection.Teams, 1, "one team should be returned")
+	require.Contains(t, selection.Teams, "team-write", "team-write should be selected")
+	require.Len(t, selection.Users, 2, "policy should request 2 people")
+	require.Contains(t, selection.Users, "review-approver", "at least review-approver must be selected")
+	require.NotContains(t, selection.Users, "user-team-write", "user-team-write should not be selected")
+	require.NotContains(t, selection.Users, "mhaypenny", "the author cannot be requested")
+	require.NotContains(t, selection.Users, "not-a-collaborator", "a non collaborator cannot be requested")
 }
 
 func TestSelectReviewers_Team_teamsDefaultsToNothing(t *testing.T) {
@@ -194,10 +293,10 @@ func TestSelectReviewers_Team_teamsDefaultsToNothing(t *testing.T) {
 	}, "teams")
 
 	prctx := makeContext()
-	reviewers, teams, err := SelectReviewers(context.Background(), prctx, results, r)
+	selection, err := SelectReviewers(context.Background(), prctx, results, r)
 	require.NoError(t, err)
-	require.Empty(t, teams, "no team should be returned")
-	require.Len(t, reviewers, 0, "policy should request no people")
+	require.Empty(t, selection.Teams, "no team should be returned")
+	require.Len(t, selection.Users, 0, "policy should request no people")
 }
 
 func TestSelectReviewers_Org(t *testing.T) {
@@ -217,12 +316,12 @@ func TestSelectReviewers_Org(t *testing.T) {
 	}, "random-users")
 
 	prctx := makeContext()
-	reviewers, _, err := SelectReviewers(context.Background(), prctx, results, r)
+	selection, err := SelectReviewers(context.Background(), prctx, results, r)
 	require.NoError(t, err)
-	require.Len(t, reviewers, 3, "policy should request three people")
-	require.Contains(t, reviewers, "review-approver", "at least review-approver must be selected")
-	require.NotContains(t, reviewers, "mhaypenny", "the author cannot be requested")
-	require.NotContains(t, reviewers, "not-a-collaborator", "a non collaborator cannot be requested")
+	require.Len(t, selection.Users, 3, "policy should request three people")
+	require.Contains(t, selection.Users, "review-approver", "at least review-approver must be selected")
+	require.NotContains(t, selection.Users, "mhaypenny", "the author cannot be requested")
+	require.NotContains(t, selection.Users, "not-a-collaborator", "a non collaborator cannot be requested")
 }
 
 func makeResults(result *common.Result, mode string) []*common.Result {

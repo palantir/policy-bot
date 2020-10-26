@@ -15,6 +15,8 @@
 package pulltest
 
 import (
+	"time"
+
 	"github.com/palantir/policy-bot/pull"
 )
 
@@ -23,8 +25,9 @@ type Context struct {
 	RepoValue   string
 	NumberValue int
 
-	AuthorValue  string
-	HeadSHAValue string
+	AuthorValue    string
+	CreatedAtValue time.Time
+	HeadSHAValue   string
 
 	BranchBaseName string
 	BranchHeadName string
@@ -53,8 +56,8 @@ type Context struct {
 	CollaboratorMemberships     map[string][]string
 	CollaboratorMembershipError error
 
-	HasReviewersValue bool
-	HasReviewersError error
+	RequestedReviewersValue []*pull.Reviewer
+	RequestedReviewersError error
 
 	LatestStatusesValue map[string]string
 	LatestStatusesError error
@@ -88,6 +91,10 @@ func (c *Context) Number() int {
 
 func (c *Context) Author() string {
 	return c.AuthorValue
+}
+
+func (c *Context) CreatedAt() time.Time {
+	return c.CreatedAtValue
 }
 
 func (c *Context) HeadSHA() string {
@@ -199,8 +206,8 @@ func (c *Context) TeamMembers(team string) ([]string, error) {
 	return inverted[team], nil
 }
 
-func (c *Context) HasReviewers() (bool, error) {
-	return c.HasReviewersValue, c.HasReviewersError
+func (c *Context) RequestedReviewers() ([]*pull.Reviewer, error) {
+	return c.RequestedReviewersValue, c.RequestedReviewersError
 }
 
 func (c *Context) Comments() ([]*pull.Comment, error) {

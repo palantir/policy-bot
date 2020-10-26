@@ -75,6 +75,26 @@ type Requires struct {
 	common.Actors `yaml:",inline"`
 }
 
+func (r *Rule) Trigger() common.Trigger {
+	t := common.TriggerCommit
+
+	if r.Requires.Count > 0 {
+		m := r.Options.GetMethods()
+		if len(m.Comments) > 0 {
+			t |= common.TriggerComment
+		}
+		if m.GithubReview {
+			t |= common.TriggerReview
+		}
+	}
+
+	for _, p := range r.Predicates.Predicates() {
+		t |= p.Trigger()
+	}
+
+	return t
+}
+
 func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Result) {
 	log := zerolog.Ctx(ctx)
 
