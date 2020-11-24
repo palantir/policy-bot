@@ -563,7 +563,7 @@ To configure `policy-bot` as a GitHub App, set these options in GitHub:
 - Under **Identifying and authorizing users**
   - Set **User authorization callback URL** to `http(s)://<your-policy-bot-domain>/api/github/auth`
   - Uncheck **Request user authorization (OAuth) during installation**
-- Under **Webhook*
+- Under **Webhook**
   - Set **Webhook URL** to `http(s)://<your-policy-bot-domain>/api/github/hook`
   - Set **Webhook secret**: A random string that matches the value of the
     `github.app.webhook_secret` property in the server configuration
