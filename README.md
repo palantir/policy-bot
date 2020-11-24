@@ -558,12 +558,15 @@ comments in the sample configuration file.
 
 ### GitHub App Configuration
 
-To configure `policy-bot` as a GitHub App, these general options are required:
+To configure `policy-bot` as a GitHub App, set these options in GitHub:
 
-- **User authorization callback URL**: `http(s)://<your-policy-bot-domain>/api/github/auth`
-- **Webhook URL**: `http(s)://<your-policy-bot-domain>/api/github/hook`
-- **Webhook secret**: A random string that matches the value of the
-  `github.app.webhook_secret` property in the server configuration
+- Under **Identifying and authorizing users**
+  - Set **User authorization callback URL** to `http(s)://<your-policy-bot-domain>/api/github/auth`
+  - Uncheck **Request user authorization (OAuth) during installation**
+- Under **Webhook**
+  - Set **Webhook URL** to `http(s)://<your-policy-bot-domain>/api/github/hook`
+  - Set **Webhook secret**: A random string that matches the value of the
+    `github.app.webhook_secret` property in the server configuration
 
 The app requires these permissions:
 
@@ -589,6 +592,14 @@ The app should be subscribed to these events:
 There is a [`logo.png`](https://github.com/palantir/policy-bot/blob/develop/logo.png)
 provided if you'd like to use it as the GitHub application logo. The background
 color is `#4d4d4d`.
+
+After creating the app, update the server configuration file with the following
+generated values:
+
+- App ID (`github.app.integration_id`)
+- Client ID (`github.oauth.client_id`)
+- Client secret (`github.oauth.client_secret`)
+- Private key (`github.app.private_key`)
 
 ### Operations
 
