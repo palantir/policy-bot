@@ -93,10 +93,10 @@ func (e evaluator) Evaluate(ctx context.Context, prctx pull.Context) (res common
 	case res.Error != nil:
 	case disapproval.Status == common.StatusDisapproved:
 		res.Status = common.StatusDisapproved
-		res.Description = disapproval.Description
+		res.StatusDescription = disapproval.StatusDescription
 	default:
 		res.Status = approval.Status
-		res.Description = approval.Description
+		res.StatusDescription = approval.StatusDescription
 	}
 	return
 }

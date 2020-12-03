@@ -111,9 +111,9 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 		if !satisfied {
 			log.Debug().Msgf("skipping rule, predicate of type %T was not satisfied", p)
 
-			res.Description = desc
+			res.StatusDescription = desc
 			if desc == "" {
-				res.Description = "The preconditions of this rule are not satisfied"
+				res.StatusDescription = "The preconditions of this rule are not satisfied"
 			}
 
 			return
@@ -126,7 +126,7 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 		return
 	}
 
-	res.Description = msg
+	res.StatusDescription = msg
 	if approved {
 		res.Status = common.StatusApproved
 	} else {

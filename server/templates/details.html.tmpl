@@ -31,7 +31,7 @@
     <div class="status-banner {{$s}} flex flex-wrap items-center justify-between">
       <div>
         <h2 class="mb-1 text-lg font-bold">Status: {{$s | titlecase}}</h2>
-        <p>{{or .Result.Error .Result.Description}}</p>
+        <p>{{or .Result.Error .Result.StatusDescription}}</p>
       </div>
       <div class="p-2 rounded-md bg-white text-dark-gray1 text-sm text-shadow-none">
         <div class="toggle">
@@ -68,5 +68,5 @@
     <b class="font-bold">{{.Name}}</b>
     <span class="flex-none status-badge {{$s}}">{{$s | titlecase}}</span>
   </p>
-  <p class="text-dark-gray3 text-sm">{{or .Error .Description}}</p>
+  <p class="text-dark-gray3 text-sm">{{or .Error .StatusDescription}}</p>
 {{end}}

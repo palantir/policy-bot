@@ -191,7 +191,7 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, cl
 		return err
 	}
 
-	statusDescription := result.Description
+	statusDescription := result.StatusDescription
 	var statusState string
 	switch result.Status {
 	case common.StatusApproved:
