@@ -29,10 +29,11 @@ import (
 )
 
 type Rule struct {
-	Name       string     `yaml:"name"`
-	Predicates Predicates `yaml:"if"`
-	Options    Options    `yaml:"options"`
-	Requires   Requires   `yaml:"requires"`
+	Name        string     `yaml:"name"`
+	Description string     `yaml:"description"`
+	Predicates  Predicates `yaml:"if"`
+	Options     Options    `yaml:"options"`
+	Requires    Requires   `yaml:"requires"`
 }
 
 type Options struct {
@@ -99,6 +100,7 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 	log := zerolog.Ctx(ctx)
 
 	res.Name = r.Name
+	res.Description = r.Description
 	res.Status = common.StatusSkipped
 
 	for _, p := range r.Predicates.Predicates() {

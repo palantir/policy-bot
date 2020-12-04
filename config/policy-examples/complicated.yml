@@ -4,17 +4,19 @@
 policy:
   approval:
   - or:
-    - catskills can approve
-    - devtools can approve changes to staging
+    - catskills
+    - devtools
 
 approval_rules:
 
-- name: catskills can approve
+- name: catskills
+  description: catskills can approve
   requires:
     count: 1
     teams: ["palantir/catskills"]
 
-- name: devtools can approve changes to staging
+- name: devtools
+  description: devtools can approve changes to staging
   if:
     only_changed_files:
       paths:

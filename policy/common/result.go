@@ -58,6 +58,7 @@ type ReviewRequestRule struct {
 
 type Result struct {
 	Name              string
+	Description       string
 	StatusDescription string
 	Status            EvaluationStatus
 	Error             error

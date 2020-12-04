@@ -32,6 +32,7 @@ import (
 func TestFindLeafResults(t *testing.T) {
 	result := makeResult(&common.Result{
 		Name:              "Skipped",
+		Description:       "",
 		StatusDescription: "",
 		Status:            common.StatusSkipped,
 		Error:             nil,
@@ -172,6 +173,7 @@ func TestSelectReviewers(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
 	results := makeResults(&common.Result{
 		Name:              "Owner",
+		Description:       "",
 		StatusDescription: "",
 		Status:            common.StatusPending,
 		ReviewRequestRule: &common.ReviewRequestRule{
@@ -198,6 +200,7 @@ func TestSelectAdminTeam(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
 	results := makeResults(&common.Result{
 		Name:              "Owner",
+		Description:       "",
 		StatusDescription: "",
 		Status:            common.StatusPending,
 		ReviewRequestRule: &common.ReviewRequestRule{
@@ -223,6 +226,7 @@ func TestSelectReviewers_Team(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
 	results := makeResults(&common.Result{
 		Name:              "Team",
+		Description:       "",
 		StatusDescription: "",
 		Status:            common.StatusPending,
 		ReviewRequestRule: &common.ReviewRequestRule{
@@ -250,6 +254,7 @@ func TestSelectReviewers_Team_teams(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
 	results := makeResults(&common.Result{
 		Name:              "Team",
+		Description:       "",
 		StatusDescription: "",
 		Status:            common.StatusPending,
 		ReviewRequestRule: &common.ReviewRequestRule{
@@ -279,6 +284,7 @@ func TestSelectReviewers_Team_teamsDefaultsToNothing(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
 	results := makeResults(&common.Result{
 		Name:              "Team",
+		Description:       "",
 		StatusDescription: "",
 		Status:            common.StatusPending,
 		ReviewRequestRule: &common.ReviewRequestRule{
@@ -303,6 +309,7 @@ func TestSelectReviewers_Org(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
 	results := makeResults(&common.Result{
 		Name:              "Team",
+		Description:       "",
 		StatusDescription: "",
 		Status:            common.StatusPending,
 		ReviewRequestRule: &common.ReviewRequestRule{
@@ -331,6 +338,7 @@ func makeResults(result *common.Result, mode string) []*common.Result {
 func makeResult(result *common.Result, mode string) *common.Result {
 	return &common.Result{
 		Name:              "One",
+		Description:       "",
 		StatusDescription: "",
 		Status:            common.StatusPending,
 		ReviewRequestRule: &common.ReviewRequestRule{
@@ -342,6 +350,7 @@ func makeResult(result *common.Result, mode string) *common.Result {
 		Children: []*common.Result{
 			{
 				Name:              "Two",
+				Description:       "",
 				StatusDescription: "",
 				Status:            common.StatusPending,
 				ReviewRequestRule: &common.ReviewRequestRule{
@@ -355,6 +364,7 @@ func makeResult(result *common.Result, mode string) *common.Result {
 			result,
 			{
 				Name:              "Three",
+				Description:       "",
 				StatusDescription: "",
 				Status:            common.StatusDisapproved,
 				ReviewRequestRule: &common.ReviewRequestRule{},
@@ -363,6 +373,7 @@ func makeResult(result *common.Result, mode string) *common.Result {
 			},
 			{
 				Name:              "Four",
+				Description:       "",
 				StatusDescription: "",
 				Status:            common.StatusPending,
 				ReviewRequestRule: &common.ReviewRequestRule{},
@@ -370,6 +381,7 @@ func makeResult(result *common.Result, mode string) *common.Result {
 				Children: []*common.Result{
 					{
 						Name:              "Five",
+						Description:       "",
 						StatusDescription: "",
 						Status:            common.StatusPending,
 						ReviewRequestRule: &common.ReviewRequestRule{

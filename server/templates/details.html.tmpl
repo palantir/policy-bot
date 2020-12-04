@@ -68,5 +68,8 @@
     <b class="font-bold">{{.Name}}</b>
     <span class="flex-none status-badge {{$s}}">{{$s | titlecase}}</span>
   </p>
+  {{if (and .Description (ne $s "skipped"))}}
+  <p class="mb-2 text-dark-gray3 text-sm">{{.Description}}</p>
+  {{end}}
   <p class="text-dark-gray3 text-sm">{{or .Error .StatusDescription}}</p>
 {{end}}
