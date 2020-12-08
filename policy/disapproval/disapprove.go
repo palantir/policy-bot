@@ -99,7 +99,7 @@ func (p *Policy) Evaluate(ctx context.Context, prctx pull.Context) (res common.R
 	if p.Requires.IsEmpty() {
 		log.Debug().Msg("no users are allowed to disapprove; skipping")
 
-		res.Description = "No disapproval policy is specified or the policy is empty"
+		res.StatusDescription = "No disapproval policy is specified or the policy is empty"
 		return
 	}
 
@@ -109,7 +109,7 @@ func (p *Policy) Evaluate(ctx context.Context, prctx pull.Context) (res common.R
 		return
 	}
 
-	res.Description = msg
+	res.StatusDescription = msg
 	if disapproved {
 		res.Status = common.StatusDisapproved
 	} else {

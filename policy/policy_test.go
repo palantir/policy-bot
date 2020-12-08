@@ -47,8 +47,8 @@ func TestEvaluator(t *testing.T) {
 				Status: common.StatusApproved,
 			},
 			disapproval: &StaticEvaluator{
-				Status:      common.StatusDisapproved,
-				Description: "disapproved by test",
+				Status:            common.StatusDisapproved,
+				StatusDescription: "disapproved by test",
 			},
 		}
 
@@ -56,14 +56,14 @@ func TestEvaluator(t *testing.T) {
 		require.NoError(t, r.Error)
 
 		assert.Equal(t, common.StatusDisapproved, r.Status)
-		assert.Equal(t, "disapproved by test", r.Description)
+		assert.Equal(t, "disapproved by test", r.StatusDescription)
 	})
 
 	t.Run("approvalWinsByDefault", func(t *testing.T) {
 		eval := evaluator{
 			approval: &StaticEvaluator{
-				Status:      common.StatusPending,
-				Description: "2 approvals needed",
+				Status:            common.StatusPending,
+				StatusDescription: "2 approvals needed",
 			},
 			disapproval: &StaticEvaluator{
 				Status: common.StatusSkipped,
@@ -74,7 +74,7 @@ func TestEvaluator(t *testing.T) {
 		require.NoError(t, r.Error)
 
 		assert.Equal(t, common.StatusPending, r.Status)
-		assert.Equal(t, "2 approvals needed", r.Description)
+		assert.Equal(t, "2 approvals needed", r.StatusDescription)
 	})
 
 	t.Run("propagateError", func(t *testing.T) {

@@ -42,7 +42,7 @@ func (eval *evaluator) Evaluate(ctx context.Context, prctx pull.Context) (res co
 		zerolog.Ctx(ctx).Debug().Msg("No approval policy defined; skipping")
 
 		res.Status = common.StatusApproved
-		res.Description = "No approval policy defined"
+		res.StatusDescription = "No approval policy defined"
 	}
 
 	res.Name = "approval"
@@ -63,7 +63,7 @@ func (r *RuleRequirement) Evaluate(ctx context.Context, prctx pull.Context) comm
 
 	result := r.rule.Evaluate(ctx, prctx)
 	if result.Error == nil {
-		log.Debug().Msgf("rule evaluation resulted in %s:\"%s\"", result.Status, result.Description)
+		log.Debug().Msgf("rule evaluation resulted in %s:\"%s\"", result.Status, result.StatusDescription)
 	}
 
 	return result
@@ -121,11 +121,11 @@ func (r *OrRequirement) Evaluate(ctx context.Context, prctx pull.Context) common
 	}
 
 	return common.Result{
-		Name:        "or",
-		Status:      status,
-		Description: description,
-		Error:       err,
-		Children:    children,
+		Name:              "or",
+		Status:            status,
+		StatusDescription: description,
+		Error:             err,
+		Children:          children,
 	}
 }
 
@@ -179,10 +179,10 @@ func (r *AndRequirement) Evaluate(ctx context.Context, prctx pull.Context) commo
 	}
 
 	return common.Result{
-		Name:        "and",
-		Status:      status,
-		Description: description,
-		Error:       err,
-		Children:    children,
+		Name:              "and",
+		Status:            status,
+		StatusDescription: description,
+		Error:             err,
+		Children:          children,
 	}
 }

@@ -57,10 +57,11 @@ type ReviewRequestRule struct {
 }
 
 type Result struct {
-	Name        string
-	Description string
-	Status      EvaluationStatus
-	Error       error
+	Name              string
+	Description       string
+	StatusDescription string
+	Status            EvaluationStatus
+	Error             error
 
 	ReviewRequestRule *ReviewRequestRule
 

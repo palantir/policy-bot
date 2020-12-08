@@ -29,10 +29,11 @@ import (
 )
 
 type Rule struct {
-	Name       string     `yaml:"name"`
-	Predicates Predicates `yaml:"if"`
-	Options    Options    `yaml:"options"`
-	Requires   Requires   `yaml:"requires"`
+	Name        string     `yaml:"name"`
+	Description string     `yaml:"description"`
+	Predicates  Predicates `yaml:"if"`
+	Options     Options    `yaml:"options"`
+	Requires    Requires   `yaml:"requires"`
 }
 
 type Options struct {
@@ -99,6 +100,7 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 	log := zerolog.Ctx(ctx)
 
 	res.Name = r.Name
+	res.Description = r.Description
 	res.Status = common.StatusSkipped
 
 	for _, p := range r.Predicates.Predicates() {
@@ -111,9 +113,9 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 		if !satisfied {
 			log.Debug().Msgf("skipping rule, predicate of type %T was not satisfied", p)
 
-			res.Description = desc
+			res.StatusDescription = desc
 			if desc == "" {
-				res.Description = "The preconditions of this rule are not satisfied"
+				res.StatusDescription = "The preconditions of this rule are not satisfied"
 			}
 
 			return
@@ -126,7 +128,7 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 		return
 	}
 
-	res.Description = msg
+	res.StatusDescription = msg
 	if approved {
 		res.Status = common.StatusApproved
 	} else {
