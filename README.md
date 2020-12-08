@@ -611,6 +611,8 @@ details.
 ## Development
 
 To develop `policy-bot`, you will need a [Go installation](https://golang.org/doc/install).
+If you want to build the UI, you'll also need [NodeJS](https://nodejs.org/en/)
+and [Yarn](https://yarnpkg.com/).
 
 **Run style checks and tests**
 
@@ -625,6 +627,26 @@ To develop `policy-bot`, you will need a [Go installation](https://golang.org/do
 
 - `config/policy-bot.yml` is used as the default configuration file
 - The server is available at `http://localhost:8080/`
+
+**Installing UI dependencies and building assets**
+
+    # install dependencies
+    yarn install
+
+    # build CSS and JS assets
+    yarn run build
+
+- This generates a combined stylesheet with `policy-bot` styles and
+  [Tailwind](https://tailwindcss.com/) core styles. It also copies JS files and
+  other assets into the correct locations.
+- To use the local asset files with a local server, add or uncomment the
+  following in the server configuration file:
+
+  ```yaml
+  files:
+    static: build/static
+    templates: server/templates
+  ```
 
 **Running the server via docker**
 
