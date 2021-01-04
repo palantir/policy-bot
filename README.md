@@ -138,7 +138,9 @@ if:
       - "config/.*"
 
   # "has_author_in" is satisfied if the user who opened the pull request is in
-  # the users list or belongs to any of the listed organizations or teams.
+  # the users list or belongs to any of the listed organizations or teams. The
+  # `users` field can contain a GitHub App by appending `[bot]` to the end of
+  # the name, for example: `fun-github-app[bot]`
   has_author_in:
     users: ["user1", "user2", ...]
     organizations: ["org1", "org2", ...]
