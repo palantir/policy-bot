@@ -18,8 +18,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/rs/zerolog"
-
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 )
@@ -33,9 +31,6 @@ var _ Predicate = Title{}
 
 func (pred Title) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
 	title := prctx.Title()
-
-	log := zerolog.Ctx(ctx)
-	log.Debug().Msgf("PR title: %s", title)
 
 	if !AnyMatches(pred.Matches, title) {
 		return true, fmt.Sprintf("PR title: \"%s\" doesn't match a required pattern", title), nil
