@@ -32,7 +32,7 @@ type Predicates struct {
 
 	HasLabels *HasLabels `yaml:"has_labels"`
 
-	MatchesTitlePattern *MatchesTitlePattern `yaml:"title"`
+	MatchesTitlePattern *Title `yaml:"title"`
 }
 
 func (p *Predicates) Predicates() []Predicate {

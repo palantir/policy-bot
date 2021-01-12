@@ -24,30 +24,30 @@ import (
 	"github.com/palantir/policy-bot/pull"
 )
 
-type MatchesTitlePattern struct {
-	TitleMatches    []common.Regexp `yaml:"matches"`
-	TitleNotMatches []common.Regexp `yaml:"not_matches"`
+type Title struct {
+	Matches    []common.Regexp `yaml:"matches"`
+	NotMatches []common.Regexp `yaml:"not_matches"`
 }
 
-var _ Predicate = MatchesTitlePattern{}
+var _ Predicate = Title{}
 
-func (pred MatchesTitlePattern) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
+func (pred Title) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
 	title := prctx.Title()
 
 	log := zerolog.Ctx(ctx)
 	log.Debug().Msgf("PR title: %s", title)
 
-	if !AnyMatches(pred.TitleMatches, title) {
+	if !AnyMatches(pred.Matches, title) {
 		return true, fmt.Sprintf("PR title: \"%s\" doesn't match a required pattern", title), nil
 	}
 
-	if AnyMatches(pred.TitleNotMatches, title) {
+	if AnyMatches(pred.NotMatches, title) {
 		return true, fmt.Sprintf("PR title: \"%s\" matches a disallowed pattern", title), nil
 	}
 
 	return false, fmt.Sprintf("PR title: \"%s\" is satisfactory", title), nil
 }
 
-func (pred MatchesTitlePattern) Trigger() common.Trigger {
+func (pred Title) Trigger() common.Trigger {
 	return common.TriggerPullRequest
 }
