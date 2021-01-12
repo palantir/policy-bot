@@ -16,8 +16,6 @@ package predicate
 
 import (
 	"context"
-	"fmt"
-
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 )
@@ -33,14 +31,14 @@ func (pred Title) Evaluate(ctx context.Context, prctx pull.Context) (bool, strin
 	title := prctx.Title()
 
 	if !AnyMatches(pred.Matches, title) {
-		return true, fmt.Sprintf("PR title: \"%s\" doesn't match a required pattern", title), nil
+		return true, "Title doesn't match a required pattern", nil
 	}
 
 	if AnyMatches(pred.NotMatches, title) {
-		return true, fmt.Sprintf("PR title: \"%s\" matches a disallowed pattern", title), nil
+		return true, "Title matches a disallowed pattern", nil
 	}
 
-	return false, fmt.Sprintf("PR title: \"%s\" is satisfactory", title), nil
+	return false, "Title is satisfactory", nil
 }
 
 func (pred Title) Trigger() common.Trigger {
