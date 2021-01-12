@@ -25,15 +25,16 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/palantir/policy-bot/policy/common"
+	"github.com/palantir/policy-bot/policy/predicate"
 	"github.com/palantir/policy-bot/pull"
 )
 
 type Rule struct {
-	Name        string     `yaml:"name"`
-	Description string     `yaml:"description"`
-	Predicates  Predicates `yaml:"if"`
-	Options     Options    `yaml:"options"`
-	Requires    Requires   `yaml:"requires"`
+	Name        string               `yaml:"name"`
+	Description string               `yaml:"description"`
+	Predicates  predicate.Predicates `yaml:"if"`
+	Options     Options              `yaml:"options"`
+	Requires    Requires             `yaml:"requires"`
 }
 
 type Options struct {
