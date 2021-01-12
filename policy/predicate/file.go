@@ -40,11 +40,11 @@ func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (boo
 	}
 
 	for _, f := range files {
-		if common.AnyMatches(pred.IgnorePaths, f.Filename) {
+		if AnyMatches(pred.IgnorePaths, f.Filename) {
 			continue
 		}
 
-		if common.AnyMatches(pred.Paths, f.Filename) {
+		if AnyMatches(pred.Paths, f.Filename) {
 			return true, f.Filename + " was changed", nil
 		}
 	}
@@ -70,7 +70,7 @@ func (pred *OnlyChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) 
 	}
 
 	for _, f := range files {
-		if common.AnyMatches(pred.Paths, f.Filename) {
+		if AnyMatches(pred.Paths, f.Filename) {
 			continue
 		}
 		desc := "A changed file does not match the required pattern"

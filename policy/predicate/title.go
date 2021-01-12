@@ -37,11 +37,11 @@ func (pred MatchesTitlePattern) Evaluate(ctx context.Context, prctx pull.Context
 	log := zerolog.Ctx(ctx)
 	log.Debug().Msgf("PR title: %s", title)
 
-	if !common.AnyMatches(pred.TitleMatches, title) {
+	if !AnyMatches(pred.TitleMatches, title) {
 		return true, fmt.Sprintf("PR title: \"%s\" doesn't match a required pattern", title), nil
 	}
 
-	if common.AnyMatches(pred.TitleNotMatches, title) {
+	if AnyMatches(pred.TitleNotMatches, title) {
 		return true, fmt.Sprintf("PR title: \"%s\" matches a disallowed pattern", title), nil
 	}
 
