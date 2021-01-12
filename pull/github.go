@@ -52,6 +52,7 @@ func (loc Locator) IsComplete() bool {
 	switch {
 	case loc.Value == nil:
 	case loc.Value.Draft == nil:
+	case loc.Value.GetTitle() == "":
 	case loc.Value.GetCreatedAt().IsZero():
 	case loc.Value.GetUser().GetLogin() == "":
 	case loc.Value.GetBase().GetRef() == "":
@@ -732,7 +733,7 @@ func backfillPushedAt(commits []*Commit, headSHA string) {
 	}
 }
 
-// if adding new fields to this struct, modify Locator#toV4() as well
+// if adding new fields to this struct, modify Locator#toV4() and Locator#IsComplete() as well
 type v4PullRequest struct {
 	Author    v4Actor
 	Title     string
