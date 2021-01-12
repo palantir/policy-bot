@@ -519,7 +519,7 @@ func (ghc *GitHubContext) loadPagedData() error {
 				Reviews struct {
 					PageInfo v4PageInfo
 					Nodes    []v4PullRequestReview
-				} `graphql:"reviews(first: 100, after: $reviewCursor, states: [APPROVED, CHANGES_REQUESTED])"`
+				} `graphql:"reviews(first: 100, after: $reviewCursor, states: [APPROVED, CHANGES_REQUESTED, COMMENTED])"`
 			} `graphql:"pullRequest(number: $number)"`
 		} `graphql:"repository(owner: $owner, name: $name)"`
 	}
@@ -548,7 +548,12 @@ func (ghc *GitHubContext) loadPagedData() error {
 		}
 
 		for _, r := range q.Repository.PullRequest.Reviews.Nodes {
-			reviews = append(reviews, r.ToReview())
+			switch r.State {
+			case "COMMENTED":
+				comments = append(comments, r.ToComment())
+			case "APPROVED", "CHANGES_REQUESTED":
+				reviews = append(reviews, r.ToReview())
+			}
 		}
 		if !q.Repository.PullRequest.Reviews.PageInfo.UpdateCursor(qvars, "reviewCursor") {
 			complete++
@@ -780,6 +785,14 @@ func (r *v4PullRequestReview) ToReview() *Review {
 		CreatedAt: r.SubmittedAt,
 		Author:    r.Author.GetV3Login(),
 		State:     ReviewState(strings.ToLower(r.State)),
+		Body:      r.Body,
+	}
+}
+
+func (r *v4PullRequestReview) ToComment() *Comment {
+	return &Comment{
+		CreatedAt: r.SubmittedAt,
+		Author:    r.Author.GetV3Login(),
 		Body:      r.Body,
 	}
 }
