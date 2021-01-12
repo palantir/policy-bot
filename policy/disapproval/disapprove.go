@@ -23,12 +23,14 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/palantir/policy-bot/policy/common"
+	"github.com/palantir/policy-bot/policy/predicate"
 	"github.com/palantir/policy-bot/pull"
 )
 
 type Policy struct {
-	Options  Options  `yaml:"options"`
-	Requires Requires `yaml:"requires"`
+	Predicates predicate.Predicates `yaml:"if"`
+	Options    Options              `yaml:"options"`
+	Requires   Requires             `yaml:"requires"`
 }
 
 type Options struct {
@@ -95,6 +97,33 @@ func (p *Policy) Evaluate(ctx context.Context, prctx pull.Context) (res common.R
 
 	res.Name = "disapproval"
 	res.Status = common.StatusSkipped
+
+	disapproved, msgs := false, ""
+	for _, p := range p.Predicates.Predicates() {
+		satisfied, desc, err := p.Evaluate(ctx, prctx)
+
+		if err != nil {
+			res.Error = errors.Wrap(err, "failed to evaluate predicate")
+			return
+		}
+
+		if satisfied {
+			log.Debug().Msgf("disapproving, predicate of type %T was satisfied", p)
+			disapproved = true
+
+			if desc == "" {
+				desc = "One of the preconditions of this rule is satisfied"
+			}
+
+			msgs += desc + "\n"
+		}
+	}
+
+	if disapproved {
+		res.Status = common.StatusDisapproved
+		res.StatusDescription = msgs
+		return
+	}
 
 	if p.Requires.IsEmpty() {
 		log.Debug().Msg("no users are allowed to disapprove; skipping")
