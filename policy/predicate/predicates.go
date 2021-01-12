@@ -31,6 +31,8 @@ type Predicates struct {
 	HasSuccessfulStatus *HasSuccessfulStatus `yaml:"has_successful_status"`
 
 	HasLabels *HasLabels `yaml:"has_labels"`
+
+	MatchesTitlePattern *MatchesTitlePattern `yaml:"title"`
 }
 
 func (p *Predicates) Predicates() []Predicate {
@@ -73,6 +75,10 @@ func (p *Predicates) Predicates() []Predicate {
 
 	if p.HasLabels != nil {
 		ps = append(ps, Predicate(p.HasLabels))
+	}
+
+	if p.MatchesTitlePattern != nil {
+		ps = append(ps, Predicate(p.MatchesTitlePattern))
 	}
 
 	return ps
