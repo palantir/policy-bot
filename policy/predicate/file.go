@@ -40,12 +40,12 @@ func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (boo
 	}
 
 	for _, f := range files {
-		if anyMatches(pred.IgnorePaths, f.Filename) {
+		if common.AnyMatches(pred.IgnorePaths, f.Filename) {
 			continue
 		}
 
-		if anyMatches(pred.Paths, f.Filename) {
-			return true, "", nil
+		if common.AnyMatches(pred.Paths, f.Filename) {
+			return true, f.Filename + " was changed", nil
 		}
 	}
 
@@ -70,7 +70,7 @@ func (pred *OnlyChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) 
 	}
 
 	for _, f := range files {
-		if anyMatches(pred.Paths, f.Filename) {
+		if common.AnyMatches(pred.Paths, f.Filename) {
 			continue
 		}
 		desc := "A changed file does not match the required pattern"
@@ -163,12 +163,3 @@ func (pred *ModifiedLines) Trigger() common.Trigger {
 }
 
 var _ Predicate = &ModifiedLines{}
-
-func anyMatches(re []common.Regexp, s string) bool {
-	for _, r := range re {
-		if r.Matches(s) {
-			return true
-		}
-	}
-	return false
-}

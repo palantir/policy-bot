@@ -68,3 +68,12 @@ func (r *Regexp) UnmarshalJSON(data []byte) (err error) {
 	*r, err = NewRegexp(pattern)
 	return err
 }
+
+func AnyMatches(re []Regexp, s string) bool {
+	for _, r := range re {
+		if r.Matches(s) {
+			return true
+		}
+	}
+	return false
+}
