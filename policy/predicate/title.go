@@ -51,5 +51,3 @@ func (pred MatchesTitlePattern) Evaluate(ctx context.Context, prctx pull.Context
 func (pred MatchesTitlePattern) Trigger() common.Trigger {
 	return common.TriggerPullRequest
 }
-Adds support for predicates in disapproval policy
-Adds MatchesTitlePattern predicate
