@@ -87,6 +87,7 @@ func (loc Locator) toV4(ctx context.Context, client *githubv4.Client) (*v4PullRe
 	}
 
 	var v4 v4PullRequest
+	v4.Title = loc.Value.GetTitle()
 	v4.CreatedAt = loc.Value.GetCreatedAt()
 	v4.Author.Login = loc.Value.GetUser().GetLogin()
 	v4.IsCrossRepository = loc.Value.GetHead().GetRepo().GetID() != loc.Value.GetBase().GetRepo().GetID()
@@ -161,6 +162,10 @@ func (ghc *GitHubContext) RepositoryOwner() string {
 
 func (ghc *GitHubContext) RepositoryName() string {
 	return ghc.repo
+}
+
+func (ghc *GitHubContext) Title() string {
+	return ghc.pr.Title
 }
 
 func (ghc *GitHubContext) Number() int {
@@ -730,6 +735,7 @@ func backfillPushedAt(commits []*Commit, headSHA string) {
 // if adding new fields to this struct, modify Locator#toV4() as well
 type v4PullRequest struct {
 	Author    v4Actor
+	Title     string
 	CreatedAt time.Time
 
 	IsCrossRepository bool
