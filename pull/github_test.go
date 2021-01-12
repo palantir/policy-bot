@@ -241,7 +241,7 @@ func TestComments(t *testing.T) {
 	comments, err := ctx.Comments()
 	require.NoError(t, err)
 
-	require.Len(t, comments, 2, "incorrect number of comments")
+	require.Len(t, comments, 3, "incorrect number of comments")
 	assert.Equal(t, 2, dataRule.Count, "no http request was made")
 
 	expectedTime, err := time.Parse(time.RFC3339, "2018-06-27T20:28:22Z")
@@ -255,11 +255,15 @@ func TestComments(t *testing.T) {
 	assert.Equal(t, expectedTime.Add(time.Minute), comments[1].CreatedAt)
 	assert.Equal(t, "I merge!", comments[1].Body)
 
+	assert.Equal(t, "jgiannuzzi", comments[2].Author)
+	assert.Equal(t, expectedTime.Add(10*time.Minute), comments[2].CreatedAt)
+	assert.Equal(t, "A review comment", comments[2].Body)
+
 	// verify that the commit list is cached
 	comments, err = ctx.Comments()
 	require.NoError(t, err)
 
-	require.Len(t, comments, 2, "incorrect number of comments")
+	require.Len(t, comments, 3, "incorrect number of comments")
 	assert.Equal(t, 2, dataRule.Count, "cached comments were not used")
 }
 
@@ -359,7 +363,7 @@ func TestMixedReviewCommentPaging(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, 2, dataRule.Count, "cached values were not used")
-	assert.Len(t, comments, 2, "incorrect number of comments")
+	assert.Len(t, comments, 3, "incorrect number of comments")
 	assert.Len(t, reviews, 2, "incorrect number of reviews")
 }
 

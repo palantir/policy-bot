@@ -76,6 +76,14 @@
                   "state": "APPROVED",
                   "body": "the body",
                   "submittedAt": "2018-06-27T20:33:27Z"
+                },
+                {
+                  "author": {
+                    "login": "jgiannuzzi"
+                  },
+                  "state": "COMMENTED",
+                  "body": "A review comment",
+                  "submittedAt": "2018-06-27T20:38:22Z"
                 }
               ]
             }

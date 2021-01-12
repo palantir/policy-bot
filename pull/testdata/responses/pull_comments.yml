@@ -20,6 +20,22 @@
                   "createdAt": "2018-06-27T20:28:22Z"
                 }
               ]
+            },
+            "reviews": {
+              "pageInfo": {
+                "endCursor": "2",
+                "hasNextPage": true
+              },
+              "nodes": [
+                {
+                  "author": {
+                    "login": "mhaypenny"
+                  },
+                  "state": "CHANGES_REQUESTED",
+                  "body": "",
+                  "submittedAt": "2018-06-27T20:33:26Z"
+                }
+              ]
             }
           }
         }
@@ -45,6 +61,30 @@
                   },
                   "body": "I merge!",
                   "createdAt": "2018-06-27T20:29:22Z"
+                }
+              ]
+            },
+            "reviews": {
+              "pageInfo": {
+                "endCursor": "3",
+                "hasNextPage": false
+              },
+              "nodes": [
+                {
+                  "author": {
+                    "login": "bkeyes"
+                  },
+                  "state": "APPROVED",
+                  "body": "the body",
+                  "submittedAt": "2018-06-27T20:33:27Z"
+                },
+                {
+                  "author": {
+                    "login": "jgiannuzzi"
+                  },
+                  "state": "COMMENTED",
+                  "body": "A review comment",
+                  "submittedAt": "2018-06-27T20:38:22Z"
                 }
               ]
             }
