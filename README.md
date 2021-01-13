@@ -199,6 +199,15 @@ if:
   has_labels:
     - "label-1"
     - "label-2"
+      
+  # "title" is satisfied if the pull request title matches any one of the
+  # patterns within the "matches" list, and does not match all of the patterns
+  # within the "not_matches" list.
+  title:
+    matches:
+      - "regexPattern"
+    not_matches:
+      - "regexPattern"
 
 # "options" specifies a set of restrictions on approvals. If the block does not
 # exist, the default values are used.
@@ -331,13 +340,29 @@ Disapproval allows users to explicitly block pull requests if certain changes
 must be made. Any member of in the set of allowed users can disapprove a change
 or revoke another user's disapproval.
 
-Unlike approval, all disapproval options are specified as part of the policy.
-Effectively, there is a single disapproval rule. The `disapproval` policy has
-the following specification:
+Unlike approval, all disapproval predicates and options are specified as part 
+of the policy. Effectively, there is a single disapproval rule. The `disapproval` 
+policy has the following specification:
 
 ```yaml
 # "disapproval" is the top-level key in the policy block.
 disapproval:
+  # "if" specifies a set of predicates that must be true for the policy to apply.
+  # Otherwise, the policy will fail and the pull request will be diapproved.
+  #  
+  # This block, and every condition within it are optional. If the block does not
+  # exist, the rule applies to every pull request.
+  if:
+    # "title" is satisfied if the pull request title matches any one of the
+    # patterns within the "matches" list, and does not match all of the patterns
+    # within the "not_matches" list.
+    title:
+      matches:
+        - "regexPattern"
+      not_matches:
+        - "regexPattern"
+    # Any additional predicates from the approval rules section are also valid here
+        
   # "options" sets behavior related to disapproval. If it does not exist, the
   # defaults shown below are used.
   options:
