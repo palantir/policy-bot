@@ -17,7 +17,9 @@ package disapproval
 import (
 	"context"
 	"github.com/palantir/policy-bot/policy/common"
+	"github.com/palantir/policy-bot/policy/predicate"
 	"os"
+	"regexp"
 	"testing"
 	"time"
 
@@ -34,6 +36,7 @@ func TestIsDisapproved(t *testing.T) {
 	ctx := logger.WithContext(context.Background())
 
 	prctx := &pulltest.Context{
+		TitleValue: "test: add disapproval predicate test",
 		CommentsValue: []*pull.Comment{
 			{
 				Author:    "disapprover-1",
@@ -147,6 +150,19 @@ func TestIsDisapproved(t *testing.T) {
 		p.Requires.Users = []string{"disapprover-1", "revoker-1", "disapprover-4"}
 
 		assertDisapproved(t, p, "Disapproved by disapprover-4")
+	})
+
+	t.Run("predicateDisapproves", func(t *testing.T) {
+		p := &Policy{}
+		p.Predicates = predicate.Predicates{
+			Title: &predicate.Title{
+				NotMatches: []common.Regexp{
+					common.NewCompiledRegexp(regexp.MustCompile("/^(fix|feat|docs): (\\w| )+$/g")),
+				},
+			},
+		}
+
+		assertDisapproved(t, p, "Title doesn't match a required pattern")
 	})
 }
 
