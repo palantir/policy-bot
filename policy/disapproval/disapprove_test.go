@@ -16,6 +16,7 @@ package disapproval
 
 import (
 	"context"
+	"github.com/palantir/policy-bot/policy/common"
 	"os"
 	"testing"
 	"time"
@@ -75,26 +76,28 @@ func TestIsDisapproved(t *testing.T) {
 	}
 
 	assertDisapproved := func(t *testing.T, p *Policy, expected string) {
-		disapproved, msg, err := p.IsDisapproved(ctx, prctx)
-		require.NoError(t, err)
+		res := p.Evaluate(ctx, prctx)
 
-		if assert.True(t, disapproved, "pull request was not disapproved") {
-			assert.Equal(t, expected, msg)
+		require.NoError(t, res.Error)
+
+		if assert.Equal(t, common.StatusDisapproved, res.Status, "pull request was not disapproved") {
+			assert.Equal(t, expected, res.StatusDescription)
 		}
 	}
 
 	assertSkipped := func(t *testing.T, p *Policy, expected string) {
-		disapproved, msg, err := p.IsDisapproved(ctx, prctx)
-		require.NoError(t, err)
+		res := p.Evaluate(ctx, prctx)
 
-		if assert.False(t, disapproved, "pull request was incorrectly disapproved") {
-			assert.Equal(t, expected, msg)
+		require.NoError(t, res.Error)
+
+		if assert.Equal(t, common.StatusSkipped, res.Status,"pull request was incorrectly disapproved") {
+			assert.Equal(t, expected, res.StatusDescription)
 		}
 	}
 
 	t.Run("skippedWithNoRequires", func(t *testing.T) {
 		p := &Policy{}
-		assertSkipped(t, p, "No disapprovals")
+		assertSkipped(t, p, "No disapproval policy is specified or the policy is empty")
 	})
 
 	t.Run("singleUserDisapproves", func(t *testing.T) {
