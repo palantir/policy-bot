@@ -24,7 +24,7 @@ UI to view the detailed approval status of any pull request.
   + [policy.yml Specification](#policyyml-specification)
   + [Approval Rules](#approval-rules)
   + [Approval Policies](#approval-policies)
-  + [Disapproval](#disapproval)
+  + [Disapproval Policy](#disapproval-policy)
   + [Caveats and Notes](#caveats-and-notes)
     - [Disapproval is Disabled by Default](#disapproval-is-disabled-by-default)
     - [`or`, `and`, and `if` (Rule Predicates)](#or-and-and-if-rule-predicates)
@@ -334,7 +334,7 @@ Conjunctions can contain more conjunctions (up to a maximum depth of 5):
         - rule4
 ```
 
-### Disapproval
+### Disapproval Policy
 
 Disapproval allows users to explicitly block pull requests if certain changes
 must be made. Any member of in the set of allowed users can disapprove a change
