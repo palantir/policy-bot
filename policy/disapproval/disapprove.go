@@ -98,7 +98,6 @@ func (p *Policy) Evaluate(ctx context.Context, prctx pull.Context) (res common.R
 	res.Name = "disapproval"
 	res.Status = common.StatusSkipped
 
-	disapproved, msgs := false, ""
 	for _, p := range p.Predicates.Predicates() {
 		satisfied, desc, err := p.Evaluate(ctx, prctx)
 
@@ -109,20 +108,14 @@ func (p *Policy) Evaluate(ctx context.Context, prctx pull.Context) (res common.R
 
 		if satisfied {
 			log.Debug().Msgf("disapproving, predicate of type %T was satisfied", p)
-			disapproved = true
 
+			res.Status = common.StatusDisapproved
+			res.StatusDescription = desc
 			if desc == "" {
-				desc = "One of the preconditions of this rule is satisfied"
+				res.StatusDescription = "The preconditions of this rule are not satisfied"
 			}
-
-			msgs += desc + "\n"
+			return
 		}
-	}
-
-	if disapproved {
-		res.Status = common.StatusDisapproved
-		res.StatusDescription = msgs
-		return
 	}
 
 	if p.Requires.IsEmpty() {
