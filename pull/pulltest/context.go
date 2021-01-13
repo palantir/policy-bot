@@ -25,6 +25,7 @@ type Context struct {
 	RepoValue   string
 	NumberValue int
 
+	TitleValue     string
 	AuthorValue    string
 	CreatedAtValue time.Time
 	HeadSHAValue   string
@@ -87,6 +88,10 @@ func (c *Context) Number() int {
 		return c.NumberValue
 	}
 	return 1
+}
+
+func (c *Context) Title() string {
+	return c.TitleValue
 }
 
 func (c *Context) Author() string {
