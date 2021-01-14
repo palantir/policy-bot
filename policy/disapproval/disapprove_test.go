@@ -16,8 +16,6 @@ package disapproval
 
 import (
 	"context"
-	"github.com/palantir/policy-bot/policy/common"
-	"github.com/palantir/policy-bot/policy/predicate"
 	"os"
 	"regexp"
 	"testing"
@@ -27,6 +25,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/palantir/policy-bot/policy/common"
+	"github.com/palantir/policy-bot/policy/predicate"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/pull/pulltest"
 )
@@ -93,7 +93,7 @@ func TestIsDisapproved(t *testing.T) {
 
 		require.NoError(t, res.Error)
 
-		if assert.Equal(t, common.StatusSkipped, res.Status,"pull request was incorrectly disapproved") {
+		if assert.Equal(t, common.StatusSkipped, res.Status, "pull request was incorrectly disapproved") {
 			assert.Equal(t, expected, res.StatusDescription)
 		}
 	}

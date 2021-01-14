@@ -16,6 +16,7 @@ package predicate
 
 import (
 	"context"
+
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 )
