@@ -44,14 +44,14 @@ func TestWithMatchRules(t *testing.T) {
 		},
 		{
 			"matches pattern",
-			false,
+			true,
 			&pulltest.Context{
 				TitleValue: "UPDATE",
 			},
 		},
 		{
 			"does not match pattern",
-			true,
+			false,
 			&pulltest.Context{
 				TitleValue: "changes",
 			},
@@ -70,7 +70,7 @@ func TestWithNotMatchRules(t *testing.T) {
 	runTitleTestCase(t, p, []TitleTestCase{
 		{
 			"empty title",
-			true,
+			false,
 			&pulltest.Context{
 				TitleValue: "",
 			},
@@ -84,7 +84,7 @@ func TestWithNotMatchRules(t *testing.T) {
 		},
 		{
 			"does not match pattern",
-			true,
+			false,
 			&pulltest.Context{
 				TitleValue: "CHANGES",
 			},
@@ -105,21 +105,21 @@ func TestWithMixedRules(t *testing.T) {
 	runTitleTestCase(t, p, []TitleTestCase{
 		{
 			"empty title",
-			true,
+			false,
 			&pulltest.Context{
 				TitleValue: "",
 			},
 		},
 		{
 			"matches pattern in matches list",
-			false,
+			true,
 			&pulltest.Context{
 				TitleValue: "UPDATE",
 			},
 		},
 		{
 			"matches pattern in not_matches list",
-			true,
+			false,
 			&pulltest.Context{
 				TitleValue: "changes",
 			},
