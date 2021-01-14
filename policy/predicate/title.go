@@ -32,13 +32,13 @@ func (pred Title) Evaluate(ctx context.Context, prctx pull.Context) (bool, strin
 	title := prctx.Title()
 
 	if len(pred.Matches) > 0 {
-		if !AnyMatches(pred.Matches, title) {
+		if !anyMatches(pred.Matches, title) {
 			return false, "Title doesn't match a required pattern", nil
 		}
 	}
 
 	if len(pred.NotMatches) > 0 {
-		if AnyMatches(pred.NotMatches, title) {
+		if anyMatches(pred.NotMatches, title) {
 			return false, "Title matches a disallowed pattern", nil
 		}
 	}

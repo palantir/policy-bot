@@ -18,7 +18,7 @@ import (
 	"github.com/palantir/policy-bot/policy/common"
 )
 
-func AnyMatches(re []common.Regexp, s string) bool {
+func anyMatches(re []common.Regexp, s string) bool {
 	for _, r := range re {
 		if r.Matches(s) {
 			return true
