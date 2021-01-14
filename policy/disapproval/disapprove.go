@@ -112,7 +112,7 @@ func (p *Policy) Evaluate(ctx context.Context, prctx pull.Context) (res common.R
 			res.Status = common.StatusDisapproved
 			res.StatusDescription = desc
 			if desc == "" {
-				res.StatusDescription = "The preconditions of this rule are not satisfied"
+				res.StatusDescription = "A precondition of this rule was satisfied"
 			}
 			return
 		}
