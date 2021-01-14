@@ -56,7 +56,7 @@ type Context interface {
 	// Number returns the number of the pull request.
 	Number() int
 
-	//Title returns the title of the pull request
+	// Title returns the title of the pull request
 	Title() string
 
 	// Author returns the username of the user who opened the pull request.
