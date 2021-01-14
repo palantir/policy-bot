@@ -79,15 +79,20 @@ type Requires struct {
 }
 
 func (p *Policy) Trigger() common.Trigger {
-	dm := p.Options.GetDisapproveMethods()
-	rm := p.Options.GetRevokeMethods()
-
 	t := common.TriggerCommit
-	if len(dm.Comments) > 0 || len(rm.Comments) > 0 {
-		t |= common.TriggerComment
+
+	if !p.Requires.IsEmpty() {
+		dm := p.Options.GetDisapproveMethods()
+		rm := p.Options.GetRevokeMethods()
+
+		if len(dm.Comments) > 0 || len(rm.Comments) > 0 {
+			t |= common.TriggerComment
+		}
+		if dm.GithubReview || rm.GithubReview {
+			t |= common.TriggerReview
+		}
 	}
-	if dm.GithubReview || rm.GithubReview {
-		t |= common.TriggerReview
+
 	}
 	return t
 }
