@@ -203,12 +203,14 @@ if:
   # "title" is satisfied if the pull request title matches any one of the
   # patterns within the "matches" list, and does not match all of the patterns
   # within the "not_matches" list.
+  # e.g. this predicate triggers for titles including "BREAKING CHANGE" or titles
+  # that are not marked as docs/style/chore changes (using conventional commits 
+  # formatting)    
   title:
     matches:
-      - "^(fix|feat|chore): (\\w| )+$"
       - "^BREAKING CHANGE: (\\w| )+$"
     not_matches:
-      - "BLOCKED"
+      - "^(docs|style|chore): (\\w| )+$"
 
 # "options" specifies a set of restrictions on approvals. If the block does not
 # exist, the default values are used.
@@ -348,22 +350,20 @@ policy has the following specification:
 ```yaml
 # "disapproval" is the top-level key in the policy block.
 disapproval:
-  # "if" specifies a set of predicates that must be true for the policy to apply.
-  # Otherwise, the policy will fail and the pull request will be diapproved.
+  # "if" specifies a set of predicates which will cause disapproval if any are 
+  # true
   #  
-  # This block, and every condition within it are optional. If the block does not
-  # exist, the rule applies to every pull request.
+  # This block, and every condition within it are optional. If the block does 
+  # not exist, a pull request is only disapproved if a user takes a disapproval 
+  # action.
   if:
-    # "title" is satisfied if the pull request title matches any one of the
-    # patterns within the "matches" list, and does not match all of the patterns
-    # within the "not_matches" list.
+    # All predicates from the approval rules section are valid here
     title:
-      matches:
+      not_matches:
         - "^(fix|feat|chore): (\\w| )+$"
         - "^BREAKING CHANGE: (\\w| )+$"
-      not_matches:
+      matches:
         - "^BLOCKED"
-    # Any additional predicates from the approval rules section are also valid here
         
   # "options" sets behavior related to disapproval. If it does not exist, the
   # defaults shown below are used.
