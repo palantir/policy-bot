@@ -107,7 +107,7 @@ func (p *Policy) Evaluate(ctx context.Context, prctx pull.Context) (res common.R
 		}
 
 		if satisfied {
-			log.Debug().Msgf("disapproving, predicate of type %T was not satisfied", p)
+			log.Debug().Msgf("disapproving, predicate of type %T was satisfied", p)
 
 			res.Status = common.StatusDisapproved
 			res.StatusDescription = desc
