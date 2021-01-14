@@ -156,20 +156,20 @@ func TestIsDisapproved(t *testing.T) {
 		p := &Policy{}
 		p.Predicates = predicate.Predicates{
 			Title: &predicate.Title{
-				Matches: []common.Regexp{
+				NotMatches: []common.Regexp{
 					common.NewCompiledRegexp(regexp.MustCompile("^(fix|feat|docs)")),
 				},
 			},
 		}
 
-		assertDisapproved(t, p, "Title doesn't match a required pattern")
+		assertDisapproved(t, p, "Title doesn't match a NotMatch pattern")
 	})
 
 	t.Run("predicateDoesNotDisapprove", func(t *testing.T) {
 		p := &Policy{}
 		p.Predicates = predicate.Predicates{
 			Title: &predicate.Title{
-				Matches: []common.Regexp{
+				NotMatches: []common.Regexp{
 					common.NewCompiledRegexp(regexp.MustCompile("^(fix|feat|docs|test)")),
 				},
 			},

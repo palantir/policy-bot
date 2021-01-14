@@ -26,32 +26,32 @@ import (
 	"github.com/palantir/policy-bot/pull/pulltest"
 )
 
-func TestWithMatchRules(t *testing.T) {
+func TestWithNotMatchRule(t *testing.T) {
 	p := &Title{
-		Matches: []common.Regexp{
+		NotMatches: []common.Regexp{
 			common.NewCompiledRegexp(regexp.MustCompile("^(fix|feat|chore): (\\w| )+$")),
 		},
-		NotMatches: []common.Regexp{},
+		Matches: []common.Regexp{},
 	}
 
 	runTitleTestCase(t, p, []TitleTestCase{
 		{
 			"empty title",
-			false,
+			true,
 			&pulltest.Context{
 				TitleValue: "",
 			},
 		},
 		{
 			"matches pattern",
-			true,
+			false,
 			&pulltest.Context{
 				TitleValue: "chore: added tests",
 			},
 		},
 		{
 			"does not match pattern",
-			false,
+			true,
 			&pulltest.Context{
 				TitleValue: "changes: added tests",
 			},
@@ -59,10 +59,10 @@ func TestWithMatchRules(t *testing.T) {
 	})
 }
 
-func TestWithNotMatchRules(t *testing.T) {
+func TestWithMatchRule(t *testing.T) {
 	p := &Title{
-		Matches: []common.Regexp{},
-		NotMatches: []common.Regexp{
+		NotMatches: []common.Regexp{},
+		Matches: []common.Regexp{
 			common.NewCompiledRegexp(regexp.MustCompile("^BLOCKED")),
 		},
 	}
@@ -70,21 +70,21 @@ func TestWithNotMatchRules(t *testing.T) {
 	runTitleTestCase(t, p, []TitleTestCase{
 		{
 			"empty title",
-			true,
+			false,
 			&pulltest.Context{
 				TitleValue: "",
 			},
 		},
 		{
 			"matches pattern",
-			false,
+			true,
 			&pulltest.Context{
 				TitleValue: "BLOCKED: new feature",
 			},
 		},
 		{
 			"does not match pattern",
-			true,
+			false,
 			&pulltest.Context{
 				TitleValue: "feat: new feature",
 			},
@@ -94,11 +94,11 @@ func TestWithNotMatchRules(t *testing.T) {
 
 func TestWithMixedRules(t *testing.T) {
 	p := &Title{
-		Matches: []common.Regexp{
+		NotMatches: []common.Regexp{
 			common.NewCompiledRegexp(regexp.MustCompile("^(fix|feat|chore): (\\w| )+$")),
 			common.NewCompiledRegexp(regexp.MustCompile("^BREAKING CHANGE: (\\w| )+$")),
 		},
-		NotMatches: []common.Regexp{
+		Matches: []common.Regexp{
 			common.NewCompiledRegexp(regexp.MustCompile("BLOCKED")),
 		},
 	}
@@ -106,42 +106,42 @@ func TestWithMixedRules(t *testing.T) {
 	runTitleTestCase(t, p, []TitleTestCase{
 		{
 			"empty title",
-			false,
+			true,
 			&pulltest.Context{
 				TitleValue: "",
 			},
 		},
 		{
 			"matches first pattern in matches list",
-			true,
+			false,
 			&pulltest.Context{
 				TitleValue: "fix: fixes failing tests",
 			},
 		},
 		{
 			"matches second pattern in matches list",
-			true,
+			false,
 			&pulltest.Context{
 				TitleValue: "BREAKING CHANGE: new api version",
 			},
 		},
 		{
 			"matches pattern in not_matches list",
-			false,
+			true,
 			&pulltest.Context{
 				TitleValue: "BLOCKED: not working",
 			},
 		},
 		{
 			"matches pattern in both lists",
-			false,
+			true,
 			&pulltest.Context{
 				TitleValue: "BREAKING CHANGE: BLOCKED",
 			},
 		},
 		{
 			"does not match any pattern",
-			false,
+			true,
 			&pulltest.Context{
 				TitleValue: "test: adds tests",
 			},
