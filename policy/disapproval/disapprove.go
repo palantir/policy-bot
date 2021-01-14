@@ -93,7 +93,10 @@ func (p *Policy) Trigger() common.Trigger {
 		}
 	}
 
+	for _, predicate := range p.Predicates.Predicates() {
+		t |= predicate.Trigger()
 	}
+
 	return t
 }
 
