@@ -29,7 +29,7 @@ import (
 func TestWithMatchRules(t *testing.T) {
 	p := &Title{
 		Matches: []common.Regexp{
-			common.NewCompiledRegexp(regexp.MustCompile("^[A-Z]*$")),
+			common.NewCompiledRegexp(regexp.MustCompile("^(fix|feat|chore): (\\w| )+$")),
 		},
 		NotMatches: []common.Regexp{},
 	}
@@ -37,7 +37,7 @@ func TestWithMatchRules(t *testing.T) {
 	runTitleTestCase(t, p, []TitleTestCase{
 		{
 			"empty title",
-			true,
+			false,
 			&pulltest.Context{
 				TitleValue: "",
 			},
@@ -46,14 +46,14 @@ func TestWithMatchRules(t *testing.T) {
 			"matches pattern",
 			true,
 			&pulltest.Context{
-				TitleValue: "UPDATE",
+				TitleValue: "chore: added tests",
 			},
 		},
 		{
 			"does not match pattern",
 			false,
 			&pulltest.Context{
-				TitleValue: "changes",
+				TitleValue: "changes: added tests",
 			},
 		},
 	})
@@ -63,14 +63,14 @@ func TestWithNotMatchRules(t *testing.T) {
 	p := &Title{
 		Matches: []common.Regexp{},
 		NotMatches: []common.Regexp{
-			common.NewCompiledRegexp(regexp.MustCompile("^[a-z]*$")),
+			common.NewCompiledRegexp(regexp.MustCompile("^BLOCKED")),
 		},
 	}
 
 	runTitleTestCase(t, p, []TitleTestCase{
 		{
 			"empty title",
-			false,
+			true,
 			&pulltest.Context{
 				TitleValue: "",
 			},
@@ -79,14 +79,14 @@ func TestWithNotMatchRules(t *testing.T) {
 			"matches pattern",
 			false,
 			&pulltest.Context{
-				TitleValue: "update",
+				TitleValue: "BLOCKED: new feature",
 			},
 		},
 		{
 			"does not match pattern",
 			true,
 			&pulltest.Context{
-				TitleValue: "CHANGES",
+				TitleValue: "feat: new feature",
 			},
 		},
 	})
@@ -95,10 +95,11 @@ func TestWithNotMatchRules(t *testing.T) {
 func TestWithMixedRules(t *testing.T) {
 	p := &Title{
 		Matches: []common.Regexp{
-			common.NewCompiledRegexp(regexp.MustCompile("^[A-Z]*$")),
+			common.NewCompiledRegexp(regexp.MustCompile("^(fix|feat|chore): (\\w| )+$")),
+			common.NewCompiledRegexp(regexp.MustCompile("^BREAKING CHANGE: (\\w| )+$")),
 		},
 		NotMatches: []common.Regexp{
-			common.NewCompiledRegexp(regexp.MustCompile("^[a-z]*$")),
+			common.NewCompiledRegexp(regexp.MustCompile("BLOCKED")),
 		},
 	}
 
@@ -111,17 +112,38 @@ func TestWithMixedRules(t *testing.T) {
 			},
 		},
 		{
-			"matches pattern in matches list",
+			"matches first pattern in matches list",
 			true,
 			&pulltest.Context{
-				TitleValue: "UPDATE",
+				TitleValue: "fix: fixes failing tests",
+			},
+		},
+		{
+			"matches second pattern in matches list",
+			true,
+			&pulltest.Context{
+				TitleValue: "BREAKING CHANGE: new api version",
 			},
 		},
 		{
 			"matches pattern in not_matches list",
 			false,
 			&pulltest.Context{
-				TitleValue: "changes",
+				TitleValue: "BLOCKED: not working",
+			},
+		},
+		{
+			"matches pattern in both lists",
+			false,
+			&pulltest.Context{
+				TitleValue: "BREAKING CHANGE: BLOCKED",
+			},
+		},
+		{
+			"does not match any pattern",
+			false,
+			&pulltest.Context{
+				TitleValue: "test: adds tests",
 			},
 		},
 	})
