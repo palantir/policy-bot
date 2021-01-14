@@ -23,12 +23,14 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/palantir/policy-bot/policy/common"
+	"github.com/palantir/policy-bot/policy/predicate"
 	"github.com/palantir/policy-bot/pull"
 )
 
 type Policy struct {
-	Options  Options  `yaml:"options"`
-	Requires Requires `yaml:"requires"`
+	Predicates predicate.Predicates `yaml:"if"`
+	Options    Options              `yaml:"options"`
+	Requires   Requires             `yaml:"requires"`
 }
 
 type Options struct {
@@ -77,16 +79,24 @@ type Requires struct {
 }
 
 func (p *Policy) Trigger() common.Trigger {
-	dm := p.Options.GetDisapproveMethods()
-	rm := p.Options.GetRevokeMethods()
-
 	t := common.TriggerCommit
-	if len(dm.Comments) > 0 || len(rm.Comments) > 0 {
-		t |= common.TriggerComment
+
+	if !p.Requires.IsEmpty() {
+		dm := p.Options.GetDisapproveMethods()
+		rm := p.Options.GetRevokeMethods()
+
+		if len(dm.Comments) > 0 || len(rm.Comments) > 0 {
+			t |= common.TriggerComment
+		}
+		if dm.GithubReview || rm.GithubReview {
+			t |= common.TriggerReview
+		}
 	}
-	if dm.GithubReview || rm.GithubReview {
-		t |= common.TriggerReview
+
+	for _, predicate := range p.Predicates.Predicates() {
+		t |= predicate.Trigger()
 	}
+
 	return t
 }
 
@@ -95,6 +105,26 @@ func (p *Policy) Evaluate(ctx context.Context, prctx pull.Context) (res common.R
 
 	res.Name = "disapproval"
 	res.Status = common.StatusSkipped
+
+	for _, p := range p.Predicates.Predicates() {
+		satisfied, desc, err := p.Evaluate(ctx, prctx)
+
+		if err != nil {
+			res.Error = errors.Wrap(err, "failed to evaluate predicate")
+			return
+		}
+
+		if satisfied {
+			log.Debug().Msgf("disapproving, predicate of type %T was satisfied", p)
+
+			res.Status = common.StatusDisapproved
+			res.StatusDescription = desc
+			if desc == "" {
+				res.StatusDescription = "A precondition of this rule was satisfied"
+			}
+			return
+		}
+	}
 
 	if p.Requires.IsEmpty() {
 		log.Debug().Msg("no users are allowed to disapprove; skipping")

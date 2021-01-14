@@ -17,6 +17,7 @@ package disapproval
 import (
 	"context"
 	"os"
+	"regexp"
 	"testing"
 	"time"
 
@@ -24,6 +25,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/palantir/policy-bot/policy/common"
+	"github.com/palantir/policy-bot/policy/predicate"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/pull/pulltest"
 )
@@ -33,6 +36,7 @@ func TestIsDisapproved(t *testing.T) {
 	ctx := logger.WithContext(context.Background())
 
 	prctx := &pulltest.Context{
+		TitleValue: "test: add disapproval predicate test",
 		CommentsValue: []*pull.Comment{
 			{
 				Author:    "disapprover-1",
@@ -75,26 +79,28 @@ func TestIsDisapproved(t *testing.T) {
 	}
 
 	assertDisapproved := func(t *testing.T, p *Policy, expected string) {
-		disapproved, msg, err := p.IsDisapproved(ctx, prctx)
-		require.NoError(t, err)
+		res := p.Evaluate(ctx, prctx)
 
-		if assert.True(t, disapproved, "pull request was not disapproved") {
-			assert.Equal(t, expected, msg)
+		require.NoError(t, res.Error)
+
+		if assert.Equal(t, common.StatusDisapproved, res.Status, "pull request was not disapproved") {
+			assert.Equal(t, expected, res.StatusDescription)
 		}
 	}
 
 	assertSkipped := func(t *testing.T, p *Policy, expected string) {
-		disapproved, msg, err := p.IsDisapproved(ctx, prctx)
-		require.NoError(t, err)
+		res := p.Evaluate(ctx, prctx)
 
-		if assert.False(t, disapproved, "pull request was incorrectly disapproved") {
-			assert.Equal(t, expected, msg)
+		require.NoError(t, res.Error)
+
+		if assert.Equal(t, common.StatusSkipped, res.Status, "pull request was incorrectly disapproved") {
+			assert.Equal(t, expected, res.StatusDescription)
 		}
 	}
 
 	t.Run("skippedWithNoRequires", func(t *testing.T) {
 		p := &Policy{}
-		assertSkipped(t, p, "No disapprovals")
+		assertSkipped(t, p, "No disapproval policy is specified or the policy is empty")
 	})
 
 	t.Run("singleUserDisapproves", func(t *testing.T) {
@@ -144,6 +150,32 @@ func TestIsDisapproved(t *testing.T) {
 		p.Requires.Users = []string{"disapprover-1", "revoker-1", "disapprover-4"}
 
 		assertDisapproved(t, p, "Disapproved by disapprover-4")
+	})
+
+	t.Run("predicateDisapproves", func(t *testing.T) {
+		p := &Policy{}
+		p.Predicates = predicate.Predicates{
+			Title: &predicate.Title{
+				NotMatches: []common.Regexp{
+					common.NewCompiledRegexp(regexp.MustCompile("^(fix|feat|docs)")),
+				},
+			},
+		}
+
+		assertDisapproved(t, p, "Title doesn't match a NotMatch pattern")
+	})
+
+	t.Run("predicateDoesNotDisapprove", func(t *testing.T) {
+		p := &Policy{}
+		p.Predicates = predicate.Predicates{
+			Title: &predicate.Title{
+				NotMatches: []common.Regexp{
+					common.NewCompiledRegexp(regexp.MustCompile("^(fix|feat|docs|test)")),
+				},
+			},
+		}
+
+		assertSkipped(t, p, "No disapproval policy is specified or the policy is empty")
 	})
 }
 

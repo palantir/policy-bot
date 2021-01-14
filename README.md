@@ -24,7 +24,7 @@ UI to view the detailed approval status of any pull request.
   + [policy.yml Specification](#policyyml-specification)
   + [Approval Rules](#approval-rules)
   + [Approval Policies](#approval-policies)
-  + [Disapproval](#disapproval)
+  + [Disapproval Policy](#disapproval-policy)
   + [Caveats and Notes](#caveats-and-notes)
     - [Disapproval is Disabled by Default](#disapproval-is-disabled-by-default)
     - [`or`, `and`, and `if` (Rule Predicates)](#or-and-and-if-rule-predicates)
@@ -199,6 +199,18 @@ if:
   has_labels:
     - "label-1"
     - "label-2"
+      
+  # "title" is satisfied if the pull request title matches any one of the
+  # patterns within the "matches" list, and does not match all of the patterns
+  # within the "not_matches" list.
+  # e.g. this predicate triggers for titles including "BREAKING CHANGE" or titles
+  # that are not marked as docs/style/chore changes (using conventional commits 
+  # formatting)    
+  title:
+    matches:
+      - "^BREAKING CHANGE: (\\w| )+$"
+    not_matches:
+      - "^(docs|style|chore): (\\w| )+$"
 
 # "options" specifies a set of restrictions on approvals. If the block does not
 # exist, the default values are used.
@@ -325,19 +337,34 @@ Conjunctions can contain more conjunctions (up to a maximum depth of 5):
         - rule4
 ```
 
-### Disapproval
+### Disapproval Policy
 
 Disapproval allows users to explicitly block pull requests if certain changes
 must be made. Any member of in the set of allowed users can disapprove a change
 or revoke another user's disapproval.
 
-Unlike approval, all disapproval options are specified as part of the policy.
-Effectively, there is a single disapproval rule. The `disapproval` policy has
-the following specification:
+Unlike approval, all disapproval predicates and options are specified as part 
+of the policy. Effectively, there is a single disapproval rule. The `disapproval` 
+policy has the following specification:
 
 ```yaml
 # "disapproval" is the top-level key in the policy block.
 disapproval:
+  # "if" specifies a set of predicates which will cause disapproval if any are 
+  # true
+  #  
+  # This block, and every condition within it are optional. If the block does 
+  # not exist, a pull request is only disapproved if a user takes a disapproval 
+  # action.
+  if:
+    # All predicates from the approval rules section are valid here
+    title:
+      not_matches:
+        - "^(fix|feat|chore): (\\w| )+$"
+        - "^BREAKING CHANGE: (\\w| )+$"
+      matches:
+        - "^BLOCKED"
+        
   # "options" sets behavior related to disapproval. If it does not exist, the
   # defaults shown below are used.
   options:

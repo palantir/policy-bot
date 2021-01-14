@@ -25,15 +25,16 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/palantir/policy-bot/policy/common"
+	"github.com/palantir/policy-bot/policy/predicate"
 	"github.com/palantir/policy-bot/pull"
 )
 
 type Rule struct {
-	Name        string     `yaml:"name"`
-	Description string     `yaml:"description"`
-	Predicates  Predicates `yaml:"if"`
-	Options     Options    `yaml:"options"`
-	Requires    Requires   `yaml:"requires"`
+	Name        string               `yaml:"name"`
+	Description string               `yaml:"description"`
+	Predicates  predicate.Predicates `yaml:"if"`
+	Options     Options              `yaml:"options"`
+	Requires    Requires             `yaml:"requires"`
 }
 
 type Options struct {
@@ -115,7 +116,7 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 
 			res.StatusDescription = desc
 			if desc == "" {
-				res.StatusDescription = "The preconditions of this rule are not satisfied"
+				res.StatusDescription = "A precondition of this rule was satisfied"
 			}
 
 			return

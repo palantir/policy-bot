@@ -45,7 +45,7 @@ func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (boo
 		}
 
 		if anyMatches(pred.Paths, f.Filename) {
-			return true, "", nil
+			return true, f.Filename + " was changed", nil
 		}
 	}
 
@@ -163,12 +163,3 @@ func (pred *ModifiedLines) Trigger() common.Trigger {
 }
 
 var _ Predicate = &ModifiedLines{}
-
-func anyMatches(re []common.Regexp, s string) bool {
-	for _, r := range re {
-		if r.Matches(s) {
-			return true
-		}
-	}
-	return false
-}

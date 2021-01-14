@@ -67,7 +67,7 @@ func TestRules(t *testing.T) {
 	expected := []*Rule{
 		{
 			Name: "rule1",
-			Predicates: Predicates{
+			Predicates: predicate.Predicates{
 				ChangedFiles: &predicate.ChangedFiles{
 					Paths: []common.Regexp{
 						common.NewCompiledRegexp(regexp.MustCompile("path1")),
