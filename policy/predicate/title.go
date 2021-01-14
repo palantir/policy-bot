@@ -30,15 +30,19 @@ var _ Predicate = Title{}
 func (pred Title) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
 	title := prctx.Title()
 
-	if !AnyMatches(pred.Matches, title) {
-		return true, "Title doesn't match a required pattern", nil
+	if len(pred.Matches) > 0 {
+		if !AnyMatches(pred.Matches, title) {
+			return false, "Title doesn't match a required pattern", nil
+		}
 	}
 
-	if AnyMatches(pred.NotMatches, title) {
-		return true, "Title matches a disallowed pattern", nil
+	if len(pred.NotMatches) > 0 {
+		if AnyMatches(pred.NotMatches, title) {
+			return false, "Title matches a disallowed pattern", nil
+		}
 	}
 
-	return false, "Title is satisfactory", nil
+	return true, "", nil
 }
 
 func (pred Title) Trigger() common.Trigger {
