@@ -205,9 +205,10 @@ if:
   # within the "not_matches" list.
   title:
     matches:
-      - "regexPattern"
+      - "^(fix|feat|chore): (\\w| )+$"
+      - "^BREAKING CHANGE: (\\w| )+$"
     not_matches:
-      - "regexPattern"
+      - "BLOCKED"
 
 # "options" specifies a set of restrictions on approvals. If the block does not
 # exist, the default values are used.
@@ -358,9 +359,10 @@ disapproval:
     # within the "not_matches" list.
     title:
       matches:
-        - "regexPattern"
+        - "^(fix|feat|chore): (\\w| )+$"
+        - "^BREAKING CHANGE: (\\w| )+$"
       not_matches:
-        - "regexPattern"
+        - "^BLOCKED"
     # Any additional predicates from the approval rules section are also valid here
         
   # "options" sets behavior related to disapproval. If it does not exist, the
