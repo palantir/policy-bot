@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/google/go-github/v32/github"
+	"github.com/google/go-github/v33/github"
 	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
 	"github.com/rs/zerolog"

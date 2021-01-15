@@ -21,9 +21,16 @@ import (
 
 	"github.com/bluekeyes/hatpear"
 	"github.com/palantir/go-baseapp/pkg/errfmt"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/hlog"
 )
+
+// httpError represents any error that presents itself as an HTTP error with a
+// status code.
+type httpError interface {
+	StatusCode() int
+}
 
 // RichErrorMarshalFunc is a zerolog error marshaller that formats the error as
 // a string that includes a stack trace, if one is available.
@@ -37,9 +44,9 @@ func RichErrorMarshalFunc(err error) interface{} {
 }
 
 // HandleRouteError is a hatpear error handler that logs the error and sends
-// an error response to the client
+// an error response to the client. If the error has a `StatusCode` function
+// this will be called and converted to an appropriate HTTP status code error.
 func HandleRouteError(w http.ResponseWriter, r *http.Request, err error) {
-
 	var log *zerolog.Event
 	// Either the deadline has passed or the request was canceled
 	// 499 is an NGINX style response code for 'Client Closed Connection'
@@ -52,8 +59,16 @@ func HandleRouteError(w http.ResponseWriter, r *http.Request, err error) {
 	} else {
 		log = hlog.FromRequest(r).Error().Err(err)
 
-		WriteJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": http.StatusText(http.StatusInternalServerError),
+		cause := errors.Cause(err)
+		statusCode := http.StatusInternalServerError
+		if aerr, ok := cause.(httpError); ok {
+			statusCode = aerr.StatusCode()
+		}
+
+		rid, _ := hlog.IDFromRequest(r)
+		WriteJSON(w, statusCode, map[string]string{
+			"error":      http.StatusText(statusCode),
+			"request_id": rid.String(),
 		})
 	}
 
