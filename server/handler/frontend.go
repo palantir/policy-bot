@@ -17,6 +17,7 @@ package handler
 import (
 	"html/template"
 	"net/http"
+	"path"
 	"sort"
 	"strings"
 
@@ -35,8 +36,15 @@ type FilesConfig struct {
 	Templates string `yaml:"templates"`
 }
 
-func LoadTemplates(c *FilesConfig) (templatetree.HTMLTree, error) {
+func LoadTemplates(c *FilesConfig, basePath string) (templatetree.HTMLTree, error) {
+	if basePath == "" {
+		basePath = "/"
+	}
+
 	root := template.New("root").Funcs(template.FuncMap{
+		"resource": func(r string) string {
+			return path.Join(basePath, "static", r)
+		},
 		"titlecase": strings.Title,
 		"sortByStatus": func(results []*common.Result) []*common.Result {
 			r := make([]*common.Result, len(results))
