@@ -21,8 +21,8 @@ github.com/die-net/lrucache
 github.com/golang/protobuf/proto
 # github.com/google/go-github/v29 v29.0.3
 github.com/google/go-github/v29/github
-# github.com/google/go-github/v32 v32.0.0
-github.com/google/go-github/v32/github
+# github.com/google/go-github/v33 v33.0.0
+github.com/google/go-github/v33/github
 # github.com/google/go-querystring v1.0.0
 github.com/google/go-querystring/query
 # github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
@@ -32,11 +32,11 @@ github.com/hashicorp/golang-lru
 github.com/hashicorp/golang-lru/simplelru
 # github.com/inconshreveable/mousetrap v1.0.0
 github.com/inconshreveable/mousetrap
-# github.com/palantir/go-baseapp v0.2.1
+# github.com/palantir/go-baseapp v0.2.2
 github.com/palantir/go-baseapp/baseapp
 github.com/palantir/go-baseapp/baseapp/datadog
 github.com/palantir/go-baseapp/pkg/errfmt
-# github.com/palantir/go-githubapp v0.5.0
+# github.com/palantir/go-githubapp v0.6.0
 github.com/palantir/go-githubapp/githubapp
 github.com/palantir/go-githubapp/oauth2
 # github.com/pkg/errors v0.9.1
@@ -63,7 +63,7 @@ github.com/shurcooL/graphql/internal/jsonutil
 github.com/spf13/cobra
 # github.com/spf13/pflag v1.0.5
 github.com/spf13/pflag
-# github.com/stretchr/testify v1.4.0
+# github.com/stretchr/testify v1.6.1
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
 # github.com/vektah/gqlparser v1.0.0
@@ -108,3 +108,5 @@ google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
 # gopkg.in/yaml.v2 v2.3.0
 gopkg.in/yaml.v2
+# gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
+gopkg.in/yaml.v3
