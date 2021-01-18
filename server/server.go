@@ -161,7 +161,7 @@ func New(c *Config) (*Server, error) {
 		),
 	)
 
-	templates, err := handler.LoadTemplates(&c.Files)
+	templates, err := handler.LoadTemplates(&c.Files, basePath)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to load templates")
 	}
