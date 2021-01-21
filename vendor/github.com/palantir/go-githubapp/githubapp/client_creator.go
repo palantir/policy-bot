@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation"
-	"github.com/google/go-github/v33/github"
+	"github.com/google/go-github/v32/github"
 	"github.com/gregjones/httpcache"
 	"github.com/pkg/errors"
 	"github.com/shurcooL/githubv4"
@@ -249,20 +249,12 @@ func (c *clientCreator) NewInstallationV4Client(installationID int64) (*githubv4
 func (c *clientCreator) NewTokenClient(token string) (*github.Client, error) {
 	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
 	tc := oauth2.NewClient(context.Background(), ts)
-
-	middleware := []ClientMiddleware{}
-	if c.cacheFunc != nil {
-		middleware = append(middleware, cache(c.cacheFunc), cacheControl(c.alwaysValidate))
-	}
-
-	return c.newClient(tc, middleware, "oauth token", 0)
+	return c.newClient(tc, nil, "oauth token", 0)
 }
 
 func (c *clientCreator) NewTokenV4Client(token string) (*githubv4.Client, error) {
 	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
 	tc := oauth2.NewClient(context.Background(), ts)
-	// The v4 API primarily uses POST requests (except for introspection queries)
-	// which we cannot cache, so don't construct the middleware
 	return c.newV4Client(tc, nil, "oauth token")
 }
 
