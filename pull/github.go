@@ -706,7 +706,11 @@ func (ghc *GitHubContext) loadPushedAt(commits []*Commit) error {
 	}
 
 	if len(commitsBySHA) > 0 {
-		return errors.Errorf("%d commits were not found while loading pushed dates", len(commitsBySHA))
+		missingSHAs := make([]string, 0, len(commitsBySHA))
+		for sha := range commitsBySHA {
+			missingSHAs = append(missingSHAs, sha)
+		}
+		return errors.Errorf("%d commits were not found while loading pushed dates. Missing: %s", len(commitsBySHA), strings.Join(missingSHAs, ", "))
 	}
 	return nil
 }
