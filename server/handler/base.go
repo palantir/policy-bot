@@ -185,7 +185,7 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, cl
 
 	result := evaluator.Evaluate(ctx, prctx)
 	if result.Error != nil {
-		statusMessage := fmt.Sprintf("Error evaluating policy defined by %s", fetchedConfig)
+		statusMessage := fmt.Sprintf("Error evaluating policy defined by %s. This may be temporary. Create a PR comment to try again. ", fetchedConfig)
 		logger.Warn().Err(result.Error).Msg(statusMessage)
 		err := b.PostStatus(ctx, prctx, client, "error", statusMessage)
 		return err
