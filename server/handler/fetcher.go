@@ -58,11 +58,11 @@ func (fc FetchedConfig) String() string {
 func (fc FetchedConfig) Description() string {
 	switch {
 	case fc.Missing():
-		return fmt.Sprintf("No policy found at ref=%s", fc.Ref)
+		return fmt.Sprintf("No policy found at %s", fc)
 	case fc.Invalid():
-		return fmt.Sprintf("Invalid configuration defined by ref=%s", fc.Ref)
+		return fmt.Sprintf("Invalid configuration defined by %s", fc)
 	}
-	return fmt.Sprintf("Valid policy found for ref=%s", fc.Ref)
+	return fmt.Sprintf("Valid policy found for %s", fc)
 }
 
 type ConfigFetcher struct {
