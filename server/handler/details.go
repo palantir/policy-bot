@@ -27,7 +27,6 @@ import (
 	"github.com/pkg/errors"
 	"goji.io/pat"
 
-	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 )
@@ -121,31 +120,20 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 
 	config, err := h.ConfigFetcher.ConfigForPR(ctx, prctx, client)
 	data.PolicyURL = getPolicyURL(pr, config)
-
 	if err != nil {
-		data.Error = errors.WithMessage(err, fmt.Sprintf("Failed to fetch configuration at ref=%s", config.Ref))
+		data.Error = errors.WithMessage(err, fmt.Sprintf("Failed to fetch configuration: %s", config))
 		return h.render(w, data)
 	}
 
-	if config.Missing() {
-		data.Error = errors.New(config.Description())
+	evaluator, err := h.Base.ValidateFetchedConfig(ctx, prctx, client, config, common.TriggerAll)
+	if evaluator == nil {
+		data.Error = err
 		return h.render(w, data)
 	}
 
-	if config.Invalid() {
-		data.Error = errors.WithMessage(config.Error, config.Description())
-		return h.render(w, data)
-	}
-
-	evaluator, err := policy.ParsePolicy(config.Config)
-	if err != nil {
-		data.Error = errors.WithMessage(err, fmt.Sprintf("invalid policy at ref \"%s\"", config.Ref))
-		return h.render(w, data)
-	}
-
-	result := evaluator.Evaluate(ctx, prctx)
+	result, err := h.Base.EvaluateFetchedConfig(ctx, prctx, client, evaluator, config)
 	data.Result = &result
-
+	data.Error = err
 	return h.render(w, data)
 }
 

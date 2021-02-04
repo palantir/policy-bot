@@ -149,29 +149,40 @@ func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger commo
 		return errors.WithMessage(err, fmt.Sprintf("Failed to fetch configuration: %s", fetchedConfig))
 	}
 
-	return b.EvaluateFetchedConfig(ctx, prctx, client, fetchedConfig, trigger)
+	evaluator, err := b.ValidateFetchedConfig(ctx, prctx, client, fetchedConfig, trigger)
+
+	if evaluator == nil {
+		return err
+	}
+
+	_, err = b.EvaluateFetchedConfig(ctx, prctx, client, evaluator, fetchedConfig)
+	return err
 }
 
-func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, client *github.Client, fetchedConfig FetchedConfig, trigger common.Trigger) error {
+func (b *Base) ValidateFetchedConfig(ctx context.Context, prctx pull.Context, client *github.Client, fetchedConfig FetchedConfig, trigger common.Trigger) (common.Evaluator, error) {
 	logger := zerolog.Ctx(ctx)
 
 	if fetchedConfig.Missing() {
-		logger.Debug().Msgf("policy does not exist: %s", fetchedConfig)
-		return nil
+		logger.Debug().Msg(fetchedConfig.Description())
+
+		return nil, errors.New(fetchedConfig.Description())
 	}
 
 	if fetchedConfig.Invalid() {
-		logger.Warn().Err(fetchedConfig.Error).Msgf("invalid policy: %s", fetchedConfig)
-		err := b.PostStatus(ctx, prctx, client, "error", fetchedConfig.Description())
-		return err
+		logger.Warn().Err(fetchedConfig.Error).Msg(fetchedConfig.Description())
+		b.PostStatus(ctx, prctx, client, "error", fetchedConfig.Description())
+
+		return nil, errors.WithMessage(fetchedConfig.Error, fetchedConfig.Description())
 	}
 
 	evaluator, err := policy.ParsePolicy(fetchedConfig.Config)
 	if err != nil {
-		statusMessage := fmt.Sprintf("Invalid policy defined by %s", fetchedConfig)
-		logger.Debug().Err(err).Msg(statusMessage)
-		err := b.PostStatus(ctx, prctx, client, "error", statusMessage)
-		return err
+		statusMessage := fmt.Sprintf("Unable to parse policy defined by %s", fetchedConfig)
+
+		logger.Warn().Err(err).Msg(statusMessage)
+		b.PostStatus(ctx, prctx, client, "error", statusMessage)
+
+		return nil, errors.WithMessage(err, statusMessage)
 	}
 
 	policyTrigger := evaluator.Trigger()
@@ -180,18 +191,39 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, cl
 			Str("event_trigger", trigger.String()).
 			Str("policy_trigger", policyTrigger.String()).
 			Msg("No evaluation necessary for this trigger, skipping")
-		return nil
+		return nil, nil
 	}
+
+	return evaluator, nil
+}
+
+func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, client *github.Client, evaluator common.Evaluator, fetchedConfig FetchedConfig) (common.Result, error) {
+	logger := zerolog.Ctx(ctx)
 
 	result := evaluator.Evaluate(ctx, prctx)
 	if result.Error != nil {
-		statusMessage := fmt.Sprintf("Error evaluating policy defined by %s. This may be temporary. Create a PR comment to try again.", fetchedConfig)
+		statusMessage := fmt.Sprintf("Error evaluating policy defined by %s", fetchedConfig)
 		logger.Warn().Err(result.Error).Msg(statusMessage)
-		err := b.PostStatus(ctx, prctx, client, "error", statusMessage)
-		return err
+
+		b.PostStatus(ctx, prctx, client, "error", statusMessage)
+
+		return result, result.Error
 	}
 
+	if err := b.PostStatusForResult(ctx, prctx, client, result); err != nil {
+		return result, err
+	}
+
+	if err := b.RequestReviewsForResult(ctx, prctx, client, result); err != nil {
+		return result, err
+	}
+
+	return result, nil
+}
+
+func (b *Base) PostStatusForResult(ctx context.Context, prctx pull.Context, client *github.Client, result common.Result) error {
 	statusDescription := result.StatusDescription
+
 	var statusState string
 	switch result.Status {
 	case common.StatusApproved:
@@ -207,11 +239,17 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, cl
 		return errors.Errorf("Evaluation resulted in unexpected status: %s", result.Status)
 	}
 
-	if err := b.PostStatus(ctx, prctx, client, statusState, statusDescription); err != nil {
-		return err
+	return b.PostStatus(ctx, prctx, client, statusState, statusDescription)
+}
+
+func (b *Base) RequestReviewsForResult(ctx context.Context, prctx pull.Context, client *github.Client, result common.Result) error {
+	logger := zerolog.Ctx(ctx)
+
+	if prctx.IsDraft() {
+		return nil
 	}
 
-	if statusState == "pending" && !prctx.IsDraft() {
+	if result.Status == common.StatusPending {
 		if reqs := reviewer.FindRequests(&result); len(reqs) > 0 {
 			logger.Debug().Msgf("Found %d pending rules with review requests enabled", len(reqs))
 			return b.requestReviews(ctx, prctx, client, reqs)
