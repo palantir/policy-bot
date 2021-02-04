@@ -146,7 +146,7 @@ func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger commo
 
 	fetchedConfig, err := b.ConfigFetcher.ConfigForPR(ctx, prctx, client)
 	if err != nil {
-		return errors.WithMessage(err, fmt.Sprintf("failed to fetch policy: %s", fetchedConfig))
+		return errors.WithMessage(err, fmt.Sprintf("Failed to fetch configuration: %s", fetchedConfig))
 	}
 
 	return b.EvaluateFetchedConfig(ctx, prctx, client, fetchedConfig, trigger)
@@ -204,7 +204,7 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, cl
 		statusState = "error"
 		statusDescription = "All rules were skipped. At least one rule must match."
 	default:
-		return errors.Errorf("evaluation resulted in unexpected state: %s", result.Status)
+		return errors.Errorf("Evaluation resulted in unexpected status: %s", result.Status)
 	}
 
 	if err := b.PostStatus(ctx, prctx, client, statusState, statusDescription); err != nil {
