@@ -139,7 +139,14 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 
 	result, err := h.Base.EvaluateFetchedConfig(ctx, prctx, client, evaluator, config)
 	data.Result = &result
-	data.Error = err
+
+	if err != nil {
+		if _, ok := err.(*pull.TemporaryError); ok {
+			errors.WithMessage(err, "This error may be temporary. Wait 30 seconds and refresh this page to retry")
+		}
+		data.Error = err
+	}
+
 	return h.render(w, data)
 }
 
