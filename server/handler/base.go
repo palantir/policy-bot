@@ -218,14 +218,6 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, cl
 		return result, result.Error
 	}
 
-	if err := b.PostStatusForResult(ctx, prctx, client, result); err != nil {
-		return result, err
-	}
-
-	return result, nil
-}
-
-func (b *Base) PostStatusForResult(ctx context.Context, prctx pull.Context, client *github.Client, result common.Result) error {
 	statusDescription := result.StatusDescription
 
 	var statusState string
@@ -240,10 +232,13 @@ func (b *Base) PostStatusForResult(ctx context.Context, prctx pull.Context, clie
 		statusState = "error"
 		statusDescription = "All rules were skipped. At least one rule must match."
 	default:
-		return errors.Errorf("Evaluation resulted in unexpected status: %s", result.Status)
+		err := errors.Errorf("Evaluation resulted in unexpected status: %s", result.Status)
+		return result, err
 	}
 
-	return b.PostStatus(ctx, prctx, client, statusState, statusDescription)
+	b.PostStatus(ctx, prctx, client, statusState, statusDescription)
+
+	return result, nil
 }
 
 func (b *Base) RequestReviewsForResult(ctx context.Context, prctx pull.Context, client *github.Client, result common.Result) error {
