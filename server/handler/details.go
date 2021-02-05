@@ -127,7 +127,14 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 
 	evaluator, err := h.Base.ValidateFetchedConfig(ctx, prctx, client, config, common.TriggerAll)
 	if evaluator == nil {
+
+	if err != nil {
 		data.Error = err
+		return h.render(w, data)
+	}
+
+	if evaluator == nil {
+		data.Error = errors.New(config.Description())
 		return h.render(w, data)
 	}
 

@@ -100,7 +100,13 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 
 	evaluator, err := h.Base.ValidateFetchedConfig(ctx, prctx, client, fetchedConfig, common.TriggerComment)
 
+	if err != nil {
+		return err
+	}
+
 	if evaluator == nil {
+		return nil
+	}
 		return err
 	}
 

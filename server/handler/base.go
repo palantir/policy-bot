@@ -151,8 +151,12 @@ func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger commo
 
 	evaluator, err := b.ValidateFetchedConfig(ctx, prctx, client, fetchedConfig, trigger)
 
-	if evaluator == nil {
+	if err != nil {
 		return err
+	}
+
+	if evaluator == nil {
+		return nil
 	}
 
 	_, err = b.EvaluateFetchedConfig(ctx, prctx, client, evaluator, fetchedConfig)
