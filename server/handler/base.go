@@ -100,6 +100,7 @@ func (b *Base) PostStatus(ctx context.Context, prctx pull.Context, client *githu
 	}
 
 	if err := b.postGitHubRepoStatus(ctx, client, owner, repo, sha, status); err != nil {
+		errors.Wrap(err, "unable to post repo status")
 		logger.Err(err)
 		return
 	}
@@ -107,6 +108,7 @@ func (b *Base) PostStatus(ctx context.Context, prctx pull.Context, client *githu
 	if b.PullOpts.PostInsecureStatusChecks {
 		status.Context = &b.PullOpts.StatusCheckContext
 		if err := b.postGitHubRepoStatus(ctx, client, owner, repo, sha, status); err != nil {
+			errors.Wrap(err, "unable to post repo status with StatusCheckContext")
 			logger.Err(err)
 		}
 	}
@@ -183,7 +185,7 @@ func (b *Base) ValidateFetchedConfig(ctx context.Context, prctx pull.Context, cl
 		logger.Warn().Err(fetchedConfig.Error).Msg(fetchedConfig.Description())
 		b.PostStatus(ctx, prctx, client, "error", fetchedConfig.Description())
 
-		return nil, errors.WithMessage(fetchedConfig.Error, fetchedConfig.Description())
+		return nil, errors.Wrap(fetchedConfig.Error, fetchedConfig.Description())
 	}
 
 	evaluator, err := policy.ParsePolicy(fetchedConfig.Config)
@@ -193,7 +195,7 @@ func (b *Base) ValidateFetchedConfig(ctx context.Context, prctx pull.Context, cl
 		logger.Warn().Err(err).Msg(statusMessage)
 		b.PostStatus(ctx, prctx, client, "error", statusMessage)
 
-		return nil, errors.WithMessage(err, statusMessage)
+		return nil, errors.Wrap(err, statusMessage)
 	}
 
 	policyTrigger := evaluator.Trigger()
