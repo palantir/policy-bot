@@ -194,7 +194,7 @@ func (b *Base) ValidateFetchedConfig(ctx context.Context, prctx pull.Context, cl
 	if err != nil {
 		statusMessage := fmt.Sprintf("Unable to parse policy defined by %s", fetchedConfig)
 		logger.Warn().Err(err).Msg(statusMessage)
-		
+
 		b.PostStatus(ctx, prctx, client, "error", statusMessage)
 
 		return nil, errors.Wrap(err, statusMessage)
@@ -251,7 +251,7 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, cl
 func (b *Base) RequestReviewsForResult(ctx context.Context, prctx pull.Context, client *github.Client, result common.Result) error {
 	logger := zerolog.Ctx(ctx)
 
-	if prctx.IsDraft() || result.Status != common.StatusPending{
+	if prctx.IsDraft() || result.Status != common.StatusPending {
 		return nil
 	}
 

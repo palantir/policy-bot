@@ -47,7 +47,7 @@ type Locator struct {
 	Value *github.PullRequest
 }
 
-type TemporaryError struct{
+type TemporaryError struct {
 	error string
 }
 
