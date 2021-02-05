@@ -159,8 +159,12 @@ func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger commo
 		return nil
 	}
 
-	_, err = b.EvaluateFetchedConfig(ctx, prctx, client, evaluator, fetchedConfig)
-	return err
+	result, err := b.EvaluateFetchedConfig(ctx, prctx, client, evaluator, fetchedConfig)
+	if err != nil {
+		return err
+	}
+	
+	return b.RequestReviewsForResult(ctx, prctx, client, result)
 }
 
 func (b *Base) ValidateFetchedConfig(ctx context.Context, prctx pull.Context, client *github.Client, fetchedConfig FetchedConfig, trigger common.Trigger) (common.Evaluator, error) {
@@ -215,10 +219,6 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, cl
 	}
 
 	if err := b.PostStatusForResult(ctx, prctx, client, result); err != nil {
-		return result, err
-	}
-
-	if err := b.RequestReviewsForResult(ctx, prctx, client, result); err != nil {
 		return result, err
 	}
 

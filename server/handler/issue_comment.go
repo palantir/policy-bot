@@ -107,11 +107,13 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 	if evaluator == nil {
 		return nil
 	}
+
+	result, err := h.Base.EvaluateFetchedConfig(ctx, prctx, client, evaluator, fetchedConfig)
+	if err != nil {
 		return err
 	}
 
-	_, err = h.Base.EvaluateFetchedConfig(ctx, prctx, client, evaluator, fetchedConfig)
-	return err
+	return h.Base.RequestReviewsForResult(ctx, prctx, client, result)
 }
 
 func (h *IssueComment) detectAndLogTampering(ctx context.Context, prctx pull.Context, client *github.Client, event github.IssueCommentEvent, config *policy.Config) (bool, error) {
