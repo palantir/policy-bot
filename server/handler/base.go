@@ -193,8 +193,8 @@ func (b *Base) ValidateFetchedConfig(ctx context.Context, prctx pull.Context, cl
 	evaluator, err := policy.ParsePolicy(fetchedConfig.Config)
 	if err != nil {
 		statusMessage := fmt.Sprintf("Unable to parse policy defined by %s", fetchedConfig)
-
 		logger.Warn().Err(err).Msg(statusMessage)
+		
 		b.PostStatus(ctx, prctx, client, "error", statusMessage)
 
 		return nil, errors.Wrap(err, statusMessage)
