@@ -182,10 +182,10 @@ func (b *Base) ValidateFetchedConfig(ctx context.Context, prctx pull.Context, cl
 	}
 
 	if fetchedConfig.Invalid() {
-		logger.Warn().Err(fetchedConfig.Error).Msg(fetchedConfig.Description())
-		b.PostStatus(ctx, prctx, client, "error", fetchedConfig.Description())
+		statusMessage := fetchedConfig.Description()
+		b.PostStatus(ctx, prctx, client, "error", statusMessage)
 
-		return nil, errors.Wrap(fetchedConfig.Error, fetchedConfig.Description())
+		return nil, errors.Wrap(fetchedConfig.Error, statusMessage)
 	}
 
 	evaluator, err := policy.ParsePolicy(fetchedConfig.Config)
