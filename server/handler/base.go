@@ -166,7 +166,7 @@ func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger commo
 	if err != nil {
 		return err
 	}
-	
+
 	return b.RequestReviewsForResult(ctx, prctx, client, result)
 }
 
