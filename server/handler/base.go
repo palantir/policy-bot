@@ -80,7 +80,9 @@ func (p *PullEvaluationOptions) FillDefaults() {
 	}
 }
 
-func (b *Base) PostStatus(ctx context.Context, prctx pull.Context, client *github.Client, state, message string) error {
+func (b *Base) PostStatus(ctx context.Context, prctx pull.Context, client *github.Client, state, message string) {
+	logger := zerolog.Ctx(ctx)
+
 	owner := prctx.RepositoryOwner()
 	repo := prctx.RepositoryName()
 	sha := prctx.HeadSHA()
@@ -98,17 +100,18 @@ func (b *Base) PostStatus(ctx context.Context, prctx pull.Context, client *githu
 	}
 
 	if err := b.postGitHubRepoStatus(ctx, client, owner, repo, sha, status); err != nil {
-		return err
+		logger.Err(err)
+		return
 	}
 
 	if b.PullOpts.PostInsecureStatusChecks {
 		status.Context = &b.PullOpts.StatusCheckContext
 		if err := b.postGitHubRepoStatus(ctx, client, owner, repo, sha, status); err != nil {
-			return err
+			logger.Err(err)
 		}
 	}
 
-	return nil
+	return
 }
 
 func (b *Base) postGitHubRepoStatus(ctx context.Context, client *github.Client, owner, repo, ref string, status *github.RepoStatus) error {
