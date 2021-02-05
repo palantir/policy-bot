@@ -249,18 +249,16 @@ func (b *Base) PostStatusForResult(ctx context.Context, prctx pull.Context, clie
 func (b *Base) RequestReviewsForResult(ctx context.Context, prctx pull.Context, client *github.Client, result common.Result) error {
 	logger := zerolog.Ctx(ctx)
 
-	if prctx.IsDraft() {
+	if prctx.IsDraft() || result.Status != common.StatusPending{
 		return nil
 	}
 
-	if result.Status == common.StatusPending {
-		if reqs := reviewer.FindRequests(&result); len(reqs) > 0 {
-			logger.Debug().Msgf("Found %d pending rules with review requests enabled", len(reqs))
-			return b.requestReviews(ctx, prctx, client, reqs)
-		}
-		logger.Debug().Msgf("No pending rules have review requests enabled, skipping reviewer assignment")
+	if reqs := reviewer.FindRequests(&result); len(reqs) > 0 {
+		logger.Debug().Msgf("Found %d pending rules with review requests enabled", len(reqs))
+		return b.requestReviews(ctx, prctx, client, reqs)
 	}
 
+	logger.Debug().Msgf("No pending rules have review requests enabled, skipping reviewer assignment")
 	return nil
 }
 
