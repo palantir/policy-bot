@@ -88,10 +88,8 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 	}
 
 	if fetchedConfig.Valid() {
-		tampered, err := h.detectAndLogTampering(ctx, prctx, client, event, fetchedConfig.Config)
-		if err != nil {
-			return errors.Wrap(err, "failed to detect tampering")
-		} else if tampered {
+		tampered := h.detectAndLogTampering(ctx, prctx, client, event, fetchedConfig.Config)
+		if tampered {
 			return nil
 		}
 	} else if !fetchedConfig.Missing() {
@@ -116,7 +114,7 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 	return h.Base.RequestReviewsForResult(ctx, prctx, client, result)
 }
 
-func (h *IssueComment) detectAndLogTampering(ctx context.Context, prctx pull.Context, client *github.Client, event github.IssueCommentEvent, config *policy.Config) (bool, error) {
+func (h *IssueComment) detectAndLogTampering(ctx context.Context, prctx pull.Context, client *github.Client, event github.IssueCommentEvent, config *policy.Config) bool {
 	logger := zerolog.Ctx(ctx)
 
 	var originalBody string
@@ -128,25 +126,25 @@ func (h *IssueComment) detectAndLogTampering(ctx context.Context, prctx pull.Con
 		originalBody = event.GetComment().GetBody()
 
 	default:
-		return false, nil
+		return false
 	}
 
 	eventAuthor := event.GetSender().GetLogin()
 	commentAuthor := event.GetComment().GetUser().GetLogin()
 	if eventAuthor == commentAuthor {
-		return false, nil
+		return false
 	}
 
 	if h.affectsApproval(originalBody, config.ApprovalRules) {
 		msg := fmt.Sprintf("Entity %s edited approval comment by %s", eventAuthor, commentAuthor)
 		logger.Warn().Str(LogKeyAudit, "issue_comment").Msg(msg)
 
-		err := h.PostStatus(ctx, prctx, client, "failure", msg)
-		return true, err
+		h.PostStatus(ctx, prctx, client, "failure", msg)
+		return true
 	}
 
 	logger.Warn().Str(LogKeyAudit, "issue_comment").Msgf("The comment_editor=%s is not the author=%s", eventAuthor, commentAuthor)
-	return true, nil
+	return true
 }
 
 func (h *IssueComment) affectsApproval(actualComment string, rules []*approval.Rule) bool {
