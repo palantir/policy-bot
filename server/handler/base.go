@@ -169,7 +169,7 @@ func (b *Base) ValidateFetchedConfig(ctx context.Context, prctx pull.Context, cl
 	if fetchedConfig.Missing() {
 		logger.Debug().Msg(fetchedConfig.Description())
 
-		return nil, errors.New(fetchedConfig.Description())
+		return nil, nil
 	}
 
 	if fetchedConfig.Invalid() {
