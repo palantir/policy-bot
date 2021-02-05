@@ -183,6 +183,8 @@ func (b *Base) ValidateFetchedConfig(ctx context.Context, prctx pull.Context, cl
 
 	if fetchedConfig.Invalid() {
 		statusMessage := fetchedConfig.Description()
+		logger.Warn().Err(fetchedConfig.Error).Msg(statusMessage)
+
 		b.PostStatus(ctx, prctx, client, "error", statusMessage)
 
 		return nil, errors.Wrap(fetchedConfig.Error, statusMessage)
