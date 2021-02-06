@@ -142,7 +142,7 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 
 	if err != nil {
 		if _, ok := err.(*pull.TemporaryError); ok {
-			errors.WithMessage(err, "This error may be temporary. Wait 30 seconds and refresh this page to retry")
+			err = errors.WithMessage(err, "This error may be temporary. Wait 30 seconds and refresh this page to retry")
 		}
 		data.Error = err
 	}

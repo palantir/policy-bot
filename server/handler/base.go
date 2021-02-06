@@ -100,16 +100,14 @@ func (b *Base) PostStatus(ctx context.Context, prctx pull.Context, client *githu
 	}
 
 	if err := b.postGitHubRepoStatus(ctx, client, owner, repo, sha, status); err != nil {
-		errors.Wrap(err, "unable to post repo status")
-		logger.Err(err)
+		logger.Err(errors.Wrap(err, "unable to post repo status"))
 		return
 	}
 
 	if b.PullOpts.PostInsecureStatusChecks {
 		status.Context = &b.PullOpts.StatusCheckContext
 		if err := b.postGitHubRepoStatus(ctx, client, owner, repo, sha, status); err != nil {
-			errors.Wrap(err, "unable to post repo status with StatusCheckContext")
-			logger.Err(err)
+			logger.Err(errors.Wrap(err, "unable to post repo status with StatusCheckContext"))
 		}
 	}
 
