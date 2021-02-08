@@ -27,7 +27,6 @@ import (
 	"github.com/pkg/errors"
 	"goji.io/pat"
 
-	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 )
@@ -109,11 +108,12 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	var data struct {
-		Error       error
-		Result      *common.Result
-		PullRequest *github.PullRequest
-		User        string
-		PolicyURL   string
+		Error            error
+		IsTemporaryError bool
+		Result           *common.Result
+		PullRequest      *github.PullRequest
+		User             string
+		PolicyURL        string
 	}
 
 	data.PullRequest = pr
@@ -121,30 +121,32 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 
 	config, err := h.ConfigFetcher.ConfigForPR(ctx, prctx, client)
 	data.PolicyURL = getPolicyURL(pr, config)
+	if err != nil {
+		data.Error = errors.WithMessage(err, fmt.Sprintf("Failed to fetch configuration: %s", config))
+		return h.render(w, data)
+	}
+
+	evaluator, err := h.Base.ValidateFetchedConfig(ctx, prctx, client, config, common.TriggerAll)
 
 	if err != nil {
-		data.Error = errors.WithMessage(err, fmt.Sprintf("Failed to fetch configuration at ref=%s", config.Ref))
+		data.Error = err
 		return h.render(w, data)
 	}
 
-	if config.Missing() {
-		data.Error = errors.New(config.Description())
+	if evaluator == nil {
+		data.Error = errors.Errorf("Unable to evaluate: %s", config.Description())
 		return h.render(w, data)
 	}
 
-	if config.Invalid() {
-		data.Error = errors.WithMessage(config.Error, config.Description())
-		return h.render(w, data)
-	}
-
-	evaluator, err := policy.ParsePolicy(config.Config)
-	if err != nil {
-		data.Error = errors.WithMessage(err, fmt.Sprintf("invalid policy at ref \"%s\"", config.Ref))
-		return h.render(w, data)
-	}
-
-	result := evaluator.Evaluate(ctx, prctx)
+	result, err := h.Base.EvaluateFetchedConfig(ctx, prctx, client, evaluator, config)
 	data.Result = &result
+
+	if err != nil {
+		if _, ok := errors.Cause(err).(*pull.TemporaryError); ok {
+			data.IsTemporaryError = true
+		}
+		data.Error = err
+	}
 
 	return h.render(w, data)
 }

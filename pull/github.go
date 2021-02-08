@@ -16,6 +16,7 @@ package pull
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -44,6 +45,14 @@ type Locator struct {
 	Number int
 
 	Value *github.PullRequest
+}
+
+type TemporaryError struct {
+	error string
+}
+
+func (te *TemporaryError) Error() string {
+	return te.error
 }
 
 // IsComplete returns true if the locator contains a pull request object with
@@ -706,7 +715,14 @@ func (ghc *GitHubContext) loadPushedAt(commits []*Commit) error {
 	}
 
 	if len(commitsBySHA) > 0 {
-		return errors.Errorf("%d commits were not found while loading pushed dates", len(commitsBySHA))
+		missingSHAs := make([]string, 0, len(commitsBySHA))
+		for sha := range commitsBySHA {
+			missingSHAs = append(missingSHAs, sha)
+		}
+
+		err := &TemporaryError{fmt.Sprintf("%d commits were not found while loading pushed dates. Missing %s.",
+			len(commitsBySHA), strings.Join(missingSHAs, ", "))}
+		return err
 	}
 	return nil
 }

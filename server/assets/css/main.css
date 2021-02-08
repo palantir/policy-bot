@@ -129,6 +129,8 @@ a:hover {
 .status-banner.skipped { @apply bg-gray3 border-gray2; }
 .status-banner.error { @apply bg-red3 border-red2; }
 
+.status-temporary { @apply rounded bg-red1 p-3 mt-4 inline-block }
+
 .status-stripe {
   @apply border-l-8;
 }
