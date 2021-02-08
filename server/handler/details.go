@@ -134,7 +134,7 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	if evaluator == nil {
-		data.Error = errors.Errorf("Unable to evaluate nil evaluator: %s", config.Description())
+		data.Error = errors.Errorf("Unable to evaluate: %s", config.Description())
 		return h.render(w, data)
 	}
 
