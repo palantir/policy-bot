@@ -24,7 +24,10 @@
   {{if .Error}}
     <div class="status-banner error">
       <h2 class="mb-1 text-lg font-bold">Error</h2>
-      <p>{{.Error}}<p>
+      <p>{{.Error}}</p>
+      {{if .IsTemporaryError}}
+          <p class="status-temporary">This error may be temporary. Wait 30 seconds and refresh this page to retry.</p>
+      {{end}}
     </div>
   {{else}}
     {{ $s := (or (and .Result.Error "error") (.Result.Status | print)) }}

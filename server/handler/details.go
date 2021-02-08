@@ -108,11 +108,12 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	var data struct {
-		Error       error
-		Result      *common.Result
-		PullRequest *github.PullRequest
-		User        string
-		PolicyURL   string
+		Error            error
+		IsTemporaryError bool
+		Result           *common.Result
+		PullRequest      *github.PullRequest
+		User             string
+		PolicyURL        string
 	}
 
 	data.PullRequest = pr
@@ -141,8 +142,8 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	data.Result = &result
 
 	if err != nil {
-		if _, ok := err.(*pull.TemporaryError); ok {
-			err = errors.WithMessage(err, "This error may be temporary. Wait 30 seconds and refresh this page to retry")
+		if _, ok := errors.Cause(err).(*pull.TemporaryError); ok {
+			data.IsTemporaryError = true
 		}
 		data.Error = err
 	}

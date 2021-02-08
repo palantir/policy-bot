@@ -617,7 +617,7 @@ func (ghc *GitHubContext) loadCommits() ([]*Commit, error) {
 	// In the second case, retrying after a delay can fix things, but the delay
 	// can be 15+ seconds in practice, so using the alternate API should
 	// improve latency at the cost of more API requests.
-	if head.PushedAt == nil {
+	//if head.PushedAt == nil {
 		log.Debug().
 			Bool("fork", ghc.pr.IsCrossRepository).
 			Msgf("failed to load pushed date via pull request, falling back to commit APIs")
@@ -625,7 +625,7 @@ func (ghc *GitHubContext) loadCommits() ([]*Commit, error) {
 		if err := ghc.loadPushedAt(commits); err != nil {
 			return nil, err
 		}
-	}
+	//}
 
 	if head.PushedAt == nil {
 		return nil, errors.Errorf("head commit %.10s is missing pushed date; this is probably a bug", ghc.pr.HeadRefOID)
@@ -670,49 +670,49 @@ func (ghc *GitHubContext) loadPushedAt(commits []*Commit) error {
 		commitsBySHA[c.SHA] = c
 	}
 
-	var q struct {
-		Repository struct {
-			Object struct {
-				Commit struct {
-					History struct {
-						PageInfo v4PageInfo
-						Nodes    []struct {
-							OID        string
-							PushedDate *time.Time
-						}
-					} `graphql:"history(first: 100, after: $cursor)"`
-				} `graphql:"... on Commit"`
-			} `graphql:"object(oid: $oid)"`
-		} `graphql:"repository(owner: $owner, name: $name)"`
-	}
-	qvars := map[string]interface{}{
-		"owner":  githubv4.String(ghc.pr.HeadRepository.Owner.Login),
-		"name":   githubv4.String(ghc.pr.HeadRepository.Name),
-		"oid":    githubv4.GitObjectID(ghc.pr.HeadRefOID),
-		"cursor": (*githubv4.String)(nil),
-	}
-
-	loaded := 0
-	for {
-		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
-			return errors.Wrap(err, "failed to load commit pushed dates")
-		}
-		for _, n := range q.Repository.Object.Commit.History.Nodes {
-			if c, ok := commitsBySHA[n.OID]; ok {
-				c.PushedAt = n.PushedDate
-				delete(commitsBySHA, n.OID)
-			}
-		}
-
-		loaded += len(q.Repository.Object.Commit.History.Nodes)
-		if loaded > len(commits) {
-			break
-		}
-
-		if !q.Repository.Object.Commit.History.PageInfo.UpdateCursor(qvars, "cursor") {
-			break
-		}
-	}
+	//var q struct {
+	//	Repository struct {
+	//		Object struct {
+	//			Commit struct {
+	//				History struct {
+	//					PageInfo v4PageInfo
+	//					Nodes    []struct {
+	//						OID        string
+	//						PushedDate *time.Time
+	//					}
+	//				} `graphql:"history(first: 100, after: $cursor)"`
+	//			} `graphql:"... on Commit"`
+	//		} `graphql:"object(oid: $oid)"`
+	//	} `graphql:"repository(owner: $owner, name: $name)"`
+	//}
+	//qvars := map[string]interface{}{
+	//	"owner":  githubv4.String(ghc.pr.HeadRepository.Owner.Login),
+	//	"name":   githubv4.String(ghc.pr.HeadRepository.Name),
+	//	"oid":    githubv4.GitObjectID(ghc.pr.HeadRefOID),
+	//	"cursor": (*githubv4.String)(nil),
+	//}
+	//
+	//loaded := 0
+	//for {
+	//	if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
+	//		return errors.Wrap(err, "failed to load commit pushed dates")
+	//	}
+	//	for _, n := range q.Repository.Object.Commit.History.Nodes {
+	//		if c, ok := commitsBySHA[n.OID]; ok {
+	//			c.PushedAt = n.PushedDate
+	//			delete(commitsBySHA, n.OID)
+	//		}
+	//	}
+	//
+	//	loaded += len(q.Repository.Object.Commit.History.Nodes)
+	//	if loaded > len(commits) {
+	//		break
+	//	}
+	//
+	//	if !q.Repository.Object.Commit.History.PageInfo.UpdateCursor(qvars, "cursor") {
+	//		break
+	//	}
+	//}
 
 	if len(commitsBySHA) > 0 {
 		missingSHAs := make([]string, 0, len(commitsBySHA))
