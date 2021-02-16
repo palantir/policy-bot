@@ -98,8 +98,8 @@ func (loc Locator) toV4(ctx context.Context, client *githubv4.Client) (*v4PullRe
 
 	var v4 v4PullRequest
 	v4.Title = loc.Value.GetTitle()
-	v4.CreatedAt = loc.Value.GetCreatedAt()
 	v4.Author.Login = loc.Value.GetUser().GetLogin()
+	v4.CreatedAt = loc.Value.GetCreatedAt()
 	v4.IsCrossRepository = loc.Value.GetHead().GetRepo().GetID() != loc.Value.GetBase().GetRepo().GetID()
 	v4.HeadRefOID = loc.Value.GetHead().GetSHA()
 	v4.HeadRefName = loc.Value.GetHead().GetRef()
@@ -174,12 +174,12 @@ func (ghc *GitHubContext) RepositoryName() string {
 	return ghc.repo
 }
 
-func (ghc *GitHubContext) Title() string {
-	return ghc.pr.Title
-}
-
 func (ghc *GitHubContext) Number() int {
 	return ghc.number
+}
+
+func (ghc *GitHubContext) Title() string {
+	return ghc.pr.Title
 }
 
 func (ghc *GitHubContext) Author() string {
