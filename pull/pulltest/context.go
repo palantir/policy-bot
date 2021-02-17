@@ -28,7 +28,7 @@ type Context struct {
 	TitleValue     string
 	AuthorValue    string
 	CreatedAtValue time.Time
-	StateValue    string
+	StateValue     string
 	HeadSHAValue   string
 
 	BranchBaseName string
