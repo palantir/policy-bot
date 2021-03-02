@@ -68,7 +68,7 @@ and numbers) in three formats:
 [double-quoted](https://yaml.org/spec/1.2/spec.html#id2787109), and 
 [plain](https://yaml.org/spec/1.2/spec.html#id2788859). Each support different 
 escape characters, which can cause confusion when used for regex strings 
-(which often contain the \\ character).
+(which often contain the `\\` character).
 
 - Single Quoted: `'` is used as an escape character. Backslash characters do not need to be escaped.
   e.g. `'^BREAKING CHANGE: (\w| )+$'`
