@@ -61,23 +61,6 @@ Consider the following example, which allows changes to certain paths without
 review, but all other changes require review from the `palantir/devtools`.
 Any member of the `palantir` organization can also disapprove changes.
 
-#### Notes on YAML Syntax
-The YAML language specification supports flow scalars (basic values like strings
-and numbers) in three formats: 
-[single-quoted](https://yaml.org/spec/1.2/spec.html#id2788097), 
-[double-quoted](https://yaml.org/spec/1.2/spec.html#id2787109), and 
-[plain](https://yaml.org/spec/1.2/spec.html#id2788859). Each support different 
-escape characters, which can cause confusion when used for regex strings 
-(which often contain the `\\` character).
-
-- Single Quoted: `'` is used as an escape character. Backslash characters do not need to be escaped.
-  e.g. `'^BREAKING CHANGE: (\w| )+$'`
-- Double Quoted: `\` is used as an escape character. Backslash characters must 
-  be escaped with a preceding `\`.
-  e.g. `"^BREAKING CHANGE: (\\w| )+$"`
-- Plain: There are no escape characters. Backslash characters do not need to be escaped.
-  e.g. `^BREAKING CHANGE: (\w| )+$`
-
 ```yaml
 # the high level policy
 policy:
@@ -105,6 +88,23 @@ approval_rules:
     requires:
       count: 0
 ```
+
+#### Notes on YAML Syntax
+The YAML language specification supports flow scalars (basic values like strings
+and numbers) in three formats:
+[single-quoted](https://yaml.org/spec/1.2/spec.html#id2788097),
+[double-quoted](https://yaml.org/spec/1.2/spec.html#id2787109), and
+[plain](https://yaml.org/spec/1.2/spec.html#id2788859). Each support different
+escape characters, which can cause confusion when used for regex strings
+(which often contain the `\\` character).
+
+- Single Quoted: `'` is used as an escape character. Backslash characters do not need to be escaped.
+  e.g. `'^BREAKING CHANGE: (\w| )+$'`
+- Double Quoted: `\` is used as an escape character. Backslash characters must
+  be escaped with a preceding `\`.
+  e.g. `"^BREAKING CHANGE: (\\w| )+$"`
+- Plain: There are no escape characters. Backslash characters do not need to be escaped.
+  e.g. `^BREAKING CHANGE: (\w| )+$`
 
 #### Remote Policy Configuration
 You can also define a remote policy by specifying a repository, path, and ref
