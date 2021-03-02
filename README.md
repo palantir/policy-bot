@@ -141,6 +141,9 @@ if:
   # regular expression in the "paths" list. If the "ignore" list is present,
   # files in the pull request matching these regular expressions are ignored
   # by this rule.
+  #
+  # Note: Double-quote strings must escape backslashes while single/plain do not.
+  # See [Notes on YAML Syntax](#notes-on-yaml-syntax) for more information.
   changed_files:
     paths:
       - "config/.*"
@@ -150,6 +153,9 @@ if:
 
   # "only_changed_files" is satisfied if all files changed by the pull request
   # match at least one regular expression in the list.
+  #
+  # Note: Double-quote strings must escape backslashes while single/plain do not.
+  # See [Notes on YAML Syntax](#notes-on-yaml-syntax) for more information.
   only_changed_files:
     paths:
       - "config/.*"
@@ -187,12 +193,18 @@ if:
 
   # "targets_branch" is satisfied if the target branch of the pull request
   # matches the regular expression
+  #
+  # Note: Double-quote strings must escape backslashes while single/plain do not.
+  # See [Notes on YAML Syntax](#notes-on-yaml-syntax) for more information.
   targets_branch:
     pattern: "^(master|regexPattern)$"
 
   # "from_branch" is satisfied if the source branch of the pull request
   # matches the regular expression. Note that source branches from forks will
   # have the pattern "repo_owner:branch_name"
+  #
+  # Note: Double-quote strings must escape backslashes while single/plain do not.
+  # See [Notes on YAML Syntax](#notes-on-yaml-syntax) for more information.
   from_branch:
     pattern: "^(master|regexPattern)$"
 
@@ -223,12 +235,12 @@ if:
   # e.g. this predicate triggers for titles including "BREAKING CHANGE" or titles
   # that are not marked as docs/style/chore changes (using conventional commits 
   # formatting)
-  # Note: The '\' character must be escaped in double quoted strings, and should not be
-  # escaped in plain (unquoted) strings.
+  #
+  # Note: Double-quote strings must escape backslashes while single/plain do not.
+  # See [Notes on YAML Syntax](#notes-on-yaml-syntax) for more information.
   title:
     matches:
       - "^BREAKING CHANGE: (\\w| )+$"
-      - ^Update (\w| )+$
     not_matches:
       - "^(docs|style|chore): (\\w| )+$"
 
@@ -291,6 +303,9 @@ options:
       - "👍"
     # If a comment matches a regular expression in this list, it counts as
     # approval. Defaults to an empty list.
+    #
+    # Note: Double-quote strings must escape backslashes while single/plain do not.
+    # See [Notes on YAML Syntax](#notes-on-yaml-syntax) for more information.
     comment_patterns:
       - "^Signed-off by \\s+$"
     # If true, GitHub reviews can be used for approval. Default is true.
