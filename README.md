@@ -143,7 +143,7 @@ if:
   # by this rule.
   #
   # Note: Double-quote strings must escape backslashes while single/plain do not.
-  # See [Notes on YAML Syntax](#notes-on-yaml-syntax) for more information.
+  # See the Notes on YAML Syntax section of this README for more information.
   changed_files:
     paths:
       - "config/.*"
@@ -155,7 +155,7 @@ if:
   # match at least one regular expression in the list.
   #
   # Note: Double-quote strings must escape backslashes while single/plain do not.
-  # See [Notes on YAML Syntax](#notes-on-yaml-syntax) for more information.
+  # See the Notes on YAML Syntax section of this README for more information.
   only_changed_files:
     paths:
       - "config/.*"
@@ -195,7 +195,7 @@ if:
   # matches the regular expression
   #
   # Note: Double-quote strings must escape backslashes while single/plain do not.
-  # See [Notes on YAML Syntax](#notes-on-yaml-syntax) for more information.
+  # See the Notes on YAML Syntax section of this README for more information.
   targets_branch:
     pattern: "^(master|regexPattern)$"
 
@@ -204,7 +204,7 @@ if:
   # have the pattern "repo_owner:branch_name"
   #
   # Note: Double-quote strings must escape backslashes while single/plain do not.
-  # See [Notes on YAML Syntax](#notes-on-yaml-syntax) for more information.
+  # See the Notes on YAML Syntax section of this README for more information.
   from_branch:
     pattern: "^(master|regexPattern)$"
 
@@ -237,7 +237,7 @@ if:
   # formatting)
   #
   # Note: Double-quote strings must escape backslashes while single/plain do not.
-  # See [Notes on YAML Syntax](#notes-on-yaml-syntax) for more information.
+  # See the Notes on YAML Syntax section of this README for more information.
   title:
     matches:
       - "^BREAKING CHANGE: (\\w| )+$"
@@ -305,7 +305,7 @@ options:
     # approval. Defaults to an empty list.
     #
     # Note: Double-quote strings must escape backslashes while single/plain do not.
-    # See [Notes on YAML Syntax](#notes-on-yaml-syntax) for more information.
+    # See the Notes on YAML Syntax section of this README for more information.
     comment_patterns:
       - "^Signed-off by \\s+$"
     # If true, GitHub reviews can be used for approval. Default is true.
