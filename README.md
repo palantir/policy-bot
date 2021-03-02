@@ -72,8 +72,8 @@ escape characters, which can cause confusion when used for regex strings
 
 - Single Quoted: `'` is used as an escape character. Backslash characters do not need to be escaped.
   e.g. `'^BREAKING CHANGE: (\w| )+$'`
-- Double Quoted: `\\` is used as an escape character. Backslash characters must 
-  be escaped with a preceding `\\`.
+- Double Quoted: `\` is used as an escape character. Backslash characters must 
+  be escaped with a preceding `\`.
   e.g. `"^BREAKING CHANGE: (\\w| )+$"`
 - Plain: There are no escape characters. Backslash characters do not need to be escaped.
   e.g. `^BREAKING CHANGE: (\w| )+$`
