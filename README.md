@@ -205,10 +205,13 @@ if:
   # within the "not_matches" list.
   # e.g. this predicate triggers for titles including "BREAKING CHANGE" or titles
   # that are not marked as docs/style/chore changes (using conventional commits 
-  # formatting)    
+  # formatting)
+  # Note: The '\' character must be escaped in double quoted strings, and should not be
+  # escaped in plain (unquoted) strings.
   title:
     matches:
       - "^BREAKING CHANGE: (\\w| )+$"
+      - ^Update (\w| )+$
     not_matches:
       - "^(docs|style|chore): (\\w| )+$"
 
