@@ -89,6 +89,23 @@ approval_rules:
       count: 0
 ```
 
+#### Notes on YAML Syntax
+The YAML language specification supports flow scalars (basic values like strings
+and numbers) in three formats:
+[single-quoted](https://yaml.org/spec/1.2/spec.html#id2788097),
+[double-quoted](https://yaml.org/spec/1.2/spec.html#id2787109), and
+[plain](https://yaml.org/spec/1.2/spec.html#id2788859). Each support different
+escape characters, which can cause confusion when used for regex strings
+(which often contain the `\\` character).
+
+- Single Quoted: `'` is used as an escape character. Backslash characters do not need to be escaped.
+  e.g. `'^BREAKING CHANGE: (\w| )+$'`
+- Double Quoted: `\` is used as an escape character. Backslash characters must
+  be escaped with a preceding `\`.
+  e.g. `"^BREAKING CHANGE: (\\w| )+$"`
+- Plain: There are no escape characters. Backslash characters do not need to be escaped.
+  e.g. `^BREAKING CHANGE: (\w| )+$`
+
 #### Remote Policy Configuration
 You can also define a remote policy by specifying a repository, path, and ref
 (only repository is required). Instead of defining a `policy` key, you would
@@ -124,6 +141,9 @@ if:
   # regular expression in the "paths" list. If the "ignore" list is present,
   # files in the pull request matching these regular expressions are ignored
   # by this rule.
+  #
+  # Note: Double-quote strings must escape backslashes while single/plain do not.
+  # See the Notes on YAML Syntax section of this README for more information.
   changed_files:
     paths:
       - "config/.*"
@@ -133,6 +153,9 @@ if:
 
   # "only_changed_files" is satisfied if all files changed by the pull request
   # match at least one regular expression in the list.
+  #
+  # Note: Double-quote strings must escape backslashes while single/plain do not.
+  # See the Notes on YAML Syntax section of this README for more information.
   only_changed_files:
     paths:
       - "config/.*"
@@ -170,12 +193,18 @@ if:
 
   # "targets_branch" is satisfied if the target branch of the pull request
   # matches the regular expression
+  #
+  # Note: Double-quote strings must escape backslashes while single/plain do not.
+  # See the Notes on YAML Syntax section of this README for more information.
   targets_branch:
     pattern: "^(master|regexPattern)$"
 
   # "from_branch" is satisfied if the source branch of the pull request
   # matches the regular expression. Note that source branches from forks will
   # have the pattern "repo_owner:branch_name"
+  #
+  # Note: Double-quote strings must escape backslashes while single/plain do not.
+  # See the Notes on YAML Syntax section of this README for more information.
   from_branch:
     pattern: "^(master|regexPattern)$"
 
@@ -205,7 +234,10 @@ if:
   # within the "not_matches" list.
   # e.g. this predicate triggers for titles including "BREAKING CHANGE" or titles
   # that are not marked as docs/style/chore changes (using conventional commits 
-  # formatting)    
+  # formatting)
+  #
+  # Note: Double-quote strings must escape backslashes while single/plain do not.
+  # See the Notes on YAML Syntax section of this README for more information.
   title:
     matches:
       - "^BREAKING CHANGE: (\\w| )+$"
@@ -271,6 +303,9 @@ options:
       - "👍"
     # If a comment matches a regular expression in this list, it counts as
     # approval. Defaults to an empty list.
+    #
+    # Note: Double-quote strings must escape backslashes while single/plain do not.
+    # See the Notes on YAML Syntax section of this README for more information.
     comment_patterns:
       - "^Signed-off by \\s+$"
     # If true, GitHub reviews can be used for approval. Default is true.
