@@ -192,10 +192,6 @@ func (ghc *GitHubContext) CreatedAt() time.Time {
 	return ghc.pr.CreatedAt
 }
 
-func (ghc *GitHubContext) State() string {
-	return ghc.pr.State
-}
-
 func (ghc *GitHubContext) IsOpen() bool {
 	return ghc.pr.State == "open"
 }
