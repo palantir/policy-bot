@@ -196,6 +196,14 @@ func (ghc *GitHubContext) State() string {
 	return ghc.pr.State
 }
 
+func (ghc *GitHubContext) IsOpen() bool {
+	return ghc.pr.State == "open"
+}
+
+func (ghc *GitHubContext) IsClosed() bool {
+	return ghc.pr.State == "closed"
+}
+
 func (ghc *GitHubContext) HeadSHA() string {
 	return ghc.pr.HeadRefOID
 }

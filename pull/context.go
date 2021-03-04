@@ -65,8 +65,11 @@ type Context interface {
 	// CreatedAt returns the time when the pull request was created.
 	CreatedAt() time.Time
 
-	// State returns the state of the pull request (open or closed)
-	State() string
+	// IsOpen returns true when the state of the pull request is "open"
+	IsOpen() bool
+
+	// IsClosed returns true when the state of the pull request is "closed"
+	IsClosed() bool
 
 	// HeadSHA returns the SHA of the head commit of the pull request.
 	HeadSHA() string
