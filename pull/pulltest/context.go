@@ -28,6 +28,7 @@ type Context struct {
 	TitleValue     string
 	AuthorValue    string
 	CreatedAtValue time.Time
+	StateValue     string
 	HeadSHAValue   string
 
 	BranchBaseName string
@@ -100,6 +101,14 @@ func (c *Context) Author() string {
 
 func (c *Context) CreatedAt() time.Time {
 	return c.CreatedAtValue
+}
+
+func (c *Context) IsOpen() bool {
+	return c.StateValue == "open"
+}
+
+func (c *Context) IsClosed() bool {
+	return c.StateValue == "closed"
 }
 
 func (c *Context) HeadSHA() string {

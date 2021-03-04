@@ -88,6 +88,11 @@ func (b *Base) PostStatus(ctx context.Context, prctx pull.Context, client *githu
 	sha := prctx.HeadSHA()
 	base, _ := prctx.Branches()
 
+	if !prctx.IsOpen() {
+		logger.Info().Msg("Skipping status update because PR state is not open")
+		return
+	}
+
 	publicURL := strings.TrimSuffix(b.BaseConfig.PublicURL, "/")
 	detailsURL := fmt.Sprintf("%s/details/%s/%s/%d", publicURL, owner, repo, prctx.Number())
 

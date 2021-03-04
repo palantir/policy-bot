@@ -63,6 +63,7 @@ func (loc Locator) IsComplete() bool {
 	case loc.Value.Draft == nil:
 	case loc.Value.GetTitle() == "":
 	case loc.Value.GetCreatedAt().IsZero():
+	case loc.Value.GetState() == "":
 	case loc.Value.GetUser().GetLogin() == "":
 	case loc.Value.GetBase().GetRef() == "":
 	case loc.Value.GetBase().GetRepo().GetID() == 0:
@@ -98,8 +99,9 @@ func (loc Locator) toV4(ctx context.Context, client *githubv4.Client) (*v4PullRe
 
 	var v4 v4PullRequest
 	v4.Title = loc.Value.GetTitle()
-	v4.CreatedAt = loc.Value.GetCreatedAt()
 	v4.Author.Login = loc.Value.GetUser().GetLogin()
+	v4.CreatedAt = loc.Value.GetCreatedAt()
+	v4.State = loc.Value.GetState()
 	v4.IsCrossRepository = loc.Value.GetHead().GetRepo().GetID() != loc.Value.GetBase().GetRepo().GetID()
 	v4.HeadRefOID = loc.Value.GetHead().GetSHA()
 	v4.HeadRefName = loc.Value.GetHead().GetRef()
@@ -174,12 +176,12 @@ func (ghc *GitHubContext) RepositoryName() string {
 	return ghc.repo
 }
 
-func (ghc *GitHubContext) Title() string {
-	return ghc.pr.Title
-}
-
 func (ghc *GitHubContext) Number() int {
 	return ghc.number
+}
+
+func (ghc *GitHubContext) Title() string {
+	return ghc.pr.Title
 }
 
 func (ghc *GitHubContext) Author() string {
@@ -188,6 +190,14 @@ func (ghc *GitHubContext) Author() string {
 
 func (ghc *GitHubContext) CreatedAt() time.Time {
 	return ghc.pr.CreatedAt
+}
+
+func (ghc *GitHubContext) IsOpen() bool {
+	return ghc.pr.State == "open"
+}
+
+func (ghc *GitHubContext) IsClosed() bool {
+	return ghc.pr.State == "closed"
 }
 
 func (ghc *GitHubContext) HeadSHA() string {
@@ -759,6 +769,7 @@ type v4PullRequest struct {
 	Author    v4Actor
 	Title     string
 	CreatedAt time.Time
+	State     string
 
 	IsCrossRepository bool
 

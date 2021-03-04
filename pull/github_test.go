@@ -456,6 +456,7 @@ func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest) Conte
 func defaultTestPR() *github.PullRequest {
 	return &github.PullRequest{
 		Title:     github.String("test title"),
+		State:     github.String("open"),
 		Number:    github.Int(123),
 		CreatedAt: newTime(time.Date(2020, 9, 30, 17, 42, 10, 0, time.UTC)),
 		Draft:     github.Bool(false),
