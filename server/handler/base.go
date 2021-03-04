@@ -88,7 +88,7 @@ func (b *Base) PostStatus(ctx context.Context, prctx pull.Context, client *githu
 	sha := prctx.HeadSHA()
 	base, _ := prctx.Branches()
 
-	if prctx.State() != "open" {
+	if !prctx.IsOpen() {
 		logger.Info().Msg("Skipping status update because PR state is not open")
 		return
 	}
