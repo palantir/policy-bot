@@ -162,7 +162,7 @@ func TestIsDisapproved(t *testing.T) {
 			},
 		}
 
-		assertDisapproved(t, p, "Title doesn't match a NotMatch pattern")
+		assertDisapproved(t, p, "PR Title doesn't match a NotMatch pattern")
 	})
 
 	t.Run("predicateDoesNotDisapprove", func(t *testing.T) {
