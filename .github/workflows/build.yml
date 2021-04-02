@@ -25,7 +25,7 @@ jobs:
       uses: actions/cache@v2
       with:
         path: ~/.godel
-        key: ${{ runner.os }}-godel-${{ hashFiles('godelw') }}-${{ hashFiles('godel/config/godel.yml') }}
+        key: ${{ runner.os }}-godel-${{ hashFiles('godelw', 'godel/config/godel.yml') }}
         restore-keys: |
           ${{ runner.os }}-godel-
 
@@ -50,7 +50,7 @@ jobs:
       uses: actions/cache@v2
       with:
         path: ~/.godel
-        key: ${{ runner.os }}-godel-${{ hashFiles('godelw') }}-${{ hashFiles('godel/config/godel.yml') }}
+        key: ${{ runner.os }}-godel-${{ hashFiles('godelw', 'godel/config/godel.yml') }}
         restore-keys: |
           ${{ runner.os }}-godel-
 
