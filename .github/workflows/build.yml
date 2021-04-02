@@ -15,7 +15,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v2
       with:
-        go-version: 1.15
+        go-version: 1.16
 
     - name: Verify
       run: ./godelw verify --apply=false
@@ -28,7 +28,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v2
       with:
-        go-version: 1.15
+        go-version: 1.16
 
     - name: Set up Node
       uses: actions/setup-node@v2
@@ -36,10 +36,10 @@ jobs:
         node-version: 12
 
     - name: Install Front End Dependencies
-      run: yan install
+      run: yarn install
 
     - name: Build Front End
-      run: yan run build:production
+      run: yarn run build:production
 
     - name: Build Distribution
       run: ./godelw dist
