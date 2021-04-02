@@ -95,7 +95,7 @@ jobs:
       with:
         name: dist
         path: |
-          out/policy-bot/*/bin/*.tgz
+          build/policy-bot/*/bin/*.tgz
 
     #
     # Steps after this point should only run when publishing
