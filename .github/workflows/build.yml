@@ -25,9 +25,9 @@ jobs:
       uses: actions/cache@v2
       with:
         path: ~/.godel
-        key: ${{ runer.os }}-godel-${{ hashFiles('godelw') }}-${{ hashFiles('godel/config/godel.yml') }}
+        key: ${{ runner.os }}-godel-${{ hashFiles('godelw') }}-${{ hashFiles('godel/config/godel.yml') }}
         restore-keys: |
-          ${{ runer.os }}-godel-
+          ${{ runner.os }}-godel-
 
     - name: Verify
       run: ./godelw verify --apply=false
@@ -50,9 +50,9 @@ jobs:
       uses: actions/cache@v2
       with:
         path: ~/.godel
-        key: ${{ runer.os }}-godel-${{ hashFiles('godelw') }}-${{ hashFiles('godel/config/godel.yml') }}
+        key: ${{ runner.os }}-godel-${{ hashFiles('godelw') }}-${{ hashFiles('godel/config/godel.yml') }}
         restore-keys: |
-          ${{ runer.os }}-godel-
+          ${{ runner.os }}-godel-
 
     - name: Set up Node
       uses: actions/setup-node@v2
@@ -63,9 +63,9 @@ jobs:
       uses: actions/cache@v2
       with:
         path: node_modules
-        key: ${{ runer.os }}-node-modules-${{ hashFiles('yarn.lock') }}
+        key: ${{ runner.os }}-node-modules-${{ hashFiles('yarn.lock') }}
         restore-keys: |
-          ${{ runer.os }}-node-modules-
+          ${{ runner.os }}-node-modules-
 
     - name: Install frontend dependencies
       run: yarn install
