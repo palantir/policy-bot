@@ -1,0 +1,48 @@
+name: Build
+
+on:
+  push:
+    branches: [ develop ]
+  pull_request:
+    branches: [ develop ]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.15
+
+    - name: Verify
+      run: ./godelw verify --apply=false
+
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.15
+
+    - name: Set up Node
+      uses: actions/setup-node@v2
+      with:
+        node-version: 12
+
+    - name: Install Front End Dependencies
+      run: yan install
+
+    - name: Build Front End
+      run: yan run build:production
+
+    - name: Build Distribution
+      run: ./godelw dist
+
+    - name: Build Docker Image
+      run: ./godelw docker build --verbose
