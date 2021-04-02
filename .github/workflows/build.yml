@@ -9,6 +9,10 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+
+    env:
+      GOPATH: /home/runner/go
+
     steps:
     - uses: actions/checkout@v2
 
@@ -16,12 +20,24 @@ jobs:
       uses: actions/setup-go@v2
       with:
         go-version: 1.16
+
+    - name: Cache Godel assets
+      uses: actions/cache@v2
+      with:
+        path: ~/.godel
+        key: ${{ runer.os }}-godel-${{ hashFiles('godelw') }}-${{ hashFiles('godel/config/godel.yml') }}
+        restore-keys: |
+          ${{ runer.os }}-godel-
 
     - name: Verify
       run: ./godelw verify --apply=false
 
   build-and-publish:
     runs-on: ubuntu-latest
+
+    env:
+      GOPATH: /home/runner/go
+
     steps:
     - uses: actions/checkout@v2
 
@@ -30,19 +46,35 @@ jobs:
       with:
         go-version: 1.16
 
+    - name: Cache Godel assets
+      uses: actions/cache@v2
+      with:
+        path: ~/.godel
+        key: ${{ runer.os }}-godel-${{ hashFiles('godelw') }}-${{ hashFiles('godel/config/godel.yml') }}
+        restore-keys: |
+          ${{ runer.os }}-godel-
+
     - name: Set up Node
       uses: actions/setup-node@v2
       with:
         node-version: 12
 
-    - name: Install Front End Dependencies
+    - name: Cache node_modules
+      uses: actions/cache@v2
+      with:
+        path: node_modules
+        key: ${{ runer.os }}-node-modules-${{ hashFiles('yarn.lock') }}
+        restore-keys: |
+          ${{ runer.os }}-node-modules-
+
+    - name: Install frontend dependencies
       run: yarn install
 
-    - name: Build Front End
+    - name: Build frontend
       run: yarn run build:production
 
-    - name: Build Distribution
+    - name: Build distribution
       run: ./godelw dist
 
-    - name: Build Docker Image
+    - name: Build Docker image
       run: ./godelw docker build --verbose
