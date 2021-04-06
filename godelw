@@ -3,9 +3,9 @@
 set -euo pipefail
 
 # Version and checksums for godel. Values are populated by the godel "dist" task.
-VERSION=2.26.0
-DARWIN_CHECKSUM=195d6a32f0fb357d131d444c78b3f49f7ecef2cdfdf00ee707427c76970c45ef
-LINUX_CHECKSUM=2ff4039d95fcb85891d8d9affa0294bcba40ba3b31d7fee34ca31f6f81db9c44
+VERSION=2.27.0
+DARWIN_CHECKSUM=5002688564ecfa2cc84a90ae172a0d1a6b5dfd0dc93772c66e5c3440e4d28163
+LINUX_CHECKSUM=a9b4ec47aa927c9f9da24cfaf2bb67e0bee72eb8d0218be5a776a46d924ea527
 
 # Downloads file at URL to destination path using wget or curl. Prints an error and exits if wget or curl is not present.
 function download {
@@ -162,18 +162,18 @@ GODEL_BASE_DIR=${GODEL_HOME:-$HOME/.godel}
 OS=""
 EXPECTED_CHECKSUM=""
 case "$(uname)" in
-  Darwin*)
-    OS=darwin
-    EXPECTED_CHECKSUM=$DARWIN_CHECKSUM
-    ;;
-  Linux*)
-    OS=linux
-    EXPECTED_CHECKSUM=$LINUX_CHECKSUM
-    ;;
-  *)
-    echo "Unsupported operating system: $(uname)"
-    exit 1
-    ;;
+    Darwin*)
+        OS=darwin
+        EXPECTED_CHECKSUM=$DARWIN_CHECKSUM
+        ;;
+    Linux*)
+        OS=linux
+        EXPECTED_CHECKSUM=$LINUX_CHECKSUM
+        ;;
+    *)
+        echo "Unsupported operating system: $(uname)"
+        exit 1
+        ;;
 esac
 
 # path to godel binary
@@ -198,8 +198,11 @@ if [ ! -f "$CMD" ]; then
     mkdir -p "$GODEL_BASE_DIR/downloads"
 
     # download tgz and verify its contents
-    DOWNLOAD_DST=$GODEL_BASE_DIR/downloads/godel-$VERSION.tgz
+    # Download to unique location that includes PID ($$) and use trap ensure that temporary download file is cleaned up
+    # if script is terminated before the file is moved to its destination.
+    DOWNLOAD_DST=$GODEL_BASE_DIR/downloads/godel-$VERSION-$$.tgz
     download "$DOWNLOAD_URL" "$DOWNLOAD_DST"
+    trap 'rm -rf "$DOWNLOAD_DST"' EXIT
     if [ -n "$DOWNLOAD_CHECKSUM" ]; then
         verify_checksum "$DOWNLOAD_DST" "$DOWNLOAD_CHECKSUM"
     fi
@@ -211,9 +214,12 @@ if [ ! -f "$CMD" ]; then
     tar zxvf "$DOWNLOAD_DST" -C "$TMP_DIST_DIR" >/dev/null 2>&1
     verify_godel_version "$TMP_DIST_DIR" "$VERSION" "$OS"
 
+    # rename downloaded file to remove PID portion
+    mv "$DOWNLOAD_DST" "$GODEL_BASE_DIR/downloads/godel-$VERSION.tgz"
+
     # if destination directory for distribution already exists, remove it
     if [ -d "$GODEL_BASE_DIR/dists/godel-$VERSION" ]; then
-          rm -rf "$GODEL_BASE_DIR/dists/godel-$VERSION"
+        rm -rf "$GODEL_BASE_DIR/dists/godel-$VERSION"
     fi
 
     # ensure that parent directory of destination exists
@@ -222,6 +228,17 @@ if [ ! -f "$CMD" ]; then
     # move expanded distribution directory to destination location. The location of the unarchived directory is known to
     # be in the same directory tree as the destination, so "mv" should always work.
     mv "$TMP_DIST_DIR/godel-$VERSION" "$GODEL_BASE_DIR/dists/godel-$VERSION"
+
+    # edge case cleanup: if the destination directory "$GODEL_BASE_DIR/dists/godel-$VERSION" was created prior to the
+    # "mv" operation above, then the move operation will move the source directory into the destination directory. In
+    # this case, remove the directory. It should always be safe to remove this directory because if the directory
+    # existed in the distribution and was non-empty, then the move operation would fail (because non-empty directories
+    # cannot be overwritten by mv). All distributions of a given version are also assumed to be identical. The only
+    # instance in which this would not work is if the distribution purposely contained an empty directory that matched
+    # the name "godel-$VERSION", and this is assumed to never be true.
+    if [ -d "$GODEL_BASE_DIR/dists/godel-$VERSION/godel-$VERSION" ]; then
+        rm -rf "$GODEL_BASE_DIR/dists/godel-$VERSION/godel-$VERSION"
+    fi
 fi
 
 verify_checksum "$CMD" "$EXPECTED_CHECKSUM"
