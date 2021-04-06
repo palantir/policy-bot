@@ -117,25 +117,6 @@ jobs:
       if: ${{ startsWith(github.ref, 'refs/tags/') }}
       run: ./godelw docker push --tags=latest,version
 
-    - name: Find release
+    - name: Publish release assets
       if: ${{ startsWith(github.ref, 'refs/tags/') }}
-      id: find-release
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        curl -sS --fail -H "Authorization: Bearer ${GITHUB_TOKEN}" "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/releases/tags/${GITHUB_REF#refs/tags/}" \
-          | jq .upload_url \
-          | sed 's/{.*}$//' \
-          | xargs -0 printf "::set-output name=upload_url::%s\n"
-
-    - name: Upload release
-      if: ${{ startsWith(github.ref, 'refs/tags/') }}
-      env:
-        UPLOAD_URL: ${{ steps.find-release.outputs.upload_url }}
-      run: |
-        dist_file=$(./godelw artifacts dist)
-        curl -sS --fail -X POST \
-          -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-          -H "Content-Type: application/gzip" \
-          "${UPLOAD_URL}?name=$(basename ${dist_file})" \
-          --data-binary @${dist_file}
+      run: ./godelw publish github --add-v-prefix --api-url=${GITHUB_API_URL} --user=palantir --repository=policy-bot --token=${{ secrets.GITHUB_TOKEN }}
