@@ -1,0 +1,123 @@
+name: Build
+
+on:
+  push:
+    branches: [develop]
+    tags-ignore:
+      - '**'
+
+  pull_request:
+    branches: [develop]
+
+  release:
+    types: [published]
+
+jobs:
+  Verify:
+    runs-on: ubuntu-latest
+
+    env:
+      GOPATH: /home/runner/go
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.16
+
+    - name: Cache Godel assets
+      uses: actions/cache@v2
+      with:
+        path: ~/.godel
+        key: ${{ runner.os }}-godel-${{ hashFiles('godelw', 'godel/config/godel.yml') }}
+        restore-keys: |
+          ${{ runner.os }}-godel-
+
+    - name: Verify
+      run: ./godelw verify --apply=false
+
+  Dist:
+    runs-on: ubuntu-latest
+    needs:
+      - Verify
+
+    env:
+      GOPATH: /home/runner/go
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.16
+
+    - name: Cache Godel assets
+      uses: actions/cache@v2
+      with:
+        path: ~/.godel
+        key: ${{ runner.os }}-godel-${{ hashFiles('godelw', 'godel/config/godel.yml') }}
+        restore-keys: |
+          ${{ runner.os }}-godel-
+
+    - name: Set up Node
+      uses: actions/setup-node@v2
+      with:
+        node-version: 12
+
+    - name: Cache node_modules
+      uses: actions/cache@v2
+      with:
+        path: node_modules
+        key: ${{ runner.os }}-node-modules-${{ hashFiles('yarn.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-node-modules-
+
+    - name: Install frontend dependencies
+      run: yarn install
+
+    - name: Build frontend
+      run: yarn run build:production
+
+    - name: Build distribution
+      run: ./godelw dist
+
+    - name: Build Docker image
+      run: ./godelw docker build --verbose
+
+    - name: Archive distribution
+      uses: actions/upload-artifact@v2
+      with:
+        name: dist
+        path: |
+          build/policy-bot/*/bin/*.tgz
+
+    #
+    # Steps after this point should only run when publishing
+    # Include them here to avoid exporting the Docker container as an artifact
+    #
+
+    - name: Login to Docker Hub
+      if: ${{ github.event_name == 'push' || github.event_name == 'release' }}
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+    - name: Push snapshot image to Docker Hub
+      if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' }}
+      run: ./godelw docker push --tags=snapshot
+
+    - name: Push release image to Docker Hub
+      if: ${{ github.event_name == 'release' }}
+      run: ./godelw docker push --tags=latest,version
+
+    - name: Publish release assets
+      if: ${{ github.event_name == 'release' }}
+      run: ./godelw publish github --add-v-prefix --api-url=${GITHUB_API_URL} --user=palantir --repository=policy-bot --token=${{ secrets.GITHUB_TOKEN }}
