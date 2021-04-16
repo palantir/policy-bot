@@ -1,0 +1,205 @@
+// Copyright 2021 Palantir Technologies, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package predicate
+
+import (
+	"context"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/palantir/policy-bot/policy/common"
+	"github.com/palantir/policy-bot/pull"
+	"github.com/palantir/policy-bot/pull/pulltest"
+)
+
+func TestHasValidSignatures(t *testing.T) {
+	p := HasValidSignatures(true)
+
+	runSignatureTests(t, p, []SignatureTestCase{
+		{
+			"ValidSignature",
+			true,
+			&pulltest.Context{
+				AuthorValue: "mhaypenny",
+				CommitsValue: []*pull.Commit{
+					{
+						SHA:       "abcdef123456789",
+						Author:    "mhaypenny",
+						Committer: "mhaypenny",
+						Signature: &pull.Signature{
+							Email:             "mhaypenny@example.com",
+							IsValid:           true,
+							Signer:            "mhaypenny",
+							State:             "VALID",
+							WasSignedByGitHub: false,
+						},
+					},
+				},
+			},
+		},
+		{
+			"InvalidSignature",
+			false,
+			&pulltest.Context{
+				AuthorValue: "mhaypenny",
+				CommitsValue: []*pull.Commit{
+					{
+						SHA:       "abcdef123456789",
+						Author:    "mhaypenny",
+						Committer: "mhaypenny",
+						Signature: &pull.Signature{
+							Email:             "mhaypenny@example.com",
+							IsValid:           false,
+							Signer:            "mhaypenny",
+							State:             "VALID",
+							WasSignedByGitHub: false,
+						},
+					},
+				},
+			},
+		},
+		{
+			"NoSignature",
+			false,
+			&pulltest.Context{
+				AuthorValue: "mhaypenny",
+				CommitsValue: []*pull.Commit{
+					{
+						SHA:       "abcdef123456789",
+						Author:    "mhaypenny",
+						Committer: "mhaypenny",
+						Signature: nil,
+					},
+				},
+			},
+		},
+	})
+}
+
+func TestHasValidSignaturesBy(t *testing.T) {
+	p := &HasValidSignaturesBy{
+		common.Actors{
+			Teams:         []string{"testorg/team"},
+			Users:         []string{"mhaypenny"},
+			Organizations: []string{"testorg"},
+		},
+	}
+
+	runSignatureTests(t, p, []SignatureTestCase{
+		{
+			"ValidSignatureByUser",
+			true,
+			&pulltest.Context{
+				AuthorValue: "mhaypenny",
+				CommitsValue: []*pull.Commit{
+					{
+						SHA:       "abcdef123456789",
+						Author:    "mhaypenny",
+						Committer: "mhaypenny",
+						Signature: &pull.Signature{
+							Email:             "mhaypenny@example.com",
+							IsValid:           true,
+							Signer:            "mhaypenny",
+							State:             "VALID",
+							WasSignedByGitHub: false,
+						},
+					},
+				},
+			},
+		},
+		{
+			"ValidSignatureButNotUser",
+			false,
+			&pulltest.Context{
+				AuthorValue: "badcommitter",
+				CommitsValue: []*pull.Commit{
+					{
+						SHA:       "abcdef123456789",
+						Author:    "badcommitter",
+						Committer: "badcommitter",
+						Signature: &pull.Signature{
+							Email:             "mhaypenny@example.com",
+							IsValid:           true,
+							Signer:            "badcommitter",
+							State:             "VALID",
+							WasSignedByGitHub: false,
+						},
+					},
+				},
+			},
+		},
+		{
+			"ValidSignatureByTeamMember",
+			true,
+			&pulltest.Context{
+				AuthorValue: "ttest",
+				TeamMemberships: map[string][]string{
+					"ttest": {
+						"testorg/team",
+					},
+				},
+				CommitsValue: []*pull.Commit{
+					{
+						SHA:       "abcdef123456789",
+						Author:    "ttest",
+						Committer: "ttest",
+						Signature: &pull.Signature{
+							Email:             "mhaypenny@example.com",
+							IsValid:           true,
+							Signer:            "ttest",
+							State:             "VALID",
+							WasSignedByGitHub: false,
+						},
+					},
+				},
+			},
+		},
+		{
+			"NoSignature",
+			false,
+			&pulltest.Context{
+				AuthorValue: "mhaypenny",
+				CommitsValue: []*pull.Commit{
+					{
+						SHA:       "abcdef123456789",
+						Author:    "mhaypenny",
+						Committer: "mhaypenny",
+						Signature: nil,
+					},
+				},
+			},
+		},
+	})
+}
+
+type SignatureTestCase struct {
+	Name     string
+	Expected bool
+	Context  pull.Context
+}
+
+func runSignatureTests(t *testing.T, p Predicate, cases []SignatureTestCase) {
+	ctx := context.Background()
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			ok, _, err := p.Evaluate(ctx, tc.Context)
+			if assert.NoError(t, err, "evaluation failed") {
+				assert.Equal(t, tc.Expected, ok, "predicate was not correct")
+			}
+		})
+	}
+}

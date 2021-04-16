@@ -33,6 +33,9 @@ type Predicates struct {
 	HasLabels *HasLabels `yaml:"has_labels"`
 
 	Title *Title `yaml:"title"`
+
+	HasValidSignatures   *HasValidSignatures   `yaml:"has_valid_signatures"`
+	HasValidSignaturesBy *HasValidSignaturesBy `yaml:"has_valid_signatures_by"`
 }
 
 func (p *Predicates) Predicates() []Predicate {
@@ -79,6 +82,14 @@ func (p *Predicates) Predicates() []Predicate {
 
 	if p.Title != nil {
 		ps = append(ps, Predicate(p.Title))
+	}
+
+	if p.HasValidSignatures != nil {
+		ps = append(ps, Predicate(p.HasValidSignatures))
+	}
+
+	if p.HasValidSignaturesBy != nil {
+		ps = append(ps, Predicate(p.HasValidSignaturesBy))
 	}
 
 	return ps
