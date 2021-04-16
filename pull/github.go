@@ -860,12 +860,18 @@ type v4Commit struct {
 			OID string
 		}
 	} `graphql:"parents(first: 3)"`
+	Signature *v4GitSignature
 }
 
 func (c *v4Commit) ToCommit() *Commit {
 	var parents []string
 	for _, p := range c.Parents.Nodes {
 		parents = append(parents, p.OID)
+	}
+
+	var signature *Signature
+	if c.Signature != nil {
+		signature = c.Signature.ToSignature()
 	}
 
 	return &Commit{
@@ -875,6 +881,7 @@ func (c *v4Commit) ToCommit() *Commit {
 		Author:          c.Author.GetV3Login(),
 		Committer:       c.Committer.GetV3Login(),
 		PushedAt:        c.PushedDate,
+		Signature:       signature,
 	}
 }
 
@@ -932,4 +939,26 @@ func isNotFound(err error) bool {
 		return rerr.Response.StatusCode == http.StatusNotFound
 	}
 	return false
+}
+
+type v4GitSignature struct {
+	Email             string
+	IsValid           bool
+	Payload           string
+	Signature         string
+	Signer            *v4Actor
+	State             string
+	WasSignedByGitHub bool
+}
+
+func (s *v4GitSignature) ToSignature() *Signature {
+	return &Signature{
+		Email:             s.Email,
+		IsValid:           s.IsValid,
+		Payload:           s.Payload,
+		Signature:         s.Signature,
+		Signer:            s.Signer.GetV3Login(),
+		State:             s.State,
+		WasSignedByGitHub: s.WasSignedByGitHub,
+	}
 }
