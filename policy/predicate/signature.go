@@ -69,7 +69,7 @@ func (pred *HasValidSignaturesBy) Evaluate(ctx context.Context, prctx pull.Conte
 			return false, fmt.Sprintf("Commit %.10s has no signature", c.SHA), nil
 		}
 		if !c.Signature.IsValid {
-			return false, fmt.Sprintf("Commit %.10s has an invalid signaturer", c.SHA), nil
+			return false, fmt.Sprintf("Commit %.10s has an invalid signature", c.SHA), nil
 		}
 		signers[c.Signature.Signer] = struct{}{}
 	}
