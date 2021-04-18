@@ -114,16 +114,26 @@ func TestCommits(t *testing.T) {
 	assert.Equal(t, "mhaypenny", commits[0].Author)
 	assert.Equal(t, "mhaypenny", commits[0].Committer)
 	assert.Equal(t, newTime(expectedTime), commits[0].PushedAt)
+	assert.Nil(t, commits[0].Signature)
 
 	assert.Equal(t, "1fc89f1cedf8e3f3ce516ab75b5952295c8ea5e9", commits[1].SHA)
 	assert.Equal(t, "mhaypenny", commits[1].Author)
 	assert.Equal(t, "mhaypenny", commits[1].Committer)
 	assert.Equal(t, newTime(expectedTime), commits[1].PushedAt)
+	assert.Nil(t, commits[1].Signature)
 
 	assert.Equal(t, "e05fcae367230ee709313dd2720da527d178ce43", commits[2].SHA)
 	assert.Equal(t, "ttest", commits[2].Author)
 	assert.Equal(t, "mhaypenny", commits[2].Committer)
 	assert.Equal(t, newTime(expectedTime.Add(48*time.Hour)), commits[2].PushedAt)
+
+	// verify that the signature was handled correctly
+	assert.NotNil(t, commits[2].Signature)
+	assert.IsType(t, &GPGSignature{}, commits[2].Signature)
+	assert.Equal(t, "3AA5C34371567BD2", commits[2].Signature.(*GPGSignature).GetKeyID())
+	assert.Equal(t, "mhaypenny", commits[2].Signature.GetSigner())
+	assert.True(t, commits[2].Signature.GetIsValid())
+	assert.Equal(t, "mhaypenny@example.com", commits[2].Signature.GetEmail())
 
 	// verify that the commit list is cached
 	commits, err = ctx.Commits()

@@ -34,12 +34,14 @@ func (pred HasValidSignatures) Evaluate(ctx context.Context, prctx pull.Context)
 		return false, "", errors.Wrap(err, "failed to get commits")
 	}
 
+	if !pred {
+		return true, "", nil
+	}
+
 	for _, c := range commits {
-		if c.Signature == nil {
-			return false, fmt.Sprintf("Commit %.10s has no signature", c.SHA), nil
-		}
-		if !c.Signature.IsValid {
-			return false, fmt.Sprintf("Commit %.10s has an invalid signaturer due to %s", c.SHA, c.Signature.State), nil
+		valid, desc := hasValidSignature(ctx, c)
+		if !valid {
+			return false, desc, nil
 		}
 	}
 
@@ -65,13 +67,11 @@ func (pred *HasValidSignaturesBy) Evaluate(ctx context.Context, prctx pull.Conte
 	signers := make(map[string]struct{})
 
 	for _, c := range commits {
-		if c.Signature == nil {
-			return false, fmt.Sprintf("Commit %.10s has no signature", c.SHA), nil
+		valid, desc := hasValidSignature(ctx, c)
+		if !valid {
+			return false, desc, nil
 		}
-		if !c.Signature.IsValid {
-			return false, fmt.Sprintf("Commit %.10s has an invalid signature", c.SHA), nil
-		}
-		signers[c.Signature.Signer] = struct{}{}
+		signers[c.Signature.GetSigner()] = struct{}{}
 	}
 
 	for signer := range signers {
@@ -89,4 +89,62 @@ func (pred *HasValidSignaturesBy) Evaluate(ctx context.Context, prctx pull.Conte
 
 func (pred *HasValidSignaturesBy) Trigger() common.Trigger {
 	return common.TriggerCommit
+}
+
+type HasValidSignaturesByKeys struct {
+	KeyIDs []string `yaml:"key_ids"`
+}
+
+var _ Predicate = &HasValidSignaturesByKeys{}
+
+func (pred *HasValidSignaturesByKeys) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
+	commits, err := prctx.Commits()
+	if err != nil {
+		return false, "", errors.Wrap(err, "failed to get commits")
+	}
+
+	keys := make(map[string]struct{})
+
+	for _, c := range commits {
+		valid, desc := hasValidSignature(ctx, c)
+		if !valid {
+			return false, desc, nil
+		}
+		// Only GPG signatures are valid for this predicate
+		switch sig := c.Signature.(type) {
+		case *pull.GPGSignature:
+			keys[sig.GetKeyID()] = struct{}{}
+		default:
+			return false, fmt.Sprintf("Commit %.10s signature is not a GPG signature", c.SHA), nil
+		}
+	}
+
+	for key := range keys {
+		isValidKey := false
+		for _, acceptedKey := range pred.KeyIDs {
+			if key == acceptedKey {
+				isValidKey = true
+			}
+		}
+		if !isValidKey {
+			return false, fmt.Sprintf("Key %q does not meet the required key conditions for signing", key), nil
+		}
+	}
+
+	return true, "", nil
+}
+
+func (pred *HasValidSignaturesByKeys) Trigger() common.Trigger {
+	return common.TriggerCommit
+}
+
+func hasValidSignature(ctx context.Context, commit *pull.Commit) (bool, string) {
+	if commit.Signature == nil {
+		return false, fmt.Sprintf("Commit %.10s has no signature", commit.SHA)
+	}
+	if !commit.Signature.GetIsValid() {
+		reason := commit.Signature.GetState()
+		return false, fmt.Sprintf("Commit %.10s has an invalid signature due to %s", commit.SHA, reason)
+	}
+	return true, ""
 }

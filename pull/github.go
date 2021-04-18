@@ -941,14 +941,23 @@ func isNotFound(err error) bool {
 	return false
 }
 
+type SignatureType string
+
+const (
+	SignatureGpg     SignatureType = "GpgSignature"
+	SignatureSmime   SignatureType = "SmimeSignature"
+	SignatureUnknown SignatureType = "UnknownSignature"
+)
+
 type v4GitSignature struct {
+	Type  SignatureType    `graphql:"__typename"`
 	GPG   v4GpgSignature   `graphql:"... on GpgSignature"`
 	SMIME v4SmimeSignature `graphql:"... on SmimeSignature"`
 }
 
 func (s *v4GitSignature) ToSignature() Signature {
 	switch {
-	case s.GPG.KeyID != "":
+	case s.Type == SignatureGpg:
 		return &GPGSignature{
 			BaseSignature: BaseSignature{
 				Email:             s.GPG.Email,
@@ -961,7 +970,7 @@ func (s *v4GitSignature) ToSignature() Signature {
 			},
 			KeyID: s.GPG.KeyID,
 		}
-	case s.SMIME.IsValid:
+	case s.Type == SignatureSmime:
 		return &SMIMESignature{
 			BaseSignature: BaseSignature{
 				Email:             s.SMIME.Email,

@@ -39,12 +39,15 @@ func TestHasValidSignatures(t *testing.T) {
 						SHA:       "abcdef123456789",
 						Author:    "mhaypenny",
 						Committer: "mhaypenny",
-						Signature: &pull.Signature{
-							Email:             "mhaypenny@example.com",
-							IsValid:           true,
-							Signer:            "mhaypenny",
-							State:             "VALID",
-							WasSignedByGitHub: false,
+						Signature: &pull.GPGSignature{
+							BaseSignature: pull.BaseSignature{
+								Email:             "mhaypenny@example.com",
+								IsValid:           true,
+								Signer:            "ttest",
+								State:             "VALID",
+								WasSignedByGitHub: false,
+							},
+							KeyID: "3AA5C34371567BD2",
 						},
 					},
 				},
@@ -60,12 +63,15 @@ func TestHasValidSignatures(t *testing.T) {
 						SHA:       "abcdef123456789",
 						Author:    "mhaypenny",
 						Committer: "mhaypenny",
-						Signature: &pull.Signature{
-							Email:             "mhaypenny@example.com",
-							IsValid:           false,
-							Signer:            "mhaypenny",
-							State:             "VALID",
-							WasSignedByGitHub: false,
+						Signature: &pull.GPGSignature{
+							BaseSignature: pull.BaseSignature{
+								Email:             "mhaypenny@example.com",
+								IsValid:           false,
+								Signer:            "ttest",
+								State:             "INVALID",
+								WasSignedByGitHub: false,
+							},
+							KeyID: "3AA5C34371567BD2",
 						},
 					},
 				},
@@ -109,12 +115,15 @@ func TestHasValidSignaturesBy(t *testing.T) {
 						SHA:       "abcdef123456789",
 						Author:    "mhaypenny",
 						Committer: "mhaypenny",
-						Signature: &pull.Signature{
-							Email:             "mhaypenny@example.com",
-							IsValid:           true,
-							Signer:            "mhaypenny",
-							State:             "VALID",
-							WasSignedByGitHub: false,
+						Signature: &pull.GPGSignature{
+							BaseSignature: pull.BaseSignature{
+								Email:             "mhaypenny@example.com",
+								IsValid:           true,
+								Signer:            "mhaypenny",
+								State:             "VALID",
+								WasSignedByGitHub: false,
+							},
+							KeyID: "3AA5C34371567BD2",
 						},
 					},
 				},
@@ -130,12 +139,15 @@ func TestHasValidSignaturesBy(t *testing.T) {
 						SHA:       "abcdef123456789",
 						Author:    "badcommitter",
 						Committer: "badcommitter",
-						Signature: &pull.Signature{
-							Email:             "mhaypenny@example.com",
-							IsValid:           true,
-							Signer:            "badcommitter",
-							State:             "VALID",
-							WasSignedByGitHub: false,
+						Signature: &pull.GPGSignature{
+							BaseSignature: pull.BaseSignature{
+								Email:             "mhaypenny@example.com",
+								IsValid:           true,
+								Signer:            "badcommitter",
+								State:             "VALID",
+								WasSignedByGitHub: false,
+							},
+							KeyID: "3AD5C34671567BC3",
 						},
 					},
 				},
@@ -156,12 +168,15 @@ func TestHasValidSignaturesBy(t *testing.T) {
 						SHA:       "abcdef123456789",
 						Author:    "ttest",
 						Committer: "ttest",
-						Signature: &pull.Signature{
-							Email:             "mhaypenny@example.com",
-							IsValid:           true,
-							Signer:            "ttest",
-							State:             "VALID",
-							WasSignedByGitHub: false,
+						Signature: &pull.GPGSignature{
+							BaseSignature: pull.BaseSignature{
+								Email:             "mhaypenny@example.com",
+								IsValid:           true,
+								Signer:            "ttest",
+								State:             "VALID",
+								WasSignedByGitHub: false,
+							},
+							KeyID: "3AA5C34371567BD2",
 						},
 					},
 				},
@@ -178,6 +193,87 @@ func TestHasValidSignaturesBy(t *testing.T) {
 						Author:    "mhaypenny",
 						Committer: "mhaypenny",
 						Signature: nil,
+					},
+				},
+			},
+		},
+	})
+}
+
+func TestHasValidSignaturesByKeys(t *testing.T) {
+	p := &HasValidSignaturesByKeys{
+		KeyIDs: []string{"3AA5C34371567BD2"},
+	}
+
+	runSignatureTests(t, p, []SignatureTestCase{
+		{
+			"ValidSignatureByValidKey",
+			true,
+			&pulltest.Context{
+				AuthorValue: "mhaypenny",
+				CommitsValue: []*pull.Commit{
+					{
+						SHA:       "abcdef123456789",
+						Author:    "ttest",
+						Committer: "ttest",
+						Signature: &pull.GPGSignature{
+							BaseSignature: pull.BaseSignature{
+								Email:             "mhaypenny@example.com",
+								IsValid:           true,
+								Signer:            "mhaypenny",
+								State:             "VALID",
+								WasSignedByGitHub: false,
+							},
+							KeyID: "3AA5C34371567BD2",
+						},
+					},
+				},
+			},
+		},
+		{
+			"ValidSignatureByInvalidKey",
+			false,
+			&pulltest.Context{
+				AuthorValue: "mhaypenny",
+				CommitsValue: []*pull.Commit{
+					{
+						SHA:       "abcdef123456789",
+						Author:    "ttest",
+						Committer: "ttest",
+						Signature: &pull.GPGSignature{
+							BaseSignature: pull.BaseSignature{
+								Email:             "mhaypenny@example.com",
+								IsValid:           true,
+								Signer:            "mhaypenny",
+								State:             "VALID",
+								WasSignedByGitHub: false,
+							},
+							KeyID: "3AB5C35371567CE7",
+						},
+					},
+				},
+			},
+		},
+		{
+			"InvalidSignatureByInvalidKey",
+			false,
+			&pulltest.Context{
+				AuthorValue: "mhaypenny",
+				CommitsValue: []*pull.Commit{
+					{
+						SHA:       "abcdef123456789",
+						Author:    "ttest",
+						Committer: "ttest",
+						Signature: &pull.GPGSignature{
+							BaseSignature: pull.BaseSignature{
+								Email:             "ttest@example.com",
+								IsValid:           false,
+								Signer:            "mhaypenny",
+								State:             "BAD_EMAIL",
+								WasSignedByGitHub: false,
+							},
+							KeyID: "3AB5C35371567CE7",
+						},
 					},
 				},
 			},
