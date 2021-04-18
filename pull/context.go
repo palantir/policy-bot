@@ -151,7 +151,7 @@ type Commit struct {
 
 	// Signature is the signature and details that was extracted from the commit.
 	// It is nil if the commit has no signature
-	Signature *Signature
+	Signature Signature
 }
 
 // Users returns the login names of the users associated with this commit.
@@ -205,7 +205,17 @@ type Reviewer struct {
 	Removed bool
 }
 
-type Signature struct {
+type Signature interface {
+	GetEmail() string
+	GetIsValid() bool
+	GetPayload() string
+	GetSignature() string
+	GetSigner() string
+	GetState() string
+	GetSignedByGitHub() bool
+}
+
+type BaseSignature struct {
 	Email             string
 	IsValid           bool
 	Payload           string
@@ -214,3 +224,47 @@ type Signature struct {
 	State             string
 	WasSignedByGitHub bool
 }
+
+func (s *BaseSignature) GetEmail() string {
+	return s.Email
+}
+
+func (s *BaseSignature) GetIsValid() bool {
+	return s.IsValid
+}
+
+func (s *BaseSignature) GetPayload() string {
+	return s.Payload
+}
+
+func (s *BaseSignature) GetSignature() string {
+	return s.Signature
+}
+
+func (s *BaseSignature) GetSigner() string {
+	return s.Signer
+}
+
+func (s *BaseSignature) GetState() string {
+	return s.State
+}
+
+func (s *BaseSignature) GetSignedByGitHub() bool {
+	return s.WasSignedByGitHub
+}
+
+type SMIMESignature struct {
+	BaseSignature
+}
+
+type GPGSignature struct {
+	BaseSignature
+	KeyID string
+}
+
+func (s *GPGSignature) GetKeyID() string {
+	return s.KeyID
+}
+
+var _ Signature = &GPGSignature{}
+var _ Signature = &SMIMESignature{}

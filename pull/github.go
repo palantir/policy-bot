@@ -869,7 +869,7 @@ func (c *v4Commit) ToCommit() *Commit {
 		parents = append(parents, p.OID)
 	}
 
-	var signature *Signature
+	var signature Signature
 	if c.Signature != nil {
 		signature = c.Signature.ToSignature()
 	}
@@ -942,6 +942,43 @@ func isNotFound(err error) bool {
 }
 
 type v4GitSignature struct {
+	GPG   v4GpgSignature   `graphql:"... on GpgSignature"`
+	SMIME v4SmimeSignature `graphql:"... on SmimeSignature"`
+}
+
+func (s *v4GitSignature) ToSignature() Signature {
+	switch {
+	case s.GPG.KeyID != "":
+		return &GPGSignature{
+			BaseSignature: BaseSignature{
+				Email:             s.GPG.Email,
+				IsValid:           s.GPG.IsValid,
+				Payload:           s.GPG.Payload,
+				Signature:         s.GPG.Signature,
+				Signer:            s.GPG.Signer.GetV3Login(),
+				State:             s.GPG.State,
+				WasSignedByGitHub: s.GPG.WasSignedByGitHub,
+			},
+			KeyID: s.GPG.KeyID,
+		}
+	case s.SMIME.IsValid:
+		return &SMIMESignature{
+			BaseSignature: BaseSignature{
+				Email:             s.SMIME.Email,
+				IsValid:           s.SMIME.IsValid,
+				Payload:           s.SMIME.Payload,
+				Signature:         s.SMIME.Signature,
+				Signer:            s.SMIME.Signer.GetV3Login(),
+				State:             s.SMIME.State,
+				WasSignedByGitHub: s.SMIME.WasSignedByGitHub,
+			},
+		}
+	default:
+		return nil
+	}
+}
+
+type v4SmimeSignature struct {
 	Email             string
 	IsValid           bool
 	Payload           string
@@ -951,14 +988,13 @@ type v4GitSignature struct {
 	WasSignedByGitHub bool
 }
 
-func (s *v4GitSignature) ToSignature() *Signature {
-	return &Signature{
-		Email:             s.Email,
-		IsValid:           s.IsValid,
-		Payload:           s.Payload,
-		Signature:         s.Signature,
-		Signer:            s.Signer.GetV3Login(),
-		State:             s.State,
-		WasSignedByGitHub: s.WasSignedByGitHub,
-	}
+type v4GpgSignature struct {
+	Email             string
+	IsValid           bool
+	KeyID             string
+	Payload           string
+	Signature         string
+	Signer            *v4Actor
+	State             string
+	WasSignedByGitHub bool
 }
