@@ -252,10 +252,16 @@ if:
   # all have git commit signatures that have been verified by GitHub, and
   # the authenticated signatures are attributed to a user in the users list 
   # or belong to any of the listed organizations or teams.
-  has_valid_signature_by:
+  has_valid_signatures_by:
     users: ["user1", "user2", ...]
     organizations: ["org1", "org2", ...]
     teams: ["org1/team1", "org2/team2", ...]
+
+  # "has_valid_signatures_by_keys" is satisfied if the commits in the pull request
+  # all have git commit signatures that have been verified by GitHub, and
+  # the authenticated signatures are attributed to a key in the list of key-ids.
+  has_Valid_signatures_by_keys:
+    key_ids: ["3AA5C34371567BD2"]
 
 # "options" specifies a set of restrictions on approvals. If the block does not
 # exist, the default values are used.
