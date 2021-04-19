@@ -260,7 +260,7 @@ if:
   # "has_valid_signatures_by_keys" is satisfied if the commits in the pull request
   # all have git commit signatures that have been verified by GitHub, and
   # the authenticated signatures are attributed to a key in the list of key-ids.
-  has_Valid_signatures_by_keys:
+  has_valid_signatures_by_keys:
     key_ids: ["3AA5C34371567BD2"]
 
 # "options" specifies a set of restrictions on approvals. If the block does not
