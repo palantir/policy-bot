@@ -26,9 +26,10 @@ import (
 )
 
 func TestHasValidSignatures(t *testing.T) {
-	p := HasValidSignatures(true)
+	pTrue := HasValidSignatures(true)
+	pFalse := HasValidSignatures(false)
 
-	runSignatureTests(t, p, []SignatureTestCase{
+	testCases := []SignatureTestCase{
 		{
 			"ValidSignature",
 			true,
@@ -91,7 +92,15 @@ func TestHasValidSignatures(t *testing.T) {
 				},
 			},
 		},
-	})
+	}
+
+	runSignatureTests(t, pTrue, testCases)
+
+	// Invert the expected outcomes and test against the false predicate
+	for idx := range testCases {
+		testCases[idx].Expected = !testCases[idx].Expected
+	}
+	runSignatureTests(t, pFalse, testCases)
 }
 
 func TestHasValidSignaturesBy(t *testing.T) {
