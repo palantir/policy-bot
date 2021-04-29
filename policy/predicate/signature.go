@@ -34,18 +34,20 @@ func (pred HasValidSignatures) Evaluate(ctx context.Context, prctx pull.Context)
 		return false, "", errors.Wrap(err, "failed to get commits")
 	}
 
-	if !pred {
-		return true, "", nil
-	}
-
 	for _, c := range commits {
 		valid, desc := hasValidSignature(ctx, c)
 		if !valid {
-			return false, desc, nil
+			if pred {
+				return false, desc, nil
+			}
+			return true, "", nil
 		}
 	}
 
-	return true, "", nil
+	if pred {
+		return true, "", nil
+	}
+	return false, "All commits are signed and have valid signatures", nil
 }
 
 func (pred HasValidSignatures) Trigger() common.Trigger {
