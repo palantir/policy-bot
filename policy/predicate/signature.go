@@ -71,7 +71,7 @@ func (pred *HasValidSignaturesBy) Evaluate(ctx context.Context, prctx pull.Conte
 		if !valid {
 			return false, desc, nil
 		}
-		signers[c.Signature.GetSigner()] = struct{}{}
+		signers[c.Signature.Signer] = struct{}{}
 	}
 
 	for signer := range signers {
@@ -111,9 +111,9 @@ func (pred *HasValidSignaturesByKeys) Evaluate(ctx context.Context, prctx pull.C
 			return false, desc, nil
 		}
 		// Only GPG signatures are valid for this predicate
-		switch sig := c.Signature.(type) {
-		case *pull.GPGSignature:
-			keys[sig.GetKeyID()] = struct{}{}
+		switch c.Signature.Type {
+		case pull.SignatureGpg:
+			keys[c.Signature.KeyID] = struct{}{}
 		default:
 			return false, fmt.Sprintf("Commit %.10s signature is not a GPG signature", c.SHA), nil
 		}
@@ -124,6 +124,7 @@ func (pred *HasValidSignaturesByKeys) Evaluate(ctx context.Context, prctx pull.C
 		for _, acceptedKey := range pred.KeyIDs {
 			if key == acceptedKey {
 				isValidKey = true
+				break
 			}
 		}
 		if !isValidKey {
@@ -142,8 +143,8 @@ func hasValidSignature(ctx context.Context, commit *pull.Commit) (bool, string) 
 	if commit.Signature == nil {
 		return false, fmt.Sprintf("Commit %.10s has no signature", commit.SHA)
 	}
-	if !commit.Signature.GetIsValid() {
-		reason := commit.Signature.GetState()
+	if !commit.Signature.IsValid {
+		reason := commit.Signature.State
 		return false, fmt.Sprintf("Commit %.10s has an invalid signature due to %s", commit.SHA, reason)
 	}
 	return true, ""

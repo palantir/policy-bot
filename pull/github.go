@@ -869,7 +869,7 @@ func (c *v4Commit) ToCommit() *Commit {
 		parents = append(parents, p.OID)
 	}
 
-	var signature Signature
+	var signature *Signature
 	if c.Signature != nil {
 		signature = c.Signature.ToSignature()
 	}
@@ -944,43 +944,40 @@ func isNotFound(err error) bool {
 type SignatureType string
 
 const (
-	SignatureGpg     SignatureType = "GpgSignature"
-	SignatureSmime   SignatureType = "SmimeSignature"
-	SignatureUnknown SignatureType = "UnknownSignature"
+	SignatureGpg   SignatureType = "GpgSignature"
+	SignatureSmime SignatureType = "SmimeSignature"
 )
 
 type v4GitSignature struct {
-	Type  SignatureType    `graphql:"__typename"`
+	Type  string           `graphql:"__typename"`
 	GPG   v4GpgSignature   `graphql:"... on GpgSignature"`
 	SMIME v4SmimeSignature `graphql:"... on SmimeSignature"`
 }
 
-func (s *v4GitSignature) ToSignature() Signature {
-	switch {
-	case s.Type == SignatureGpg:
-		return &GPGSignature{
-			BaseSignature: BaseSignature{
-				Email:             s.GPG.Email,
-				IsValid:           s.GPG.IsValid,
-				Payload:           s.GPG.Payload,
-				Signature:         s.GPG.Signature,
-				Signer:            s.GPG.Signer.GetV3Login(),
-				State:             s.GPG.State,
-				WasSignedByGitHub: s.GPG.WasSignedByGitHub,
-			},
-			KeyID: s.GPG.KeyID,
+func (s *v4GitSignature) ToSignature() *Signature {
+	switch SignatureType(s.Type) {
+	case SignatureGpg:
+		return &Signature{
+			Email:             s.GPG.Email,
+			IsValid:           s.GPG.IsValid,
+			KeyID:             s.GPG.KeyID,
+			Payload:           s.GPG.Payload,
+			Signature:         s.GPG.Signature,
+			Signer:            s.GPG.Signer.GetV3Login(),
+			State:             s.GPG.State,
+			Type:              SignatureGpg,
+			WasSignedByGitHub: s.GPG.WasSignedByGitHub,
 		}
-	case s.Type == SignatureSmime:
-		return &SMIMESignature{
-			BaseSignature: BaseSignature{
-				Email:             s.SMIME.Email,
-				IsValid:           s.SMIME.IsValid,
-				Payload:           s.SMIME.Payload,
-				Signature:         s.SMIME.Signature,
-				Signer:            s.SMIME.Signer.GetV3Login(),
-				State:             s.SMIME.State,
-				WasSignedByGitHub: s.SMIME.WasSignedByGitHub,
-			},
+	case SignatureSmime:
+		return &Signature{
+			Email:             s.SMIME.Email,
+			IsValid:           s.SMIME.IsValid,
+			Payload:           s.SMIME.Payload,
+			Signature:         s.SMIME.Signature,
+			Signer:            s.SMIME.Signer.GetV3Login(),
+			State:             s.SMIME.State,
+			Type:              SignatureSmime,
+			WasSignedByGitHub: s.SMIME.WasSignedByGitHub,
 		}
 	default:
 		return nil

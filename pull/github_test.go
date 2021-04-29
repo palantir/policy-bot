@@ -129,11 +129,10 @@ func TestCommits(t *testing.T) {
 
 	// verify that the signature was handled correctly
 	assert.NotNil(t, commits[2].Signature)
-	assert.IsType(t, &GPGSignature{}, commits[2].Signature)
-	assert.Equal(t, "3AA5C34371567BD2", commits[2].Signature.(*GPGSignature).GetKeyID())
-	assert.Equal(t, "mhaypenny", commits[2].Signature.GetSigner())
-	assert.True(t, commits[2].Signature.GetIsValid())
-	assert.Equal(t, "mhaypenny@example.com", commits[2].Signature.GetEmail())
+	assert.Equal(t, "3AA5C34371567BD2", commits[2].Signature.KeyID)
+	assert.Equal(t, "mhaypenny", commits[2].Signature.Signer)
+	assert.True(t, commits[2].Signature.IsValid)
+	assert.Equal(t, "mhaypenny@example.com", commits[2].Signature.Email)
 
 	// verify that the commit list is cached
 	commits, err = ctx.Commits()
