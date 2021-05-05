@@ -132,8 +132,9 @@ type GitHubContext struct {
 	comments      []*Comment
 	reviews       []*Review
 	reviewers     []*Reviewer
-	collaborators map[string]string
-	teams         map[string]string
+	collaborators []*Collaborator
+	permissions   map[string]Permission
+	teams         map[string]Permission
 	teamIDs       map[string]int64
 	membership    map[string]bool
 	statuses      map[string]string
@@ -309,27 +310,48 @@ func (ghc *GitHubContext) Reviews() ([]*Review, error) {
 	return ghc.reviews, nil
 }
 
-func (ghc *GitHubContext) RepositoryCollaborators() (map[string]string, error) {
+func (ghc *GitHubContext) RepositoryCollaborators() ([]*Collaborator, error) {
 	if ghc.collaborators == nil {
-		opts := github.ListCollaboratorsOptions{
-			ListOptions: github.ListOptions{
-				PerPage: 100,
-			},
+		var q struct {
+			Repository struct {
+				Collaborators struct {
+					PageInfo v4PageInfo
+					Edges    []struct {
+						Permission        string
+						PermissionSources v4PermissionSources
+					}
+					Nodes []v4Actor
+				} `graphql:"collaborators(first: 100, after: $cursor)"`
+			} `graphql:"repository(owner: $owner, name: $name)"`
+		}
+		qvars := map[string]interface{}{
+			"owner":  githubv4.String(ghc.owner),
+			"name":   githubv4.String(ghc.repo),
+			"cursor": (*githubv4.String)(nil),
 		}
 
-		collaborators := make(map[string]string)
+		var collaborators []*Collaborator
 		for {
-			users, res, err := ghc.client.Repositories.ListCollaborators(ghc.ctx, ghc.owner, ghc.repo, &opts)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to list repository collaborators")
+			if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
+				return nil, errors.Wrap(err, "failed to load repository collaborators")
 			}
-			for _, u := range users {
-				collaborators[u.GetLogin()] = coalescePermission(u.GetPermissions())
+			for i, u := range q.Repository.Collaborators.Nodes {
+				edge := q.Repository.Collaborators.Edges[i]
+
+				p, err := ParsePermission(edge.Permission)
+				if err != nil {
+					return nil, errors.Wrapf(err, "%s", u.GetV3Login())
+				}
+
+				collaborators = append(collaborators, &Collaborator{
+					Name:       u.GetV3Login(),
+					Permission: p,
+					ViaOrg:     edge.PermissionSources.IsViaOrg(p),
+				})
 			}
-			if res.NextPage == 0 {
+			if !q.Repository.Collaborators.PageInfo.UpdateCursor(qvars, "cursor") {
 				break
 			}
-			opts.Page = res.NextPage
 		}
 		ghc.collaborators = collaborators
 	}
@@ -337,6 +359,13 @@ func (ghc *GitHubContext) RepositoryCollaborators() (map[string]string, error) {
 }
 
 func (ghc *GitHubContext) CollaboratorPermission(user string) (Permission, error) {
+	if ghc.permissions == nil {
+		ghc.permissions = make(map[string]Permission)
+	}
+	if p, ok := ghc.permissions[user]; ok {
+		return p, nil
+	}
+
 	var q struct {
 		Repository struct {
 			Collaborators struct {
@@ -355,23 +384,18 @@ func (ghc *GitHubContext) CollaboratorPermission(user string) (Permission, error
 	if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
 		return PermissionNone, errors.Wrap(err, "failed to get collaborator permission")
 	}
-	if len(q.Repository.Collaborators.Edges) > 0 {
-		return ParsePermission(q.Repository.Collaborators.Edges[0].Permission)
-	}
-	return PermissionNone, nil
-}
 
-func coalescePermission(perms map[string]bool) string {
-	// standardize to new-style values used by GraphQL and other endpoints
-	switch {
-	case perms["admin"]:
-		return "admin"
-	case perms["push"] || perms["write"]:
-		return "write"
-	case perms["pull"] || perms["read"]:
-		return "read"
+	var p Permission
+	if len(q.Repository.Collaborators.Edges) > 0 {
+		var err error
+		p, err = ParsePermission(q.Repository.Collaborators.Edges[0].Permission)
+		if err != nil {
+			return PermissionNone, err
+		}
 	}
-	return "none"
+
+	ghc.permissions[user] = p
+	return p, nil
 }
 
 func (ghc *GitHubContext) RequestedReviewers() ([]*Reviewer, error) {
@@ -444,20 +468,20 @@ func (ghc *GitHubContext) loadRequestedReviewers() error {
 	return nil
 }
 
-func (ghc *GitHubContext) Teams() (map[string]string, error) {
+func (ghc *GitHubContext) Teams() (map[string]Permission, error) {
 	if ghc.teams == nil {
 		opt := &github.ListOptions{
 			PerPage: 100,
 		}
 
-		allTeams := make(map[string]string)
+		allTeams := make(map[string]Permission)
 		for {
-			teams, resp, err := ghc.client.Repositories.ListTeams(ghc.ctx, ghc.RepositoryOwner(), ghc.RepositoryName(), opt)
+			teams, resp, err := listTeams(ghc.ctx, ghc.client, ghc.owner, ghc.repo, opt)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to list teams page %d", opt.Page)
 			}
 			for _, t := range teams {
-				allTeams[t.GetSlug()] = t.GetPermission()
+				allTeams[t.GetSlug()] = ParsePermissionMap(t.Permissions)
 			}
 			if resp.NextPage == 0 {
 				break
@@ -950,6 +974,86 @@ func (ga v4GitActor) GetV3Login() string {
 		return ga.User.GetV3Login()
 	}
 	return ""
+}
+
+type v4PermissionSource struct {
+	Type       string `graphql:"__typename"`
+	Permission string
+}
+
+type v4PermissionSources []v4PermissionSource
+
+func (pss v4PermissionSources) IsViaOrg(combined Permission) bool {
+	// The GitHub permissions APIs are full of scorpions! The problems and
+	// workarounds described here are accurate as of 2021-05-05 and GHE 3.0.6,
+	// but could change in future versions.
+	//
+	// The Permission field of the PermissionSource object uses the
+	// DefaultRepositoryPermissionField type, which does not contain triage and
+	// maintain permissions.
+	//
+	// Additionally, the value seems to be incorrect for Organization sources,
+	// returning READ even when the default permission is different. Org owners
+	// always have ADMIN permissions from the organization, but also have ADMIN
+	// from the repository.
+	//
+	// Luckily for now, maintain and triage permissions can only be set
+	// directly on the repository for teams and users, so we know immediately
+	// one of those permissions cannot come from the organization.
+
+	switch combined {
+	case PermissionNone, PermissionTriage, PermissionMaintain:
+		return false
+	}
+
+	repoCount := 0
+	repoPerm := PermissionNone
+	orgPerm := PermissionNone
+
+	for _, ps := range pss {
+		// As noted above, this is a DefaultRepositoryPermissionField, not a
+		// RepositoryPermission, but the values are a subset of the later type,
+		// so use the same parser to create a comparable value.
+		p, _ := ParsePermission(ps.Permission)
+
+		switch ps.Type {
+		case "Organization":
+			orgPerm = p
+		case "Repository":
+			repoCount++
+			if p < repoPerm || repoPerm == PermissionNone {
+				repoPerm = p
+			}
+		case "Team":
+			// If a team grants the combined permission, there is no ambiguity
+			// in the API response and we can stop the process
+			if p >= combined {
+				return false
+			}
+		}
+	}
+
+	// Because organization owners are represented by both an organization and
+	// a repository source, we have to distinguish between 4 cases that result
+	// in admin permissions:
+	//
+	// 1) Direct repository admin
+	// 2) Organization owner
+	// 3) Organization owner who is also a direct repository admin
+	// 4) Default repository permissions
+	//
+	if combined == PermissionAdmin {
+		switch {
+		case repoPerm == PermissionAdmin && orgPerm < PermissionAdmin: // (1)
+			return false
+		case repoPerm == PermissionAdmin && orgPerm == PermissionAdmin && repoCount == 1: // (2)
+			return true
+		case repoPerm == PermissionAdmin && repoCount > 1: // (3)
+			return false
+		}
+		// (4) falls through to default check
+	}
+	return repoPerm < combined
 }
 
 func isNotFound(err error) bool {

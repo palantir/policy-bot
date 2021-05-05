@@ -95,16 +95,15 @@ type Context interface {
 	// IsDraft returns the draft status of the Pull Request.
 	IsDraft() bool
 
-	// RepositoryCollaborators lists the set of collaborators, along with
-	// their respective permission on a repo.
-	RepositoryCollaborators() (map[string]string, error)
+	// RepositoryCollaborators returns the repository collaborators.
+	RepositoryCollaborators() ([]*Collaborator, error)
 
 	// CollaboratorPermission returns the permission level of user on the repository.
 	CollaboratorPermission(user string) (Permission, error)
 
-	// Teams lists the set of team collaborators, along with
-	// their respective permission on a repo.
-	Teams() (map[string]string, error)
+	// Teams lists the set of team collaborators, along with their respective
+	// permission on a repo.
+	Teams() (map[string]Permission, error)
 
 	// RequestedReviewers returns any current and dismissed review requests on
 	// the pull request.
@@ -199,4 +198,10 @@ type Reviewer struct {
 	Type    ReviewerType
 	Name    string
 	Removed bool
+}
+
+type Collaborator struct {
+	Name       string
+	Permission Permission
+	ViaOrg     bool
 }

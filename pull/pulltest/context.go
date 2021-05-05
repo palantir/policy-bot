@@ -49,14 +49,14 @@ type Context struct {
 	TeamMemberships     map[string][]string
 	TeamMembershipError error
 
-	TeamsValue map[string]string
+	TeamsValue map[string]pull.Permission
 	TeamsError error
 
 	OrgMemberships     map[string][]string
 	OrgMembershipError error
 
-	CollaboratorMemberships     map[string]pull.Permission
-	CollaboratorMembershipError error
+	CollaboratorsValue []*pull.Collaborator
+	CollaboratorsError error
 
 	RequestedReviewersValue []*pull.Reviewer
 	RequestedReviewersError error
@@ -158,21 +158,22 @@ func (c *Context) IsOrgMember(org, user string) (bool, error) {
 }
 
 func (c *Context) CollaboratorPermission(user string) (pull.Permission, error) {
-	if c.CollaboratorMembershipError != nil {
-		return pull.PermissionNone, c.CollaboratorMembershipError
+	if c.CollaboratorsError != nil {
+		return pull.PermissionNone, c.CollaboratorsError
 	}
-	return c.CollaboratorMemberships[user], nil
+	for _, collab := range c.CollaboratorsValue {
+		if collab.Name == user {
+			return collab.Permission, nil
+		}
+	}
+	return pull.PermissionNone, nil
 }
 
-func (c *Context) RepositoryCollaborators() (map[string]string, error) {
-	if c.CollaboratorMembershipError != nil {
-		return nil, c.CollaboratorMembershipError
+func (c *Context) RepositoryCollaborators() ([]*pull.Collaborator, error) {
+	if c.CollaboratorsError != nil {
+		return nil, c.CollaboratorsError
 	}
-	users := make(map[string]string)
-	for u, p := range c.CollaboratorMemberships {
-		users[u] = p.String()
-	}
-	return users, nil
+	return c.CollaboratorsValue, nil
 }
 
 func (c *Context) OrganizationMembers(org string) ([]string, error) {
@@ -226,7 +227,7 @@ func (c *Context) Reviews() ([]*pull.Review, error) {
 	return c.ReviewsValue, c.ReviewsError
 }
 
-func (c *Context) Teams() (map[string]string, error) {
+func (c *Context) Teams() (map[string]pull.Permission, error) {
 	return c.TeamsValue, c.TeamsError
 }
 

@@ -34,9 +34,9 @@ func TestIsActor(t *testing.T) {
 		OrgMemberships: map[string][]string{
 			"mhaypenny": {"cool-org", "regular-org"},
 		},
-		CollaboratorMemberships: map[string]pull.Permission{
-			"mhaypenny":    pull.PermissionAdmin,
-			"jstrawnickel": pull.PermissionWrite,
+		CollaboratorsValue: []*pull.Collaborator{
+			{Name: "mhaypenny", Permission: pull.PermissionAdmin},
+			{Name: "jstrawnickel", Permission: pull.PermissionWrite},
 		},
 	}
 

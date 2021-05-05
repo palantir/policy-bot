@@ -22,6 +22,22 @@ func ParsePermission(s string) (Permission, error) {
 	return p, err
 }
 
+func ParsePermissionMap(m map[string]bool) Permission {
+	switch {
+	case m["admin"]:
+		return PermissionAdmin
+	case m["maintain"]:
+		return PermissionMaintain
+	case m["write"] || m["push"]:
+		return PermissionWrite
+	case m["triage"]:
+		return PermissionTriage
+	case m["read"] || m["pull"]:
+		return PermissionRead
+	}
+	return PermissionNone
+}
+
 func (p Permission) String() string {
 	switch p {
 	case PermissionNone:
