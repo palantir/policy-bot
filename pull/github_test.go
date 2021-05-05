@@ -437,7 +437,7 @@ func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest) Conte
 	base, _ := url.Parse("http://github.localhost/")
 	client.BaseURL = base
 
-	mbrCtx := NewGitHubMembershipContext(ctx, client)
+	mbrCtx := NewGitHubMembershipContext(ctx, client, v4client)
 	if pr == nil {
 		pr = defaultTestPR()
 	}

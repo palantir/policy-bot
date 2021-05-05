@@ -96,7 +96,7 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 
 	ctx, _ = h.PreparePRContext(ctx, installation.ID, pr)
 
-	mbrCtx := NewCrossOrgMembershipContext(ctx, client, owner, h.Installations, h.ClientCreator)
+	mbrCtx := NewCrossOrgMembershipContext(ctx, client, v4client, owner, h.Installations, h.ClientCreator)
 	prctx, err := pull.NewGitHubContext(ctx, mbrCtx, client, v4client, pull.Locator{
 		Owner:  owner,
 		Repo:   repo,

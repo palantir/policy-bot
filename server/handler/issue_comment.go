@@ -71,7 +71,7 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 
 	ctx, logger := h.PreparePRContext(ctx, installationID, pr)
 
-	mbrCtx := NewCrossOrgMembershipContext(ctx, client, owner, h.Installations, h.ClientCreator)
+	mbrCtx := NewCrossOrgMembershipContext(ctx, client, v4client, owner, h.Installations, h.ClientCreator)
 	prctx, err := pull.NewGitHubContext(ctx, mbrCtx, client, v4client, pull.Locator{
 		Owner:  owner,
 		Repo:   repo.GetName(),

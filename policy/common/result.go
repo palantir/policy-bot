@@ -46,12 +46,11 @@ const (
 )
 
 type ReviewRequestRule struct {
-	Teams              []string
-	Users              []string
-	Organizations      []string
-	Admins             bool
-	WriteCollaborators bool
-	RequiredCount      int
+	Teams         []string
+	Users         []string
+	Organizations []string
+	Permissions   []string
+	RequiredCount int
 
 	Mode RequestMode
 }

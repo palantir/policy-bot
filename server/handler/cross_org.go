@@ -21,6 +21,7 @@ import (
 	"github.com/google/go-github/v32/github"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/pkg/errors"
+	"github.com/shurcooL/githubv4"
 
 	"github.com/palantir/policy-bot/pull"
 )
@@ -34,7 +35,7 @@ type CrossOrgMembershipContext struct {
 	mbrCtxs map[string]pull.MembershipContext
 }
 
-func NewCrossOrgMembershipContext(ctx context.Context, client *github.Client, orgName string, installations githubapp.InstallationsService, clientCreator githubapp.ClientCreator) *CrossOrgMembershipContext {
+func NewCrossOrgMembershipContext(ctx context.Context, client *github.Client, v4client *githubv4.Client, orgName string, installations githubapp.InstallationsService, clientCreator githubapp.ClientCreator) *CrossOrgMembershipContext {
 	mbrCtx := &CrossOrgMembershipContext{
 		ctx:           ctx,
 		lookupClient:  client,
@@ -42,7 +43,7 @@ func NewCrossOrgMembershipContext(ctx context.Context, client *github.Client, or
 		clientCreator: clientCreator,
 		mbrCtxs:       make(map[string]pull.MembershipContext),
 	}
-	mbrCtx.mbrCtxs[orgName] = pull.NewGitHubMembershipContext(ctx, client)
+	mbrCtx.mbrCtxs[orgName] = pull.NewGitHubMembershipContext(ctx, client, v4client)
 	return mbrCtx
 }
 
@@ -64,7 +65,12 @@ func (c *CrossOrgMembershipContext) getCtxForOrg(name string) (pull.MembershipCo
 			return nil, err
 		}
 
-		mbrCtx = pull.NewGitHubMembershipContext(c.ctx, client)
+		v4client, err := c.clientCreator.NewInstallationV4Client(installation.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		mbrCtx = pull.NewGitHubMembershipContext(c.ctx, client, v4client)
 		c.mbrCtxs[name] = mbrCtx
 	}
 
@@ -88,12 +94,12 @@ func (c *CrossOrgMembershipContext) IsOrgMember(org, user string) (bool, error) 
 	return mbrCtx.IsOrgMember(org, user)
 }
 
-func (c *CrossOrgMembershipContext) IsCollaborator(org, repo, user, desiredPerm string) (bool, error) {
+func (c *CrossOrgMembershipContext) CollaboratorPermission(org, repo, user string) (pull.RepositoryPermission, error) {
 	mbrCtx, err := c.getCtxForOrg(org)
 	if err != nil {
-		return false, err
+		return pull.PermissionNone, err
 	}
-	return mbrCtx.IsCollaborator(org, repo, user, desiredPerm)
+	return mbrCtx.CollaboratorPermission(org, repo, user)
 }
 
 func (c *CrossOrgMembershipContext) OrganizationMembers(org string) ([]string, error) {

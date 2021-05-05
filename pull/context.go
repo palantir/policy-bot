@@ -28,8 +28,8 @@ type MembershipContext interface {
 	// IsOrgMember returns true if the user is a member of the given organzation.
 	IsOrgMember(org, user string) (bool, error)
 
-	// IsCollaborator returns true if the user meets the desiredPerm of the given organzation's repository.
-	IsCollaborator(org, repo, user, desiredPerm string) (bool, error)
+	// CollaboratorPermission returns the permission level of user on the given repository.
+	CollaboratorPermission(org, repo, user string) (RepositoryPermission, error)
 
 	// TeamMembers returns the list of usernames in the given organization's team.
 	TeamMembers(team string) ([]string, error)

@@ -20,21 +20,24 @@ import (
 
 	"github.com/google/go-github/v32/github"
 	"github.com/pkg/errors"
+	"github.com/shurcooL/githubv4"
 )
 
 type GitHubMembershipContext struct {
-	ctx    context.Context
-	client *github.Client
+	ctx      context.Context
+	client   *github.Client
+	v4client *githubv4.Client
 
 	membership  map[string]bool
 	orgMembers  map[string][]string
 	teamMembers map[string][]string
 }
 
-func NewGitHubMembershipContext(ctx context.Context, client *github.Client) *GitHubMembershipContext {
+func NewGitHubMembershipContext(ctx context.Context, client *github.Client, v4client *githubv4.Client) *GitHubMembershipContext {
 	return &GitHubMembershipContext{
 		ctx:         ctx,
 		client:      client,
+		v4client:    v4client,
 		membership:  make(map[string]bool),
 		orgMembers:  make(map[string][]string),
 		teamMembers: make(map[string][]string),
@@ -94,13 +97,29 @@ func (mc *GitHubMembershipContext) IsOrgMember(org, user string) (bool, error) {
 	return isMember, nil
 }
 
-func (mc *GitHubMembershipContext) IsCollaborator(org, repo, user, desiredPerm string) (bool, error) {
-	perm, _, err := mc.client.Repositories.GetPermissionLevel(mc.ctx, org, repo, user)
-	if err != nil {
-		return false, errors.Wrapf(err, "failed to get repo %s permission", desiredPerm)
+func (mc *GitHubMembershipContext) CollaboratorPermission(org, repo, user string) (RepositoryPermission, error) {
+	var q struct {
+		Repository struct {
+			Collaborators struct {
+				Edges []struct {
+					Permission string
+				}
+			} `graphql:"collaborators(query: $user)"`
+		} `graphql:"repository(owner: $owner, name: $name)"`
+	}
+	qvars := map[string]interface{}{
+		"owner": githubv4.String(org),
+		"name":  githubv4.String(repo),
+		"user":  githubv4.String(user),
 	}
 
-	return perm.GetPermission() == desiredPerm, nil
+	if err := mc.v4client.Query(mc.ctx, &q, qvars); err != nil {
+		return PermissionNone, errors.Wrap(err, "failed to get collaborator permission")
+	}
+	if len(q.Repository.Collaborators.Edges) > 0 {
+		return ParsePermission(q.Repository.Collaborators.Edges[0].Permission)
+	}
+	return PermissionNone, nil
 }
 
 func (mc *GitHubMembershipContext) OrganizationMembers(org string) ([]string, error) {

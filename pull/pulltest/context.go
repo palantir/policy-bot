@@ -55,7 +55,7 @@ type Context struct {
 	OrgMemberships     map[string][]string
 	OrgMembershipError error
 
-	CollaboratorMemberships     map[string][]string
+	CollaboratorMemberships     map[string]pull.RepositoryPermission
 	CollaboratorMembershipError error
 
 	RequestedReviewersValue []*pull.Reviewer
@@ -157,17 +157,11 @@ func (c *Context) IsOrgMember(org, user string) (bool, error) {
 	return false, nil
 }
 
-func (c *Context) IsCollaborator(org, repo, user, desiredPerm string) (bool, error) {
+func (c *Context) CollaboratorPermission(org, repo, user string) (pull.RepositoryPermission, error) {
 	if c.CollaboratorMembershipError != nil {
-		return false, c.CollaboratorMembershipError
+		return pull.PermissionNone, c.CollaboratorMembershipError
 	}
-
-	for _, c := range c.CollaboratorMemberships[user] {
-		if c == desiredPerm {
-			return true, nil
-		}
-	}
-	return false, nil
+	return c.CollaboratorMemberships[user], nil
 }
 
 func (c *Context) RepositoryCollaborators() (map[string]string, error) {
@@ -176,7 +170,7 @@ func (c *Context) RepositoryCollaborators() (map[string]string, error) {
 	}
 	users := make(map[string]string)
 	for u, p := range c.CollaboratorMemberships {
-		users[u] = p[0]
+		users[u] = p.String()
 	}
 	return users, nil
 }

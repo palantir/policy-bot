@@ -136,22 +136,37 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 		res.Status = common.StatusPending
 
 		if r.Options.RequestReview.Enabled {
-			mode := r.Options.RequestReview.Mode
-			if mode == "" {
-				mode = common.RequestModeRandomUsers
-			}
-			res.ReviewRequestRule = &common.ReviewRequestRule{
-				Users:              r.Requires.Users,
-				Teams:              r.Requires.Teams,
-				Organizations:      r.Requires.Organizations,
-				Admins:             r.Requires.Admins,
-				WriteCollaborators: r.Requires.WriteCollaborators,
-				RequiredCount:      r.Requires.Count,
-				Mode:               mode,
-			}
 		}
 	}
 	return
+}
+
+func (r *Rule) getReviewRequestRule() *common.ReviewRequestRule {
+	if !r.Options.RequestReview.Enabled {
+		return nil
+	}
+
+	mode := r.Options.RequestReview.Mode
+	if mode == "" {
+		mode = common.RequestModeRandomUsers
+	}
+
+	perms := append([]string{}, r.Requires.Permissions...)
+	if r.Requires.Admins {
+		perms = append(perms, "admin")
+	}
+	if r.Requires.WriteCollaborators {
+		perms = append(perms, "write")
+	}
+
+	return &common.ReviewRequestRule{
+		Users:         r.Requires.Users,
+		Teams:         r.Requires.Teams,
+		Organizations: r.Requires.Organizations,
+		Permissions:   perms,
+		RequiredCount: r.Requires.Count,
+		Mode:          mode,
+	}
 }
 
 func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string, error) {

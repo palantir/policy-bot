@@ -30,19 +30,23 @@ type Actors struct {
 	Teams         []string `yaml:"teams"`
 	Organizations []string `yaml:"organizations"`
 
-	// Github repository specific interpolation options
+	// Deprecated: use Permissions with "admin" or "write"
 	Admins             bool `yaml:"admins"`
 	WriteCollaborators bool `yaml:"write_collaborators"`
-}
 
-const (
-	GithubWritePermission = "write"
-	GithubAdminPermission = "admin"
-)
+	// A list of GitHub collaborator permissions that are allowed. Values may
+	// be any of "admin", "maintain", "write", "triage", and "read".
+	//
+	// Each desired permission must be listed explicity. For example, even
+	// though "admin" is a superset of "write" in GitHub, both "admin" and
+	// "write" must be included in the list to allow users with either role.
+	Permissions []string
+}
 
 // IsEmpty returns true if no conditions for actors are defined.
 func (a *Actors) IsEmpty() bool {
-	return a == nil || (len(a.Users) == 0 && len(a.Teams) == 0 && len(a.Organizations) == 0 && !a.Admins && !a.WriteCollaborators)
+	return a == nil || (len(a.Users) == 0 && len(a.Teams) == 0 && len(a.Organizations) == 0 &&
+		len(a.Permissions) == 0 && !a.Admins && !a.WriteCollaborators)
 }
 
 // IsActor returns true if the given user satisfies at least one of the
@@ -74,25 +78,29 @@ func (a *Actors) IsActor(ctx context.Context, prctx pull.Context, user string) (
 		}
 	}
 
+	var perms []pull.RepositoryPermission
+	for _, p := range a.Permissions {
+		perm, err := pull.ParsePermission(p)
+		if err != nil {
+			return false, err
+		}
+		perms = append(perms, perm)
+	}
 	if a.Admins {
-		isAdmin, err := prctx.IsCollaborator(prctx.RepositoryOwner(), prctx.RepositoryName(), user, GithubAdminPermission)
-		if err != nil {
-			return false, errors.Wrap(err, "failed to get admin collaborator status")
-		}
-		if isAdmin {
-			return true, nil
-		}
+		perms = append(perms, pull.PermissionAdmin)
 	}
-
 	if a.WriteCollaborators {
-		isWrite, err := prctx.IsCollaborator(prctx.RepositoryOwner(), prctx.RepositoryName(), user, GithubWritePermission)
-		if err != nil {
-			return false, errors.Wrap(err, "failed to get write collaborator status")
-		}
-		if isWrite {
+		perms = append(perms, pull.PermissionWrite)
+	}
+
+	userPerm, err := prctx.CollaboratorPermission(prctx.RepositoryOwner(), prctx.RepositoryName(), user)
+	if err != nil {
+		return false, err
+	}
+	for _, p := range perms {
+		if userPerm == p {
 			return true, nil
 		}
 	}
-
 	return false, nil
 }

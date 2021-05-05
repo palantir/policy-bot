@@ -324,10 +324,20 @@ requires:
   organizations: ["org1", "org2"]
   teams: ["org1/team1", "org2/team2"]
 
-  # allows approval by admins of the org or repository
-  admins: true
-  # allows approval by users who have write on the repository
-  write_collaborators: true
+  # A user must have a permission in this list for their approval to count for
+  # this rule. Valid permissions are "admin", "maintain", "write", "triage",
+  # and "read".
+  permissions: ["admin", "maintain", "write"]
+
+  # Deprecated: use 'permissions: ["admin"]'
+  #
+  # Allows approval by admins of the org or repository
+  # admins: true
+
+  # Deprecated: use 'permissions: ["write"]'
+  #
+  # Allows approval by users who have write on the repository
+  # write_collaborators: true
 ```
 
 ### Approval Policies

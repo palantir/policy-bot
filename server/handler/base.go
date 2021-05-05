@@ -146,7 +146,7 @@ func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger commo
 		return err
 	}
 
-	mbrCtx := NewCrossOrgMembershipContext(ctx, client, loc.Owner, b.Installations, b.ClientCreator)
+	mbrCtx := NewCrossOrgMembershipContext(ctx, client, v4client, loc.Owner, b.Installations, b.ClientCreator)
 	prctx, err := pull.NewGitHubContext(ctx, mbrCtx, client, v4client, loc)
 	if err != nil {
 		return err

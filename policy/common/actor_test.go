@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/pull/pulltest"
 )
 
@@ -33,8 +34,9 @@ func TestIsActor(t *testing.T) {
 		OrgMemberships: map[string][]string{
 			"mhaypenny": {"cool-org", "regular-org"},
 		},
-		CollaboratorMemberships: map[string][]string{
-			"mhaypenny": {GithubAdminPermission, GithubWritePermission},
+		CollaboratorMemberships: map[string]pull.RepositoryPermission{
+			"mhaypenny":    pull.PermissionAdmin,
+			"jstrawnickel": pull.PermissionWrite,
 		},
 	}
 
@@ -81,13 +83,25 @@ func TestIsActor(t *testing.T) {
 		a := &Actors{Admins: true}
 
 		assertActor(t, a, "mhaypenny")
+		assertNotActor(t, a, "jstrawnickel")
 		assertNotActor(t, a, "ttest")
 	})
 
 	t.Run("write", func(t *testing.T) {
 		a := &Actors{WriteCollaborators: true}
 
+		assertActor(t, a, "jstrawnickel")
+		assertNotActor(t, a, "mhaypenny")
+		assertNotActor(t, a, "ttest")
+	})
+
+	t.Run("permissions", func(t *testing.T) {
+		a := &Actors{
+			Permissions: []string{"admin", "write"},
+		}
+
 		assertActor(t, a, "mhaypenny")
+		assertActor(t, a, "jstrawnickel")
 		assertNotActor(t, a, "ttest")
 	})
 }
