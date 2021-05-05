@@ -151,12 +151,12 @@ func (r *Rule) getReviewRequestRule() *common.ReviewRequestRule {
 		mode = common.RequestModeRandomUsers
 	}
 
-	perms := append([]string{}, r.Requires.Permissions...)
+	perms := append([]pull.Permission(nil), r.Requires.Permissions...)
 	if r.Requires.Admins {
-		perms = append(perms, "admin")
+		perms = append(perms, pull.PermissionAdmin)
 	}
 	if r.Requires.WriteCollaborators {
-		perms = append(perms, "write")
+		perms = append(perms, pull.PermissionWrite)
 	}
 
 	return &common.ReviewRequestRule{

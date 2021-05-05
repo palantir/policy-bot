@@ -5,10 +5,10 @@ import (
 	"strings"
 )
 
-type RepositoryPermission uint8
+type Permission uint8
 
 const (
-	PermissionNone RepositoryPermission = iota
+	PermissionNone Permission = iota
 	PermissionRead
 	PermissionTriage
 	PermissionWrite
@@ -16,23 +16,13 @@ const (
 	PermissionAdmin
 )
 
-func ParsePermission(p string) (RepositoryPermission, error) {
-	switch strings.ToLower(p) {
-	case "read":
-		return PermissionRead, nil
-	case "triage":
-		return PermissionTriage, nil
-	case "write":
-		return PermissionWrite, nil
-	case "maintain":
-		return PermissionMaintain, nil
-	case "admin":
-		return PermissionAdmin, nil
-	}
-	return PermissionNone, fmt.Errorf("invalid permission: %s", p)
+func ParsePermission(s string) (Permission, error) {
+	var p Permission
+	err := p.UnmarshalText([]byte(s))
+	return p, err
 }
 
-func (p RepositoryPermission) String() string {
+func (p Permission) String() string {
 	switch p {
 	case PermissionNone:
 		return "none"
@@ -48,4 +38,26 @@ func (p RepositoryPermission) String() string {
 		return "admin"
 	}
 	return fmt.Sprintf("unknown(%d)", p)
+}
+
+func (p Permission) MarshalText() ([]byte, error) {
+	return []byte(p.String()), nil
+}
+
+func (p *Permission) UnmarshalText(text []byte) error {
+	switch strings.ToLower(string(text)) {
+	case "none":
+		*p = PermissionNone
+	case "read":
+		*p = PermissionRead
+	case "triage":
+		*p = PermissionTriage
+	case "write":
+		*p = PermissionWrite
+	case "maintain":
+		*p = PermissionMaintain
+	case "admin":
+		*p = PermissionAdmin
+	}
+	return fmt.Errorf("invalid permission: %s", text)
 }

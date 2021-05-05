@@ -55,7 +55,7 @@ type Context struct {
 	OrgMemberships     map[string][]string
 	OrgMembershipError error
 
-	CollaboratorMemberships     map[string]pull.RepositoryPermission
+	CollaboratorMemberships     map[string]pull.Permission
 	CollaboratorMembershipError error
 
 	RequestedReviewersValue []*pull.Reviewer
@@ -157,7 +157,7 @@ func (c *Context) IsOrgMember(org, user string) (bool, error) {
 	return false, nil
 }
 
-func (c *Context) CollaboratorPermission(user string) (pull.RepositoryPermission, error) {
+func (c *Context) CollaboratorPermission(user string) (pull.Permission, error) {
 	if c.CollaboratorMembershipError != nil {
 		return pull.PermissionNone, c.CollaboratorMembershipError
 	}

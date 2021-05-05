@@ -40,7 +40,7 @@ type Actors struct {
 	// Each desired permission must be listed explicity. For example, even
 	// though "admin" is a superset of "write" in GitHub, both "admin" and
 	// "write" must be included in the list to allow users with either role.
-	Permissions []string
+	Permissions []pull.Permission
 }
 
 // IsEmpty returns true if no conditions for actors are defined.
@@ -78,14 +78,7 @@ func (a *Actors) IsActor(ctx context.Context, prctx pull.Context, user string) (
 		}
 	}
 
-	var perms []pull.RepositoryPermission
-	for _, p := range a.Permissions {
-		perm, err := pull.ParsePermission(p)
-		if err != nil {
-			return false, err
-		}
-		perms = append(perms, perm)
-	}
+	perms := append([]pull.Permission(nil), a.Permissions...)
 	if a.Admins {
 		perms = append(perms, pull.PermissionAdmin)
 	}
@@ -97,6 +90,10 @@ func (a *Actors) IsActor(ctx context.Context, prctx pull.Context, user string) (
 	if err != nil {
 		return false, err
 	}
+	if userPerm == pull.PermissionNone {
+		return false, nil
+	}
+
 	for _, p := range perms {
 		if userPerm == p {
 			return true, nil

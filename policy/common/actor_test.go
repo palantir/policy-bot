@@ -34,7 +34,7 @@ func TestIsActor(t *testing.T) {
 		OrgMemberships: map[string][]string{
 			"mhaypenny": {"cool-org", "regular-org"},
 		},
-		CollaboratorMemberships: map[string]pull.RepositoryPermission{
+		CollaboratorMemberships: map[string]pull.Permission{
 			"mhaypenny":    pull.PermissionAdmin,
 			"jstrawnickel": pull.PermissionWrite,
 		},
@@ -97,7 +97,7 @@ func TestIsActor(t *testing.T) {
 
 	t.Run("permissions", func(t *testing.T) {
 		a := &Actors{
-			Permissions: []string{"admin", "write"},
+			Permissions: []pull.Permission{pull.PermissionAdmin, pull.PermissionWrite},
 		}
 
 		assertActor(t, a, "mhaypenny")

@@ -100,7 +100,7 @@ type Context interface {
 	RepositoryCollaborators() (map[string]string, error)
 
 	// CollaboratorPermission returns the permission level of user on the repository.
-	CollaboratorPermission(user string) (RepositoryPermission, error)
+	CollaboratorPermission(user string) (Permission, error)
 
 	// Teams lists the set of team collaborators, along with
 	// their respective permission on a repo.

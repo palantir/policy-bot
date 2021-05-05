@@ -336,7 +336,7 @@ func (ghc *GitHubContext) RepositoryCollaborators() (map[string]string, error) {
 	return ghc.collaborators, nil
 }
 
-func (ghc *GitHubContext) CollaboratorPermission(user string) (RepositoryPermission, error) {
+func (ghc *GitHubContext) CollaboratorPermission(user string) (Permission, error) {
 	var q struct {
 		Repository struct {
 			Collaborators struct {
