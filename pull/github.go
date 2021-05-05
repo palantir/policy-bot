@@ -336,6 +336,31 @@ func (ghc *GitHubContext) RepositoryCollaborators() (map[string]string, error) {
 	return ghc.collaborators, nil
 }
 
+func (ghc *GitHubContext) CollaboratorPermission(user string) (RepositoryPermission, error) {
+	var q struct {
+		Repository struct {
+			Collaborators struct {
+				Edges []struct {
+					Permission string
+				}
+			} `graphql:"collaborators(query: $user)"`
+		} `graphql:"repository(owner: $owner, name: $name)"`
+	}
+	qvars := map[string]interface{}{
+		"owner": githubv4.String(ghc.owner),
+		"name":  githubv4.String(ghc.repo),
+		"user":  githubv4.String(user),
+	}
+
+	if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
+		return PermissionNone, errors.Wrap(err, "failed to get collaborator permission")
+	}
+	if len(q.Repository.Collaborators.Edges) > 0 {
+		return ParsePermission(q.Repository.Collaborators.Edges[0].Permission)
+	}
+	return PermissionNone, nil
+}
+
 func coalescePermission(perms map[string]bool) string {
 	// standardize to new-style values used by GraphQL and other endpoints
 	switch {

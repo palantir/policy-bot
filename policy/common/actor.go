@@ -93,7 +93,7 @@ func (a *Actors) IsActor(ctx context.Context, prctx pull.Context, user string) (
 		perms = append(perms, pull.PermissionWrite)
 	}
 
-	userPerm, err := prctx.CollaboratorPermission(prctx.RepositoryOwner(), prctx.RepositoryName(), user)
+	userPerm, err := prctx.CollaboratorPermission(user)
 	if err != nil {
 		return false, err
 	}

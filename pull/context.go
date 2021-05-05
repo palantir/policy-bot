@@ -28,9 +28,6 @@ type MembershipContext interface {
 	// IsOrgMember returns true if the user is a member of the given organzation.
 	IsOrgMember(org, user string) (bool, error)
 
-	// CollaboratorPermission returns the permission level of user on the given repository.
-	CollaboratorPermission(org, repo, user string) (RepositoryPermission, error)
-
 	// TeamMembers returns the list of usernames in the given organization's team.
 	TeamMembers(team string) ([]string, error)
 
@@ -101,6 +98,9 @@ type Context interface {
 	// RepositoryCollaborators lists the set of collaborators, along with
 	// their respective permission on a repo.
 	RepositoryCollaborators() (map[string]string, error)
+
+	// CollaboratorPermission returns the permission level of user on the repository.
+	CollaboratorPermission(user string) (RepositoryPermission, error)
 
 	// Teams lists the set of team collaborators, along with
 	// their respective permission on a repo.

@@ -157,7 +157,7 @@ func (c *Context) IsOrgMember(org, user string) (bool, error) {
 	return false, nil
 }
 
-func (c *Context) CollaboratorPermission(org, repo, user string) (pull.RepositoryPermission, error) {
+func (c *Context) CollaboratorPermission(user string) (pull.RepositoryPermission, error) {
 	if c.CollaboratorMembershipError != nil {
 		return pull.PermissionNone, c.CollaboratorMembershipError
 	}
