@@ -19,7 +19,6 @@ import (
 
 	"github.com/bluekeyes/templatetree"
 	"github.com/palantir/go-githubapp/githubapp"
-
 	"github.com/palantir/policy-bot/version"
 )
 

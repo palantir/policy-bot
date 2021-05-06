@@ -22,12 +22,11 @@ import (
 	"strings"
 
 	"github.com/google/go-github/v32/github"
+	"github.com/palantir/policy-bot/policy"
+	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"gopkg.in/yaml.v2"
-
-	"github.com/palantir/policy-bot/policy"
-	"github.com/palantir/policy-bot/pull"
 )
 
 type FetchedConfig struct {

@@ -18,10 +18,9 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/palantir/policy-bot/policy/common"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
-
-	"github.com/palantir/policy-bot/policy/common"
 )
 
 func TestParsePolicy(t *testing.T) {

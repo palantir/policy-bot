@@ -18,10 +18,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/palantir/policy-bot/pull/pulltest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/palantir/policy-bot/pull/pulltest"
 )
 
 func TestIsActor(t *testing.T) {

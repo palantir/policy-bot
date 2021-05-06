@@ -18,11 +18,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/pull/pulltest"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHasAuthorIn(t *testing.T) {

@@ -1,4 +1,0 @@
-formatters:
-  ptimports:
-    config:
-      separate-project-imports: true
