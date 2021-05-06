@@ -312,46 +312,123 @@ func (ghc *GitHubContext) Reviews() ([]*Review, error) {
 
 func (ghc *GitHubContext) RepositoryCollaborators() ([]*Collaborator, error) {
 	if ghc.collaborators == nil {
+		// For reveiwer assignment, we need to figure out how each collaborator
+		// gets permissions on the repository. We _should_ be able to do this
+		// by examining the permission sources for each collaborator, but this
+		// API is innaccurate as of 2021-05-06. Specifically:
+		//
+		//   - Organization permissions are not reported correctly
+		//   - Triage/Maintain permissions are not supported
+		//   - Organization owners have both org and repo sources
+		//
+		// Instead, query for all collaborators and direct collaborators, then
+		// join that information with team level permissions to produce the
+		// final list of collaborators.
+
 		var q struct {
 			Repository struct {
-				Collaborators struct {
+				DirectCollaborators struct {
+					PageInfo v4PageInfo
+					Edges    []struct {
+						Permission string
+					}
+					Nodes []v4Actor
+				} `graphql:"direct: collaborators(affiliation: DIRECT, first: 100, after: $directCursor)"`
+				AllCollaborators struct {
 					PageInfo v4PageInfo
 					Edges    []struct {
 						Permission        string
-						PermissionSources v4PermissionSources
+						PermissionSources []struct {
+							Source struct {
+								Team *struct {
+									Slug string
+								} `graphql:"... on Team"`
+							}
+						}
 					}
 					Nodes []v4Actor
-				} `graphql:"collaborators(first: 100, after: $cursor)"`
+				} `graphql:"all: collaborators(affiliation: ALL, first: 100, after: $allCursor)"`
 			} `graphql:"repository(owner: $owner, name: $name)"`
 		}
 		qvars := map[string]interface{}{
-			"owner":  githubv4.String(ghc.owner),
-			"name":   githubv4.String(ghc.repo),
-			"cursor": (*githubv4.String)(nil),
+			"owner":        githubv4.String(ghc.owner),
+			"name":         githubv4.String(ghc.repo),
+			"directCursor": (*githubv4.String)(nil),
+			"allCursor":    (*githubv4.String)(nil),
 		}
+
+		directPerms := make(map[string]Permission)
+		teamMembership := make(map[string][]string)
 
 		var collaborators []*Collaborator
 		for {
+			complete := 0
 			if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
 				return nil, errors.Wrap(err, "failed to load repository collaborators")
 			}
-			for i, u := range q.Repository.Collaborators.Nodes {
-				edge := q.Repository.Collaborators.Edges[i]
+
+			for i, u := range q.Repository.DirectCollaborators.Nodes {
+				edge := q.Repository.DirectCollaborators.Edges[i]
+				name := u.GetV3Login()
 
 				p, err := ParsePermission(edge.Permission)
 				if err != nil {
-					return nil, errors.Wrapf(err, "%s", u.GetV3Login())
+					return nil, errors.Wrapf(err, "%s", name)
+				}
+				directPerms[name] = p
+			}
+			if !q.Repository.DirectCollaborators.PageInfo.UpdateCursor(qvars, "directCursor") {
+				complete++
+			}
+
+			for i, u := range q.Repository.AllCollaborators.Nodes {
+				edge := q.Repository.AllCollaborators.Edges[i]
+				name := u.GetV3Login()
+
+				p, err := ParsePermission(edge.Permission)
+				if err != nil {
+					return nil, errors.Wrapf(err, "%s", name)
 				}
 
 				collaborators = append(collaborators, &Collaborator{
-					Name:       u.GetV3Login(),
+					Name:       name,
 					Permission: p,
-					ViaOrg:     edge.PermissionSources.IsViaOrg(p),
 				})
+
+				for _, src := range edge.PermissionSources {
+					if src.Source.Team != nil {
+						teamMembership[name] = append(teamMembership[name], src.Source.Team.Slug)
+					}
+				}
 			}
-			if !q.Repository.Collaborators.PageInfo.UpdateCursor(qvars, "cursor") {
+			if !q.Repository.AllCollaborators.PageInfo.UpdateCursor(qvars, "allCursor") {
+				complete++
+			}
+
+			if complete == 2 {
 				break
 			}
+		}
+
+		teamPerms, err := ghc.Teams()
+		if err != nil {
+			return nil, err
+		}
+
+		isPermissionViaRepo := func(c *Collaborator) bool {
+			if directPerms[c.Name] >= c.Permission {
+				return true
+			}
+			for _, team := range teamMembership[c.Name] {
+				if teamPerms[team] >= c.Permission {
+					return true
+				}
+			}
+			return false
+		}
+
+		for _, c := range collaborators {
+			c.PermissionViaRepo = isPermissionViaRepo(c)
 		}
 		ghc.collaborators = collaborators
 	}
@@ -981,86 +1058,6 @@ func (ga v4GitActor) GetV3Login() string {
 		return ga.User.GetV3Login()
 	}
 	return ""
-}
-
-type v4PermissionSource struct {
-	Type       string `graphql:"__typename"`
-	Permission string
-}
-
-type v4PermissionSources []v4PermissionSource
-
-func (pss v4PermissionSources) IsViaOrg(combined Permission) bool {
-	// The GitHub permissions APIs are full of scorpions! The problems and
-	// workarounds described here are accurate as of 2021-05-05 and GHE 3.0.6,
-	// but could change in future versions.
-	//
-	// The Permission field of the PermissionSource object uses the
-	// DefaultRepositoryPermissionField type, which does not contain triage and
-	// maintain permissions.
-	//
-	// Additionally, the value seems to be incorrect for Organization sources,
-	// returning READ even when the default permission is different. Org owners
-	// always have ADMIN permissions from the organization, but also have ADMIN
-	// from the repository.
-	//
-	// Luckily for now, maintain and triage permissions can only be set
-	// directly on the repository for teams and users, so we know immediately
-	// one of those permissions cannot come from the organization.
-
-	switch combined {
-	case PermissionNone, PermissionTriage, PermissionMaintain:
-		return false
-	}
-
-	repoCount := 0
-	repoPerm := PermissionNone
-	orgPerm := PermissionNone
-
-	for _, ps := range pss {
-		// As noted above, this is a DefaultRepositoryPermissionField, not a
-		// RepositoryPermission, but the values are a subset of the later type,
-		// so use the same parser to create a comparable value.
-		p, _ := ParsePermission(ps.Permission)
-
-		switch ps.Type {
-		case "Organization":
-			orgPerm = p
-		case "Repository":
-			repoCount++
-			if p < repoPerm || repoPerm == PermissionNone {
-				repoPerm = p
-			}
-		case "Team":
-			// If a team grants the combined permission, there is no ambiguity
-			// in the API response and we can stop the process
-			if p >= combined {
-				return false
-			}
-		}
-	}
-
-	// Because organization owners are represented by both an organization and
-	// a repository source, we have to distinguish between 4 cases that result
-	// in admin permissions:
-	//
-	// 1) Direct repository admin
-	// 2) Organization owner
-	// 3) Organization owner who is also a direct repository admin
-	// 4) Default repository permissions
-	//
-	if combined == PermissionAdmin {
-		switch {
-		case repoPerm == PermissionAdmin && orgPerm < PermissionAdmin: // (1)
-			return false
-		case repoPerm == PermissionAdmin && orgPerm == PermissionAdmin && repoCount == 1: // (2)
-			return true
-		case repoPerm == PermissionAdmin && repoCount > 1: // (3)
-			return false
-		}
-		// (4) falls through to default check
-	}
-	return repoPerm < combined
 }
 
 func isNotFound(err error) bool {

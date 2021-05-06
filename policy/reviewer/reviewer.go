@@ -249,7 +249,7 @@ func selectUserReviewers(ctx context.Context, prctx pull.Context, selection *Sel
 
 	for _, c := range collaborators {
 		logger.Debug().Msg("Selecting from collaborators by permission for review")
-		if !c.ViaOrg && requestsPermission(result, c.Permission) {
+		if c.PermissionViaRepo && requestsPermission(result, c.Permission) {
 			allUsers[c.Name] = struct{}{}
 		}
 	}

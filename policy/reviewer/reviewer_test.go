@@ -241,32 +241,26 @@ func TestSelectReviewers_Team(t *testing.T) {
 
 func TestSelectReviewers_Team_teams(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
-	results := makeResults(&common.Result{
-		Name:              "Team",
-		Description:       "",
-		StatusDescription: "",
-		Status:            common.StatusPending,
-		ReviewRequestRule: &common.ReviewRequestRule{
-			// Require a team approval
-			Teams:         []string{"everyone/team-write", "everyone/team-not-collaborators"},
-			Users:         []string{"user-team-write"},
-			RequiredCount: 1,
-			Mode:          "teams",
+	results := []*common.Result{
+		{
+			Name:   "Team",
+			Status: common.StatusPending,
+			ReviewRequestRule: &common.ReviewRequestRule{
+				// Require a team approval
+				Teams:         []string{"everyone/team-write", "everyone/team-not-collaborators"},
+				Users:         []string{"user-team-write"},
+				RequiredCount: 1,
+				Mode:          "teams",
+			},
 		},
-		Error:    nil,
-		Children: nil,
-	}, "random-users")
+	}
 
 	prctx := makeContext()
 	selection, err := SelectReviewers(context.Background(), prctx, results, r)
 	require.NoError(t, err)
 	require.Len(t, selection.Teams, 1, "one team should be returned")
 	require.Contains(t, selection.Teams, "team-write", "team-write should be selected")
-	require.Len(t, selection.Users, 2, "policy should request 2 people")
-	require.Contains(t, selection.Users, "review-approver", "at least review-approver must be selected")
-	require.NotContains(t, selection.Users, "user-team-write", "user-team-write should not be selected")
-	require.NotContains(t, selection.Users, "mhaypenny", "the author cannot be requested")
-	require.NotContains(t, selection.Users, "not-a-collaborator", "a non collaborator cannot be requested")
+	require.Len(t, selection.Users, 0, "policy should request 0 users")
 }
 
 func TestSelectReviewers_Team_teamsDefaultsToNothing(t *testing.T) {
@@ -406,11 +400,11 @@ func makeContext() pull.Context {
 			"review-approver":       {"everyone", "even-cooler-org"},
 		},
 		CollaboratorsValue: []*pull.Collaborator{
-			{Name: "mhaypenny", Permission: pull.PermissionAdmin},
+			{Name: "mhaypenny", Permission: pull.PermissionAdmin, PermissionViaRepo: true},
 			{Name: "org-owner", Permission: pull.PermissionAdmin},
-			{Name: "user-team-admin", Permission: pull.PermissionAdmin},
-			{Name: "user-direct-admin", Permission: pull.PermissionAdmin},
-			{Name: "user-team-write", Permission: pull.PermissionWrite},
+			{Name: "user-team-admin", Permission: pull.PermissionAdmin, PermissionViaRepo: true},
+			{Name: "user-direct-admin", Permission: pull.PermissionAdmin, PermissionViaRepo: true},
+			{Name: "user-team-write", Permission: pull.PermissionWrite, PermissionViaRepo: true},
 			{Name: "contributor-committer", Permission: pull.PermissionWrite},
 			{Name: "contributor-author", Permission: pull.PermissionWrite},
 			{Name: "review-approver", Permission: pull.PermissionWrite},

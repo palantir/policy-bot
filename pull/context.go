@@ -222,5 +222,8 @@ type Reviewer struct {
 type Collaborator struct {
 	Name       string
 	Permission Permission
-	ViaOrg     bool
+
+	// True if Permission is granted by a direct or team association with the
+	// repository. If false, the permisssion is granted by the organization.
+	PermissionViaRepo bool
 }
