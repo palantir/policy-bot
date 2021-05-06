@@ -132,7 +132,6 @@ func TestCommits(t *testing.T) {
 	assert.Equal(t, "3AA5C34371567BD2", commits[2].Signature.KeyID)
 	assert.Equal(t, "mhaypenny", commits[2].Signature.Signer)
 	assert.True(t, commits[2].Signature.IsValid)
-	assert.Equal(t, "mhaypenny@example.com", commits[2].Signature.Email)
 
 	// verify that the commit list is cached
 	commits, err = ctx.Commits()

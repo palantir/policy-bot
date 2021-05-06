@@ -958,26 +958,18 @@ func (s *v4GitSignature) ToSignature() *Signature {
 	switch SignatureType(s.Type) {
 	case SignatureGpg:
 		return &Signature{
-			Email:             s.GPG.Email,
-			IsValid:           s.GPG.IsValid,
-			KeyID:             s.GPG.KeyID,
-			Payload:           s.GPG.Payload,
-			Signature:         s.GPG.Signature,
-			Signer:            s.GPG.Signer.GetV3Login(),
-			State:             s.GPG.State,
-			Type:              SignatureGpg,
-			WasSignedByGitHub: s.GPG.WasSignedByGitHub,
+			IsValid: s.GPG.IsValid,
+			KeyID:   s.GPG.KeyID,
+			Signer:  s.GPG.Signer.GetV3Login(),
+			State:   s.GPG.State,
+			Type:    SignatureGpg,
 		}
 	case SignatureSmime:
 		return &Signature{
-			Email:             s.SMIME.Email,
-			IsValid:           s.SMIME.IsValid,
-			Payload:           s.SMIME.Payload,
-			Signature:         s.SMIME.Signature,
-			Signer:            s.SMIME.Signer.GetV3Login(),
-			State:             s.SMIME.State,
-			Type:              SignatureSmime,
-			WasSignedByGitHub: s.SMIME.WasSignedByGitHub,
+			IsValid: s.SMIME.IsValid,
+			Signer:  s.SMIME.Signer.GetV3Login(),
+			State:   s.SMIME.State,
+			Type:    SignatureSmime,
 		}
 	default:
 		return nil

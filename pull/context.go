@@ -206,13 +206,9 @@ type Reviewer struct {
 }
 
 type Signature struct {
-	Type              SignatureType
-	Email             string
-	IsValid           bool
-	KeyID             string
-	Payload           string
-	Signature         string
-	Signer            string
-	State             string
-	WasSignedByGitHub bool
+	Type    SignatureType
+	IsValid bool
+	KeyID   string
+	Signer  string
+	State   string
 }
