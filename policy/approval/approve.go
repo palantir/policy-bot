@@ -134,9 +134,7 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 		res.Status = common.StatusApproved
 	} else {
 		res.Status = common.StatusPending
-
-		if r.Options.RequestReview.Enabled {
-		}
+		res.ReviewRequestRule = r.getReviewRequestRule()
 	}
 	return
 }
