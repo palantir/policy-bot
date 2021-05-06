@@ -29,14 +29,44 @@ import (
 )
 
 func TestFindLeafResults(t *testing.T) {
-	result := makeResult(&common.Result{
-		Name:              "Skipped",
-		Description:       "",
-		StatusDescription: "",
-		Status:            common.StatusSkipped,
-		Error:             nil,
-		Children:          nil,
-	}, "random-users")
+	result := &common.Result{
+		Name:   "Parent",
+		Status: common.StatusPending,
+		Children: []*common.Result{
+			{
+				Name:              "One",
+				Status:            common.StatusPending,
+				ReviewRequestRule: &common.ReviewRequestRule{},
+			},
+			{
+				Name:              "Skipped",
+				Status:            common.StatusSkipped,
+				ReviewRequestRule: &common.ReviewRequestRule{},
+			},
+			{
+				Name:              "Error",
+				Status:            common.StatusPending,
+				Error:             errors.New("failed"),
+				ReviewRequestRule: &common.ReviewRequestRule{},
+			},
+			{
+				Name:              "Disapproved",
+				Status:            common.StatusDisapproved,
+				ReviewRequestRule: &common.ReviewRequestRule{},
+			},
+			{
+				Name:   "Two",
+				Status: common.StatusPending,
+				Children: []*common.Result{
+					{
+						Name:              "Three",
+						Status:            common.StatusPending,
+						ReviewRequestRule: &common.ReviewRequestRule{},
+					},
+				},
+			},
+		},
+	}
 	actualResults := FindRequests(result)
 	require.Len(t, actualResults, 2, "incorrect number of leaf results")
 }
@@ -158,19 +188,26 @@ func TestSelectRandomUsers(t *testing.T) {
 
 func TestSelectReviewers(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
-	results := makeResults(&common.Result{
-		Name:              "Owner",
-		Description:       "",
-		StatusDescription: "",
-		Status:            common.StatusPending,
-		ReviewRequestRule: &common.ReviewRequestRule{
-			Permissions:   []pull.Permission{pull.PermissionAdmin},
-			RequiredCount: 1,
-			Mode:          common.RequestModeRandomUsers,
+	results := []*common.Result{
+		{
+			Name:   "users",
+			Status: common.StatusPending,
+			ReviewRequestRule: &common.ReviewRequestRule{
+				Users:         []string{"mhaypenny", "review-approver", "contributor-committer"},
+				RequiredCount: 2,
+				Mode:          common.RequestModeRandomUsers,
+			},
 		},
-		Error:    nil,
-		Children: nil,
-	}, "random-users")
+		{
+			Name:   "admin-users",
+			Status: common.StatusPending,
+			ReviewRequestRule: &common.ReviewRequestRule{
+				Permissions:   []pull.Permission{pull.PermissionAdmin},
+				RequiredCount: 1,
+				Mode:          common.RequestModeRandomUsers,
+			},
+		},
+	}
 
 	prctx := makeContext()
 
@@ -183,7 +220,7 @@ func TestSelectReviewers(t *testing.T) {
 	require.NotContains(t, selection.Users, "org-owner", "org-owner should not be requested")
 }
 
-func TestSelectAdminTeam(t *testing.T) {
+func TestSelectReviewers_AdminTeam(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
 	results := []*common.Result{
 		{
@@ -211,42 +248,35 @@ func TestSelectAdminTeam(t *testing.T) {
 	require.Len(t, selection.Users, 0, "policy should request no people")
 }
 
-func TestSelectReviewers_Team(t *testing.T) {
+func TestSelectReviewers_TeamMembers(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
-	results := makeResults(&common.Result{
-		Name:              "Team",
-		Description:       "",
-		StatusDescription: "",
-		Status:            common.StatusPending,
-		ReviewRequestRule: &common.ReviewRequestRule{
-			// Require a team approval
-			Teams:         []string{"everyone/team-write"},
-			RequiredCount: 1,
-			Mode:          common.RequestModeRandomUsers,
+	results := []*common.Result{
+		{
+			Name:   "team-users",
+			Status: common.StatusPending,
+			ReviewRequestRule: &common.ReviewRequestRule{
+				Teams:         []string{"everyone/team-write"},
+				RequiredCount: 1,
+				Mode:          common.RequestModeRandomUsers,
+			},
 		},
-		Error:    nil,
-		Children: nil,
-	}, "random-users")
+	}
 
 	prctx := makeContext()
 	selection, err := SelectReviewers(context.Background(), prctx, results, r)
 	require.NoError(t, err)
 	require.Empty(t, selection.Teams, "no teams should be returned")
-	require.Len(t, selection.Users, 3, "policy should request three people")
-	require.Contains(t, selection.Users, "review-approver", "at least review-approver must be selected")
-	require.Contains(t, selection.Users, "user-team-write", "at least user-team-write must be selected")
-	require.NotContains(t, selection.Users, "mhaypenny", "the author cannot be requested")
-	require.NotContains(t, selection.Users, "not-a-collaborator", "a non collaborator cannot be requested")
+	require.Len(t, selection.Users, 1, "policy should request one reviewer")
+	require.Contains(t, selection.Users, "user-team-write", "user-team-write must be selected")
 }
 
-func TestSelectReviewers_Team_teams(t *testing.T) {
+func TestSelectReviewers_Team(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
 	results := []*common.Result{
 		{
 			Name:   "Team",
 			Status: common.StatusPending,
 			ReviewRequestRule: &common.ReviewRequestRule{
-				// Require a team approval
 				Teams:         []string{"everyone/team-write", "everyone/team-not-collaborators"},
 				Users:         []string{"user-team-write"},
 				RequiredCount: 1,
@@ -263,7 +293,7 @@ func TestSelectReviewers_Team_teams(t *testing.T) {
 	require.Len(t, selection.Users, 0, "policy should request 0 users")
 }
 
-func TestSelectReviewers_Team_teamsDefaultsToNothing(t *testing.T) {
+func TestSelectReviewers_TeamNotCollaborator(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
 	results := []*common.Result{
 		{
@@ -272,7 +302,6 @@ func TestSelectReviewers_Team_teamsDefaultsToNothing(t *testing.T) {
 			StatusDescription: "",
 			Status:            common.StatusPending,
 			ReviewRequestRule: &common.ReviewRequestRule{
-				// Require a team approval
 				Teams:         []string{"everyone/team-not-collaborators"},
 				Users:         []string{"user-team-write"},
 				RequiredCount: 1,
@@ -292,96 +321,23 @@ func TestSelectReviewers_Team_teamsDefaultsToNothing(t *testing.T) {
 
 func TestSelectReviewers_Org(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
-	results := makeResults(&common.Result{
-		Name:              "Team",
-		Description:       "",
-		StatusDescription: "",
-		Status:            common.StatusPending,
-		ReviewRequestRule: &common.ReviewRequestRule{
-			// Require everyone org approval
-			Organizations: []string{"everyone"},
-			RequiredCount: 1,
-			Mode:          common.RequestModeRandomUsers,
+	results := []*common.Result{
+		{
+			Name:   "org",
+			Status: common.StatusPending,
+			ReviewRequestRule: &common.ReviewRequestRule{
+				Organizations: []string{"everyone"},
+				RequiredCount: 1,
+				Mode:          common.RequestModeRandomUsers,
+			},
 		},
-		Error:    nil,
-		Children: nil,
-	}, "random-users")
+	}
 
 	prctx := makeContext()
 	selection, err := SelectReviewers(context.Background(), prctx, results, r)
 	require.NoError(t, err)
-	require.Len(t, selection.Users, 3, "policy should request three people")
-	require.Contains(t, selection.Users, "review-approver", "at least review-approver must be selected")
-	require.NotContains(t, selection.Users, "mhaypenny", "the author cannot be requested")
-	require.NotContains(t, selection.Users, "not-a-collaborator", "a non collaborator cannot be requested")
-}
-
-func makeResults(result *common.Result, mode string) []*common.Result {
-	return FindRequests(makeResult(result, mode))
-}
-
-func makeResult(result *common.Result, mode string) *common.Result {
-	return &common.Result{
-		Name:              "One",
-		Description:       "",
-		StatusDescription: "",
-		Status:            common.StatusPending,
-		ReviewRequestRule: &common.ReviewRequestRule{
-			Users:         []string{"neverappears"},
-			RequiredCount: 0,
-			Mode:          common.RequestMode(mode),
-		},
-		Error: nil,
-		Children: []*common.Result{
-			{
-				Name:              "Two",
-				Description:       "",
-				StatusDescription: "",
-				Status:            common.StatusPending,
-				ReviewRequestRule: &common.ReviewRequestRule{
-					Users:         []string{"mhaypenny", "review-approver"},
-					RequiredCount: 1,
-					Mode:          common.RequestMode(mode),
-				},
-				Error:    nil,
-				Children: nil,
-			},
-			result,
-			{
-				Name:              "Three",
-				Description:       "",
-				StatusDescription: "",
-				Status:            common.StatusDisapproved,
-				ReviewRequestRule: &common.ReviewRequestRule{},
-				Error:             errors.New("foo"),
-				Children:          nil,
-			},
-			{
-				Name:              "Four",
-				Description:       "",
-				StatusDescription: "",
-				Status:            common.StatusPending,
-				ReviewRequestRule: &common.ReviewRequestRule{},
-				Error:             nil,
-				Children: []*common.Result{
-					{
-						Name:              "Five",
-						Description:       "",
-						StatusDescription: "",
-						Status:            common.StatusPending,
-						ReviewRequestRule: &common.ReviewRequestRule{
-							Users:         []string{"contributor-committer", "contributor-author", "not-a-collaborator"},
-							RequiredCount: 1,
-							Permissions:   []pull.Permission{pull.PermissionWrite},
-							Mode:          common.RequestMode(mode),
-						},
-						Error:    nil,
-						Children: nil,
-					},
-				},
-			},
-		},
-	}
+	require.Len(t, selection.Users, 1, "policy should request one person")
+	require.Contains(t, selection.Users, "review-approver", "review-approver must be selected")
 }
 
 func makeContext() pull.Context {
@@ -400,7 +356,7 @@ func makeContext() pull.Context {
 			"review-approver":       {"everyone", "even-cooler-org"},
 		},
 		CollaboratorsValue: []*pull.Collaborator{
-			{Name: "mhaypenny", Permission: pull.PermissionAdmin, PermissionViaRepo: true},
+			{Name: "mhaypenny", Permission: pull.PermissionAdmin},
 			{Name: "org-owner", Permission: pull.PermissionAdmin},
 			{Name: "user-team-admin", Permission: pull.PermissionAdmin, PermissionViaRepo: true},
 			{Name: "user-direct-admin", Permission: pull.PermissionAdmin, PermissionViaRepo: true},
