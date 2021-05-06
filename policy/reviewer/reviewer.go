@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
-	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -150,52 +149,19 @@ func selectOrgMembers(prctx pull.Context, allOrgs []string) ([]string, error) {
 	return allOrgsMembers, nil
 }
 
-func selectAdminTeamMembers(prctx pull.Context) (map[string][]string, error) {
-	// Resolve all admin teams on the repo, and resolve their user membership
-	adminTeams := make(map[string][]string)
-	teams, err := prctx.Teams()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get list of teams collaborators")
-	}
-
-	for team, perm := range teams {
-		if perm == common.GithubAdminPermission {
-			fullTeamName := fmt.Sprintf("%s/%s", prctx.RepositoryOwner(), team)
-			admins, err := prctx.TeamMembers(fullTeamName)
-			if err != nil {
-				return nil, errors.Wrapf(err, "Unable to get list of members for %s", team)
-			}
-			adminTeams[fullTeamName] = admins
-		}
-	}
-
-	return adminTeams, nil
-}
-
-func getPossibleReviewers(prctx pull.Context, users map[string]struct{}, collaboratorsToConsider map[string]string) []string {
+func getPossibleReviewers(prctx pull.Context, users map[string]struct{}, collaborators []*pull.Collaborator) []string {
 	var possibleReviewers []string
-	for u := range users {
-		// Remove the author and any users who aren't collaborators
-		// since github will fail to assign _anyone_ if the request contains one of these
-		_, ok := collaboratorsToConsider[u]
-		if u != prctx.Author() && ok {
-			possibleReviewers = append(possibleReviewers, u)
+	for _, c := range collaborators {
+		_, exists := users[c.Name]
+		if c.Name != prctx.Author() && exists {
+			possibleReviewers = append(possibleReviewers, c.Name)
 		}
 	}
 
-	// Because possibleReviewers is built from map iteration, its order changes
-	// each time. We need reviewer selection to be consistent when using a
-	// fixed random seed, so sort the reviewers before returning.
+	// We need reviewer selection to be consistent when using a fixed random
+	// seed, so sort the reviewers before returning.
 	sort.Strings(possibleReviewers)
 	return possibleReviewers
-}
-
-func stripOrg(teamWithOrg string) (string, error) {
-	split := strings.Split(teamWithOrg, "/")
-	if len(split) < 0 {
-		return "", fmt.Errorf("expected org with team: '%s'", teamWithOrg)
-	}
-	return split[1], nil
 }
 
 func SelectReviewers(ctx context.Context, prctx pull.Context, results []*common.Result, r *rand.Rand) (Selection, error) {
@@ -203,110 +169,126 @@ func SelectReviewers(ctx context.Context, prctx pull.Context, results []*common.
 
 	for _, child := range results {
 		logger := zerolog.Ctx(ctx).With().Str(LogKeyLeafNode, child.Name).Logger()
-
-		allUsers := make(map[string]struct{})
-		allTeamsWithUsers := make(map[string][]string)
-
-		for _, user := range child.ReviewRequestRule.Users {
-			allUsers[user] = struct{}{}
-		}
-
-		if len(child.ReviewRequestRule.Teams) > 0 {
-			logger.Debug().Msg("Selecting from teams for review")
-			teamsToUsers, err := selectTeamMembers(prctx, child.ReviewRequestRule.Teams)
-			if err != nil {
-				logger.Warn().Err(err).Msgf("failed to get member listing for teams, skipping team member selection")
-			}
-			for team, users := range teamsToUsers {
-				allTeamsWithUsers[team] = users
-				for _, user := range users {
-					allUsers[user] = struct{}{}
-				}
-			}
-		}
-
-		if len(child.ReviewRequestRule.Organizations) > 0 {
-			logger.Debug().Msg("Selecting from organizations for review")
-			orgMembers, err := selectOrgMembers(prctx, child.ReviewRequestRule.Organizations)
-			if err != nil {
-				logger.Warn().Err(err).Msg("failed to get member listing for org, skipping org member selection")
-			}
-			for _, user := range orgMembers {
-				allUsers[user] = struct{}{}
-			}
-		}
-
-		collaboratorsToConsider, err := prctx.RepositoryCollaborators()
-		if err != nil {
-			return selection, errors.Wrap(err, "failed to list repository collaborators")
-		}
-
-		if child.ReviewRequestRule.WriteCollaborators {
-			logger.Debug().Msg("Selecting from write collaborators for review")
-			for user, perm := range collaboratorsToConsider {
-				if perm == common.GithubWritePermission {
-					allUsers[user] = struct{}{}
-				}
-			}
-		}
-
-		if child.ReviewRequestRule.Admins {
-			logger.Debug().Msg("Selecting from admins for review")
-			adminTeams, err := selectAdminTeamMembers(prctx)
-			if err != nil {
-				return selection, errors.Wrap(err, "failed to select admins")
-			}
-			for team, members := range adminTeams {
-				allTeamsWithUsers[team] = members
-				for _, admin := range members {
-					allUsers[admin] = struct{}{}
-				}
-			}
-		}
+		childCtx := logger.WithContext(ctx)
 
 		switch child.ReviewRequestRule.Mode {
 		case common.RequestModeTeams:
-			permissionedTeams, err := prctx.Teams()
-			if err != nil {
+			if err := selectTeamReviewers(childCtx, prctx, &selection, child); err != nil {
 				return selection, err
 			}
-
-			var possibleTeams []string
-			for team := range allTeamsWithUsers {
-				slug, err := stripOrg(team)
-				if err != nil {
-					return selection, err
-				}
-				if _, ok := permissionedTeams[slug]; ok {
-					possibleTeams = append(possibleTeams, slug)
-				}
+		case common.RequestModeAllUsers, common.RequestModeRandomUsers:
+			if err := selectUserReviewers(childCtx, prctx, &selection, child, r); err != nil {
+				return selection, err
 			}
-			logger.Debug().Msgf("Found %d total teams; requesting teams", len(possibleTeams))
-			selection.Teams = append(selection.Teams, possibleTeams...)
-
-		case common.RequestModeAllUsers:
-			possibleReviewers := getPossibleReviewers(prctx, allUsers, collaboratorsToConsider)
-			if len(possibleReviewers) > 0 {
-				logger.Debug().Msgf("Found %d total reviewers after removing author and non-collaborators; requesting all", len(possibleReviewers))
-				selection.Users = append(selection.Users, possibleReviewers...)
-			} else {
-				logger.Debug().Msg("Did not find candidates for review after removing author and non-collaborators")
-			}
-
-		case common.RequestModeRandomUsers:
-			possibleReviewers := getPossibleReviewers(prctx, allUsers, collaboratorsToConsider)
-			if len(possibleReviewers) > 0 {
-				logger.Debug().Msgf("Found %d total candidates for review after removing author and non-collaborators; randomly selecting %d", len(possibleReviewers), child.ReviewRequestRule.RequiredCount)
-				selectedUsers := selectRandomUsers(child.ReviewRequestRule.RequiredCount, possibleReviewers, r)
-				selection.Users = append(selection.Users, selectedUsers...)
-			} else {
-				logger.Debug().Msg("Did not find candidates for review after removing author and non-collaborators")
-			}
-
 		default:
-			return selection, fmt.Errorf("unknown mode '%s' supplied", child.ReviewRequestRule.Mode)
+			return selection, fmt.Errorf("unknown reviewer selection mode: %s", child.ReviewRequestRule.Mode)
+		}
+	}
+	return selection, nil
+}
+
+func selectTeamReviewers(ctx context.Context, prctx pull.Context, selection *Selection, result *common.Result) error {
+	logger := zerolog.Ctx(ctx)
+
+	eligibleTeams, err := prctx.Teams()
+	if err != nil {
+		return err
+	}
+
+	var teams []string
+	for team, perm := range eligibleTeams {
+		switch {
+		case requestsTeam(result, prctx.RepositoryOwner()+"/"+team):
+			teams = append(teams, team)
+		case requestsPermission(result, perm):
+			teams = append(teams, team)
 		}
 	}
 
-	return selection, nil
+	logger.Debug().Msgf("Requesting %d teams for review", len(teams))
+	selection.Teams = append(selection.Teams, teams...)
+	return nil
+}
+
+func selectUserReviewers(ctx context.Context, prctx pull.Context, selection *Selection, result *common.Result, r *rand.Rand) error {
+	logger := zerolog.Ctx(ctx)
+
+	allUsers := make(map[string]struct{})
+	for _, user := range result.ReviewRequestRule.Users {
+		allUsers[user] = struct{}{}
+	}
+
+	if len(result.ReviewRequestRule.Teams) > 0 {
+		logger.Debug().Msg("Selecting from teams for review")
+		teamsToUsers, err := selectTeamMembers(prctx, result.ReviewRequestRule.Teams)
+		if err != nil {
+			logger.Warn().Err(err).Msgf("failed to get member listing for teams, skipping team member selection")
+		}
+		for _, users := range teamsToUsers {
+			for _, user := range users {
+				allUsers[user] = struct{}{}
+			}
+		}
+	}
+
+	if len(result.ReviewRequestRule.Organizations) > 0 {
+		logger.Debug().Msg("Selecting from organizations for review")
+		orgMembers, err := selectOrgMembers(prctx, result.ReviewRequestRule.Organizations)
+		if err != nil {
+			logger.Warn().Err(err).Msg("failed to get member listing for org, skipping org member selection")
+		}
+		for _, user := range orgMembers {
+			allUsers[user] = struct{}{}
+		}
+	}
+
+	collaborators, err := prctx.RepositoryCollaborators()
+	if err != nil {
+		return errors.Wrap(err, "failed to list repository collaborators")
+	}
+
+	for _, c := range collaborators {
+		logger.Debug().Msg("Selecting from collaborators by permission for review")
+		if !c.ViaOrg && requestsPermission(result, c.Permission) {
+			allUsers[c.Name] = struct{}{}
+		}
+	}
+
+	possibleReviewers := getPossibleReviewers(prctx, allUsers, collaborators)
+	if len(possibleReviewers) == 0 {
+		logger.Debug().Msg("Found 0 eligible reviewers; skipping review request")
+		return nil
+	}
+
+	switch result.ReviewRequestRule.Mode {
+	case common.RequestModeAllUsers:
+		logger.Debug().Msgf("Found %d eligible reviewers; selecting all", len(possibleReviewers))
+		selection.Users = append(selection.Users, possibleReviewers...)
+
+	case common.RequestModeRandomUsers:
+		count := result.ReviewRequestRule.RequiredCount
+		selectedUsers := selectRandomUsers(count, possibleReviewers, r)
+
+		logger.Debug().Msgf("Found %d eligible reviewers; randomly selecting %d", len(possibleReviewers), count)
+		selection.Users = append(selection.Users, selectedUsers...)
+	}
+	return nil
+}
+
+func requestsTeam(r *common.Result, team string) bool {
+	for _, t := range r.ReviewRequestRule.Teams {
+		if t == team {
+			return true
+		}
+	}
+	return false
+}
+
+func requestsPermission(r *common.Result, perm pull.Permission) bool {
+	for _, p := range r.ReviewRequestRule.Permissions {
+		if p == perm {
+			return true
+		}
+	}
+	return false
 }

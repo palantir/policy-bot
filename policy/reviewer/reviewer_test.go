@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"math/rand"
-	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -157,18 +156,6 @@ func TestSelectRandomUsers(t *testing.T) {
 	assert.Equal(t, []string{"c", "e", "b", "f"}, multiplePseudoRandom)
 }
 
-func TestFindRepositoryCollaborators(t *testing.T) {
-	prctx := makeContext()
-	collabPerms, err := prctx.RepositoryCollaborators()
-	var collabs []string
-	for c := range collabPerms {
-		collabs = append(collabs, c)
-	}
-	sort.Strings(collabs)
-	require.NoError(t, err)
-	require.Equal(t, []string{"contributor-author", "contributor-committer", "mhaypenny", "org-owner", "review-approver", "user-direct-admin", "user-team-admin", "user-team-write"}, collabs)
-}
-
 func TestSelectReviewers(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
 	results := makeResults(&common.Result{
@@ -177,7 +164,7 @@ func TestSelectReviewers(t *testing.T) {
 		StatusDescription: "",
 		Status:            common.StatusPending,
 		ReviewRequestRule: &common.ReviewRequestRule{
-			Admins:        true,
+			Permissions:   []pull.Permission{pull.PermissionAdmin},
 			RequiredCount: 1,
 			Mode:          common.RequestModeRandomUsers,
 		},
@@ -198,19 +185,21 @@ func TestSelectReviewers(t *testing.T) {
 
 func TestSelectAdminTeam(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
-	results := makeResults(&common.Result{
-		Name:              "Owner",
-		Description:       "",
-		StatusDescription: "",
-		Status:            common.StatusPending,
-		ReviewRequestRule: &common.ReviewRequestRule{
-			Admins:        true,
-			RequiredCount: 1,
-			Mode:          "teams",
+	results := []*common.Result{
+		{
+			Name:              "Owner",
+			Description:       "",
+			StatusDescription: "",
+			Status:            common.StatusPending,
+			ReviewRequestRule: &common.ReviewRequestRule{
+				Permissions:   []pull.Permission{pull.PermissionAdmin},
+				RequiredCount: 1,
+				Mode:          "teams",
+			},
+			Error:    nil,
+			Children: nil,
 		},
-		Error:    nil,
-		Children: nil,
-	}, "teams")
+	}
 
 	prctx := makeContext()
 
@@ -282,21 +271,23 @@ func TestSelectReviewers_Team_teams(t *testing.T) {
 
 func TestSelectReviewers_Team_teamsDefaultsToNothing(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
-	results := makeResults(&common.Result{
-		Name:              "Team",
-		Description:       "",
-		StatusDescription: "",
-		Status:            common.StatusPending,
-		ReviewRequestRule: &common.ReviewRequestRule{
-			// Require a team approval
-			Teams:         []string{"everyone/team-not-collaborators"},
-			Users:         []string{"user-team-write"},
-			RequiredCount: 1,
-			Mode:          "teams",
+	results := []*common.Result{
+		{
+			Name:              "Team",
+			Description:       "",
+			StatusDescription: "",
+			Status:            common.StatusPending,
+			ReviewRequestRule: &common.ReviewRequestRule{
+				// Require a team approval
+				Teams:         []string{"everyone/team-not-collaborators"},
+				Users:         []string{"user-team-write"},
+				RequiredCount: 1,
+				Mode:          "teams",
+			},
+			Error:    nil,
+			Children: nil,
 		},
-		Error:    nil,
-		Children: nil,
-	}, "teams")
+	}
 
 	prctx := makeContext()
 	selection, err := SelectReviewers(context.Background(), prctx, results, r)
@@ -385,11 +376,10 @@ func makeResult(result *common.Result, mode string) *common.Result {
 						StatusDescription: "",
 						Status:            common.StatusPending,
 						ReviewRequestRule: &common.ReviewRequestRule{
-							Users:              []string{"contributor-committer", "contributor-author", "not-a-collaborator"},
-							RequiredCount:      1,
-							WriteCollaborators: true,
-							Admins:             false,
-							Mode:               common.RequestMode(mode),
+							Users:         []string{"contributor-committer", "contributor-author", "not-a-collaborator"},
+							RequiredCount: 1,
+							Permissions:   []pull.Permission{pull.PermissionWrite},
+							Mode:          common.RequestMode(mode),
 						},
 						Error:    nil,
 						Children: nil,
@@ -415,19 +405,19 @@ func makeContext() pull.Context {
 			"comment-approver":      {"everyone", "cool-org"},
 			"review-approver":       {"everyone", "even-cooler-org"},
 		},
-		CollaboratorMemberships: map[string][]string{
-			"mhaypenny":             {common.GithubAdminPermission},
-			"org-owner":             {common.GithubAdminPermission},
-			"user-team-admin":       {common.GithubAdminPermission},
-			"user-direct-admin":     {common.GithubAdminPermission},
-			"user-team-write":       {common.GithubWritePermission},
-			"contributor-committer": {common.GithubWritePermission},
-			"contributor-author":    {common.GithubWritePermission},
-			"review-approver":       {common.GithubWritePermission},
+		CollaboratorsValue: []*pull.Collaborator{
+			{Name: "mhaypenny", Permission: pull.PermissionAdmin},
+			{Name: "org-owner", Permission: pull.PermissionAdmin},
+			{Name: "user-team-admin", Permission: pull.PermissionAdmin},
+			{Name: "user-direct-admin", Permission: pull.PermissionAdmin},
+			{Name: "user-team-write", Permission: pull.PermissionWrite},
+			{Name: "contributor-committer", Permission: pull.PermissionWrite},
+			{Name: "contributor-author", Permission: pull.PermissionWrite},
+			{Name: "review-approver", Permission: pull.PermissionWrite},
 		},
-		TeamsValue: map[string]string{
-			"team-write": common.GithubWritePermission,
-			"team-admin": common.GithubAdminPermission,
+		TeamsValue: map[string]pull.Permission{
+			"team-write": pull.PermissionWrite,
+			"team-admin": pull.PermissionAdmin,
 		},
 		TeamMemberships: map[string][]string{
 			"user-team-admin":    {"everyone/team-admin"},
