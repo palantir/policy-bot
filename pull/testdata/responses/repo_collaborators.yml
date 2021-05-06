@@ -1,0 +1,155 @@
+- status: 200
+  body: |
+    {
+      "errors": [],
+      "data": {
+        "repository": {
+          "direct": {
+            "pageInfo": {
+              "endCursor": "2",
+              "hasNextPage": false
+            },
+            "edges": [
+              {
+                "permission": "ADMIN"
+              },
+              {
+                "permission": "TRIAGE"
+              }
+            ],
+            "nodes": [
+              {
+                "__typename": "User",
+                "login": "direct-admin"
+              },
+              {
+                "__typename": "User",
+                "login": "direct-triage"
+              }
+            ]
+          },
+          "all": {
+            "pageInfo": {
+              "endCursor": "3",
+              "hasNextPage": true
+            },
+            "edges": [
+              {
+                "permission": "ADMIN",
+                "permissionSources": [
+                  {
+                    "source": {}
+                  },
+                  {
+                    "source": {}
+                  }
+                ]
+              },
+              {
+                "permission": "READ",
+                "permissionSources": [
+                  {
+                    "source": {}
+                  }
+                ]
+              },
+              {
+                "permission": "ADMIN",
+                "permissionSources": [
+                  {
+                    "source": {}
+                  }
+                ]
+              }
+            ],
+            "nodes": [
+              {
+                "__typename": "User",
+                "login": "org-owner"
+              },
+              {
+                "__typename": "User",
+                "login": "org-read"
+              },
+              {
+                "__typename": "User",
+                "login": "direct-admin"
+              }
+            ]
+          }
+        }
+      }
+    }
+- status: 200
+  body: |
+    {
+      "errors": [],
+      "data": {
+        "repository": {
+          "direct": {
+            "pageInfo": {
+              "endCursor": "2",
+              "hasNextPage": false
+            },
+            "edges": [],
+            "nodes": []
+          },
+          "all": {
+            "pageInfo": {
+              "endCursor": "6",
+              "hasNextPage": false
+            },
+            "edges": [
+              {
+                "permission": "TRIAGE",
+                "permissionSources": [
+                  {
+                    "source": {}
+                  }
+                ]
+              },
+              {
+                "permission": "MAINTAIN",
+                "permissionSources": [
+                  {
+                    "source": {}
+                  },
+                  {
+                    "source": {
+                      "slug": "maintainers"
+                    }
+                  }
+                ]
+              },
+              {
+                "permission": "ADMIN",
+                "permissionSources": [
+                  {
+                    "source": {}
+                  },
+                  {
+                    "source": {
+                      "slug": "admins"
+                    }
+                  }
+                ]
+              }
+            ],
+            "nodes": [
+              {
+                "__typename": "User",
+                "login": "direct-triage"
+              },
+              {
+                "__typename": "User",
+                "login": "team-maintain"
+              },
+              {
+                "__typename": "User",
+                "login": "team-admin"
+              }
+            ]
+          }
+        }
+      }
+    }

@@ -88,6 +88,8 @@ func (p *Permission) UnmarshalText(text []byte) error {
 		*p = PermissionMaintain
 	case "admin":
 		*p = PermissionAdmin
+	default:
+		return fmt.Errorf("invalid permission: %s", text)
 	}
-	return fmt.Errorf("invalid permission: %s", text)
+	return nil
 }

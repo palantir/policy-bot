@@ -340,7 +340,7 @@ func (ghc *GitHubContext) RepositoryCollaborators() ([]*Collaborator, error) {
 						Permission        string
 						PermissionSources []struct {
 							Source struct {
-								Team *struct {
+								Team struct {
 									Slug string
 								} `graphql:"... on Team"`
 							}
@@ -396,8 +396,9 @@ func (ghc *GitHubContext) RepositoryCollaborators() ([]*Collaborator, error) {
 				})
 
 				for _, src := range edge.PermissionSources {
-					if src.Source.Team != nil {
-						teamMembership[name] = append(teamMembership[name], src.Source.Team.Slug)
+					slug := src.Source.Team.Slug
+					if slug != "" {
+						teamMembership[name] = append(teamMembership[name], slug)
 					}
 				}
 			}

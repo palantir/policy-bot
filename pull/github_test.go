@@ -18,6 +18,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"sort"
 	"testing"
 	"time"
 
@@ -435,6 +436,56 @@ func TestCrossRepoBranches(t *testing.T) {
 	base, head := ctx.Branches()
 	assert.Equal(t, "develop", base, "cross-repo base branch was not correctly set")
 	assert.Equal(t, "testorg2:test-branch", head, "cross-repo head branch was not correctly set")
+}
+
+func TestCollaborators(t *testing.T) {
+	rp := &ResponsePlayer{}
+	rp.AddRule(
+		ExactPathMatcher("/repos/testorg/testrepo/teams"),
+		"testdata/responses/repo_teams.yml",
+	)
+	rp.AddRule(
+		GraphQLNodePrefixMatcher("repository.collaborators"),
+		"testdata/responses/repo_collaborators.yml",
+	)
+
+	ctx := makeContext(t, rp, nil)
+
+	collaborators, err := ctx.RepositoryCollaborators()
+	require.NoError(t, err)
+
+	require.Len(t, collaborators, 6, "incorrect number of collaborators")
+	sort.Slice(collaborators, func(i, j int) bool { return collaborators[i].Name < collaborators[j].Name })
+
+	c0 := collaborators[0]
+	assert.Equal(t, "direct-admin", c0.Name)
+	assert.Equal(t, PermissionAdmin, c0.Permission)
+	assert.Equal(t, true, c0.PermissionViaRepo)
+
+	c1 := collaborators[1]
+	assert.Equal(t, "direct-triage", c1.Name)
+	assert.Equal(t, PermissionTriage, c1.Permission)
+	assert.Equal(t, true, c1.PermissionViaRepo)
+
+	c2 := collaborators[2]
+	assert.Equal(t, "org-owner", c2.Name)
+	assert.Equal(t, PermissionAdmin, c2.Permission)
+	assert.Equal(t, false, c2.PermissionViaRepo)
+
+	c3 := collaborators[3]
+	assert.Equal(t, "org-read", c3.Name)
+	assert.Equal(t, PermissionRead, c3.Permission)
+	assert.Equal(t, false, c3.PermissionViaRepo)
+
+	c4 := collaborators[4]
+	assert.Equal(t, "team-admin", c4.Name)
+	assert.Equal(t, PermissionAdmin, c4.Permission)
+	assert.Equal(t, true, c4.PermissionViaRepo)
+
+	c5 := collaborators[5]
+	assert.Equal(t, "team-maintain", c5.Name)
+	assert.Equal(t, PermissionMaintain, c5.Permission)
+	assert.Equal(t, true, c5.PermissionViaRepo)
 }
 
 func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest) Context {

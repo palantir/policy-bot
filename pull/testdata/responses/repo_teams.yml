@@ -1,0 +1,28 @@
+- status: 200
+  body: |
+    [
+      {
+        "name": "Maintainers",
+        "slug": "maintainers",
+        "permission": "push",
+        "permissions": {
+          "pull": false,
+          "triage": false,
+          "push": false,
+          "maintain": true,
+          "admin": false
+        }
+      },
+      {
+        "name": "Admins",
+        "slug": "admins",
+        "permission": "admin",
+        "permissions": {
+          "pull": true,
+          "triage": false,
+          "push": true,
+          "maintain": false,
+          "admin": true
+        }
+      }
+    ]
