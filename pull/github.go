@@ -1070,13 +1070,6 @@ func isNotFound(err error) bool {
 	return false
 }
 
-type SignatureType string
-
-const (
-	SignatureGpg   SignatureType = "GpgSignature"
-	SignatureSmime SignatureType = "SmimeSignature"
-)
-
 type v4GitSignature struct {
 	Type  string           `graphql:"__typename"`
 	GPG   v4GpgSignature   `graphql:"... on GpgSignature"`

@@ -165,6 +165,21 @@ func (c *Commit) Users() []string {
 	return users
 }
 
+type SignatureType string
+
+const (
+	SignatureGpg   SignatureType = "GpgSignature"
+	SignatureSmime SignatureType = "SmimeSignature"
+)
+
+type Signature struct {
+	Type    SignatureType
+	IsValid bool
+	KeyID   string
+	Signer  string
+	State   string
+}
+
 type Comment struct {
 	CreatedAt time.Time
 	Author    string
@@ -202,14 +217,6 @@ type Reviewer struct {
 	Type    ReviewerType
 	Name    string
 	Removed bool
-}
-
-type Signature struct {
-	Type    SignatureType
-	IsValid bool
-	KeyID   string
-	Signer  string
-	State   string
 }
 
 type Collaborator struct {
