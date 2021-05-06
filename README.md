@@ -244,6 +244,25 @@ if:
     not_matches:
       - "^(docs|style|chore): (\\w| )+$"
 
+  # "has_valid_signatures" is satisfied if the commits in the pull request
+  # all have git commit signatures that have been verified by GitHub
+  has_valid_signatures: true
+
+  # "has_valid_signatures_by" is satisfied if the commits in the pull request
+  # all have git commit signatures that have been verified by GitHub, and
+  # the authenticated signatures are attributed to a user in the users list 
+  # or belong to a user in any of the listed organizations or teams.
+  has_valid_signatures_by:
+    users: ["user1", "user2", ...]
+    organizations: ["org1", "org2", ...]
+    teams: ["org1/team1", "org2/team2", ...]
+
+  # "has_valid_signatures_by_keys" is satisfied if the commits in the pull request
+  # all have git commit signatures that have been verified by GitHub, and
+  # the authenticated signatures are attributed to a GPG key with an ID in the list.
+  has_valid_signatures_by_keys:
+    key_ids: ["3AA5C34371567BD2"]
+
 # "options" specifies a set of restrictions on approvals. If the block does not
 # exist, the default values are used.
 options:
