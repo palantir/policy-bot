@@ -220,21 +220,17 @@ func TestSelectReviewers(t *testing.T) {
 	require.NotContains(t, selection.Users, "org-owner", "org-owner should not be requested")
 }
 
-func TestSelectReviewers_AdminTeam(t *testing.T) {
+func TestSelectReviewers_UserPermission(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
 	results := []*common.Result{
 		{
-			Name:              "Owner",
-			Description:       "",
-			StatusDescription: "",
-			Status:            common.StatusPending,
+			Name:   "user-permissions",
+			Status: common.StatusPending,
 			ReviewRequestRule: &common.ReviewRequestRule{
-				Permissions:   []pull.Permission{pull.PermissionAdmin},
-				RequiredCount: 1,
-				Mode:          "teams",
+				Permissions:   []pull.Permission{pull.PermissionTriage, pull.PermissionMaintain},
+				RequiredCount: 2,
+				Mode:          common.RequestModeAllUsers,
 			},
-			Error:    nil,
-			Children: nil,
 		},
 	}
 
@@ -242,8 +238,34 @@ func TestSelectReviewers_AdminTeam(t *testing.T) {
 
 	selection, err := SelectReviewers(context.Background(), prctx, results, r)
 	require.NoError(t, err)
-	require.Len(t, selection.Teams, 1, "admin team should be selected")
+	require.Len(t, selection.Teams, 0, "policy should request no teams")
+
+	require.Len(t, selection.Users, 2, "policy should request two users")
+	require.Contains(t, selection.Users, "maintainer", "maintainer selected")
+	require.Contains(t, selection.Users, "triager", "triager selected")
+}
+
+func TestSelectReviewers_TeamPermission(t *testing.T) {
+	r := rand.New(rand.NewSource(42))
+	results := []*common.Result{
+		{
+			Name:   "team-permissions",
+			Status: common.StatusPending,
+			ReviewRequestRule: &common.ReviewRequestRule{
+				Permissions:   []pull.Permission{pull.PermissionAdmin, pull.PermissionMaintain},
+				RequiredCount: 1,
+				Mode:          common.RequestModeTeams,
+			},
+		},
+	}
+
+	prctx := makeContext()
+
+	selection, err := SelectReviewers(context.Background(), prctx, results, r)
+	require.NoError(t, err)
+	require.Len(t, selection.Teams, 2, "policy should request two teams")
 	require.Contains(t, selection.Teams, "team-admin", "admin team seleted")
+	require.Contains(t, selection.Teams, "team-maintain", "maintainer team seleted")
 
 	require.Len(t, selection.Users, 0, "policy should request no people")
 }
@@ -280,7 +302,7 @@ func TestSelectReviewers_Team(t *testing.T) {
 				Teams:         []string{"everyone/team-write", "everyone/team-not-collaborators"},
 				Users:         []string{"user-team-write"},
 				RequiredCount: 1,
-				Mode:          "teams",
+				Mode:          common.RequestModeTeams,
 			},
 		},
 	}
@@ -297,18 +319,14 @@ func TestSelectReviewers_TeamNotCollaborator(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
 	results := []*common.Result{
 		{
-			Name:              "Team",
-			Description:       "",
-			StatusDescription: "",
-			Status:            common.StatusPending,
+			Name:   "not-collaborators",
+			Status: common.StatusPending,
 			ReviewRequestRule: &common.ReviewRequestRule{
 				Teams:         []string{"everyone/team-not-collaborators"},
 				Users:         []string{"user-team-write"},
 				RequiredCount: 1,
-				Mode:          "teams",
+				Mode:          common.RequestModeTeams,
 			},
-			Error:    nil,
-			Children: nil,
 		},
 	}
 
@@ -364,14 +382,20 @@ func makeContext() pull.Context {
 			{Name: "contributor-committer", Permission: pull.PermissionWrite},
 			{Name: "contributor-author", Permission: pull.PermissionWrite},
 			{Name: "review-approver", Permission: pull.PermissionWrite},
+			{Name: "maintainer", Permission: pull.PermissionMaintain, PermissionViaRepo: true},
+			{Name: "indirect-maintainer", Permission: pull.PermissionMaintain}, // note: currently not possible in GitHub
+			{Name: "triager", Permission: pull.PermissionTriage, PermissionViaRepo: true},
+			{Name: "indirect-triager", Permission: pull.PermissionTriage}, // note: currently not possible in GitHub
 		},
 		TeamsValue: map[string]pull.Permission{
-			"team-write": pull.PermissionWrite,
-			"team-admin": pull.PermissionAdmin,
+			"team-write":    pull.PermissionWrite,
+			"team-admin":    pull.PermissionAdmin,
+			"team-maintain": pull.PermissionMaintain,
 		},
 		TeamMemberships: map[string][]string{
 			"user-team-admin":    {"everyone/team-admin"},
 			"user-team-write":    {"everyone/team-write"},
+			"maintainer":         {"everyone/team-maintain"},
 			"not-a-collaborator": {"everyone/team-not-collaborators"},
 		},
 	}
