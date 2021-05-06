@@ -96,6 +96,20 @@
                           "oid": "1fc89f1cedf8e3f3ce516ab75b5952295c8ea5e9"
                         }
                       ]
+                    },
+                    "signature": {
+                      "__typename": "GpgSignature",
+                      "email": "mhaypenny@example.com",
+                      "isValid": true,
+                      "keyId": "3AA5C34371567BD2",
+                      "payload": "tree 2075e4ceb83e3054e2bfba591e4325a8dd35af96\nparent 1fceb875cfcddb56ea683683784c020e0ea0693c\nauthor ttest \u003cttest@example.com\u003e 1618750938 +0000\ncommitter mhaypenny \u003cmhaypenny@example.com\u003e 1618750938 +0000\n\nExample commit",
+                      "signature": "-----BEGIN PGP SIGNATURE-----\n\nwl4EABMIABAFAmB8LdoJEA5EZb3lUxDmAADqTQD9EvRNEmdpX13Lo6YfHsty0NaN\nKI6CebzIyFJjVfmPjjQBAKPBz3VYyWEJCM2KF/GcQ0F3dIcYM4XVYXkvoL3zqxlr\n=7g9t\n-----END PGP SIGNATURE-----\n",
+                      "signer": {
+                        "__typename": "User",
+                        "login": "mhaypenny"
+                      },
+                      "state": "VALID",
+                      "wasSignedByGitHub": false
                     }
                   }
                 }

@@ -860,12 +860,18 @@ type v4Commit struct {
 			OID string
 		}
 	} `graphql:"parents(first: 3)"`
+	Signature *v4GitSignature
 }
 
 func (c *v4Commit) ToCommit() *Commit {
 	var parents []string
 	for _, p := range c.Parents.Nodes {
 		parents = append(parents, p.OID)
+	}
+
+	var signature *Signature
+	if c.Signature != nil {
+		signature = c.Signature.ToSignature()
 	}
 
 	return &Commit{
@@ -875,6 +881,7 @@ func (c *v4Commit) ToCommit() *Commit {
 		Author:          c.Author.GetV3Login(),
 		Committer:       c.Committer.GetV3Login(),
 		PushedAt:        c.PushedDate,
+		Signature:       signature,
 	}
 }
 
@@ -932,4 +939,60 @@ func isNotFound(err error) bool {
 		return rerr.Response.StatusCode == http.StatusNotFound
 	}
 	return false
+}
+
+type SignatureType string
+
+const (
+	SignatureGpg   SignatureType = "GpgSignature"
+	SignatureSmime SignatureType = "SmimeSignature"
+)
+
+type v4GitSignature struct {
+	Type  string           `graphql:"__typename"`
+	GPG   v4GpgSignature   `graphql:"... on GpgSignature"`
+	SMIME v4SmimeSignature `graphql:"... on SmimeSignature"`
+}
+
+func (s *v4GitSignature) ToSignature() *Signature {
+	switch SignatureType(s.Type) {
+	case SignatureGpg:
+		return &Signature{
+			IsValid: s.GPG.IsValid,
+			KeyID:   s.GPG.KeyID,
+			Signer:  s.GPG.Signer.GetV3Login(),
+			State:   s.GPG.State,
+			Type:    SignatureGpg,
+		}
+	case SignatureSmime:
+		return &Signature{
+			IsValid: s.SMIME.IsValid,
+			Signer:  s.SMIME.Signer.GetV3Login(),
+			State:   s.SMIME.State,
+			Type:    SignatureSmime,
+		}
+	default:
+		return nil
+	}
+}
+
+type v4SmimeSignature struct {
+	Email             string
+	IsValid           bool
+	Payload           string
+	Signature         string
+	Signer            *v4Actor
+	State             string
+	WasSignedByGitHub bool
+}
+
+type v4GpgSignature struct {
+	Email             string
+	IsValid           bool
+	KeyID             string
+	Payload           string
+	Signature         string
+	Signer            *v4Actor
+	State             string
+	WasSignedByGitHub bool
 }

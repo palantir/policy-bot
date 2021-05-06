@@ -148,6 +148,10 @@ type Commit struct {
 	// PushedAt is the timestamp when the commit was pushed. It is nil if that
 	// information is not available for this commit.
 	PushedAt *time.Time
+
+	// Signature is the signature and details that was extracted from the commit.
+	// It is nil if the commit has no signature
+	Signature *Signature
 }
 
 // Users returns the login names of the users associated with this commit.
@@ -199,4 +203,12 @@ type Reviewer struct {
 	Type    ReviewerType
 	Name    string
 	Removed bool
+}
+
+type Signature struct {
+	Type    SignatureType
+	IsValid bool
+	KeyID   string
+	Signer  string
+	State   string
 }
