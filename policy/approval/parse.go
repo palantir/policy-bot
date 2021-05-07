@@ -17,9 +17,8 @@ package approval
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	"github.com/palantir/policy-bot/policy/common"
+	"github.com/pkg/errors"
 )
 
 type Policy []interface{}

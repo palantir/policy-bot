@@ -22,7 +22,6 @@ import (
 	"strings"
 
 	"github.com/bluekeyes/templatetree"
-
 	"github.com/palantir/policy-bot/policy/common"
 )
 

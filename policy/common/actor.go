@@ -17,9 +17,8 @@ package common
 import (
 	"context"
 
-	"github.com/pkg/errors"
-
 	"github.com/palantir/policy-bot/pull"
+	"github.com/pkg/errors"
 )
 
 // Actors specifies who may take certain actions based on their username or

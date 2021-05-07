@@ -31,13 +31,12 @@ import (
 	"github.com/palantir/go-baseapp/baseapp/datadog"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/go-githubapp/oauth2"
+	"github.com/palantir/policy-bot/server/handler"
+	"github.com/palantir/policy-bot/version"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"goji.io"
 	"goji.io/pat"
-
-	"github.com/palantir/policy-bot/server/handler"
-	"github.com/palantir/policy-bot/version"
 )
 
 const (

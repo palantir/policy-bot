@@ -18,7 +18,6 @@ import (
 	"net/http"
 
 	"github.com/palantir/go-baseapp/baseapp"
-
 	"github.com/palantir/policy-bot/version"
 )
 
