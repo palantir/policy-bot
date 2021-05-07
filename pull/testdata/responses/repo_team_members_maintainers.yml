@@ -1,0 +1,9 @@
+- status: 200
+  body: |
+    [
+      {
+        "login": "team-maintain",
+        "type": "User"
+      }
+    ]
+

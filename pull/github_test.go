@@ -469,11 +469,19 @@ func TestCollaboratorPermission(t *testing.T) {
 	assert.Equal(t, PermissionMaintain, p, "incorrect permission for team-maintain")
 }
 
-func TestCollaborators(t *testing.T) {
+func TestRepositoryCollaborators(t *testing.T) {
 	rp := &ResponsePlayer{}
 	rp.AddRule(
 		ExactPathMatcher("/repos/testorg/testrepo/teams"),
 		"testdata/responses/repo_teams.yml",
+	)
+	rp.AddRule(
+		ExactPathMatcher("/orgs/testorg/teams/maintainers/members"),
+		"testdata/responses/repo_team_members_maintainers.yml",
+	)
+	rp.AddRule(
+		ExactPathMatcher("/orgs/testorg/teams/admins/members"),
+		"testdata/responses/repo_team_members_admins.yml",
 	)
 	rp.AddRule(
 		GraphQLNodePrefixMatcher("repository.collaborators"),

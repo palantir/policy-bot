@@ -35,31 +35,13 @@
             },
             "edges": [
               {
-                "permission": "ADMIN",
-                "permissionSources": [
-                  {
-                    "source": {}
-                  },
-                  {
-                    "source": {}
-                  }
-                ]
+                "permission": "ADMIN"
               },
               {
-                "permission": "READ",
-                "permissionSources": [
-                  {
-                    "source": {}
-                  }
-                ]
+                "permission": "READ"
               },
               {
-                "permission": "ADMIN",
-                "permissionSources": [
-                  {
-                    "source": {}
-                  }
-                ]
+                "permission": "ADMIN"
               }
             ],
             "nodes": [
@@ -101,38 +83,13 @@
             },
             "edges": [
               {
-                "permission": "TRIAGE",
-                "permissionSources": [
-                  {
-                    "source": {}
-                  }
-                ]
+                "permission": "TRIAGE"
               },
               {
-                "permission": "MAINTAIN",
-                "permissionSources": [
-                  {
-                    "source": {}
-                  },
-                  {
-                    "source": {
-                      "slug": "maintainers"
-                    }
-                  }
-                ]
+                "permission": "MAINTAIN"
               },
               {
-                "permission": "ADMIN",
-                "permissionSources": [
-                  {
-                    "source": {}
-                  },
-                  {
-                    "source": {
-                      "slug": "admins"
-                    }
-                  }
-                ]
+                "permission": "ADMIN"
               }
             ],
             "nodes": [

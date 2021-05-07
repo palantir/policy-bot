@@ -321,9 +321,14 @@ func (ghc *GitHubContext) RepositoryCollaborators() ([]*Collaborator, error) {
 		//   - Triage/Maintain permissions are not supported
 		//   - Organization owners have both org and repo sources
 		//
+		// But even if this API was correct, it is not available to GitHub App
+		// integrations at this time.
+		//
 		// Instead, query for all collaborators and direct collaborators, then
-		// join that information with team level permissions to produce the
-		// final list of collaborators.
+		// join that information with team permissions and membership to
+		// produce the final list of collaborators. This is expensive, but
+		// should only be used when assigning user reviewers, in which case
+		// almost all of the calls would have been made anyway.
 
 		var q struct {
 			Repository struct {
@@ -337,14 +342,7 @@ func (ghc *GitHubContext) RepositoryCollaborators() ([]*Collaborator, error) {
 				AllCollaborators struct {
 					PageInfo v4PageInfo
 					Edges    []struct {
-						Permission        string
-						PermissionSources []struct {
-							Source struct {
-								Team struct {
-									Slug string
-								} `graphql:"... on Team"`
-							}
-						}
+						Permission string
 					}
 					Nodes []v4Actor
 				} `graphql:"all: collaborators(affiliation: ALL, first: 100, after: $allCursor)"`
@@ -358,7 +356,6 @@ func (ghc *GitHubContext) RepositoryCollaborators() ([]*Collaborator, error) {
 		}
 
 		directPerms := make(map[string]Permission)
-		teamMembership := make(map[string][]string)
 
 		var collaborators []*Collaborator
 		for {
@@ -394,13 +391,6 @@ func (ghc *GitHubContext) RepositoryCollaborators() ([]*Collaborator, error) {
 					Name:       name,
 					Permission: p,
 				})
-
-				for _, src := range edge.PermissionSources {
-					slug := src.Source.Team.Slug
-					if slug != "" {
-						teamMembership[name] = append(teamMembership[name], slug)
-					}
-				}
 			}
 			if !q.Repository.AllCollaborators.PageInfo.UpdateCursor(qvars, "allCursor") {
 				complete++
@@ -414,6 +404,21 @@ func (ghc *GitHubContext) RepositoryCollaborators() ([]*Collaborator, error) {
 		teamPerms, err := ghc.Teams()
 		if err != nil {
 			return nil, err
+		}
+
+		teamMembership := make(map[string][]string)
+		for team := range teamPerms {
+			// List full membership instead of testing each collaborator under
+			// the assumption that (teams * members) is much less than the
+			// total number of collaborators, which include those from the org
+			members, err := ghc.TeamMembers(ghc.owner + "/" + team)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, member := range members {
+				teamMembership[member] = append(teamMembership[member], team)
+			}
 		}
 
 		isPermissionViaRepo := func(c *Collaborator) bool {
