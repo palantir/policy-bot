@@ -438,6 +438,37 @@ func TestCrossRepoBranches(t *testing.T) {
 	assert.Equal(t, "testorg2:test-branch", head, "cross-repo head branch was not correctly set")
 }
 
+func TestCollaboratorPermission(t *testing.T) {
+	rp := &ResponsePlayer{}
+	rule := rp.AddRule(
+		GraphQLNodePrefixMatcher("repository.collaborators"),
+		"testdata/responses/repo_collaborator_permission.yml",
+	)
+
+	ctx := makeContext(t, rp, nil)
+
+	p, err := ctx.CollaboratorPermission("direct-admin")
+	require.NoError(t, err)
+	assert.Equal(t, PermissionAdmin, p, "incorrect permission for direct-admin")
+	assert.Equal(t, 1, rule.Count, "incorrect http request count")
+
+	rule.Count = 0
+
+	p, err = ctx.CollaboratorPermission("direct")
+	require.NoError(t, err)
+	assert.Equal(t, PermissionNone, p, "incorrect permission for missing user")
+	assert.Equal(t, 2, rule.Count, "incorrect http request count")
+
+	p, err = ctx.CollaboratorPermission("direct-admin")
+	require.NoError(t, err)
+	assert.Equal(t, PermissionAdmin, p, "incorrect permission for direct-admin")
+	assert.Equal(t, 2, rule.Count, "cached data was not used on second request")
+
+	p, err = ctx.CollaboratorPermission("team-maintain")
+	require.NoError(t, err)
+	assert.Equal(t, PermissionMaintain, p, "incorrect permission for team-maintain")
+}
+
 func TestCollaborators(t *testing.T) {
 	rp := &ResponsePlayer{}
 	rp.AddRule(

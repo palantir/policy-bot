@@ -444,36 +444,57 @@ func (ghc *GitHubContext) CollaboratorPermission(user string) (Permission, error
 		return p, nil
 	}
 
+	// Use GraphQL because the v3 API to get collaborator permissions does not
+	// support maintain and triage permissions as of 2021-05-07.
 	var q struct {
 		Repository struct {
 			Collaborators struct {
-				Edges []struct {
+				PageInfo v4PageInfo
+				Edges    []struct {
 					Permission string
 				}
-			} `graphql:"collaborators(query: $user)"`
+				Nodes []v4Actor
+			} `graphql:"collaborators(query: $user, first: 100, after: $cursor)"`
 		} `graphql:"repository(owner: $owner, name: $name)"`
 	}
 	qvars := map[string]interface{}{
-		"owner": githubv4.String(ghc.owner),
-		"name":  githubv4.String(ghc.repo),
-		"user":  githubv4.String(user),
+		"owner":  githubv4.String(ghc.owner),
+		"name":   githubv4.String(ghc.repo),
+		"user":   githubv4.String(user),
+		"cursor": (*githubv4.String)(nil),
 	}
 
-	if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
-		return PermissionNone, errors.Wrap(err, "failed to get collaborator permission")
-	}
-
-	var p Permission
-	if len(q.Repository.Collaborators.Edges) > 0 {
-		var err error
-		p, err = ParsePermission(q.Repository.Collaborators.Edges[0].Permission)
-		if err != nil {
-			return PermissionNone, err
+	// The "query" argument does substring matching, so we might need to
+	// iterate through multiple users before we find the one we're looking for.
+	var perm Permission
+	for {
+		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
+			return PermissionNone, errors.Wrap(err, "failed to get collaborator permission")
+		}
+		if idx := findUserIndex(user, q.Repository.Collaborators.Nodes); idx >= 0 {
+			p, err := ParsePermission(q.Repository.Collaborators.Edges[idx].Permission)
+			if err != nil {
+				return PermissionNone, err
+			}
+			perm = p
+			break
+		}
+		if !q.Repository.Collaborators.PageInfo.UpdateCursor(qvars, "cursor") {
+			break
 		}
 	}
 
-	ghc.permissions[user] = p
-	return p, nil
+	ghc.permissions[user] = perm
+	return perm, nil
+}
+
+func findUserIndex(user string, users []v4Actor) int {
+	for i, u := range users {
+		if u.GetV3Login() == user {
+			return i
+		}
+	}
+	return -1
 }
 
 func (ghc *GitHubContext) RequestedReviewers() ([]*Reviewer, error) {
