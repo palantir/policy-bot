@@ -20,10 +20,9 @@ import (
 
 	"github.com/google/go-github/v32/github"
 	"github.com/palantir/go-githubapp/githubapp"
-	"github.com/pkg/errors"
-
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
+	"github.com/pkg/errors"
 )
 
 type PullRequest struct {

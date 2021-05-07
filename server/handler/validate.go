@@ -19,11 +19,10 @@ import (
 	"net/http"
 
 	"github.com/palantir/go-baseapp/baseapp"
-	"github.com/rs/zerolog"
-	"gopkg.in/yaml.v2"
-
 	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/version"
+	"github.com/rs/zerolog"
+	"gopkg.in/yaml.v2"
 )
 
 type ValidateCheck struct {

@@ -19,7 +19,6 @@ import (
 	"os"
 
 	"github.com/palantir/go-baseapp/pkg/errfmt"
-
 	"github.com/palantir/policy-bot/cmd"
 )
 

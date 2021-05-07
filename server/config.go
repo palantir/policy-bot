@@ -22,10 +22,9 @@ import (
 	"github.com/palantir/go-baseapp/baseapp"
 	"github.com/palantir/go-baseapp/baseapp/datadog"
 	"github.com/palantir/go-githubapp/githubapp"
+	"github.com/palantir/policy-bot/server/handler"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
-
-	"github.com/palantir/policy-bot/server/handler"
 )
 
 type Config struct {

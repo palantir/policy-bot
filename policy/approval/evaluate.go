@@ -18,10 +18,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/rs/zerolog"
-
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
+	"github.com/rs/zerolog"
 )
 
 type evaluator struct {

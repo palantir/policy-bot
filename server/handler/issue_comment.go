@@ -21,13 +21,12 @@ import (
 
 	"github.com/google/go-github/v32/github"
 	"github.com/palantir/go-githubapp/githubapp"
-	"github.com/pkg/errors"
-	"github.com/rs/zerolog"
-
 	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/approval"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 )
 
 type IssueComment struct {

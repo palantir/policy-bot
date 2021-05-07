@@ -21,11 +21,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pkg/errors"
-	"github.com/rs/zerolog"
-
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 )
 
 const (

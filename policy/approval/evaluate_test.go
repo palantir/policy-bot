@@ -21,14 +21,13 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v2"
-
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/policy/predicate"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/pull/pulltest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
 )
 
 func TestRules(t *testing.T) {

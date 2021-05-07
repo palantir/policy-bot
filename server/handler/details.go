@@ -24,11 +24,10 @@ import (
 	"github.com/alexedwards/scs"
 	"github.com/bluekeyes/templatetree"
 	"github.com/google/go-github/v32/github"
-	"github.com/pkg/errors"
-	"goji.io/pat"
-
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
+	"github.com/pkg/errors"
+	"goji.io/pat"
 )
 
 type Details struct {
