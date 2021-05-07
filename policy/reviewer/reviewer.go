@@ -247,10 +247,12 @@ func selectUserReviewers(ctx context.Context, prctx pull.Context, selection *Sel
 		return errors.Wrap(err, "failed to list repository collaborators")
 	}
 
-	for _, c := range collaborators {
+	if len(result.ReviewRequestRule.Permissions) > 0 {
 		logger.Debug().Msg("Selecting from collaborators by permission for review")
-		if c.PermissionViaRepo && requestsPermission(result, c.Permission) {
-			allUsers[c.Name] = struct{}{}
+		for _, c := range collaborators {
+			if c.PermissionViaRepo && requestsPermission(result, c.Permission) {
+				allUsers[c.Name] = struct{}{}
+			}
 		}
 	}
 
