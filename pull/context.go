@@ -28,9 +28,6 @@ type MembershipContext interface {
 	// IsOrgMember returns true if the user is a member of the given organzation.
 	IsOrgMember(org, user string) (bool, error)
 
-	// IsCollaborator returns true if the user meets the desiredPerm of the given organzation's repository.
-	IsCollaborator(org, repo, user, desiredPerm string) (bool, error)
-
 	// TeamMembers returns the list of usernames in the given organization's team.
 	TeamMembers(team string) ([]string, error)
 
@@ -98,13 +95,15 @@ type Context interface {
 	// IsDraft returns the draft status of the Pull Request.
 	IsDraft() bool
 
-	// RepositoryCollaborators lists the set of collaborators, along with
-	// their respective permission on a repo.
-	RepositoryCollaborators() (map[string]string, error)
+	// RepositoryCollaborators returns the repository collaborators.
+	RepositoryCollaborators() ([]*Collaborator, error)
 
-	// Teams lists the set of team collaborators, along with
-	// their respective permission on a repo.
-	Teams() (map[string]string, error)
+	// CollaboratorPermission returns the permission level of user on the repository.
+	CollaboratorPermission(user string) (Permission, error)
+
+	// Teams lists the set of team collaborators, along with their respective
+	// permission on a repo.
+	Teams() (map[string]Permission, error)
 
 	// RequestedReviewers returns any current and dismissed review requests on
 	// the pull request.
@@ -166,6 +165,21 @@ func (c *Commit) Users() []string {
 	return users
 }
 
+type SignatureType string
+
+const (
+	SignatureGpg   SignatureType = "GpgSignature"
+	SignatureSmime SignatureType = "SmimeSignature"
+)
+
+type Signature struct {
+	Type    SignatureType
+	IsValid bool
+	KeyID   string
+	Signer  string
+	State   string
+}
+
 type Comment struct {
 	CreatedAt time.Time
 	Author    string
@@ -205,10 +219,11 @@ type Reviewer struct {
 	Removed bool
 }
 
-type Signature struct {
-	Type    SignatureType
-	IsValid bool
-	KeyID   string
-	Signer  string
-	State   string
+type Collaborator struct {
+	Name       string
+	Permission Permission
+
+	// True if Permission is granted by a direct or team association with the
+	// repository. If false, the permisssion is granted by the organization.
+	PermissionViaRepo bool
 }

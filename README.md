@@ -343,10 +343,20 @@ requires:
   organizations: ["org1", "org2"]
   teams: ["org1/team1", "org2/team2"]
 
-  # allows approval by admins of the org or repository
-  admins: true
-  # allows approval by users who have write on the repository
-  write_collaborators: true
+  # A user must have a permission in this list for their approval to count for
+  # this rule. Valid permissions are "admin", "maintain", "write", "triage",
+  # and "read".
+  permissions: ["admin", "maintain", "write"]
+
+  # Deprecated: use 'permissions: ["admin"]'
+  #
+  # Allows approval by admins of the org or repository
+  # admins: true
+
+  # Deprecated: use 'permissions: ["write"]'
+  #
+  # Allows approval by users who have write on the repository
+  # write_collaborators: true
 ```
 
 ### Approval Policies
@@ -524,6 +534,7 @@ when Pull Requests are opened by setting the `request_review` option.
 
 The `mode` enum modifies how reviewers are selected. There are currently three
 supported options:
+
  * `all-users` to request all users who can approve
  * `random-users` to randomly select the number of users that are required
  * `teams` to request teams for review. Teams must be repository collaborators
@@ -536,8 +547,15 @@ options:
     mode: all-users|random-users|teams
 ```
 
-The set of requested reviewers will not include the author of the Pull Request or
+The set of requested reviewers will not include the author of the pull request or
 users who are not collaborators on the repository.
+
+When requesting reviews for rules that use repository permissions to select
+approvers, only users who are either direct collaborators or members of
+repository teams are eligible for review selection. For example, if a rule can
+be approved by any user with `admin` permission, only direct or team admins
+will be selected for review. Users who inherit repository `admin` permissions
+as organization owners are not selected.
 
 #### Automatically Requesting Reviewers Example
 

@@ -132,8 +132,9 @@ type GitHubContext struct {
 	comments      []*Comment
 	reviews       []*Review
 	reviewers     []*Reviewer
-	collaborators map[string]string
-	teams         map[string]string
+	collaborators []*Collaborator
+	permissions   map[string]Permission
+	teams         map[string]Permission
 	teamIDs       map[string]int64
 	membership    map[string]bool
 	statuses      map[string]string
@@ -309,44 +310,196 @@ func (ghc *GitHubContext) Reviews() ([]*Review, error) {
 	return ghc.reviews, nil
 }
 
-func (ghc *GitHubContext) RepositoryCollaborators() (map[string]string, error) {
+func (ghc *GitHubContext) RepositoryCollaborators() ([]*Collaborator, error) {
 	if ghc.collaborators == nil {
-		opts := github.ListCollaboratorsOptions{
-			ListOptions: github.ListOptions{
-				PerPage: 100,
-			},
+		// For reveiwer assignment, we need to figure out how each collaborator
+		// gets permissions on the repository. We _should_ be able to do this
+		// by examining the permission sources for each collaborator, but this
+		// API is innaccurate as of 2021-05-06. Specifically:
+		//
+		//   - Organization permissions are not reported correctly
+		//   - Triage/Maintain permissions are not supported
+		//   - Organization owners have both org and repo sources
+		//
+		// But even if this API was correct, it is not available to GitHub App
+		// integrations at this time.
+		//
+		// Instead, query for all collaborators and direct collaborators, then
+		// join that information with team permissions and membership to
+		// produce the final list of collaborators. This is expensive, but
+		// should only be used when assigning user reviewers, in which case
+		// almost all of the calls would have been made anyway.
+
+		var q struct {
+			Repository struct {
+				DirectCollaborators struct {
+					PageInfo v4PageInfo
+					Edges    []struct {
+						Permission string
+					}
+					Nodes []v4Actor
+				} `graphql:"direct: collaborators(affiliation: DIRECT, first: 100, after: $directCursor)"`
+				AllCollaborators struct {
+					PageInfo v4PageInfo
+					Edges    []struct {
+						Permission string
+					}
+					Nodes []v4Actor
+				} `graphql:"all: collaborators(affiliation: ALL, first: 100, after: $allCursor)"`
+			} `graphql:"repository(owner: $owner, name: $name)"`
+		}
+		qvars := map[string]interface{}{
+			"owner":        githubv4.String(ghc.owner),
+			"name":         githubv4.String(ghc.repo),
+			"directCursor": (*githubv4.String)(nil),
+			"allCursor":    (*githubv4.String)(nil),
 		}
 
-		collaborators := make(map[string]string)
+		directPerms := make(map[string]Permission)
+
+		var collaborators []*Collaborator
 		for {
-			users, res, err := ghc.client.Repositories.ListCollaborators(ghc.ctx, ghc.owner, ghc.repo, &opts)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to list repository collaborators")
+			complete := 0
+			if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
+				return nil, errors.Wrap(err, "failed to load repository collaborators")
 			}
-			for _, u := range users {
-				collaborators[u.GetLogin()] = coalescePermission(u.GetPermissions())
+
+			for i, u := range q.Repository.DirectCollaborators.Nodes {
+				edge := q.Repository.DirectCollaborators.Edges[i]
+				name := u.GetV3Login()
+
+				p, err := ParsePermission(edge.Permission)
+				if err != nil {
+					return nil, errors.Wrapf(err, "%s", name)
+				}
+				directPerms[name] = p
 			}
-			if res.NextPage == 0 {
+			if !q.Repository.DirectCollaborators.PageInfo.UpdateCursor(qvars, "directCursor") {
+				complete++
+			}
+
+			for i, u := range q.Repository.AllCollaborators.Nodes {
+				edge := q.Repository.AllCollaborators.Edges[i]
+				name := u.GetV3Login()
+
+				p, err := ParsePermission(edge.Permission)
+				if err != nil {
+					return nil, errors.Wrapf(err, "%s", name)
+				}
+
+				collaborators = append(collaborators, &Collaborator{
+					Name:       name,
+					Permission: p,
+				})
+			}
+			if !q.Repository.AllCollaborators.PageInfo.UpdateCursor(qvars, "allCursor") {
+				complete++
+			}
+
+			if complete == 2 {
 				break
 			}
-			opts.Page = res.NextPage
+		}
+
+		teamPerms, err := ghc.Teams()
+		if err != nil {
+			return nil, err
+		}
+
+		teamMembership := make(map[string][]string)
+		for team := range teamPerms {
+			// List full membership instead of testing each collaborator under
+			// the assumption that (teams * members) is much less than the
+			// total number of collaborators, which include those from the org
+			members, err := ghc.TeamMembers(ghc.owner + "/" + team)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, member := range members {
+				teamMembership[member] = append(teamMembership[member], team)
+			}
+		}
+
+		isPermissionViaRepo := func(c *Collaborator) bool {
+			if directPerms[c.Name] >= c.Permission {
+				return true
+			}
+			for _, team := range teamMembership[c.Name] {
+				if teamPerms[team] >= c.Permission {
+					return true
+				}
+			}
+			return false
+		}
+
+		for _, c := range collaborators {
+			c.PermissionViaRepo = isPermissionViaRepo(c)
 		}
 		ghc.collaborators = collaborators
 	}
 	return ghc.collaborators, nil
 }
 
-func coalescePermission(perms map[string]bool) string {
-	// standardize to new-style values used by GraphQL and other endpoints
-	switch {
-	case perms["admin"]:
-		return "admin"
-	case perms["push"] || perms["write"]:
-		return "write"
-	case perms["pull"] || perms["read"]:
-		return "read"
+func (ghc *GitHubContext) CollaboratorPermission(user string) (Permission, error) {
+	if ghc.permissions == nil {
+		ghc.permissions = make(map[string]Permission)
 	}
-	return "none"
+	if p, ok := ghc.permissions[user]; ok {
+		return p, nil
+	}
+
+	// Use GraphQL because the v3 API to get collaborator permissions does not
+	// support maintain and triage permissions as of 2021-05-07.
+	var q struct {
+		Repository struct {
+			Collaborators struct {
+				PageInfo v4PageInfo
+				Edges    []struct {
+					Permission string
+				}
+				Nodes []v4Actor
+			} `graphql:"collaborators(query: $user, first: 100, after: $cursor)"`
+		} `graphql:"repository(owner: $owner, name: $name)"`
+	}
+	qvars := map[string]interface{}{
+		"owner":  githubv4.String(ghc.owner),
+		"name":   githubv4.String(ghc.repo),
+		"user":   githubv4.String(user),
+		"cursor": (*githubv4.String)(nil),
+	}
+
+	// The "query" argument does substring matching, so we might need to
+	// iterate through multiple users before we find the one we're looking for.
+	var perm Permission
+	for {
+		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
+			return PermissionNone, errors.Wrap(err, "failed to get collaborator permission")
+		}
+		if idx := findUserIndex(user, q.Repository.Collaborators.Nodes); idx >= 0 {
+			p, err := ParsePermission(q.Repository.Collaborators.Edges[idx].Permission)
+			if err != nil {
+				return PermissionNone, err
+			}
+			perm = p
+			break
+		}
+		if !q.Repository.Collaborators.PageInfo.UpdateCursor(qvars, "cursor") {
+			break
+		}
+	}
+
+	ghc.permissions[user] = perm
+	return perm, nil
+}
+
+func findUserIndex(user string, users []v4Actor) int {
+	for i, u := range users {
+		if u.GetV3Login() == user {
+			return i
+		}
+	}
+	return -1
 }
 
 func (ghc *GitHubContext) RequestedReviewers() ([]*Reviewer, error) {
@@ -419,20 +572,20 @@ func (ghc *GitHubContext) loadRequestedReviewers() error {
 	return nil
 }
 
-func (ghc *GitHubContext) Teams() (map[string]string, error) {
+func (ghc *GitHubContext) Teams() (map[string]Permission, error) {
 	if ghc.teams == nil {
 		opt := &github.ListOptions{
 			PerPage: 100,
 		}
 
-		allTeams := make(map[string]string)
+		allTeams := make(map[string]Permission)
 		for {
-			teams, resp, err := ghc.client.Repositories.ListTeams(ghc.ctx, ghc.RepositoryOwner(), ghc.RepositoryName(), opt)
+			teams, resp, err := listTeams(ghc.ctx, ghc.client, ghc.owner, ghc.repo, opt)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to list teams page %d", opt.Page)
 			}
 			for _, t := range teams {
-				allTeams[t.GetSlug()] = t.GetPermission()
+				allTeams[t.GetSlug()] = ParsePermissionMap(t.Permissions)
 			}
 			if resp.NextPage == 0 {
 				break
@@ -940,13 +1093,6 @@ func isNotFound(err error) bool {
 	}
 	return false
 }
-
-type SignatureType string
-
-const (
-	SignatureGpg   SignatureType = "GpgSignature"
-	SignatureSmime SignatureType = "SmimeSignature"
-)
 
 type v4GitSignature struct {
 	Type  string           `graphql:"__typename"`

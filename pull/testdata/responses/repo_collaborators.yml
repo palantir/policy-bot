@@ -1,0 +1,112 @@
+- status: 200
+  body: |
+    {
+      "errors": [],
+      "data": {
+        "repository": {
+          "direct": {
+            "pageInfo": {
+              "endCursor": "2",
+              "hasNextPage": false
+            },
+            "edges": [
+              {
+                "permission": "ADMIN"
+              },
+              {
+                "permission": "TRIAGE"
+              }
+            ],
+            "nodes": [
+              {
+                "__typename": "User",
+                "login": "direct-admin"
+              },
+              {
+                "__typename": "User",
+                "login": "direct-triage"
+              }
+            ]
+          },
+          "all": {
+            "pageInfo": {
+              "endCursor": "3",
+              "hasNextPage": true
+            },
+            "edges": [
+              {
+                "permission": "ADMIN"
+              },
+              {
+                "permission": "READ"
+              },
+              {
+                "permission": "ADMIN"
+              }
+            ],
+            "nodes": [
+              {
+                "__typename": "User",
+                "login": "org-owner"
+              },
+              {
+                "__typename": "User",
+                "login": "org-read"
+              },
+              {
+                "__typename": "User",
+                "login": "direct-admin"
+              }
+            ]
+          }
+        }
+      }
+    }
+- status: 200
+  body: |
+    {
+      "errors": [],
+      "data": {
+        "repository": {
+          "direct": {
+            "pageInfo": {
+              "endCursor": "2",
+              "hasNextPage": false
+            },
+            "edges": [],
+            "nodes": []
+          },
+          "all": {
+            "pageInfo": {
+              "endCursor": "6",
+              "hasNextPage": false
+            },
+            "edges": [
+              {
+                "permission": "TRIAGE"
+              },
+              {
+                "permission": "MAINTAIN"
+              },
+              {
+                "permission": "ADMIN"
+              }
+            ],
+            "nodes": [
+              {
+                "__typename": "User",
+                "login": "direct-triage"
+              },
+              {
+                "__typename": "User",
+                "login": "team-maintain"
+              },
+              {
+                "__typename": "User",
+                "login": "team-admin"
+              }
+            ]
+          }
+        }
+      }
+    }

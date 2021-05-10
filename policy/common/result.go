@@ -14,6 +14,10 @@
 
 package common
 
+import (
+	"github.com/palantir/policy-bot/pull"
+)
+
 type EvaluationStatus int
 
 const (
@@ -46,12 +50,11 @@ const (
 )
 
 type ReviewRequestRule struct {
-	Teams              []string
-	Users              []string
-	Organizations      []string
-	Admins             bool
-	WriteCollaborators bool
-	RequiredCount      int
+	Teams         []string
+	Users         []string
+	Organizations []string
+	Permissions   []pull.Permission
+	RequiredCount int
 
 	Mode RequestMode
 }
