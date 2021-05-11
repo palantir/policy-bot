@@ -6,7 +6,7 @@
         "repository": {
           "direct": {
             "pageInfo": {
-              "endCursor": "2",
+              "endCursor": "3",
               "hasNextPage": false
             },
             "edges": [
@@ -15,6 +15,9 @@
               },
               {
                 "permission": "TRIAGE"
+              },
+              {
+                "permission": "WRITE"
               }
             ],
             "nodes": [
@@ -25,12 +28,16 @@
               {
                 "__typename": "User",
                 "login": "direct-triage"
+              },
+              {
+                "__typename": "User",
+                "login": "direct-write-team-maintain"
               }
             ]
           },
           "all": {
             "pageInfo": {
-              "endCursor": "3",
+              "endCursor": "4",
               "hasNextPage": true
             },
             "edges": [
@@ -39,6 +46,9 @@
               },
               {
                 "permission": "READ"
+              },
+              {
+                "permission": "ADMIN"
               },
               {
                 "permission": "ADMIN"
@@ -52,6 +62,10 @@
               {
                 "__typename": "User",
                 "login": "org-read"
+              },
+              {
+                "__typename": "User",
+                "login": "org-owner-team-maintain"
               },
               {
                 "__typename": "User",
@@ -70,7 +84,7 @@
         "repository": {
           "direct": {
             "pageInfo": {
-              "endCursor": "2",
+              "endCursor": "3",
               "hasNextPage": false
             },
             "edges": [],
@@ -78,12 +92,15 @@
           },
           "all": {
             "pageInfo": {
-              "endCursor": "6",
+              "endCursor": "8",
               "hasNextPage": false
             },
             "edges": [
               {
                 "permission": "TRIAGE"
+              },
+              {
+                "permission": "MAINTAIN"
               },
               {
                 "permission": "MAINTAIN"
@@ -96,6 +113,10 @@
               {
                 "__typename": "User",
                 "login": "direct-triage"
+              },
+              {
+                "__typename": "User",
+                "login": "direct-write-team-maintain"
               },
               {
                 "__typename": "User",

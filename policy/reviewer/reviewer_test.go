@@ -239,9 +239,11 @@ func TestSelectReviewers_UserPermission(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, selection.Teams, 0, "policy should request no teams")
 
-	require.Len(t, selection.Users, 2, "policy should request two users")
+	require.Len(t, selection.Users, 4, "policy should request two users")
 	require.Contains(t, selection.Users, "maintainer", "maintainer selected")
 	require.Contains(t, selection.Users, "triager", "triager selected")
+	require.Contains(t, selection.Users, "org-owner-team-maintainer", "triager selected")
+	require.Contains(t, selection.Users, "direct-write-team-maintainer", "triager selected")
 }
 
 func TestSelectReviewers_TeamPermission(t *testing.T) {
@@ -445,6 +447,20 @@ func makeContext() pull.Context {
 				Name: "indirect-triager",
 				Permissions: []pull.CollaboratorPermission{
 					{Permission: pull.PermissionTriage},
+				},
+			},
+			{
+				Name: "org-owner-team-maintainer",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionAdmin, ViaRepo: false},
+					{Permission: pull.PermissionMaintain, ViaRepo: true},
+				},
+			},
+			{
+				Name: "direct-write-team-maintainer",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionMaintain, ViaRepo: true},
+					{Permission: pull.PermissionWrite, ViaRepo: true},
 				},
 			},
 		},

@@ -493,7 +493,7 @@ func TestRepositoryCollaborators(t *testing.T) {
 	collaborators, err := ctx.RepositoryCollaborators()
 	require.NoError(t, err)
 
-	require.Len(t, collaborators, 6, "incorrect number of collaborators")
+	require.Len(t, collaborators, 8, "incorrect number of collaborators")
 	sort.Slice(collaborators, func(i, j int) bool { return collaborators[i].Name < collaborators[j].Name })
 
 	c0 := collaborators[0]
@@ -509,28 +509,42 @@ func TestRepositoryCollaborators(t *testing.T) {
 	}, c1.Permissions)
 
 	c2 := collaborators[2]
-	assert.Equal(t, "org-owner", c2.Name)
+	assert.Equal(t, "direct-write-team-maintain", c2.Name)
 	assert.Equal(t, []CollaboratorPermission{
-		{Permission: PermissionAdmin, ViaRepo: false},
+		{Permission: PermissionMaintain, ViaRepo: true},
+		{Permission: PermissionWrite, ViaRepo: true},
 	}, c2.Permissions)
 
 	c3 := collaborators[3]
-	assert.Equal(t, "org-read", c3.Name)
+	assert.Equal(t, "org-owner", c3.Name)
 	assert.Equal(t, []CollaboratorPermission{
-		{Permission: PermissionRead, ViaRepo: false},
+		{Permission: PermissionAdmin, ViaRepo: false},
 	}, c3.Permissions)
 
 	c4 := collaborators[4]
-	assert.Equal(t, "team-admin", c4.Name)
+	assert.Equal(t, "org-owner-team-maintain", c4.Name)
 	assert.Equal(t, []CollaboratorPermission{
-		{Permission: PermissionAdmin, ViaRepo: true},
+		{Permission: PermissionAdmin, ViaRepo: false},
+		{Permission: PermissionMaintain, ViaRepo: true},
 	}, c4.Permissions)
 
 	c5 := collaborators[5]
-	assert.Equal(t, "team-maintain", c5.Name)
+	assert.Equal(t, "org-read", c5.Name)
+	assert.Equal(t, []CollaboratorPermission{
+		{Permission: PermissionRead, ViaRepo: false},
+	}, c5.Permissions)
+
+	c6 := collaborators[6]
+	assert.Equal(t, "team-admin", c6.Name)
+	assert.Equal(t, []CollaboratorPermission{
+		{Permission: PermissionAdmin, ViaRepo: true},
+	}, c6.Permissions)
+
+	c7 := collaborators[7]
+	assert.Equal(t, "team-maintain", c7.Name)
 	assert.Equal(t, []CollaboratorPermission{
 		{Permission: PermissionMaintain, ViaRepo: true},
-	}, c5.Permissions)
+	}, c7.Permissions)
 }
 
 func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest) Context {

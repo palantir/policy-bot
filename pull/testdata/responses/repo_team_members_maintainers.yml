@@ -4,6 +4,14 @@
       {
         "login": "team-maintain",
         "type": "User"
+      },
+      {
+        "login": "org-owner-team-maintain",
+        "type": "User"
+      },
+      {
+        "login": "direct-write-team-maintain",
+        "type": "User"
       }
     ]
 
