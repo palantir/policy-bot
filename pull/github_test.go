@@ -498,33 +498,39 @@ func TestRepositoryCollaborators(t *testing.T) {
 
 	c0 := collaborators[0]
 	assert.Equal(t, "direct-admin", c0.Name)
-	assert.Equal(t, PermissionAdmin, c0.Permission)
-	assert.Equal(t, true, c0.PermissionViaRepo)
+	assert.Equal(t, []CollaboratorPermission{
+		{Permission: PermissionAdmin, ViaRepo: true},
+	}, c0.Permissions)
 
 	c1 := collaborators[1]
 	assert.Equal(t, "direct-triage", c1.Name)
-	assert.Equal(t, PermissionTriage, c1.Permission)
-	assert.Equal(t, true, c1.PermissionViaRepo)
+	assert.Equal(t, []CollaboratorPermission{
+		{Permission: PermissionTriage, ViaRepo: true},
+	}, c1.Permissions)
 
 	c2 := collaborators[2]
 	assert.Equal(t, "org-owner", c2.Name)
-	assert.Equal(t, PermissionAdmin, c2.Permission)
-	assert.Equal(t, false, c2.PermissionViaRepo)
+	assert.Equal(t, []CollaboratorPermission{
+		{Permission: PermissionAdmin, ViaRepo: false},
+	}, c2.Permissions)
 
 	c3 := collaborators[3]
 	assert.Equal(t, "org-read", c3.Name)
-	assert.Equal(t, PermissionRead, c3.Permission)
-	assert.Equal(t, false, c3.PermissionViaRepo)
+	assert.Equal(t, []CollaboratorPermission{
+		{Permission: PermissionRead, ViaRepo: false},
+	}, c3.Permissions)
 
 	c4 := collaborators[4]
 	assert.Equal(t, "team-admin", c4.Name)
-	assert.Equal(t, PermissionAdmin, c4.Permission)
-	assert.Equal(t, true, c4.PermissionViaRepo)
+	assert.Equal(t, []CollaboratorPermission{
+		{Permission: PermissionAdmin, ViaRepo: true},
+	}, c4.Permissions)
 
 	c5 := collaborators[5]
 	assert.Equal(t, "team-maintain", c5.Name)
-	assert.Equal(t, PermissionMaintain, c5.Permission)
-	assert.Equal(t, true, c5.PermissionViaRepo)
+	assert.Equal(t, []CollaboratorPermission{
+		{Permission: PermissionMaintain, ViaRepo: true},
+	}, c5.Permissions)
 }
 
 func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest) Context {

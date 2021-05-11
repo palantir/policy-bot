@@ -163,7 +163,7 @@ func (c *Context) CollaboratorPermission(user string) (pull.Permission, error) {
 	}
 	for _, collab := range c.CollaboratorsValue {
 		if collab.Name == user {
-			return collab.Permission, nil
+			return collab.Permissions[0].Permission, nil
 		}
 	}
 	return pull.PermissionNone, nil

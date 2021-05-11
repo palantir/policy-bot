@@ -388,8 +388,10 @@ func (ghc *GitHubContext) RepositoryCollaborators() ([]*Collaborator, error) {
 				}
 
 				collaborators = append(collaborators, &Collaborator{
-					Name:       name,
-					Permission: p,
+					Name: name,
+					Permissions: []CollaboratorPermission{
+						{Permission: p},
+					},
 				})
 			}
 			if !q.Repository.AllCollaborators.PageInfo.UpdateCursor(qvars, "allCursor") {
@@ -421,20 +423,35 @@ func (ghc *GitHubContext) RepositoryCollaborators() ([]*Collaborator, error) {
 			}
 		}
 
-		isPermissionViaRepo := func(c *Collaborator) bool {
-			if directPerms[c.Name] >= c.Permission {
-				return true
-			}
-			for _, team := range teamMembership[c.Name] {
-				if teamPerms[team] >= c.Permission {
-					return true
+		fillPermissions := func(c *Collaborator) {
+			overall := c.Permissions[0].Permission // from above, every collaborator has at least one permission
+
+			if dp, ok := directPerms[c.Name]; ok {
+				if dp >= overall {
+					c.Permissions[0].ViaRepo = true
+				} else if dp > PermissionNone {
+					c.Permissions = append(c.Permissions, CollaboratorPermission{
+						Permission: dp,
+						ViaRepo:    true,
+					})
 				}
 			}
-			return false
+
+			for _, team := range teamMembership[c.Name] {
+				tp := teamPerms[team]
+				if tp >= overall {
+					c.Permissions[0].ViaRepo = true
+				} else if tp > PermissionNone {
+					c.Permissions = append(c.Permissions, CollaboratorPermission{
+						Permission: tp,
+						ViaRepo:    true,
+					})
+				}
+			}
 		}
 
 		for _, c := range collaborators {
-			c.PermissionViaRepo = isPermissionViaRepo(c)
+			fillPermissions(c)
 		}
 		ghc.collaborators = collaborators
 	}

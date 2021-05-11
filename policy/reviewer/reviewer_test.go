@@ -373,18 +373,80 @@ func makeContext() pull.Context {
 			"review-approver":       {"everyone", "even-cooler-org"},
 		},
 		CollaboratorsValue: []*pull.Collaborator{
-			{Name: "mhaypenny", Permission: pull.PermissionAdmin},
-			{Name: "org-owner", Permission: pull.PermissionAdmin},
-			{Name: "user-team-admin", Permission: pull.PermissionAdmin, PermissionViaRepo: true},
-			{Name: "user-direct-admin", Permission: pull.PermissionAdmin, PermissionViaRepo: true},
-			{Name: "user-team-write", Permission: pull.PermissionWrite, PermissionViaRepo: true},
-			{Name: "contributor-committer", Permission: pull.PermissionWrite},
-			{Name: "contributor-author", Permission: pull.PermissionWrite},
-			{Name: "review-approver", Permission: pull.PermissionWrite},
-			{Name: "maintainer", Permission: pull.PermissionMaintain, PermissionViaRepo: true},
-			{Name: "indirect-maintainer", Permission: pull.PermissionMaintain}, // note: currently not possible in GitHub
-			{Name: "triager", Permission: pull.PermissionTriage, PermissionViaRepo: true},
-			{Name: "indirect-triager", Permission: pull.PermissionTriage}, // note: currently not possible in GitHub
+			{
+				Name: "mhaypenny",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionAdmin},
+				},
+			},
+			{
+				Name: "org-owner",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionAdmin},
+				},
+			},
+			{
+				Name: "user-team-admin",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionAdmin, ViaRepo: true},
+				},
+			},
+			{
+				Name: "user-direct-admin",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionAdmin, ViaRepo: true},
+				},
+			},
+			{
+				Name: "user-team-write",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionWrite, ViaRepo: true},
+				},
+			},
+			{
+				Name: "contributor-committer",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionWrite},
+				},
+			},
+			{
+				Name: "contributor-author",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionWrite},
+				},
+			},
+			{
+				Name: "review-approver",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionWrite},
+				},
+			},
+			{
+				Name: "maintainer",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionMaintain, ViaRepo: true},
+				},
+			},
+			{
+				// note: currently not possible in GitHub
+				Name: "indirect-maintainer",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionMaintain},
+				},
+			},
+			{
+				Name: "triager",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionTriage, ViaRepo: true},
+				},
+			},
+			{
+				// note: currently not possible in GitHub
+				Name: "indirect-triager",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionTriage},
+				},
+			},
 		},
 		TeamsValue: map[string]pull.Permission{
 			"team-write":    pull.PermissionWrite,

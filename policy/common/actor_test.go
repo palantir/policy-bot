@@ -34,8 +34,18 @@ func TestIsActor(t *testing.T) {
 			"mhaypenny": {"cool-org", "regular-org"},
 		},
 		CollaboratorsValue: []*pull.Collaborator{
-			{Name: "mhaypenny", Permission: pull.PermissionAdmin},
-			{Name: "jstrawnickel", Permission: pull.PermissionWrite},
+			{
+				Name: "mhaypenny",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionAdmin},
+				},
+			},
+			{
+				Name: "jstrawnickel",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionWrite},
+				},
+			},
 		},
 	}
 
