@@ -224,15 +224,6 @@ type Collaborator struct {
 	Permissions []CollaboratorPermission
 }
 
-func (c *Collaborator) HasExactPermission(p Permission, viaRepo bool) bool {
-	for _, cp := range c.Permissions {
-		if cp.ViaRepo == viaRepo && cp.Permission == p {
-			return true
-		}
-	}
-	return false
-}
-
 type CollaboratorPermission struct {
 	Permission Permission
 
