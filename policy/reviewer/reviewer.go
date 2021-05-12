@@ -249,8 +249,10 @@ func selectUserReviewers(ctx context.Context, prctx pull.Context, selection *Sel
 	if len(result.ReviewRequestRule.Permissions) > 0 {
 		logger.Debug().Msg("Selecting from collaborators by permission for review")
 		for _, c := range collaborators {
-			if c.PermissionViaRepo && requestsPermission(result, c.Permission) {
-				allUsers[c.Name] = struct{}{}
+			for _, cp := range c.Permissions {
+				if cp.ViaRepo && requestsPermission(result, cp.Permission) {
+					allUsers[c.Name] = struct{}{}
+				}
 			}
 		}
 	}

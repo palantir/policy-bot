@@ -239,9 +239,11 @@ func TestSelectReviewers_UserPermission(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, selection.Teams, 0, "policy should request no teams")
 
-	require.Len(t, selection.Users, 2, "policy should request two users")
+	require.Len(t, selection.Users, 4, "policy should request two users")
 	require.Contains(t, selection.Users, "maintainer", "maintainer selected")
 	require.Contains(t, selection.Users, "triager", "triager selected")
+	require.Contains(t, selection.Users, "org-owner-team-maintainer", "triager selected")
+	require.Contains(t, selection.Users, "direct-write-team-maintainer", "triager selected")
 }
 
 func TestSelectReviewers_TeamPermission(t *testing.T) {
@@ -373,18 +375,94 @@ func makeContext() pull.Context {
 			"review-approver":       {"everyone", "even-cooler-org"},
 		},
 		CollaboratorsValue: []*pull.Collaborator{
-			{Name: "mhaypenny", Permission: pull.PermissionAdmin},
-			{Name: "org-owner", Permission: pull.PermissionAdmin},
-			{Name: "user-team-admin", Permission: pull.PermissionAdmin, PermissionViaRepo: true},
-			{Name: "user-direct-admin", Permission: pull.PermissionAdmin, PermissionViaRepo: true},
-			{Name: "user-team-write", Permission: pull.PermissionWrite, PermissionViaRepo: true},
-			{Name: "contributor-committer", Permission: pull.PermissionWrite},
-			{Name: "contributor-author", Permission: pull.PermissionWrite},
-			{Name: "review-approver", Permission: pull.PermissionWrite},
-			{Name: "maintainer", Permission: pull.PermissionMaintain, PermissionViaRepo: true},
-			{Name: "indirect-maintainer", Permission: pull.PermissionMaintain}, // note: currently not possible in GitHub
-			{Name: "triager", Permission: pull.PermissionTriage, PermissionViaRepo: true},
-			{Name: "indirect-triager", Permission: pull.PermissionTriage}, // note: currently not possible in GitHub
+			{
+				Name: "mhaypenny",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionAdmin},
+				},
+			},
+			{
+				Name: "org-owner",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionAdmin},
+				},
+			},
+			{
+				Name: "user-team-admin",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionAdmin, ViaRepo: true},
+				},
+			},
+			{
+				Name: "user-direct-admin",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionAdmin, ViaRepo: true},
+				},
+			},
+			{
+				Name: "user-team-write",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionWrite, ViaRepo: true},
+				},
+			},
+			{
+				Name: "contributor-committer",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionWrite},
+				},
+			},
+			{
+				Name: "contributor-author",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionWrite},
+				},
+			},
+			{
+				Name: "review-approver",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionWrite},
+				},
+			},
+			{
+				Name: "maintainer",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionMaintain, ViaRepo: true},
+				},
+			},
+			{
+				// note: currently not possible in GitHub
+				Name: "indirect-maintainer",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionMaintain},
+				},
+			},
+			{
+				Name: "triager",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionTriage, ViaRepo: true},
+				},
+			},
+			{
+				// note: currently not possible in GitHub
+				Name: "indirect-triager",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionTriage},
+				},
+			},
+			{
+				Name: "org-owner-team-maintainer",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionAdmin, ViaRepo: false},
+					{Permission: pull.PermissionMaintain, ViaRepo: true},
+				},
+			},
+			{
+				Name: "direct-write-team-maintainer",
+				Permissions: []pull.CollaboratorPermission{
+					{Permission: pull.PermissionMaintain, ViaRepo: true},
+					{Permission: pull.PermissionWrite, ViaRepo: true},
+				},
+			},
 		},
 		TeamsValue: map[string]pull.Permission{
 			"team-write":    pull.PermissionWrite,
