@@ -90,13 +90,13 @@ func TestIsActor(t *testing.T) {
 		a := &Actors{WriteCollaborators: true}
 
 		assertActor(t, a, "jstrawnickel")
-		assertNotActor(t, a, "mhaypenny")
+		assertActor(t, a, "mhaypenny")
 		assertNotActor(t, a, "ttest")
 	})
 
 	t.Run("permissions", func(t *testing.T) {
 		a := &Actors{
-			Permissions: []pull.Permission{pull.PermissionAdmin, pull.PermissionWrite},
+			Permissions: []pull.Permission{pull.PermissionTriage},
 		}
 
 		assertActor(t, a, "mhaypenny")

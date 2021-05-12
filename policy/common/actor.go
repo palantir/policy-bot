@@ -94,7 +94,7 @@ func (a *Actors) IsActor(ctx context.Context, prctx pull.Context, user string) (
 	}
 
 	for _, p := range perms {
-		if userPerm == p {
+		if userPerm >= p {
 			return true, nil
 		}
 	}

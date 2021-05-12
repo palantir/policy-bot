@@ -343,10 +343,14 @@ requires:
   organizations: ["org1", "org2"]
   teams: ["org1/team1", "org2/team2"]
 
-  # A user must have a permission in this list for their approval to count for
-  # this rule. Valid permissions are "admin", "maintain", "write", "triage",
-  # and "read".
-  permissions: ["admin", "maintain", "write"]
+  # A user must have at least the minimum permission in this list for their
+  # approval to count for this rule. Valid permissions are "admin", "maintain",
+  # "write", "triage", and "read".
+  #
+  # Specifying more than one permission is only useful to control which users
+  # or teams are selected for review requests. See the documentation on review
+  # requests for details.
+  permissions: ["write"]
 
   # Deprecated: use 'permissions: ["admin"]'
   #
@@ -551,11 +555,14 @@ The set of requested reviewers will not include the author of the pull request o
 users who are not collaborators on the repository.
 
 When requesting reviews for rules that use repository permissions to select
-approvers, only users who are either direct collaborators or members of
-repository teams are eligible for review selection. For example, if a rule can
-be approved by any user with `admin` permission, only direct or team admins
-will be selected for review. Users who inherit repository `admin` permissions
-as organization owners are not selected.
+approvers, only users who are direct collaborators or members of
+repository teams are eligible for review selection. The users or their teams
+must be granted an exact permission specified in the `permissions` list of the
+rule.
+
+For example, if a rule can be approved by any user with `admin` permission,
+only direct or team admins are selected for review. Users who inherit
+repository `admin` permissions as organization owners are not selected.
 
 #### Automatically Requesting Reviewers Example
 
