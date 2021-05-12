@@ -345,8 +345,11 @@ requires:
 
   # A user must have at least the minimum permission in this list for their
   # approval to count for this rule. Valid permissions are "admin", "maintain",
-  # "write", "triage", and "read". Specifying more than one permission is
-  # useful to control reviewer assignment.
+  # "write", "triage", and "read".
+  #
+  # Specifying more than one permission is only useful to control which users
+  # or teams are selected for review requests. See the documentation on review
+  # requests for details.
   permissions: ["write"]
 
   # Deprecated: use 'permissions: ["admin"]'
