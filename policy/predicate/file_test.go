@@ -176,8 +176,8 @@ func TestOnlyChangedFiles(t *testing.T) {
 
 func TestModifiedLines(t *testing.T) {
 	p := &ModifiedLines{
-		Additions: ">100",
-		Deletions: ">10",
+		Additions: ComparisonExpr{Op: OpGreaterThan, Value: 100},
+		Deletions: ComparisonExpr{Op: OpGreaterThan, Value: 10},
 	}
 
 	runFileTests(t, p, []FileTestCase{
@@ -208,7 +208,7 @@ func TestModifiedLines(t *testing.T) {
 	})
 
 	p = &ModifiedLines{
-		Total: ">100",
+		Total: ComparisonExpr{Op: OpGreaterThan, Value: 100},
 	}
 
 	runFileTests(t, p, []FileTestCase{
@@ -230,55 +230,81 @@ func TestComparisonExpr(t *testing.T) {
 		Expr   ComparisonExpr
 		Value  int64
 		Output bool
-		Err    bool
 	}{
 		"greaterThanTrue": {
-			Expr:   ">100",
+			Expr:   ComparisonExpr{Op: OpGreaterThan, Value: 100},
 			Value:  200,
 			Output: true,
 		},
 		"greaterThanFalse": {
-			Expr:   "> 100",
+			Expr:   ComparisonExpr{Op: OpGreaterThan, Value: 100},
 			Value:  50,
 			Output: false,
 		},
 		"lessThanTrue": {
-			Expr:   "<100",
+			Expr:   ComparisonExpr{Op: OpLessThan, Value: 100},
 			Value:  50,
 			Output: true,
 		},
 		"lessThanFalse": {
-			Expr:   "< 100",
+			Expr:   ComparisonExpr{Op: OpLessThan, Value: 100},
 			Value:  200,
 			Output: false,
-		},
-		"invalidOperator": {
-			Expr: "=200",
-			Err:  true,
-		},
-		"invalidNumber": {
-			Expr: ">12ab",
-			Err:  true,
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			ok, err := test.Expr.Evaluate(test.Value)
-			if test.Err {
-				assert.Error(t, err, "expected error evaluating expression, but got nil")
-				return
-			}
-			if assert.NoError(t, err, "unexpected error evaluating expression") {
-				assert.Equal(t, test.Output, ok, "evaluation was not correct")
-			}
+			ok := test.Expr.Evaluate(test.Value)
+			assert.Equal(t, test.Output, ok, "evaluation was not correct")
 		})
 	}
 
 	t.Run("isEmpty", func(t *testing.T) {
-		assert.True(t, ComparisonExpr("").IsEmpty(), "expression was not empty")
-		assert.False(t, ComparisonExpr(">100").IsEmpty(), "expression was empty")
+		assert.True(t, ComparisonExpr{}.IsEmpty(), "expression was not empty")
+		assert.False(t, ComparisonExpr{Op: OpGreaterThan, Value: 100}.IsEmpty(), "expression was empty")
 	})
+
+	parseTests := map[string]struct {
+		Input  string
+		Output ComparisonExpr
+		Err    bool
+	}{
+		"lessThan": {
+			Input:  "<100",
+			Output: ComparisonExpr{Op: OpLessThan, Value: 100},
+		},
+		"greaterThan": {
+			Input:  ">100",
+			Output: ComparisonExpr{Op: OpGreaterThan, Value: 100},
+		},
+		"spaces": {
+			Input:  "<   35",
+			Output: ComparisonExpr{Op: OpLessThan, Value: 35},
+		},
+		"invalidOp": {
+			Input: "=10",
+			Err:   true,
+		},
+		"invalidValue": {
+			Input: "< 10ab",
+			Err:   true,
+		},
+	}
+
+	for name, test := range parseTests {
+		t.Run(name, func(t *testing.T) {
+			var expr ComparisonExpr
+			err := expr.UnmarshalText([]byte(test.Input))
+			if test.Err {
+				assert.Error(t, err, "expected error parsing expression, but got nil")
+				return
+			}
+			if assert.NoError(t, err, "unexpected error parsing expression") {
+				assert.Equal(t, test.Output, expr, "parsed expression was not correct")
+			}
+		})
+	}
 }
 
 type FileTestCase struct {
