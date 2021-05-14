@@ -982,6 +982,9 @@ type v4PullRequestReview struct {
 	State       string
 	Body        string
 	SubmittedAt time.Time
+	Commit      struct {
+		OID string
+	}
 }
 
 func (r *v4PullRequestReview) ToReview() *Review {
@@ -990,6 +993,7 @@ func (r *v4PullRequestReview) ToReview() *Review {
 		Author:    r.Author.GetV3Login(),
 		State:     ReviewState(strings.ToLower(r.State)),
 		Body:      r.Body,
+		SHA:       r.Commit.OID,
 	}
 }
 

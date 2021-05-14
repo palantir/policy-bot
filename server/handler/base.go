@@ -299,10 +299,30 @@ func (b *Base) requestReviews(ctx context.Context, prctx pull.Context, client *g
 	logger.Debug().Msgf("Waiting for %s to spread out reviewer processing", delay)
 	time.Sleep(delay)
 
-	// check again if someone assigned a reviewer while we were calculating users to request
+	// Get existing reviewers _after_ computing the selection and sleeping in
+	// case something assigned reviewers (or left reviews) in the meantime.
 	reviewers, err := prctx.RequestedReviewers()
 	if err != nil {
 		return err
+	}
+
+	// After a user leaves a review, GitHub removes the user from the request
+	// list. If the review didn't actually change the state of the requesting
+	// rule, policy-bot may request the same user again. To avoid this, include
+	// any reviews on the head commit in the set of existing reviewers to avoid
+	// re-requesting them until the content changes.
+	head := prctx.HeadSHA()
+	reviews, err := prctx.Reviews()
+	if err != nil {
+		return err
+	}
+	for _, r := range reviews {
+		if r.SHA == head {
+			reviewers = append(reviewers, &pull.Reviewer{
+				Type: pull.ReviewerUser,
+				Name: r.Author,
+			})
+		}
 	}
 
 	if diff := selection.Difference(reviewers); !diff.IsEmpty() {
