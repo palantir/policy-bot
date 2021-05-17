@@ -278,8 +278,16 @@ func TestComparisonExpr(t *testing.T) {
 			Input:  ">100",
 			Output: ComparisonExpr{Op: OpGreaterThan, Value: 100},
 		},
-		"spaces": {
+		"innerSpaces": {
 			Input:  "<   35",
+			Output: ComparisonExpr{Op: OpLessThan, Value: 35},
+		},
+		"leadingSpaces": {
+			Input:  "   < 35",
+			Output: ComparisonExpr{Op: OpLessThan, Value: 35},
+		},
+		"trailngSpaces": {
+			Input:  "< 35   ",
 			Output: ComparisonExpr{Op: OpLessThan, Value: 35},
 		},
 		"invalidOp": {

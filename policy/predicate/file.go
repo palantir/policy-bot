@@ -15,6 +15,7 @@
 package predicate
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strconv"
@@ -140,12 +141,13 @@ func (exp ComparisonExpr) MarshalText() ([]byte, error) {
 }
 
 func (exp *ComparisonExpr) UnmarshalText(text []byte) error {
+	text = bytes.TrimSpace(text)
 	if len(text) == 0 {
 		*exp = ComparisonExpr{}
 		return nil
 	}
 
-	var i int
+	i := 0
 	var op CompareOp
 	switch text[i] {
 	case '<':
@@ -157,7 +159,7 @@ func (exp *ComparisonExpr) UnmarshalText(text []byte) error {
 	}
 
 	i++
-	for i < len(text) && text[i] == ' ' {
+	for i < len(text) && (text[i] == ' ' || text[i] == '\t') {
 		i++
 	}
 
