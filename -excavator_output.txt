@@ -1,0 +1,47 @@
+go mod operation failed. This may mean that there are legitimate dependency issues with the "go.mod" definition in the repository and the updates performed by the gomod check. This branch can be cloned locally to debug the issue.
+
+Command that caused error:
+./godelw check compiles
+
+Output:
+Running compiles...
+server/handler/base.go:129:65: cannot use pr.GetBase().GetRepo() (value of type *github.Repository) as *github.Repository value in argument to githubapp.PreparePRContext
+server/handler/base.go:148:46: cannot use client (variable of type *github.Client) as *github.Client value in argument to NewCrossOrgMembershipContext
+server/handler/base.go:149:51: cannot use client (variable of type *github.Client) as *github.Client value in argument to pull.NewGitHubContext
+server/handler/base.go:154:64: cannot use client (variable of type *github.Client) as *github.Client value in argument to b.ConfigFetcher.ConfigForPR
+server/handler/base.go:159:56: cannot use client (variable of type *github.Client) as *github.Client value in argument to b.ValidateFetchedConfig
+server/handler/base.go:169:53: cannot use client (variable of type *github.Client) as *github.Client value in argument to b.EvaluateFetchedConfig
+server/handler/base.go:174:47: cannot use client (variable of type *github.Client) as *github.Client value in argument to b.RequestReviewsForResult
+server/handler/check_run.go:48:57: cannot use &event (value of type *github.CheckRunEvent) as githubapp.InstallationSource value in argument to githubapp.GetInstallationIDFromEvent: wrong type for method GetInstallation (have func() *github.com/google/go-github/v32/github.Installation, want func() *github.com/google/go-github/v35/github.Installation)
+server/handler/check_run.go:50:67: cannot use repo (variable of type *github.Repository) as *github.Repository value in argument to githubapp.PrepareRepoContext
+server/handler/cross_org.go:66:51: cannot use client (variable of type *github.Client) as *github.Client value in argument to pull.NewGitHubMembershipContext
+server/handler/details.go:101:52: cannot use pr (variable of type *github.PullRequest) as *github.PullRequest value in argument to h.PreparePRContext
+server/handler/details.go:103:46: cannot use client (variable of type *github.Client) as *github.Client value in argument to NewCrossOrgMembershipContext
+server/handler/details.go:104:51: cannot use client (variable of type *github.Client) as *github.Client value in argument to pull.NewGitHubContext
+server/handler/details.go:108:11: cannot use pr (variable of type *github.PullRequest) as *github.PullRequest value in struct literal
+server/handler/details.go:123:21: cannot use pr (variable of type *github.PullRequest) as *github.PullRequest value in assignment
+server/handler/details.go:126:57: cannot use client (variable of type *github.Client) as *github.Client value in argument to h.ConfigFetcher.ConfigForPR
+server/handler/details.go:127:32: cannot use pr (variable of type *github.PullRequest) as *github.PullRequest value in argument to getPolicyURL
+server/handler/details.go:133:61: cannot use client (variable of type *github.Client) as *github.Client value in argument to h.Base.ValidateFetchedConfig
+server/handler/details.go:145:58: cannot use client (variable of type *github.Client) as *github.Client value in argument to h.Base.EvaluateFetchedConfig
+server/handler/issue_comment.go:49:57: cannot use &event (value of type *github.IssueCommentEvent) as githubapp.InstallationSource value in argument to githubapp.GetInstallationIDFromEvent: wrong type for method GetInstallation (have func() *github.com/google/go-github/v32/github.Installation, want func() *github.com/google/go-github/v35/github.Installation)
+server/handler/issue_comment.go:71:57: cannot use pr (variable of type *github.PullRequest) as *github.PullRequest value in argument to h.PreparePRContext
+server/handler/issue_comment.go:73:46: cannot use client (variable of type *github.Client) as *github.Client value in argument to NewCrossOrgMembershipContext
+server/handler/issue_comment.go:74:51: cannot use client (variable of type *github.Client) as *github.Client value in argument to pull.NewGitHubContext
+server/handler/issue_comment.go:78:11: cannot use pr (variable of type *github.PullRequest) as *github.PullRequest value in struct literal
+server/handler/issue_comment.go:84:64: cannot use client (variable of type *github.Client) as *github.Client value in argument to h.ConfigFetcher.ConfigForPR
+server/handler/issue_comment.go:90:51: cannot use client (variable of type *github.Client) as *github.Client value in argument to h.detectAndLogTampering
+server/handler/issue_comment.go:98:61: cannot use client (variable of type *github.Client) as *github.Client value in argument to h.Base.ValidateFetchedConfig
+server/handler/issue_comment.go:108:58: cannot use client (variable of type *github.Client) as *github.Client value in argument to h.Base.EvaluateFetchedConfig
+server/handler/issue_comment.go:113:52: cannot use client (variable of type *github.Client) as *github.Client value in argument to h.Base.RequestReviewsForResult
+server/handler/pull_request.go:42:57: cannot use &event (value of type *github.PullRequestEvent) as githubapp.InstallationSource value in argument to githubapp.GetInstallationIDFromEvent: wrong type for method GetInstallation (have func() *github.com/google/go-github/v32/github.Installation, want func() *github.com/google/go-github/v35/github.Installation)
+server/handler/pull_request_review.go:42:57: cannot use &event (value of type *github.PullRequestReviewEvent) as githubapp.InstallationSource value in argument to githubapp.GetInstallationIDFromEvent: wrong type for method GetInstallation (have func() *github.com/google/go-github/v32/github.Installation, want func() *github.com/google/go-github/v35/github.Installation)
+server/handler/status.go:60:57: cannot use &event (value of type *github.StatusEvent) as githubapp.InstallationSource value in argument to githubapp.GetInstallationIDFromEvent: wrong type for method GetInstallation (have func() *github.com/google/go-github/v32/github.Installation, want func() *github.com/google/go-github/v35/github.Installation)
+server/handler/status.go:67:67: cannot use repo (variable of type *github.Repository) as *github.Repository value in argument to githubapp.PrepareRepoContext
+server/handler/status.go:98:84: cannot use status (variable of type *github.RepoStatus) as *github.RepoStatus value in argument to client.Repositories.CreateStatus
+server/handler/status.go:107:57: cannot use &event (value of type *github.StatusEvent) as githubapp.InstallationSource value in argument to githubapp.GetInstallationIDFromEvent: wrong type for method GetInstallation (have func() *github.com/google/go-github/v32/github.Installation, want func() *github.com/google/go-github/v35/github.Installation)
+server/handler/status.go:114:67: cannot use repo (variable of type *github.Repository) as *github.Repository value in argument to githubapp.PrepareRepoContext
+server/handler/status.go:123:3: cannot use &(github.PullRequestListOptions literal) (value of type *github.PullRequestListOptions) as *github.PullRequestListOptions value in argument to client.PullRequests.ListPullRequestsWithCommit
+server/handler/status.go:138:13: cannot use pr (variable of type *github.PullRequest) as *github.PullRequest value in struct literal
+Finished compiles
+Check(s) produced output: [compiles]

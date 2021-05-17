@@ -12,16 +12,15 @@ require (
 	github.com/google/go-github/v32 v32.0.0
 	github.com/google/go-querystring v1.0.0
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
-	github.com/palantir/go-baseapp v0.2.2
-	github.com/palantir/go-githubapp v0.5.0
+	github.com/palantir/go-baseapp v0.2.3
+	github.com/palantir/go-githubapp v0.7.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.18.0
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/shurcooL/githubv4 v0.0.0-20191127044304-8f68eb5628d0
-	github.com/spf13/cobra v1.1.1
+	github.com/spf13/cobra v1.1.3
 	github.com/stretchr/testify v1.6.1
 	github.com/vektah/gqlparser v1.0.0
 	goji.io v2.0.2+incompatible
-	google.golang.org/appengine v1.6.6 // indirect
-	gopkg.in/yaml.v2 v2.3.0
+	gopkg.in/yaml.v2 v2.4.0
 )
