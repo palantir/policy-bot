@@ -24,6 +24,7 @@ import (
 	"github.com/alexedwards/scs"
 	"github.com/bluekeyes/templatetree"
 	"github.com/google/go-github/v32/github"
+	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
@@ -44,12 +45,16 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 
 	number, err := strconv.Atoi(pat.Param(r, "number"))
 	if err != nil {
-		http.Error(w, fmt.Sprintf("invalid pull request number: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Invalid pull request number: %v", err), http.StatusBadRequest)
 		return nil
 	}
 
 	installation, err := h.Installations.GetByOwner(ctx, owner)
 	if err != nil {
+		if _, notFound := err.(githubapp.InstallationNotFound); notFound {
+			h.render404(w, owner, repo, number)
+			return nil
+		}
 		return err
 	}
 
@@ -72,7 +77,7 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	level, _, err := client.Repositories.GetPermissionLevel(ctx, owner, repo, user)
 	if err != nil {
 		if isNotFound(err) {
-			http.Error(w, fmt.Sprintf("not found: %s/%s#%d", owner, repo, number), http.StatusNotFound)
+			h.render404(w, owner, repo, number)
 			return nil
 		}
 		return errors.Wrap(err, "failed to get user permission level")
@@ -80,14 +85,14 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 
 	// if the user does not have permission, pretend the repo/PR doesn't exist
 	if level.GetPermission() == "none" {
-		http.Error(w, fmt.Sprintf("not found: %s/%s#%d", owner, repo, number), http.StatusNotFound)
+		h.render404(w, owner, repo, number)
 		return nil
 	}
 
 	pr, _, err := client.PullRequests.Get(ctx, owner, repo, number)
 	if err != nil {
 		if isNotFound(err) {
-			http.Error(w, fmt.Sprintf("not found: %s/%s#%d", owner, repo, number), http.StatusNotFound)
+			h.render404(w, owner, repo, number)
 			return nil
 		}
 		return errors.Wrap(err, "failed to get pull request")
@@ -154,6 +159,14 @@ func (h *Details) render(w http.ResponseWriter, data interface{}) error {
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 	return h.Templates.ExecuteTemplate(w, "details.html.tmpl", data)
+}
+
+func (h *Details) render404(w http.ResponseWriter, owner, repo string, number int) {
+	msg := fmt.Sprintf(
+		"Not Found: %s/%s#%d\n\nThe repository or pull request does not exist, you do not have permission, or policy-bot is not installed.",
+		owner, repo, number,
+	)
+	http.Error(w, msg, http.StatusNotFound)
 }
 
 func getPolicyURL(pr *github.PullRequest, config FetchedConfig) string {
