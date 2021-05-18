@@ -746,6 +746,7 @@ func (ghc *GitHubContext) loadPagedData() error {
 			switch r.State {
 			case "COMMENTED":
 				comments = append(comments, r.ToComment())
+				fallthrough
 			case "APPROVED", "CHANGES_REQUESTED":
 				reviews = append(reviews, r.ToReview())
 			}
@@ -982,6 +983,9 @@ type v4PullRequestReview struct {
 	State       string
 	Body        string
 	SubmittedAt time.Time
+	Commit      struct {
+		OID string
+	}
 }
 
 func (r *v4PullRequestReview) ToReview() *Review {
@@ -990,6 +994,7 @@ func (r *v4PullRequestReview) ToReview() *Review {
 		Author:    r.Author.GetV3Login(),
 		State:     ReviewState(strings.ToLower(r.State)),
 		Body:      r.Body,
+		SHA:       r.Commit.OID,
 	}
 }
 

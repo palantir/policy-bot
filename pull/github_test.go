@@ -193,7 +193,7 @@ func TestReviews(t *testing.T) {
 	reviews, err := ctx.Reviews()
 	require.NoError(t, err)
 
-	require.Len(t, reviews, 2, "incorrect number of reviews")
+	require.Len(t, reviews, 3, "incorrect number of reviews")
 	assert.Equal(t, 2, dataRule.Count, "no http request was made")
 
 	expectedTime, err := time.Parse(time.RFC3339, "2018-06-27T20:33:26Z")
@@ -209,11 +209,16 @@ func TestReviews(t *testing.T) {
 	assert.Equal(t, ReviewApproved, reviews[1].State)
 	assert.Equal(t, "the body", reviews[1].Body)
 
+	assert.Equal(t, "jgiannuzzi", reviews[2].Author)
+	assert.Equal(t, expectedTime.Add(-4*time.Second).Add(5*time.Minute), reviews[2].CreatedAt)
+	assert.Equal(t, ReviewCommented, reviews[2].State)
+	assert.Equal(t, "A review comment", reviews[2].Body)
+
 	// verify that the review list is cached
 	reviews, err = ctx.Reviews()
 	require.NoError(t, err)
 
-	require.Len(t, reviews, 2, "incorrect number of reviews")
+	require.Len(t, reviews, 3, "incorrect number of reviews")
 	assert.Equal(t, 2, dataRule.Count, "cached reviews were not used")
 }
 
@@ -373,7 +378,7 @@ func TestMixedReviewCommentPaging(t *testing.T) {
 
 	assert.Equal(t, 2, dataRule.Count, "cached values were not used")
 	assert.Len(t, comments, 3, "incorrect number of comments")
-	assert.Len(t, reviews, 2, "incorrect number of reviews")
+	assert.Len(t, reviews, 3, "incorrect number of reviews")
 }
 
 func TestIsOrgMember(t *testing.T) {
