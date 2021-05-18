@@ -15,9 +15,9 @@
 package predicate
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"regexp"
 	"strconv"
 
 	"github.com/palantir/policy-bot/policy/common"
@@ -96,35 +96,80 @@ type ModifiedLines struct {
 	Total     ComparisonExpr `yaml:"total"`
 }
 
-type ComparisonExpr string
+type CompareOp uint8
 
-var (
-	numCompRegexp = regexp.MustCompile(`^(<|>) ?(\d+)$`)
+const (
+	OpNone CompareOp = iota
+	OpLessThan
+	OpGreaterThan
 )
 
-func (exp ComparisonExpr) IsEmpty() bool {
-	return exp == ""
+type ComparisonExpr struct {
+	Op    CompareOp
+	Value int64
 }
 
-func (exp ComparisonExpr) Evaluate(n int64) (bool, error) {
-	match := numCompRegexp.FindStringSubmatch(string(exp))
-	if match == nil {
-		return false, errors.Errorf("invalid comparison expression: %q", exp)
+func (exp ComparisonExpr) IsEmpty() bool {
+	return exp.Op == OpNone && exp.Value == 0
+}
+
+func (exp ComparisonExpr) Evaluate(n int64) bool {
+	switch exp.Op {
+	case OpLessThan:
+		return n < exp.Value
+	case OpGreaterThan:
+		return n > exp.Value
+	}
+	return false
+}
+
+func (exp ComparisonExpr) MarshalText() ([]byte, error) {
+	if exp.Op == OpNone {
+		return nil, nil
 	}
 
-	op := match[1]
-	v, err := strconv.ParseInt(match[2], 10, 64)
+	var op string
+	switch exp.Op {
+	case OpLessThan:
+		op = "<"
+	case OpGreaterThan:
+		op = ">"
+	default:
+		return nil, errors.Errorf("unknown operation: %d", exp.Op)
+	}
+	return []byte(fmt.Sprintf("%s %d", op, exp.Value)), nil
+}
+
+func (exp *ComparisonExpr) UnmarshalText(text []byte) error {
+	text = bytes.TrimSpace(text)
+	if len(text) == 0 {
+		*exp = ComparisonExpr{}
+		return nil
+	}
+
+	i := 0
+	var op CompareOp
+	switch text[i] {
+	case '<':
+		op = OpLessThan
+	case '>':
+		op = OpGreaterThan
+	default:
+		return errors.Errorf("invalid comparison operator: %c", text[i])
+	}
+
+	i++
+	for i < len(text) && (text[i] == ' ' || text[i] == '\t') {
+		i++
+	}
+
+	v, err := strconv.ParseInt(string(text[i:]), 10, 64)
 	if err != nil {
-		return false, errors.Wrapf(err, "invalid commparison expression: %q", exp)
+		return errors.Wrapf(err, "invalid comparison value")
 	}
 
-	switch op {
-	case "<":
-		return n < v, nil
-	case ">":
-		return n > v, nil
-	}
-	return false, errors.Errorf("invalid comparison expression: %q", exp)
+	*exp = ComparisonExpr{Op: op, Value: v}
+	return nil
 }
 
 func (pred *ModifiedLines) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
@@ -144,14 +189,8 @@ func (pred *ModifiedLines) Evaluate(ctx context.Context, prctx pull.Context) (bo
 		pred.Deletions: deletions,
 		pred.Total:     additions + deletions,
 	} {
-		if !expr.IsEmpty() {
-			ok, err := expr.Evaluate(v)
-			if err != nil {
-				return false, "", err
-			}
-			if ok {
-				return true, "", nil
-			}
+		if !expr.IsEmpty() && expr.Evaluate(v) {
+			return true, "", nil
 		}
 	}
 	return false, fmt.Sprintf("modification of (+%d, -%d) does not match any conditions", additions, deletions), nil
