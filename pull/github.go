@@ -746,6 +746,7 @@ func (ghc *GitHubContext) loadPagedData() error {
 			switch r.State {
 			case "COMMENTED":
 				comments = append(comments, r.ToComment())
+				fallthrough
 			case "APPROVED", "CHANGES_REQUESTED":
 				reviews = append(reviews, r.ToReview())
 			}
