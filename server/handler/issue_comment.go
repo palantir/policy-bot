@@ -110,7 +110,7 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 		return err
 	}
 
-	return h.Base.RequestReviewsForResult(ctx, prctx, client, result)
+	return h.Base.RequestReviewsForResult(ctx, prctx, client, common.TriggerComment, result)
 }
 
 func (h *IssueComment) detectAndLogTampering(ctx context.Context, prctx pull.Context, client *github.Client, event github.IssueCommentEvent, config *policy.Config) bool {
