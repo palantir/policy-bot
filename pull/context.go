@@ -202,6 +202,8 @@ type Review struct {
 	State     ReviewState
 	Body      string
 	SHA       string
+
+	Teams []string
 }
 
 type ReviewerType string

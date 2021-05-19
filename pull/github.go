@@ -983,18 +983,33 @@ type v4PullRequestReview struct {
 	State       string
 	Body        string
 	SubmittedAt time.Time
-	Commit      struct {
+
+	Commit struct {
 		OID string
 	}
+
+	// GitHub currently allows at most 15 review requests, so any review could
+	// not be on behalf of more than 15 teams.
+	OnBehalfOf struct {
+		Nodes []struct {
+			Slug string
+		}
+	} `graphql:"onBehalfOf(first: 15)"`
 }
 
 func (r *v4PullRequestReview) ToReview() *Review {
+	teams := make([]string, len(r.OnBehalfOf.Nodes))
+	for i, n := range r.OnBehalfOf.Nodes {
+		teams[i] = n.Slug
+	}
+
 	return &Review{
 		CreatedAt: r.SubmittedAt,
 		Author:    r.Author.GetV3Login(),
 		State:     ReviewState(strings.ToLower(r.State)),
 		Body:      r.Body,
 		SHA:       r.Commit.OID,
+		Teams:     teams,
 	}
 }
 
