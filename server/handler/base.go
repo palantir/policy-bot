@@ -322,6 +322,13 @@ func (b *Base) requestReviews(ctx context.Context, prctx pull.Context, client *g
 				Type: pull.ReviewerUser,
 				Name: r.Author,
 			})
+
+			for _, team := range r.Teams {
+				reviewers = append(reviewers, &pull.Reviewer{
+					Type: pull.ReviewerTeam,
+					Name: team,
+				})
+			}
 		}
 	}
 
