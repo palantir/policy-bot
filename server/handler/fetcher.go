@@ -21,7 +21,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/google/go-github/v32/github"
+	"github.com/google/go-github/v35/github"
 	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
@@ -158,7 +158,7 @@ func (cf *ConfigFetcher) fetchConfigContents(ctx context.Context, client *github
 		}
 		if ok && isTooLargeError(rerr) {
 			// GetContents only supports file sizes up to 1 MB, DownloadContents supports files up to 100 MB (with an additional API call)
-			reader, err := client.Repositories.DownloadContents(ctx, owner, repo, path, opts)
+			reader, _, err := client.Repositories.DownloadContents(ctx, owner, repo, path, opts)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to download content of %s/%s@%s/%s", owner, repo, ref, path)
 			}
