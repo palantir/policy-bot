@@ -171,7 +171,7 @@ func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger commo
 		return err
 	}
 
-	return b.RequestReviewsForResult(ctx, prctx, client, result)
+	return b.RequestReviewsForResult(ctx, prctx, client, trigger, result)
 }
 
 func (b *Base) ValidateFetchedConfig(ctx context.Context, prctx pull.Context, client *github.Client, fetchedConfig FetchedConfig, trigger common.Trigger) (common.Evaluator, error) {
@@ -250,10 +250,18 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, cl
 	return result, nil
 }
 
-func (b *Base) RequestReviewsForResult(ctx context.Context, prctx pull.Context, client *github.Client, result common.Result) error {
+func (b *Base) RequestReviewsForResult(ctx context.Context, prctx pull.Context, client *github.Client, trigger common.Trigger, result common.Result) error {
 	logger := zerolog.Ctx(ctx)
 
 	if prctx.IsDraft() || result.Status != common.StatusPending {
+		return nil
+	}
+
+	// As of 2021-05-19, there are no predicates that use comments or reviews
+	// to enable or disable rules. This means these events will never cause a
+	// change in reviewer assignment and we can skip the whole process.
+	reviewTrigger := ^(common.TriggerComment | common.TriggerReview)
+	if !trigger.Matches(reviewTrigger) {
 		return nil
 	}
 
