@@ -244,7 +244,7 @@ options:
   # see the README for more details.
   ignore_commits_by:
     users: ["bulldozer[bot]"]
-    organizatons: ["org1']
+    organizatons: ["org1"]
     teams: ["org1/team1"]
 
   # Automatically request reviewers when a Pull Request is opened
@@ -258,7 +258,9 @@ options:
     # mode modifies how reviewers are selected. `all-users` will request all users
     # who are able to approve the pending rule. `random-users` selects a small
     # set of random users based on the required count of approvals. `teams` will 
-    # request teams to review if possible. Defaults to 'random-users'.
+    # request teams to review. Teams must have explicit access defined under
+    # https://github.com/<org>/<repo>/settings/access in order to be tagged.
+    # Defaults to 'random-users'.
     mode: all-users|random-users|teams
 
   # "methods" defines how users may express approval.
