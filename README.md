@@ -259,7 +259,8 @@ options:
     # who are able to approve the pending rule. `random-users` selects a small
     # set of random users based on the required count of approvals. `teams` will 
     # request teams to review. Teams must have explicit access defined under
-    # https://github.com/<org>/<repo>/settings/access in order to be tagged.
+    # https://github.com/<org>/<repo>/settings/access in order to be tagged,
+    # at least until https://github.com/palantir/policy-bot/issues/165 is fixed.
     # Defaults to 'random-users'.
     mode: all-users|random-users|teams
 
