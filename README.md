@@ -500,12 +500,14 @@ changes have no effect on the `policy-bot` status.
 #### Interactions with GitHub Reviews
 
 GitHub Reviews allow a user to dismiss the last review they left, causing it 
-to no longer count towards an approval or disapproval. When this happens 
-`policy-bot` will use the review before the dismissed review when evaluation 
-rules. For example, if a user leaves an approval review follows up with a 
-request changes review, `policy-bot` will use the request changes review when 
-evaluating rules. However, if the user then dimisses their request changes 
-review, `policy-bot` will instead use the initial approval review in evaluating 
+to no longer count towards in rule evaluations. When this happens 
+`policy-bot` will use the review before the dismissed review when evaluating 
+rules. 
+
+For example, if a user leaves an "approval" review and follows up with a 
+"request changes" review, `policy-bot` will use the "request changes" review when 
+evaluating rules. However, if the user then dimisses their "request changes" 
+review, `policy-bot` will instead use the initial "approval" review in evaluating 
 any rules 
 
 #### `or`, `and`, and `if` (Rule Predicates)
