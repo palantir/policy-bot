@@ -27,6 +27,7 @@ UI to view the detailed approval status of any pull request.
   + [Disapproval Policy](#disapproval-policy)
   + [Caveats and Notes](#caveats-and-notes)
     - [Disapproval is Disabled by Default](#disapproval-is-disabled-by-default)
+    - [Interactions with GitHub Reviews](#interactions-with-github-reviews)
     - [`or`, `and`, and `if` (Rule Predicates)](#or-and-and-if-rule-predicates)
     - [Cross-organization Membership Tests](#cross-organization-membership-tests)
     - [Update Merges](#update-merges)
@@ -495,6 +496,17 @@ are worth mentioning.
 You must set at least one of the `disapproval.requires` fields to enable
 disapproval. Without setting one of these fields, GitHub reviews that request
 changes have no effect on the `policy-bot` status.
+
+#### Interactions with GitHub Reviews
+
+GitHub Reviews allow a user to dismiss the last review they left, causing it 
+to no longer count towards an approval or disapproval. When this happens 
+`policy-bot` will use the review before the dismissed review when evaluation 
+rules. For example, if a user leaves an approval review follows up with a 
+request changes review, `policy-bot` will use the request changes review when 
+evaluating rules. However, if the user then dimisses their request changes 
+review, `policy-bot` will instead use the initial approval review in evaluating 
+any rules 
 
 #### `or`, `and`, and `if` (Rule Predicates)
 
