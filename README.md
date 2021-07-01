@@ -501,7 +501,7 @@ changes have no effect on the `policy-bot` status.
 
 GitHub Reviews allow a user to dismiss the last review they left, causing it 
 to no longer count towards rule evaluations. When this happens 
-`policy-bot` will use the review before the dismissed review when evaluating 
+`policy-bot` will use a previous, non-dismissed review, if it exists, when evaluating
 rules. 
 
 For example, if a user leaves an "approval" review and follows up with a 
