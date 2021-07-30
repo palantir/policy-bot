@@ -81,31 +81,26 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 		return err
 	}
 
-	fetchedConfig, err := h.ConfigFetcher.ConfigForPR(ctx, prctx, client)
-	if err != nil {
-		return errors.Wrap(err, "failed to fetch configuration")
-	}
-
-	if fetchedConfig.Valid() {
-		tampered := h.detectAndLogTampering(ctx, prctx, client, event, fetchedConfig.Config)
+	fc := h.ConfigFetcher.ConfigForPR(ctx, prctx, client)
+	switch {
+	case fc.LoadError != nil || fc.ParseError != nil:
+		logger.Warn().Str(LogKeyAudit, "issue_comment").Msg("Skipping tampering check because the policy is not valid")
+	case fc.Config != nil:
+		tampered := h.detectAndLogTampering(ctx, prctx, client, event, fc.Config)
 		if tampered {
 			return nil
 		}
-	} else if !fetchedConfig.Missing() {
-		logger.Warn().Str(LogKeyAudit, "issue_comment").Msg("Skipped tampering check because the policy is not valid")
 	}
 
-	evaluator, err := h.Base.ValidateFetchedConfig(ctx, prctx, client, fetchedConfig, common.TriggerComment)
-
+	evaluator, err := h.Base.ValidateFetchedConfig(ctx, prctx, client, fc, common.TriggerComment)
 	if err != nil {
 		return err
 	}
-
 	if evaluator == nil {
 		return nil
 	}
 
-	result, err := h.Base.EvaluateFetchedConfig(ctx, prctx, client, evaluator, fetchedConfig)
+	result, err := h.Base.EvaluateFetchedConfig(ctx, prctx, client, evaluator, fc)
 	if err != nil {
 		return err
 	}

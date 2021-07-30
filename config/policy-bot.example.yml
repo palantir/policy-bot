@@ -75,17 +75,26 @@ sessions:
   # POLICYBOT_SESSIONS_KEY environment variable.
   key: "secretsessionkey"
 
-# Options for application behavior
-options:
-  # The path within repositories to find the policy.yml file
-  policy_path: .policy.yml
-  # The context prefix for status checks created by the bot
-  status_check_context: policy-bot
+# Options for application behavior. The defaults are shown below.
+#
+# options:
+#   # The path to the policy file in a repository.
+#   policy_path: .policy.yml
+#
+#   # The name of an organization repository to look in for a shared policy if
+#   # a repository does not define a policy file.
+#   shared_repository: .github
+#
+#   # The path to the policy file in the shared organization repository.
+#   shared_policy_path: policy.yml
+#
+#   # The context prefix for status checks created by the bot.
+#   status_check_context: policy-bot
 
 # Options for locating the frontend files. By default, the server uses appropriate
 # paths for the binary distribution and Docker container. For local development,
 # uncomment this section to use the alternate paths below.
-# 
+#
 # 'static' is the file system path to the assembled CSS and JS assets.
 # 'templates' is the file system path to the Go template files.
 #

@@ -20,6 +20,7 @@ import (
 	"net/url"
 	"path"
 	"strconv"
+	"strings"
 
 	"github.com/alexedwards/scs"
 	"github.com/bluekeyes/templatetree"
@@ -123,22 +124,16 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	data.PullRequest = pr
 	data.User = user
 
-	config, err := h.ConfigFetcher.ConfigForPR(ctx, prctx, client)
+	config := h.ConfigFetcher.ConfigForPR(ctx, prctx, client)
 	data.PolicyURL = getPolicyURL(pr, config)
-	if err != nil {
-		data.Error = errors.WithMessage(err, fmt.Sprintf("Failed to fetch configuration: %s", config))
-		return h.render(w, data)
-	}
 
 	evaluator, err := h.Base.ValidateFetchedConfig(ctx, prctx, client, config, common.TriggerAll)
-
 	if err != nil {
 		data.Error = err
 		return h.render(w, data)
 	}
-
 	if evaluator == nil {
-		data.Error = errors.Errorf("Unable to evaluate: %s", config.Description())
+		data.Error = errors.Errorf("Invalid policy at %s: %s", config.Source, config.Path)
 		return h.render(w, data)
 	}
 
@@ -172,7 +167,12 @@ func (h *Details) render404(w http.ResponseWriter, owner, repo string, number in
 func getPolicyURL(pr *github.PullRequest, config FetchedConfig) string {
 	base := pr.GetBase().GetRepo().GetHTMLURL()
 	if u, _ := url.Parse(base); u != nil {
-		u.Path = path.Join(u.Path, "blob", pr.GetBase().GetRef(), config.Path)
+		// TODO(bkeyes): this format is not guaranteed by 'go-githubapp/appconfig'
+		srcParts := strings.Split(config.Source, "@")
+		if len(srcParts) != 2 {
+			return base
+		}
+		u.Path = path.Join(srcParts[0], "blob", srcParts[1], config.Path)
 		return u.String()
 	}
 	return base

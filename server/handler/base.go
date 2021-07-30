@@ -33,7 +33,10 @@ import (
 )
 
 const (
-	DefaultPolicyPath         = ".policy.yml"
+	DefaultPolicyPath       = ".policy.yml"
+	DefaultSharedRepository = ".github"
+	DefaultSharedPolicyPath = "policy.yml"
+
 	DefaultStatusCheckContext = "policy-bot"
 
 	LogKeyGitHubSHA = "github_sha"
@@ -52,6 +55,9 @@ type Base struct {
 
 type PullEvaluationOptions struct {
 	PolicyPath string `yaml:"policy_path"`
+
+	SharedRepository string `yaml:"shared_repository"`
+	SharedPolicyPath string `yaml:"shared_policy_path"`
 
 	// StatusCheckContext will be used to create the status context. It will be used in the following
 	// pattern: <StatusCheckContext>: <Base Branch Name>
@@ -72,6 +78,12 @@ type PullEvaluationOptions struct {
 func (p *PullEvaluationOptions) FillDefaults() {
 	if p.PolicyPath == "" {
 		p.PolicyPath = DefaultPolicyPath
+	}
+	if p.SharedRepository == "" {
+		p.SharedRepository = DefaultSharedRepository
+	}
+	if p.SharedPolicyPath == "" {
+		p.SharedPolicyPath = DefaultSharedPolicyPath
 	}
 
 	if p.StatusCheckContext == "" {
@@ -151,17 +163,11 @@ func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger commo
 		return err
 	}
 
-	fetchedConfig, err := b.ConfigFetcher.ConfigForPR(ctx, prctx, client)
-	if err != nil {
-		return errors.WithMessage(err, fmt.Sprintf("Failed to fetch configuration: %s", fetchedConfig))
-	}
-
+	fetchedConfig := b.ConfigFetcher.ConfigForPR(ctx, prctx, client)
 	evaluator, err := b.ValidateFetchedConfig(ctx, prctx, client, fetchedConfig, trigger)
-
 	if err != nil {
 		return err
 	}
-
 	if evaluator == nil {
 		return nil
 	}
@@ -174,32 +180,36 @@ func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger commo
 	return b.RequestReviewsForResult(ctx, prctx, client, trigger, result)
 }
 
-func (b *Base) ValidateFetchedConfig(ctx context.Context, prctx pull.Context, client *github.Client, fetchedConfig FetchedConfig, trigger common.Trigger) (common.Evaluator, error) {
+func (b *Base) ValidateFetchedConfig(ctx context.Context, prctx pull.Context, client *github.Client, fc FetchedConfig, trigger common.Trigger) (common.Evaluator, error) {
 	logger := zerolog.Ctx(ctx)
 
-	if fetchedConfig.Missing() {
-		logger.Debug().Msg(fetchedConfig.Description())
+	switch {
+	case fc.LoadError != nil:
+		msg := fmt.Sprintf("Error loading policy from %s", fc.Source)
+		logger.Warn().Err(fc.LoadError).Msg(msg)
 
+		b.PostStatus(ctx, prctx, client, "error", msg)
+		return nil, errors.Wrapf(fc.LoadError, "failed to load policy: %s: %s", fc.Source, fc.Path)
+
+	case fc.ParseError != nil:
+		msg := fmt.Sprintf("Invalid policy in %s: %s", fc.Source, fc.Path)
+		logger.Warn().Err(fc.ParseError).Msg(msg)
+
+		b.PostStatus(ctx, prctx, client, "error", msg)
+		return nil, errors.Wrapf(fc.ParseError, "failed to parse policy: %s: %s", fc.Source, fc.Path)
+
+	case fc.Config == nil:
+		logger.Debug().Msg("No policy defined for repository")
 		return nil, nil
 	}
 
-	if fetchedConfig.Invalid() {
-		statusMessage := fetchedConfig.Description()
-		logger.Warn().Err(fetchedConfig.Error).Msg(statusMessage)
-
-		b.PostStatus(ctx, prctx, client, "error", statusMessage)
-
-		return nil, errors.Wrap(fetchedConfig.Error, statusMessage)
-	}
-
-	evaluator, err := policy.ParsePolicy(fetchedConfig.Config)
+	evaluator, err := policy.ParsePolicy(fc.Config)
 	if err != nil {
-		statusMessage := fmt.Sprintf("Unable to parse policy defined by %s", fetchedConfig)
-		logger.Warn().Err(err).Msg(statusMessage)
+		msg := fmt.Sprintf("Invalid policy in %s: %s", fc.Source, fc.Path)
+		logger.Warn().Err(err).Msg(msg)
 
-		b.PostStatus(ctx, prctx, client, "error", statusMessage)
-
-		return nil, errors.Wrap(err, statusMessage)
+		b.PostStatus(ctx, prctx, client, "error", msg)
+		return nil, errors.Wrapf(err, "failed to create evaluator: %s: %s", fc.Source, fc.Path)
 	}
 
 	policyTrigger := evaluator.Trigger()
@@ -214,16 +224,15 @@ func (b *Base) ValidateFetchedConfig(ctx context.Context, prctx pull.Context, cl
 	return evaluator, nil
 }
 
-func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, client *github.Client, evaluator common.Evaluator, fetchedConfig FetchedConfig) (common.Result, error) {
+func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, client *github.Client, evaluator common.Evaluator, fc FetchedConfig) (common.Result, error) {
 	logger := zerolog.Ctx(ctx)
 
 	result := evaluator.Evaluate(ctx, prctx)
 	if result.Error != nil {
-		statusMessage := fmt.Sprintf("Error evaluating policy defined by %s", fetchedConfig)
-		logger.Warn().Err(result.Error).Msg(statusMessage)
+		msg := fmt.Sprintf("Error evaluating policy in %s: %s", fc.Source, fc.Path)
+		logger.Warn().Err(result.Error).Msg(msg)
 
-		b.PostStatus(ctx, prctx, client, "error", statusMessage)
-
+		b.PostStatus(ctx, prctx, client, "error", msg)
 		return result, result.Error
 	}
 
