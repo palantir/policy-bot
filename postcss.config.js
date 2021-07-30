@@ -16,7 +16,7 @@ module.exports = {
           return content.match(/[\w-./]*\w/g) || [];
         },
         // status classes are dynamically generated
-        whitelist: [
+        safelist: [
           "approved", "disapproved", "pending", "skipped", "error",
         ],
       }),
