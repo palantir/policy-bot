@@ -17,7 +17,7 @@ package githubapp
 import (
 	"context"
 
-	"github.com/google/go-github/v32/github"
+	"github.com/google/go-github/v37/github"
 	"github.com/rs/zerolog"
 )
 

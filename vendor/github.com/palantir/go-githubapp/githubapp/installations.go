@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/google/go-github/v32/github"
+	"github.com/google/go-github/v37/github"
 	"github.com/pkg/errors"
 )
 
@@ -54,6 +54,11 @@ type InstallationsService interface {
 	// It returns an InstallationNotFound error if no installation exists for
 	// the owner.
 	GetByOwner(ctx context.Context, owner string) (Installation, error)
+
+	// GetByRepository returns the installation for a repository.
+	// It returns an InstallationNotFound error if no installation exists for
+	// the repository.
+	GetByRepository(ctx context.Context, owner string, repo string) (Installation, error)
 }
 
 type defaultInstallationsService struct {
@@ -121,6 +126,19 @@ func (i defaultInstallationsService) GetByOwner(ctx context.Context, owner strin
 		return Installation{}, InstallationNotFound(owner)
 	}
 	return Installation{}, errors.Wrapf(err, "failed to get installation for owner %q", owner)
+}
+
+func (i defaultInstallationsService) GetByRepository(ctx context.Context, owner, repo string) (Installation, error) {
+	installation, _, err := i.Apps.FindRepositoryInstallation(ctx, owner, repo)
+	if err == nil {
+		return toInstallation(installation), nil
+	}
+
+	ownerRepo := fmt.Sprintf("%s/%s", owner, repo)
+	if isNotFound(err) {
+		return Installation{}, InstallationNotFound(ownerRepo)
+	}
+	return Installation{}, errors.Wrapf(err, "failed to get installation for repository %q", ownerRepo)
 }
 
 // InstallationNotFound is returned when no installation exists for a

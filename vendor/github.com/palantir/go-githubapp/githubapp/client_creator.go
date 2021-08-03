@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation"
-	"github.com/google/go-github/v32/github"
+	"github.com/google/go-github/v37/github"
 	"github.com/gregjones/httpcache"
 	"github.com/pkg/errors"
 	"github.com/shurcooL/githubv4"
@@ -79,6 +79,12 @@ type ClientCreator interface {
 
 	// NewInstallationV4Client returns an installation-authenticated v4 API client, similar to NewInstallationClient.
 	NewInstallationV4Client(installationID int64) (*githubv4.Client, error)
+
+	// NewTokenSourceClient returns a *github.Client that uses the passed in OAuth token source for authentication.
+	NewTokenSourceClient(ts oauth2.TokenSource) (*github.Client, error)
+
+	// NewTokenSourceClient returns a *githubv4.Client that uses the passed in OAuth token source for authentication.
+	NewTokenSourceV4Client(ts oauth2.TokenSource) (*githubv4.Client, error)
 
 	// NewTokenClient returns a *github.Client that uses the passed in OAuth token for authentication.
 	NewTokenClient(token string) (*github.Client, error)
@@ -248,13 +254,29 @@ func (c *clientCreator) NewInstallationV4Client(installationID int64) (*githubv4
 
 func (c *clientCreator) NewTokenClient(token string) (*github.Client, error) {
 	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
+	return c.NewTokenSourceClient(ts)
+}
+
+func (c *clientCreator) NewTokenSourceClient(ts oauth2.TokenSource) (*github.Client, error) {
 	tc := oauth2.NewClient(context.Background(), ts)
-	return c.newClient(tc, nil, "oauth token", 0)
+
+	middleware := []ClientMiddleware{}
+	if c.cacheFunc != nil {
+		middleware = append(middleware, cache(c.cacheFunc), cacheControl(c.alwaysValidate))
+	}
+
+	return c.newClient(tc, middleware, "oauth token", 0)
 }
 
 func (c *clientCreator) NewTokenV4Client(token string) (*githubv4.Client, error) {
 	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
+	return c.NewTokenSourceV4Client(ts)
+}
+
+func (c *clientCreator) NewTokenSourceV4Client(ts oauth2.TokenSource) (*githubv4.Client, error) {
 	tc := oauth2.NewClient(context.Background(), ts)
+	// The v4 API primarily uses POST requests (except for introspection queries)
+	// which we cannot cache, so don't construct the middleware
 	return c.newV4Client(tc, nil, "oauth token")
 }
 

@@ -17,10 +17,11 @@ package githubapp
 import (
 	"fmt"
 
-	"github.com/google/go-github/v32/github"
+	"github.com/google/go-github/v37/github"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/pkg/errors"
 	"github.com/shurcooL/githubv4"
+	"golang.org/x/oauth2"
 )
 
 const (
@@ -108,6 +109,11 @@ func (c *cachingClientCreator) NewInstallationV4Client(installationID int64) (*g
 	return client, nil
 }
 
+func (c *cachingClientCreator) NewTokenSourceClient(ts oauth2.TokenSource) (*github.Client, error) {
+	// token clients are not cached
+	return c.delegate.NewTokenSourceClient(ts)
+}
+
 func (c *cachingClientCreator) NewTokenClient(token string) (*github.Client, error) {
 	// token clients are not cached
 	return c.delegate.NewTokenClient(token)
@@ -116,6 +122,11 @@ func (c *cachingClientCreator) NewTokenClient(token string) (*github.Client, err
 func (c *cachingClientCreator) NewTokenV4Client(token string) (*githubv4.Client, error) {
 	// token clients are not cached
 	return c.delegate.NewTokenV4Client(token)
+}
+
+func (c *cachingClientCreator) NewTokenSourceV4Client(ts oauth2.TokenSource) (*githubv4.Client, error) {
+	// token clients are not cached
+	return c.delegate.NewTokenSourceV4Client(ts)
 }
 
 func (c *cachingClientCreator) toCacheKey(apiVersion string, installationID int64) string {
