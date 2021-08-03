@@ -37,10 +37,11 @@ type RemoteRefParser func(path string, b []byte) (*RemoteRef, error)
 
 // RemoteRef identifies a configuration file in a different repository.
 type RemoteRef struct {
-	// The repository in "owner/name" format.
+	// The repository in "owner/name" format. Required.
 	Remote string `yaml:"remote" json:"remote"`
 
-	// The path to the config file in the repository.
+	// The path to the config file in the repository. If empty, use the first
+	// path configured in the loader.
 	Path string `yaml:"path" json:"path"`
 
 	// The reference (branch, tag, or SHA) to read in the repository. If empty,
@@ -60,6 +61,8 @@ func (r RemoteRef) SplitRemote() (owner, repo string, err error) {
 type Config struct {
 	Content []byte
 
+	// Source contains the repository and ref in "owner/name@ref" format. The
+	// ref component ("@ref") is optional and may not be present.
 	Source   string
 	Path     string
 	IsRemote bool
@@ -158,18 +161,42 @@ func (ld *Loader) LoadConfig(ctx context.Context, client *github.Client, owner, 
 
 func (ld *Loader) loadRemoteConfig(ctx context.Context, client *github.Client, remote RemoteRef, c Config) (Config, error) {
 	logger := zerolog.Ctx(ctx)
+	notFoundErr := fmt.Errorf("invalid remote reference: file does not exist")
 
 	owner, repo, err := remote.SplitRemote()
 	if err != nil {
 		return c, err
 	}
 
-	c.Path = remote.Path
-	c.Source = fmt.Sprintf("%s/%s@%s", owner, repo, remote.Ref)
+	path := remote.Path
+	if path == "" && len(ld.paths) > 0 {
+		path = ld.paths[0]
+	}
+
+	// After this point, all errors will be about the remote file, not the
+	// local file containing the reference.
+	c.Source = fmt.Sprintf("%s/%s", owner, repo)
+	c.Path = path
 	c.IsRemote = true
 
+	ref := remote.Ref
+	if ref == "" {
+		// This is technically not necessary, as passing an empty ref to GitHub
+		// uses the default branch. However, callers may expect the Source
+		// field in the Config we return to have a non-empty ref.
+		r, _, err := client.Repositories.Get(ctx, owner, repo)
+		if err != nil {
+			if isNotFound(err) {
+				return c, notFoundErr
+			}
+			return c, errors.Wrap(err, "failed to get remote repository")
+		}
+		ref = r.GetDefaultBranch()
+	}
+	c.Source = fmt.Sprintf("%s@%s", c.Source, ref)
+
 	logger.Debug().Msgf("Trying remote configuration at %s in %s", c.Path, c.Source)
-	content, exists, err := getFileContents(ctx, client, owner, repo, remote.Ref, remote.Path)
+	content, exists, err := getFileContents(ctx, client, owner, repo, ref, c.Path)
 	if err != nil {
 		return c, err
 	}
@@ -178,7 +205,7 @@ func (ld *Loader) loadRemoteConfig(ctx context.Context, client *github.Client, r
 		// this condition is annoying to debug otherwise. From the perspective
 		// of a repository, it appears that the application has a configuration
 		// file and it is easy to miss that e.g. the ref is wrong.
-		return c, errors.Errorf("invalid remote reference: file does not exist")
+		return c, notFoundErr
 	}
 
 	c.Content = content

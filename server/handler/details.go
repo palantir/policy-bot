@@ -167,7 +167,6 @@ func (h *Details) render404(w http.ResponseWriter, owner, repo string, number in
 func getPolicyURL(pr *github.PullRequest, config FetchedConfig) string {
 	base := pr.GetBase().GetRepo().GetHTMLURL()
 	if u, _ := url.Parse(base); u != nil {
-		// TODO(bkeyes): this format is not guaranteed by 'go-githubapp/appconfig'
 		srcParts := strings.Split(config.Source, "@")
 		if len(srcParts) != 2 {
 			return base
