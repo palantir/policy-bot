@@ -227,8 +227,8 @@ github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRW
 github.com/oklog/ulid v1.3.1/go.mod h1:CirwcVhetQ6Lv90oh/F+FBtV6XMibvdAFo93nm5qn4U=
 github.com/palantir/go-baseapp v0.2.4 h1:OtF5jipUF62ZRjLMLODZ2Rq180Kaekqm4pNOUZdOfAU=
 github.com/palantir/go-baseapp v0.2.4/go.mod h1:TSsvmXBDAAu2wZJgWi1/nG+YM5xIOEsXFmLsNoGP5O4=
-github.com/palantir/go-githubapp v0.8.0 h1:CsFFCckWlS6QyjwbclqFU2lvL05MXFPc8mye/qxbre4=
-github.com/palantir/go-githubapp v0.8.0/go.mod h1:XjzQ7r4lLXwqj1MEUjmUD9xng9VYqGj3XfDYlGpqigw=
+github.com/palantir/go-githubapp v0.8.1 h1:+BBB794FIrR5OhqIM2+kMwjw0ZklV41XFlFxWWuMbIM=
+github.com/palantir/go-githubapp v0.8.1/go.mod h1:XjzQ7r4lLXwqj1MEUjmUD9xng9VYqGj3XfDYlGpqigw=
 github.com/pascaldekloe/goe v0.0.0-20180627143212-57f6aae5913c/go.mod h1:lzWF7FIEvWOWxwDKqyGYQf6ZUaNfKdP144TG7ZOy1lc=
 github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=

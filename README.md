@@ -41,15 +41,25 @@ UI to view the detailed approval status of any pull request.
 
 ## Configuration
 
-By default, the behavior of the bot is configured by a `.policy.yml` file at
-the root of the repository. When running your own instance of the server, a
-different file name and location can be configured. The configured name and
-location will be used instead of the default location.
+Policies are defined by a `.policy.yml` file at the root of the repository.
+You can change this path and file name when running your own instance of the
+server.
 
-- If the file does not exist, the `policy-bot` status check is not posted. This
-  means it is safe to enable `policy-bot` on all repositories in an organization.
-- The `.policy.yml` file is read from the most recent commit on the target branch
-  of each pull request.
+- The file is read from the most recent commit on the _target_ branch of each
+  pull request.
+
+- The file may contain a reference to a policy in a different repository (see
+  [Remote Policy Configuration](#remote-policy-configuration).)
+
+- If the file does not exist in the repository, `policy-bot` tries to load a
+  shared `policy.yml` file at the root of the `.github` repository in the same
+  organization. You can change this path and repository name when running your
+  own instance of the server.
+
+- If a policy does not exist in the repository or in the shared organization
+  repository, `policy-bot` does not post a status check on the pull request.
+  This means it is safe to enable `policy-bot` on all repositories in an
+  organization.
 
 ### policy.yml Specification
 
@@ -91,6 +101,7 @@ approval_rules:
 ```
 
 #### Notes on YAML Syntax
+
 The YAML language specification supports flow scalars (basic values like strings
 and numbers) in three formats:
 [single-quoted](https://yaml.org/spec/1.2/spec.html#id2788097),
@@ -108,6 +119,7 @@ escape characters, which can cause confusion when used for regex strings
   e.g. `^BREAKING CHANGE: (\w| )+$`
 
 #### Remote Policy Configuration
+
 You can also define a remote policy by specifying a repository, path, and ref
 (only repository is required). Instead of defining a `policy` key, you would
 define a `remote` key. Only 1 level of remote configuration is supported by design.

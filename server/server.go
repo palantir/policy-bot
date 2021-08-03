@@ -29,6 +29,7 @@ import (
 	"github.com/gregjones/httpcache"
 	"github.com/palantir/go-baseapp/baseapp"
 	"github.com/palantir/go-baseapp/baseapp/datadog"
+	"github.com/palantir/go-githubapp/appconfig"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/go-githubapp/oauth2"
 	"github.com/palantir/policy-bot/server/handler"
@@ -125,7 +126,12 @@ func New(c *Config) (*Server, error) {
 
 		PullOpts: &c.Options,
 		ConfigFetcher: &handler.ConfigFetcher{
-			PolicyPath: c.Options.PolicyPath,
+			Loader: appconfig.NewLoader(
+				[]string{c.Options.PolicyPath},
+				appconfig.WithOwnerDefault(c.Options.SharedRepository, []string{
+					c.Options.SharedPolicyPath,
+				}),
+			),
 		},
 
 		AppName: app.GetSlug(),
