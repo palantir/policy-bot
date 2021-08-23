@@ -242,6 +242,18 @@ func (ld *Loader) loadDefaultConfig(ctx context.Context, client *github.Client, 
 			continue
 		}
 
+		// if remote refs are enabled, see if the file is a remote reference
+		if ld.parser != nil {
+			remote, err := ld.parser(p, content)
+			if err != nil {
+				return c, err
+			}
+			if remote != nil {
+				logger.Debug().Msgf("Found remote default configuration at %s in %s", p, c.Source)
+				return ld.loadRemoteConfig(ctx, client, *remote, c)
+			}
+		}
+
 		// non-remote content found, don't try any other paths
 		logger.Debug().Msgf("Found default configuration at %s in %s", c.Path, c.Source)
 		c.Content = content
