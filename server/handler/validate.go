@@ -76,11 +76,10 @@ func isValidLocalPolicy(requestPolicy []byte) (bool, string) {
 }
 
 func isValidRemotePolicy(requestPolicy []byte) (bool, string) {
-	var remoteConfig appconfig.RemoteRef
-
-	if err := yaml.UnmarshalStrict(requestPolicy, &remoteConfig); err != nil {
+	remoteRef, err := appconfig.YAMLRemoteRefParser("", requestPolicy)
+	if err != nil {
 		return false, err.Error()
 	}
 
-	return true, ""
+	return remoteRef != nil, ""
 }

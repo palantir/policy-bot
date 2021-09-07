@@ -24,7 +24,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// RemoteConfig allows the use of a remote policy file, rather than a local one. The Remote value
+// Deprecated: RemoteConfig allows the use of a remote policy file, rather than a local one. The Remote value
 // should follow the format `org/repo`. An example: `palantir/policy-bot`. The Path is optional,
 // with the default value being the configured default policy file location. The Ref is optional,
 // and the default branch of the Remote repository will be used.
