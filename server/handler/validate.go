@@ -15,10 +15,12 @@
 package handler
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/palantir/go-baseapp/baseapp"
+	"github.com/palantir/go-githubapp/appconfig"
 	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/version"
 	"github.com/rs/zerolog"
@@ -45,22 +47,35 @@ func Validate() http.Handler {
 			return
 		}
 
-		var policyConfig policy.Config
-		err = yaml.UnmarshalStrict(requestPolicy, &policyConfig)
+		remoteRef, err := appconfig.YAMLRemoteRefParser("", requestPolicy)
 		if err != nil {
-			check.Message = err.Error()
-			baseapp.WriteJSON(w, http.StatusBadRequest, &check)
-			return
-		}
-
-		_, err = policy.ParsePolicy(&policyConfig)
-		if err != nil {
-			check.Message = err.Error()
+			check.Message = fmt.Sprintf("Policy is invalid. '%s'.", err.Error())
 			baseapp.WriteJSON(w, http.StatusUnprocessableEntity, &check)
 			return
 		}
 
-		check.Message = "Policy file is valid"
-		baseapp.WriteJSON(w, http.StatusOK, &check)
+		validLocal, localStrErr := isValidLocalPolicy(requestPolicy)
+		if validLocal || remoteRef != nil {
+			check.Message = "Policy file is valid"
+			baseapp.WriteJSON(w, http.StatusOK, &check)
+			return
+		}
+
+		check.Message = fmt.Sprintf("Policy is invalid. '%s'.", localStrErr)
+		baseapp.WriteJSON(w, http.StatusUnprocessableEntity, &check)
+		return
 	})
+}
+
+func isValidLocalPolicy(requestPolicy []byte) (bool, error) {
+	var policyConfig policy.Config
+	if err := yaml.UnmarshalStrict(requestPolicy, &policyConfig); err != nil {
+		return false, err
+	}
+
+	if _, err := policy.ParsePolicy(&policyConfig); err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
