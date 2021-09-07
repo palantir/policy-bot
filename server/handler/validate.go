@@ -47,17 +47,22 @@ func Validate() http.Handler {
 			return
 		}
 
-		validLocal, localStrErr := isValidLocalPolicy(requestPolicy)
 		validRemote, remoteStrErr := isValidRemotePolicy(requestPolicy)
+		if remoteStrErr != "" {
+			check.Message = fmt.Sprintf("Policy is invalid. '%s'.", remoteStrErr)
+			baseapp.WriteJSON(w, http.StatusUnprocessableEntity, &check)
+			return
+		}
 
+		validLocal, localStrErr := isValidLocalPolicy(requestPolicy)
 		if validLocal || validRemote {
 			check.Message = "Policy file is valid"
 			baseapp.WriteJSON(w, http.StatusOK, &check)
 			return
 		}
 
-		check.Message = fmt.Sprintf("Policy is invalid and neither local nor remote. '%s' OR '%s'.", localStrErr, remoteStrErr)
-		baseapp.WriteJSON(w, http.StatusBadRequest, &check)
+		check.Message = fmt.Sprintf("Policy is invalid. '%s'.", localStrErr)
+		baseapp.WriteJSON(w, http.StatusUnprocessableEntity, &check)
 		return
 	})
 }
@@ -78,6 +83,7 @@ func isValidLocalPolicy(requestPolicy []byte) (bool, string) {
 func isValidRemotePolicy(requestPolicy []byte) (bool, string) {
 	remoteRef, err := appconfig.YAMLRemoteRefParser("", requestPolicy)
 	if err != nil {
+		// An error means the policy is an invalid remote policy. The error will be nil if it's a local policy.
 		return false, err.Error()
 	}
 
