@@ -593,6 +593,8 @@ For example, if a rule can be approved by any user with `admin` permission,
 only direct or team admins are selected for review. Users who inherit
 repository `admin` permissions as organization owners are not selected.
 
+The `teams` mode needs the team visibility to be set to `visibile` to enable this functionality for a given team.
+
 #### Automatically Requesting Reviewers Example
 
 Given the following example requirement rule,
