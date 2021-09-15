@@ -1,11 +1,10 @@
-# templatetree [![GoDoc](https://godoc.org/github.com/bluekeyes/templatetree?status.svg)](http://godoc.org/github.com/bluekeyes/templatetree)
+# templatetree [![Go Reference](https://pkg.go.dev/badge/github.com/bluekeyes/templatetree.svg)](https://pkg.go.dev/github.com/bluekeyes/templatetree)
 
 templatetree is a standard library template loader that creates simple template
 inheritance trees. Base templates use the `block` or `template` directives to
 define sections that are overridden or provided by child templates.
 
-Functions are provided to create both `text/template` and `html/template`
-objects.
+Compatible with both `text/template` and `html/template`.
 
 ## Example
 
@@ -32,7 +31,7 @@ Given a `templates` directory with the following content:
     {{end}}
 
 
-Use `LoadHTML` to load and render the templates:
+Use `Parse` to load and render the templates:
 
 ```go
 package main
@@ -46,13 +45,15 @@ import (
 )
 
 func main() {
-	root := template.New("root").Funcs(template.FuncMap{
-		"now": func() string {
-			return time.Now().Format(time.RFC3339)
-		},
+	factory := templatetree.HTMLFactory(func(name string) *template.Template {
+		return template.New(name).Funcs(template.FuncMap{
+			"now": func() string {
+				return time.Now().Format(time.RFC3339)
+			},
+		})
 	})
 
-	t, err := templatetree.LoadHTML("templates", "*.html.tmpl", root)
+	t, err := templatetree.Parse("templates", "*.html.tmpl", factory)
 	if err != nil {
 		panic(err)
 	}
@@ -82,9 +83,12 @@ Output:
       </body>
     </html>
 
+You can also load templates from a `fs.FS` using `templatetree.ParseFS` or
+from memory using `templatetree.ParseFiles`. See the package documentation
+for details and an example.
 
 ## Stability
 
-While the API is simple, it hasn't seen heavy use yet and may change in the
-future. I recommend vendoring this package at a specific commit if you are
-concerned about API changes.
+The API was redesigned in v0.4.0 based on experience with previous versions
+and should be more stable as a result. That said, I still consider this beta
+software, with the possibility for more changes.

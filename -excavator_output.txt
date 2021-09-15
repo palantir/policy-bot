@@ -1,0 +1,13 @@
+go mod operation failed. This may mean that there are legitimate dependency issues with the "go.mod" definition in the repository and the updates performed by the gomod check. This branch can be cloned locally to debug the issue.
+
+Command that caused error:
+./godelw check compiles
+
+Output:
+Running compiles...
+server/handler/details.go:38:25: HTMLTree not declared by package templatetree
+server/handler/frontend.go:38:67: HTMLTree not declared by package templatetree
+server/handler/index.go:29:28: HTMLTree not declared by package templatetree
+server/handler/frontend.go:65:22: LoadHTML not declared by package templatetree
+Finished compiles
+Check(s) produced output: [compiles]
