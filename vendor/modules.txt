@@ -1,31 +1,41 @@
 # github.com/DataDog/datadog-go v0.0.0-20180330214955-e67964b4021a
 github.com/DataDog/datadog-go/statsd
 # github.com/alexedwards/scs v1.4.1
+## explicit
 github.com/alexedwards/scs
 github.com/alexedwards/scs/stores/cookiestore
+# github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883
+## explicit
 # github.com/bluekeyes/hatpear v0.1.1
+## explicit
 github.com/bluekeyes/hatpear
 # github.com/bluekeyes/templatetree v0.1.0
+## explicit
 github.com/bluekeyes/templatetree
 # github.com/bradleyfalzon/ghinstallation v1.1.1
 github.com/bradleyfalzon/ghinstallation
 # github.com/c2h5oh/datasize v0.0.0-20171227191756-4eba002a5eae
+## explicit
 github.com/c2h5oh/datasize
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
 # github.com/dgrijalva/jwt-go v3.2.0+incompatible
 github.com/dgrijalva/jwt-go
 # github.com/die-net/lrucache v0.0.0-20181227122439-19a39ef22a11
+## explicit
 github.com/die-net/lrucache
 # github.com/golang/protobuf v1.4.2
 github.com/golang/protobuf/proto
 # github.com/google/go-github/v29 v29.0.3
 github.com/google/go-github/v29/github
 # github.com/google/go-github/v38 v38.1.0
+## explicit
 github.com/google/go-github/v38/github
 # github.com/google/go-querystring v1.0.0
+## explicit
 github.com/google/go-querystring/query
 # github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
+## explicit
 github.com/gregjones/httpcache
 # github.com/hashicorp/golang-lru v0.5.4
 github.com/hashicorp/golang-lru
@@ -33,14 +43,17 @@ github.com/hashicorp/golang-lru/simplelru
 # github.com/inconshreveable/mousetrap v1.0.0
 github.com/inconshreveable/mousetrap
 # github.com/palantir/go-baseapp v0.2.4
+## explicit
 github.com/palantir/go-baseapp/baseapp
 github.com/palantir/go-baseapp/baseapp/datadog
 github.com/palantir/go-baseapp/pkg/errfmt
 # github.com/palantir/go-githubapp v0.9.1
+## explicit
 github.com/palantir/go-githubapp/appconfig
 github.com/palantir/go-githubapp/githubapp
 github.com/palantir/go-githubapp/oauth2
 # github.com/pkg/errors v0.9.1
+## explicit
 github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
@@ -49,25 +62,32 @@ github.com/rcrowley/go-metrics
 # github.com/rs/xid v1.2.1
 github.com/rs/xid
 # github.com/rs/zerolog v1.18.0
+## explicit
 github.com/rs/zerolog
 github.com/rs/zerolog/hlog
 github.com/rs/zerolog/internal/cbor
 github.com/rs/zerolog/internal/json
 github.com/rs/zerolog/log
+# github.com/sergi/go-diff v1.1.0
+## explicit
 # github.com/shurcooL/githubv4 v0.0.0-20191127044304-8f68eb5628d0
+## explicit
 github.com/shurcooL/githubv4
 # github.com/shurcooL/graphql v0.0.0-20181231061246-d48a9a75455f
 github.com/shurcooL/graphql
 github.com/shurcooL/graphql/ident
 github.com/shurcooL/graphql/internal/jsonutil
 # github.com/spf13/cobra v1.1.1
+## explicit
 github.com/spf13/cobra
 # github.com/spf13/pflag v1.0.5
 github.com/spf13/pflag
 # github.com/stretchr/testify v1.6.1
+## explicit
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
 # github.com/vektah/gqlparser v1.0.0
+## explicit
 github.com/vektah/gqlparser/ast
 github.com/vektah/gqlparser/gqlerror
 github.com/vektah/gqlparser/lexer
@@ -75,6 +95,7 @@ github.com/vektah/gqlparser/parser
 # github.com/zenazn/goji v0.9.1-0.20160507202103-64eb34159fe5
 github.com/zenazn/goji/web/mutil
 # goji.io v2.0.2+incompatible
+## explicit
 goji.io
 goji.io/internal
 goji.io/pat
@@ -135,6 +156,7 @@ google.golang.org/protobuf/reflect/protoregistry
 google.golang.org/protobuf/runtime/protoiface
 google.golang.org/protobuf/runtime/protoimpl
 # gopkg.in/yaml.v2 v2.3.0
+## explicit
 gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 gopkg.in/yaml.v3
