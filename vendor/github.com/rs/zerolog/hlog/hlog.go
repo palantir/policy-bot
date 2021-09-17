@@ -3,14 +3,13 @@ package hlog
 
 import (
 	"context"
-	"net"
 	"net/http"
 	"time"
 
 	"github.com/rs/xid"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/hlog/internal/mutil"
 	"github.com/rs/zerolog/log"
-	"github.com/zenazn/goji/web/mutil"
 )
 
 // FromRequest gets the logger in the request's context.
@@ -79,10 +78,10 @@ func RequestHandler(fieldKey string) func(next http.Handler) http.Handler {
 func RemoteAddrHandler(fieldKey string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+			if r.RemoteAddr != "" {
 				log := zerolog.Ctx(r.Context())
 				log.UpdateContext(func(c zerolog.Context) zerolog.Context {
-					return c.Str(fieldKey, host)
+					return c.Str(fieldKey, r.RemoteAddr)
 				})
 			}
 			next.ServeHTTP(w, r)
@@ -138,6 +137,11 @@ func IDFromCtx(ctx context.Context) (id xid.ID, ok bool) {
 	return
 }
 
+// CtxWithID adds the given xid.ID to the context
+func CtxWithID(ctx context.Context, id xid.ID) context.Context {
+	return context.WithValue(ctx, idKey{}, id)
+}
+
 // RequestIDHandler returns a handler setting a unique id to the request which can
 // be gathered using IDFromRequest(req). This generated id is added as a field to the
 // logger using the passed fieldKey as field name. The id is also added as a response
@@ -154,7 +158,7 @@ func RequestIDHandler(fieldKey, headerName string) func(next http.Handler) http.
 			id, ok := IDFromRequest(r)
 			if !ok {
 				id = xid.New()
-				ctx = context.WithValue(ctx, idKey{}, id)
+				ctx = CtxWithID(ctx, id)
 				r = r.WithContext(ctx)
 			}
 			if fieldKey != "" {
