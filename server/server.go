@@ -32,6 +32,7 @@ import (
 	"github.com/palantir/go-githubapp/appconfig"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/go-githubapp/oauth2"
+	"github.com/palantir/policy-bot/metrics"
 	"github.com/palantir/policy-bot/server/handler"
 	"github.com/palantir/policy-bot/version"
 	"github.com/pkg/errors"
@@ -81,11 +82,18 @@ func New(c *Config) (*Server, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to initialize base server")
 	}
+	metrics.SetRegistry(base.Registry())
 
 	maxSize := int64(50 * datasize.MB)
 	if c.Cache.MaxSize != 0 {
 		maxSize = int64(c.Cache.MaxSize)
 	}
+
+	// Instantiate the lrucache here so that we can wrap a functional guage metric and feed through
+	githubCache := lrucache.New(maxSize, 0)
+	metrics.GitHubCacheApproxSize(func() int64 {
+		return githubCache.Size()
+	})
 
 	githubTimeout := c.Workers.GithubTimeout
 	if githubTimeout == 0 {
@@ -98,7 +106,7 @@ func New(c *Config) (*Server, error) {
 		githubapp.WithClientUserAgent(userAgent),
 		githubapp.WithClientTimeout(githubTimeout),
 		githubapp.WithClientCaching(true, func() httpcache.Cache {
-			return lrucache.New(maxSize, 0)
+			return githubCache
 		}),
 		githubapp.WithClientMiddleware(
 			githubapp.ClientLogging(zerolog.DebugLevel),
