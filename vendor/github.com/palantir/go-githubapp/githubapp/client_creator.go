@@ -23,8 +23,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bradleyfalzon/ghinstallation"
-	"github.com/google/go-github/v38/github"
+	"github.com/bradleyfalzon/ghinstallation/v2"
+	"github.com/google/go-github/v40/github"
 	"github.com/gregjones/httpcache"
 	"github.com/pkg/errors"
 	"github.com/shurcooL/githubv4"
@@ -135,6 +135,7 @@ type clientCreator struct {
 	cacheFunc      func() httpcache.Cache
 	alwaysValidate bool
 	timeout        time.Duration
+	transport      http.RoundTripper
 }
 
 var _ ClientCreator = &clientCreator{}
@@ -175,6 +176,15 @@ func WithClientTimeout(timeout time.Duration) ClientOption {
 func WithClientMiddleware(middleware ...ClientMiddleware) ClientOption {
 	return func(c *clientCreator) {
 		c.middleware = middleware
+	}
+}
+
+// WithTransport sets the http.RoundTripper used to make requests. Clients can
+// provide an http.Transport instance to modify TLS, proxy, or timeout options.
+// By default, clients use http.DefaultTransport.
+func WithTransport(transport http.RoundTripper) ClientOption {
+	return func(c *clientCreator) {
+		c.transport = transport
 	}
 }
 
@@ -281,8 +291,15 @@ func (c *clientCreator) NewTokenSourceV4Client(ts oauth2.TokenSource) (*githubv4
 }
 
 func (c *clientCreator) newHTTPClient() *http.Client {
+	transport := c.transport
+	if transport == nil {
+		// While http.Client will use the default when given a a nil transport,
+		// we assume a non-nil transport when applying middleware
+		transport = http.DefaultTransport
+	}
+
 	return &http.Client{
-		Transport: http.DefaultTransport,
+		Transport: transport,
 		Timeout:   c.timeout,
 	}
 }
