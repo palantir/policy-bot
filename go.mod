@@ -17,8 +17,8 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.26.0
 	github.com/sergi/go-diff v1.1.0 // indirect
-	github.com/shurcooL/githubv4 v0.0.0-20210922025249-6831e00d857f
-	github.com/spf13/cobra v1.1.1
+	github.com/shurcooL/githubv4 v0.0.0-20211117020012-5800b9de5b8b
+	github.com/spf13/cobra v1.2.1
 	github.com/stretchr/testify v1.7.0
 	github.com/vektah/gqlparser v1.0.0
 	goji.io v2.0.2+incompatible
