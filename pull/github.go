@@ -1068,8 +1068,8 @@ func (c *v4Commit) ToCommit() *Commit {
 		SHA:             c.OID,
 		Parents:         parents,
 		CommittedViaWeb: c.CommittedViaWeb,
-		Author:          c.Author.GetV3Login(),
-		Committer:       c.Committer.GetV3Login(),
+		Author:          c.Author.User.GetV3Login(),
+		Committer:       c.Committer.User.GetV3Login(),
 		PushedAt:        c.PushedDate,
 		Signature:       signature,
 	}
@@ -1106,7 +1106,10 @@ type v4Actor struct {
 
 // GetV3Login returns a V3-compatible login string. These login strings contain
 // the "[bot]" suffix for GitHub identities.
-func (a v4Actor) GetV3Login() string {
+func (a *v4Actor) GetV3Login() string {
+	if a == nil {
+		return ""
+	}
 	if a.Type == "Bot" {
 		return a.Login + "[bot]"
 	}
@@ -1115,13 +1118,6 @@ func (a v4Actor) GetV3Login() string {
 
 type v4GitActor struct {
 	User *v4Actor
-}
-
-func (ga v4GitActor) GetV3Login() string {
-	if ga.User != nil {
-		return ga.User.GetV3Login()
-	}
-	return ""
 }
 
 func isNotFound(err error) bool {
