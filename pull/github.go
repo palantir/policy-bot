@@ -194,11 +194,11 @@ func (ghc *GitHubContext) CreatedAt() time.Time {
 }
 
 func (ghc *GitHubContext) IsOpen() bool {
-	return ghc.pr.State == "open"
+	return strings.ToLower(ghc.pr.State) == "open"
 }
 
 func (ghc *GitHubContext) IsClosed() bool {
-	return ghc.pr.State == "closed"
+	return strings.ToLower(ghc.pr.State) == "closed"
 }
 
 func (ghc *GitHubContext) HeadSHA() string {
