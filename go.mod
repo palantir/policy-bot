@@ -12,7 +12,7 @@ require (
 	github.com/google/go-github/v40 v40.0.0
 	github.com/google/go-querystring v1.1.0
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
-	github.com/palantir/go-baseapp v0.3.0
+	github.com/palantir/go-baseapp v0.3.1
 	github.com/palantir/go-githubapp v0.10.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.26.0
