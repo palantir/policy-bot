@@ -41,8 +41,9 @@ type Options struct {
 	AllowContributor bool `yaml:"allow_contributor"`
 	InvalidateOnPush bool `yaml:"invalidate_on_push"`
 
-	IgnoreUpdateMerges bool          `yaml:"ignore_update_merges"`
-	IgnoreCommitsBy    common.Actors `yaml:"ignore_commits_by"`
+	IgnoreEditedComments bool          `yaml:"ignore_edited_comments"`
+	IgnoreUpdateMerges   bool          `yaml:"ignore_update_merges"`
+	IgnoreCommitsBy      common.Actors `yaml:"ignore_commits_by"`
 
 	RequestReview RequestReview `yaml:"request_review"`
 
@@ -248,13 +249,54 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 }
 
 func (r *Rule) filteredCandidates(ctx context.Context, prctx pull.Context) ([]*common.Candidate, error) {
-	log := zerolog.Ctx(ctx)
-
 	candidates, err := r.Options.GetMethods().Candidates(ctx, prctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get approval candidates")
 	}
+
 	sort.Stable(common.CandidatesByCreationTime(candidates))
+
+	if r.Options.IgnoreEditedComments {
+		candidates, err = r.filterEditedCandidates(ctx, prctx, candidates)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if r.Options.InvalidateOnPush {
+		candidates, err = r.filterInvalidCandidates(ctx, prctx, candidates)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return candidates, nil
+}
+
+func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, error) {
+	log := zerolog.Ctx(ctx)
+
+	if !r.Options.IgnoreEditedComments {
+		return candidates, nil
+	}
+
+	var allowedCandidates []*common.Candidate
+	for _, candidate := range candidates {
+		if r.Options.IgnoreEditedComments {
+			if candidate.UpdatedAt == candidate.CreatedAt {
+				allowedCandidates = append(allowedCandidates, candidate)
+			}
+		}
+	}
+
+	log.Debug().Msgf("discarded %d candidates with edited comments",
+		len(candidates)-len(allowedCandidates))
+
+	return allowedCandidates, nil
+}
+
+func (r *Rule) filterInvalidCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, error) {
+	log := zerolog.Ctx(ctx)
 
 	if !r.Options.InvalidateOnPush {
 		return candidates, nil

@@ -293,6 +293,10 @@ options:
   # approvals for this rule. False by default.
   invalidate_on_push: false
 
+  # If true, comments on PRs and review comments that have been edited in any way
+  # will be ignored when evaluating approval rules. Default is false.
+  ignore_edited_comments: false
+
   # If true, "update merges" do not invalidate approval (if invalidate_on_push
   # is enabled) and their authors/committers do not count as contributors. An
   # "update merge" is a merge commit that was created in the UI or via the API
@@ -639,11 +643,12 @@ contributions from forks.
 ### Comment Edits
 
 GitHub users with sufficient permissions can edit the comments of other users,
-possibly chaning an unrelated comment into one that enables approval.
+possibly changing an unrelated comment into one that enables approval.
 `policy-bot` also contains audting for this event, but as with statuses, a
 well-timed edit can approve and merge a pull request before `policy-bot` can
-detect the problem. Organizations concerned about this case should monitor and
-alert on the relevant audit logs.
+detect the problem. Organizations concerned about this case can use the
+`ignore_edited_comments` option or can monitor and alert on the relevant audit
+logs.
 
 This issue can also be minimized by only using GitHub reviews for approval, at
 the expense of removing the ability to self-approve pull requests.

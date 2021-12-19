@@ -983,6 +983,7 @@ type v4PullRequestReview struct {
 	State       string
 	Body        string
 	SubmittedAt time.Time
+	UpdatedAt   time.Time
 
 	Commit struct {
 		OID string
@@ -1005,6 +1006,7 @@ func (r *v4PullRequestReview) ToReview() *Review {
 
 	return &Review{
 		CreatedAt: r.SubmittedAt,
+		UpdatedAt: r.UpdatedAt,
 		Author:    r.Author.GetV3Login(),
 		State:     ReviewState(strings.ToLower(r.State)),
 		Body:      r.Body,
@@ -1016,6 +1018,7 @@ func (r *v4PullRequestReview) ToReview() *Review {
 func (r *v4PullRequestReview) ToComment() *Comment {
 	return &Comment{
 		CreatedAt: r.SubmittedAt,
+		UpdatedAt: r.UpdatedAt,
 		Author:    r.Author.GetV3Login(),
 		Body:      r.Body,
 	}
@@ -1025,11 +1028,13 @@ type v4IssueComment struct {
 	Author    v4Actor
 	Body      string
 	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 func (c *v4IssueComment) ToComment() *Comment {
 	return &Comment{
 		CreatedAt: c.CreatedAt,
+		UpdatedAt: c.UpdatedAt,
 		Author:    c.Author.GetV3Login(),
 		Body:      c.Body,
 	}

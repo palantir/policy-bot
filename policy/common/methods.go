@@ -36,6 +36,7 @@ type Methods struct {
 type Candidate struct {
 	User      string
 	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type CandidatesByCreationTime []*Candidate
@@ -64,6 +65,7 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 				candidates = append(candidates, &Candidate{
 					User:      c.Author,
 					CreatedAt: c.CreatedAt,
+					UpdatedAt: c.UpdatedAt,
 				})
 			}
 		}
@@ -80,6 +82,7 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 				candidates = append(candidates, &Candidate{
 					User:      r.Author,
 					CreatedAt: r.CreatedAt,
+					UpdatedAt: r.UpdatedAt,
 				})
 			}
 		}
