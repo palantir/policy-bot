@@ -228,6 +228,6 @@ type CollaboratorPermission struct {
 	Permission Permission
 
 	// True if Permission is granted by a direct or team association with the
-	// repository. If false, the permisssion is granted by the organization.
+	// repository. If false, the permission is granted by the organization.
 	ViaRepo bool
 }
