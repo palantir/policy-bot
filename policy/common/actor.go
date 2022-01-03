@@ -36,7 +36,7 @@ type Actors struct {
 	// A list of GitHub collaborator permissions that are allowed. Values may
 	// be any of "admin", "maintain", "write", "triage", and "read".
 	//
-	// Each desired permission must be listed explicity. For example, even
+	// Each desired permission must be listed explicitly. For example, even
 	// though "admin" is a superset of "write" in GitHub, both "admin" and
 	// "write" must be included in the list to allow users with either role.
 	Permissions []pull.Permission

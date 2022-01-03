@@ -308,7 +308,7 @@ options:
   # see the README for more details.
   ignore_commits_by:
     users: ["bulldozer[bot]"]
-    organizatons: ["org1"]
+    organizations: ["org1"]
     teams: ["org1/team1"]
 
   # Automatically request reviewers when a Pull Request is opened
