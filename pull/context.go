@@ -182,6 +182,7 @@ type Signature struct {
 
 type Comment struct {
 	CreatedAt time.Time
+	UpdatedAt time.Time
 	Author    string
 	Body      string
 }
@@ -198,6 +199,7 @@ const (
 
 type Review struct {
 	CreatedAt time.Time
+	UpdatedAt time.Time
 	Author    string
 	State     ReviewState
 	Body      string
