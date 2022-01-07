@@ -23,9 +23,10 @@ import (
 )
 
 type Methods struct {
-	Comments        []string `yaml:"comments,omitempty"`
-	CommentPatterns []Regexp `yaml:"comment_patterns,omitempty"`
-	GithubReview    bool     `yaml:"github_review,omitempty"`
+	Comments                    []string `yaml:"comments,omitempty"`
+	CommentPatterns             []Regexp `yaml:"comment_patterns,omitempty"`
+	GithubReview                bool     `yaml:"github_review,omitempty"`
+	GithubReviewCommentPatterns []Regexp `yaml:"github_review_comment_patterns,omitempty"`
 
 	// If GithubReview is true, GithubReviewState is the state a review must
 	// have to be considered a candidated. It is currently excluded from
@@ -71,7 +72,7 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 		}
 	}
 
-	if m.GithubReview {
+	if m.GithubReview || len(m.GithubReviewCommentPatterns) > 0 {
 		reviews, err := prctx.Reviews()
 		if err != nil {
 			return nil, err
@@ -79,11 +80,21 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 
 		for _, r := range reviews {
 			if r.State == m.GithubReviewState {
-				candidates = append(candidates, &Candidate{
-					User:      r.Author,
-					CreatedAt: r.CreatedAt,
-					UpdatedAt: r.UpdatedAt,
-				})
+				if len(m.GithubReviewCommentPatterns) > 0 {
+					if m.githubReviewCommentMatches(r.Body) {
+						candidates = append(candidates, &Candidate{
+							User:      r.Author,
+							CreatedAt: r.CreatedAt,
+							UpdatedAt: r.UpdatedAt,
+						})
+					}
+				} else {
+					candidates = append(candidates, &Candidate{
+						User:      r.Author,
+						CreatedAt: r.CreatedAt,
+						UpdatedAt: r.UpdatedAt,
+					})
+				}
 			}
 		}
 	}
@@ -115,6 +126,15 @@ func (m *Methods) CommentMatches(commentBody string) bool {
 		}
 	}
 	for _, pattern := range m.CommentPatterns {
+		if pattern.Matches(commentBody) {
+			return true
+		}
+	}
+	return false
+}
+
+func (m *Methods) githubReviewCommentMatches(commentBody string) bool {
+	for _, pattern := range m.GithubReviewCommentPatterns {
 		if pattern.Matches(commentBody) {
 			return true
 		}
