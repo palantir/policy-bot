@@ -64,10 +64,23 @@ func TestCandidates(t *testing.T) {
 				CreatedAt: now.Add(3 * time.Minute),
 				Author:    "mhaypenny",
 				State:     pull.ReviewChangesRequested,
+				Body:      "pr needs work",
 			},
 			{
 				CreatedAt: now.Add(5 * time.Minute),
 				Author:    "ttest",
+				State:     pull.ReviewApproved,
+			},
+			{
+				CreatedAt: now.Add(7 * time.Minute),
+				Author:    "santaclaus",
+				Body:      "nice",
+				State:     pull.ReviewApproved,
+			},
+			{
+				CreatedAt: now.Add(9 * time.Minute),
+				Author:    "dasherdancer",
+				Body:      "nIcE",
 				State:     pull.ReviewApproved,
 			},
 		},
@@ -104,6 +117,25 @@ func TestCandidates(t *testing.T) {
 		assert.Equal(t, "mhaypenny", cs[0].User)
 	})
 
+	t.Run("githubReviewCommentPatterns", func(t *testing.T) {
+		m := &Methods{
+			GithubReview:      true,
+			GithubReviewState: pull.ReviewApproved,
+			GithubReviewCommentPatterns: []Regexp{
+				NewCompiledRegexp(regexp.MustCompile("(?i)nice")),
+			},
+		}
+
+		cs, err := m.Candidates(ctx, prctx)
+		require.NoError(t, err)
+
+		sort.Sort(CandidatesByCreationTime(cs))
+
+		require.Len(t, cs, 2, "incorrect number of candidates found")
+		assert.Equal(t, "santaclaus", cs[0].User)
+		assert.Equal(t, "dasherdancer", cs[1].User)
+	})
+
 	t.Run("reviews", func(t *testing.T) {
 		m := &Methods{
 			GithubReview:      true,
@@ -131,9 +163,11 @@ func TestCandidates(t *testing.T) {
 
 		sort.Sort(CandidatesByCreationTime(cs))
 
-		require.Len(t, cs, 2, "incorrect number of candidates found")
+		require.Len(t, cs, 4, "incorrect number of candidates found")
 		assert.Equal(t, "mhaypenny", cs[0].User)
 		assert.Equal(t, "ttest", cs[1].User)
+		assert.Equal(t, "santaclaus", cs[2].User)
+		assert.Equal(t, "dasherdancer", cs[3].User)
 	})
 }
 

@@ -347,8 +347,14 @@ options:
     # See the Notes on YAML Syntax section of this README for more information.
     comment_patterns:
       - "^Signed-off by \\s+$"
-    # If true, GitHub reviews can be used for approval. Default is true.
+    # If true, GitHub reviews can be used for approval. All GitHub review approvals
+    # will be accepted as approval candidates. Default is true.
     github_review: true
+    # Just like the "comment_patterns" option, but for GitHub reviews. Only GitHub
+    # review approvals matching the included patterns will be accepted as
+    # approval candidates. Defaults to an empty list.
+    github_review_comment_patterns:
+      - '\b(?i)domain\s*lgtm\b'
 
 # "requires" specifies the approval requirements for the rule. If the block
 # does not exist, the rule is automatically approved.
