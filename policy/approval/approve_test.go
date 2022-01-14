@@ -17,6 +17,7 @@ package approval
 import (
 	"context"
 	"os"
+	"regexp"
 	"testing"
 	"time"
 
@@ -494,6 +495,84 @@ func TestIsApproved(t *testing.T) {
 		r.Options.IgnoreEditedComments = true
 
 		assertPending(t, prctx, r, "0/1 approvals required. Ignored 5 approvals from disqualified users")
+	})
+}
+
+func TestTrigger(t *testing.T) {
+	t.Run("triggerCommitOnRules", func(t *testing.T) {
+		r := &Rule{}
+
+		assert.True(t, r.Trigger().Matches(common.TriggerCommit), "expected %s to match %", r.Trigger(), common.TriggerCommit)
+	})
+
+	t.Run("triggerCommentOnComments", func(t *testing.T) {
+		r := &Rule{
+			Options: Options{
+				Methods: &common.Methods{
+					Comments: []string{
+						"lgtm",
+					},
+				},
+			},
+			Requires: Requires{
+				Count: 1,
+			},
+		}
+
+		assert.True(t, r.Trigger().Matches(common.TriggerCommit), "expected %s to match %s", r.Trigger(), common.TriggerCommit)
+		assert.True(t, r.Trigger().Matches(common.TriggerComment), "expected %s to match %s", r.Trigger(), common.TriggerComment)
+	})
+
+	t.Run("triggerCommentOnCommentPatterns", func(t *testing.T) {
+		r := &Rule{
+			Options: Options{
+				Methods: &common.Methods{
+					CommentPatterns: []common.Regexp{
+						common.NewCompiledRegexp(regexp.MustCompile("(?i)nice")),
+					},
+				},
+			},
+			Requires: Requires{
+				Count: 1,
+			},
+		}
+
+		assert.True(t, r.Trigger().Matches(common.TriggerCommit), "expected %s to match %s", r.Trigger(), common.TriggerCommit)
+		assert.True(t, r.Trigger().Matches(common.TriggerComment), "expected %s to match %s", r.Trigger(), common.TriggerComment)
+	})
+
+	t.Run("triggerReviewForGithubReview", func(t *testing.T) {
+		r := &Rule{
+			Options: Options{
+				Methods: &common.Methods{
+					GithubReview: true,
+				},
+			},
+			Requires: Requires{
+				Count: 1,
+			},
+		}
+
+		assert.True(t, r.Trigger().Matches(common.TriggerCommit), "expected %s to match %s", r.Trigger(), common.TriggerCommit)
+		assert.True(t, r.Trigger().Matches(common.TriggerReview), "expected %s to match %s", r.Trigger(), common.TriggerReview)
+	})
+
+	t.Run("triggerReviewForGithubReviewCommentPatterns", func(t *testing.T) {
+		r := &Rule{
+			Options: Options{
+				Methods: &common.Methods{
+					GithubReviewCommentPatterns: []common.Regexp{
+						common.NewCompiledRegexp(regexp.MustCompile("(?i)nice")),
+					},
+				},
+			},
+			Requires: Requires{
+				Count: 1,
+			},
+		}
+
+		assert.True(t, r.Trigger().Matches(common.TriggerCommit), "expected %s to match %s", r.Trigger(), common.TriggerCommit)
+		assert.True(t, r.Trigger().Matches(common.TriggerReview), "expected %s to match %s", r.Trigger(), common.TriggerReview)
 	})
 }
 
