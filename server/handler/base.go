@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"os"
 	"strings"
 	"time"
 
@@ -75,7 +76,7 @@ type PullEvaluationOptions struct {
 	Deprecated_AppName string `yaml:"app_name"`
 }
 
-func (p *PullEvaluationOptions) FillDefaults() {
+func (p *PullEvaluationOptions) fillDefaults() {
 	if p.PolicyPath == "" {
 		p.PolicyPath = DefaultPolicyPath
 	}
@@ -89,6 +90,14 @@ func (p *PullEvaluationOptions) FillDefaults() {
 	if p.StatusCheckContext == "" {
 		p.StatusCheckContext = DefaultStatusCheckContext
 	}
+}
+
+func (p *PullEvaluationOptions) SetValuesFromEnv(prefix string) {
+	setStringFromEnv("POLICY_PATH", prefix, &p.PolicyPath)
+	setStringFromEnv("SHARED_REPOSITORY", prefix, &p.SharedRepository)
+	setStringFromEnv("SHARED_POLICY_PATH", prefix, &p.SharedPolicyPath)
+	setStringFromEnv("STATUS_CHECK_CONTEXT", prefix, &p.StatusCheckContext)
+	p.fillDefaults()
 }
 
 func (b *Base) PostStatus(ctx context.Context, prctx pull.Context, client *github.Client, state, message string) {
@@ -380,4 +389,12 @@ func selectionToReviewersRequest(s reviewer.Selection) github.ReviewersRequest {
 	}
 
 	return req
+}
+
+func setStringFromEnv(key, prefix string, value *string) bool {
+	if v, ok := os.LookupEnv(prefix + key); ok {
+		*value = v
+		return true
+	}
+	return false
 }
