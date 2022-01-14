@@ -569,12 +569,6 @@ ignored. If this happens, you will need to reapprove the pull request.
 
 This feature has [security implications](#update-merge-conflicts).
 
-#### Private Repositories
-
-`policy-bot` works with private repositories, but currently does not support
-pull requests from private _forks_ of private repositories due to GitHub API
-limitations. Please file an issue if this functionality is important to you.
-
 #### Automatically Requesting Reviewers
 
 `policy-bot` can automatically request reviewers for all pending rules
