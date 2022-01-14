@@ -15,9 +15,11 @@ server:
 logging:
   # If true, logs are printed in human-readable form. We recommend using
   # "false" to output JSON-formatted logs in production
+  # Can also be set by the POLICYBOT_LOG_PRETTY environment variable.
   text: false
   # Set a minimum logging level threshold
   # Choose from: debug, info, warn, error
+  # Can also be set by the POLICYBOT_LOG_LEVEL environment variable.
   level: debug
 
 # Options for the GitHub response cache. When the cache reaches max_size, the
@@ -78,17 +80,21 @@ sessions:
 # Options for application behavior. The defaults are shown below.
 #
 # options:
-#   # The path to the policy file in a repository.
+#   # The path to the policy file in a repository. Can also be set by the
+#   # POLICYBOT_POLICY_PATH environment variable.
 #   policy_path: .policy.yml
 #
 #   # The name of an organization repository to look in for a shared policy if
-#   # a repository does not define a policy file.
+#   # a repository does not define a policy file. Can also be set by the
+#   # POLICYBOT_SHARED_REPOSITORY environment variable.
 #   shared_repository: .github
 #
 #   # The path to the policy file in the shared organization repository.
+#   # Can also be set by the POLICYBOT_SHARED_POLICY_PATH environment variable.
 #   shared_policy_path: policy.yml
 #
-#   # The context prefix for status checks created by the bot.
+#   # The context prefix for status checks created by the bot. Can also be set by the
+#   # POLICYBOT_STATUS_CHECK_CONTEXT environment variable.
 #   status_check_context: policy-bot
 
 # Options for locating the frontend files. By default, the server uses appropriate

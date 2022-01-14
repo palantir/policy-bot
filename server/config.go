@@ -65,8 +65,22 @@ func ParseConfig(bytes []byte) (*Config, error) {
 		return nil, errors.Wrapf(err, "failed unmarshalling yaml")
 	}
 
+	if v, ok := os.LookupEnv("POLICYBOT_POLICY_PATH"); ok {
+		c.Options.PolicyPath = v
+	}
+	if v, ok := os.LookupEnv("POLICYBOT_SHARED_REPOSITORY"); ok {
+		c.Options.SharedRepository = v
+	}
+	if v, ok := os.LookupEnv("POLICYBOT_SHARED_POLICY_PATH"); ok {
+		c.Options.SharedPolicyPath = v
+	}
+	if v, ok := os.LookupEnv("POLICYBOT_STATUS_CHECK_CONTEXT"); ok {
+		c.Options.StatusCheckContext = v
+	}
 	c.Options.FillDefaults()
+
 	c.Server.SetValuesFromEnv("POLICYBOT_")
+
 	c.Github.SetValuesFromEnv("")
 
 	if v, ok := os.LookupEnv("POLICYBOT_SESSIONS_KEY"); ok {
