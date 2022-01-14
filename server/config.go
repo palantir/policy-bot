@@ -65,7 +65,7 @@ func ParseConfig(bytes []byte) (*Config, error) {
 		return nil, errors.Wrapf(err, "failed unmarshalling yaml")
 	}
 
-	c.Options.FillDefaults()
+	c.Options.SetValuesFromEnv("POLICYBOT_OPTIONS_")
 	c.Server.SetValuesFromEnv("POLICYBOT_")
 	c.Github.SetValuesFromEnv("")
 

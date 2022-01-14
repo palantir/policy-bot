@@ -126,7 +126,8 @@ define a `remote` key. Only 1 level of remote configuration is supported by desi
 
 ```yaml
 # The remote repository to read the policy file from. This is required, and must
-# be in the form of "org/repo-name". Must be a public repository.
+# be in the form of "org/repo-name". The policy bot github app must have read
+# access to this repository.
 remote: org/repo-name
 
 # The path to the policy config file in the remote repository. If none is
@@ -323,6 +324,7 @@ options:
   request_review:
     # False by default
     enabled: true
+
     # mode modifies how reviewers are selected. `all-users` will request all users
     # who are able to approve the pending rule. `random-users` selects a small
     # set of random users based on the required count of approvals. `teams` will 
@@ -340,6 +342,7 @@ options:
     comments:
       - ":+1:"
       - "👍"
+
     # If a comment matches a regular expression in this list, it counts as
     # approval. Defaults to an empty list.
     #
@@ -347,9 +350,11 @@ options:
     # See the Notes on YAML Syntax section of this README for more information.
     comment_patterns:
       - "^Signed-off by \\s+$"
+
     # If true, GitHub reviews can be used for approval. All GitHub review approvals
     # will be accepted as approval candidates. Default is true.
     github_review: true
+
     # Just like the "comment_patterns" option, but for GitHub reviews. Only GitHub
     # review approvals matching the included patterns will be accepted as
     # approval candidates. Defaults to an empty list.
@@ -563,12 +568,6 @@ merges on long-running branches or merges created with the API may not be
 ignored. If this happens, you will need to reapprove the pull request.
 
 This feature has [security implications](#update-merge-conflicts).
-
-#### Private Repositories
-
-`policy-bot` works with private repositories, but currently does not support
-pull requests from private _forks_ of private repositories due to GitHub API
-limitations. Please file an issue if this functionality is important to you.
 
 #### Automatically Requesting Reviewers
 
