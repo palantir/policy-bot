@@ -82,10 +82,10 @@ func (r *Rule) Trigger() common.Trigger {
 
 	if r.Requires.Count > 0 {
 		m := r.Options.GetMethods()
-		if len(m.Comments) > 0 {
+		if len(m.Comments) > 0 || len(m.CommentPatterns) > 0 {
 			t |= common.TriggerComment
 		}
-		if m.GithubReview {
+		if m.GithubReview || len(m.GithubReviewCommentPatterns) > 0 {
 			t |= common.TriggerReview
 		}
 	}
