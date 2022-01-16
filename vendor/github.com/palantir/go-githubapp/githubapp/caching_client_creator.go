@@ -17,7 +17,7 @@ package githubapp
 import (
 	"fmt"
 
-	"github.com/google/go-github/v40/github"
+	"github.com/google/go-github/v41/github"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/pkg/errors"
 	"github.com/shurcooL/githubv4"

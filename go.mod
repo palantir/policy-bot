@@ -13,11 +13,11 @@ require (
 	github.com/google/go-querystring v1.1.0
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 	github.com/palantir/go-baseapp v0.3.1
-	github.com/palantir/go-githubapp v0.10.1
+	github.com/palantir/go-githubapp v0.11.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.26.1
 	github.com/sergi/go-diff v1.1.0 // indirect
-	github.com/shurcooL/githubv4 v0.0.0-20211117020012-5800b9de5b8b
+	github.com/shurcooL/githubv4 v0.0.0-20220115235240-a14260e6f8a2
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.7.0
 	github.com/vektah/gqlparser v1.0.0
