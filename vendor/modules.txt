@@ -28,10 +28,8 @@ github.com/golang-jwt/jwt/v4
 github.com/golang/protobuf/proto
 # github.com/google/go-github/v39 v39.0.0
 github.com/google/go-github/v39/github
-# github.com/google/go-github/v40 v40.0.0
-## explicit
-github.com/google/go-github/v40/github
 # github.com/google/go-github/v41 v41.0.0
+## explicit
 github.com/google/go-github/v41/github
 # github.com/google/go-querystring v1.1.0
 ## explicit
