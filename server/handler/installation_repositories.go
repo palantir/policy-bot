@@ -50,7 +50,7 @@ func (h *InstallationRepositories) Handle(ctx context.Context, eventType, delive
 	case "added":
 		for _, repo := range event.RepositoriesAdded {
 			if err := h.postRepoInstallationStatus(ctx, client, repo); err != nil {
-				return err
+				continue
 			}
 		}
 	default:
