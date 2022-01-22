@@ -49,9 +49,7 @@ func (h *InstallationRepositories) Handle(ctx context.Context, eventType, delive
 	switch event.GetAction() {
 	case "added":
 		for _, repo := range event.RepositoriesAdded {
-			if err := h.postRepoInstallationStatus(ctx, client, repo); err != nil {
-				continue
-			}
+			h.postRepoInstallationStatus(ctx, client, repo)
 		}
 	default:
 		return nil
@@ -60,20 +58,20 @@ func (h *InstallationRepositories) Handle(ctx context.Context, eventType, delive
 	return nil
 }
 
-func (h *InstallationRepositories) postRepoInstallationStatus(ctx context.Context, client *github.Client, r *github.Repository) error {
+func (h *InstallationRepositories) postRepoInstallationStatus(ctx context.Context, client *github.Client, r *github.Repository) {
 	logger := zerolog.Ctx(ctx)
 
 	repoFullName := strings.Split(r.GetFullName(), "/")
 	owner, repo := repoFullName[0], repoFullName[1]
 	repository, _, err := client.Repositories.Get(ctx, owner, repo)
 	if err != nil {
-		return err
+		return
 	}
 
 	defaultBranch := repository.GetDefaultBranch()
 	branch, _, err := client.Repositories.GetBranch(ctx, owner, repo, defaultBranch, false)
 	if err != nil {
-		return err
+		return
 	}
 
 	head := branch.GetCommit().GetSHA()
@@ -88,8 +86,5 @@ func (h *InstallationRepositories) postRepoInstallationStatus(ctx context.Contex
 	}
 	if err := h.PostGitHubRepoStatus(ctx, client, owner, repo, head, status); err != nil {
 		logger.Err(errors.WithStack(err)).Msg("Failed to post repo status")
-		return err
 	}
-
-	return nil
 }
