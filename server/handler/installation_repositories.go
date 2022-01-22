@@ -1,0 +1,95 @@
+// Copyright 2018 Palantir Technologies, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package handler
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
+
+	"github.com/google/go-github/v40/github"
+	"github.com/palantir/go-githubapp/githubapp"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
+)
+
+type InstallationRepositories struct {
+	Base
+}
+
+func (h *InstallationRepositories) Handles() []string { return []string{"installation_repositories"} }
+
+// Handle installation_repositories
+// https://docs.github.com/en/developers/webhooks-and-events/webhooks/webhook-events-and-payloads#installation_repositories
+func (h *InstallationRepositories) Handle(ctx context.Context, eventType, deliveryID string, payload []byte) error {
+	var event github.InstallationRepositoriesEvent
+	if err := json.Unmarshal(payload, &event); err != nil {
+		return errors.Wrap(err, "failed to parse installation repositories event payload")
+	}
+
+	installationID := githubapp.GetInstallationIDFromEvent(&event)
+	client, err := h.NewInstallationClient(installationID)
+	if err != nil {
+		return err
+	}
+
+	switch event.GetAction() {
+	case "added":
+		for _, repo := range event.RepositoriesAdded {
+			if err := h.postRepoInstallationStatus(ctx, client, repo); err != nil {
+				return err
+			}
+		}
+	default:
+		return nil
+	}
+
+	return nil
+}
+
+func (h *InstallationRepositories) postRepoInstallationStatus(ctx context.Context, client *github.Client, r *github.Repository) error {
+	logger := zerolog.Ctx(ctx)
+
+	repoFullName := strings.Split(r.GetFullName(), "/")
+	owner, repo := repoFullName[0], repoFullName[1]
+	repository, _, err := client.Repositories.Get(ctx, owner, repo)
+	if err != nil {
+		return err
+	}
+
+	defaultBranch := repository.GetDefaultBranch()
+	branch, _, err := client.Repositories.GetBranch(ctx, owner, repo, defaultBranch, false)
+	if err != nil {
+		return err
+	}
+
+	head := branch.GetCommit().GetSHA()
+
+	contextWithBranch := fmt.Sprintf("%s: %s", h.PullOpts.StatusCheckContext, defaultBranch)
+	state := "success"
+	message := "Policy-Bot successfully installed."
+	status := &github.RepoStatus{
+		Context:     &contextWithBranch,
+		State:       &state,
+		Description: &message,
+	}
+	if err := h.PostGitHubRepoStatus(ctx, client, owner, repo, head, status); err != nil {
+		logger.Err(errors.WithStack(err)).Msg("Failed to post repo status")
+		return err
+	}
+
+	return nil
+}
