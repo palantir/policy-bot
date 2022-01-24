@@ -18,7 +18,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/google/go-github/v40/github"
+	"github.com/google/go-github/v41/github"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
