@@ -51,8 +51,6 @@ func (h *InstallationRepositories) Handle(ctx context.Context, eventType, delive
 		for _, repo := range event.RepositoriesAdded {
 			h.postRepoInstallationStatus(ctx, client, repo)
 		}
-	default:
-		return nil
 	}
 
 	return nil
@@ -63,6 +61,9 @@ func (h *InstallationRepositories) postRepoInstallationStatus(ctx context.Contex
 
 	repoFullName := strings.Split(r.GetFullName(), "/")
 	owner, repo := repoFullName[0], repoFullName[1]
+	// We must make this extra call because the installation event
+	// returns a partial repository object that doesn't include all
+	// the data we need for the repo status context (branch & SHA)
 	repository, _, err := client.Repositories.Get(ctx, owner, repo)
 	if err != nil {
 		return
@@ -75,7 +76,6 @@ func (h *InstallationRepositories) postRepoInstallationStatus(ctx context.Contex
 	}
 
 	head := branch.GetCommit().GetSHA()
-
 	contextWithBranch := fmt.Sprintf("%s: %s", h.PullOpts.StatusCheckContext, defaultBranch)
 	state := "success"
 	message := "Policy-Bot successfully installed."
