@@ -78,7 +78,7 @@ func (h *InstallationRepositories) postRepoInstallationStatus(ctx context.Contex
 	head := branch.GetCommit().GetSHA()
 	contextWithBranch := fmt.Sprintf("%s: %s", h.PullOpts.StatusCheckContext, defaultBranch)
 	state := "success"
-	message := "Policy-Bot successfully installed."
+	message := fmt.Sprintf("%s successfully installed.", h.AppName)
 	status := &github.RepoStatus{
 		Context:     &contextWithBranch,
 		State:       &state,
