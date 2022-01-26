@@ -158,24 +158,24 @@ func (b *Base) PreparePRContext(ctx context.Context, installationID int64, pr *g
 func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger common.Trigger, loc pull.Locator) error {
 	client, err := b.NewInstallationClient(installationID)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed when evaluting PR: %s/%s/%d", loc.Owner, loc.Repo, loc.Number)
 	}
 
 	v4client, err := b.NewInstallationV4Client(installationID)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed when evaluting PR: %s/%s/%d", loc.Owner, loc.Repo, loc.Number)
 	}
 
 	mbrCtx := NewCrossOrgMembershipContext(ctx, client, loc.Owner, b.Installations, b.ClientCreator)
 	prctx, err := pull.NewGitHubContext(ctx, mbrCtx, client, v4client, loc)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed when evaluting PR: %s/%s/%d", loc.Owner, loc.Repo, loc.Number)
 	}
 
 	fetchedConfig := b.ConfigFetcher.ConfigForPR(ctx, prctx, client)
 	evaluator, err := b.ValidateFetchedConfig(ctx, prctx, client, fetchedConfig, trigger)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed when evaluting PR: %s/%s/%d", loc.Owner, loc.Repo, loc.Number)
 	}
 	if evaluator == nil {
 		return nil
@@ -183,7 +183,7 @@ func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger commo
 
 	result, err := b.EvaluateFetchedConfig(ctx, prctx, client, evaluator, fetchedConfig)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed when evaluting PR: %s/%s/%d", loc.Owner, loc.Repo, loc.Number)
 	}
 
 	return b.RequestReviewsForResult(ctx, prctx, client, trigger, result)
