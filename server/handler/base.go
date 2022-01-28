@@ -124,14 +124,14 @@ func (b *Base) PostStatus(ctx context.Context, prctx pull.Context, client *githu
 		TargetURL:   &detailsURL,
 	}
 
-	if err := b.postGitHubRepoStatus(ctx, client, owner, repo, sha, status); err != nil {
+	if err := b.PostGitHubRepoStatus(ctx, client, owner, repo, sha, status); err != nil {
 		logger.Err(errors.WithStack(err)).Msg("Failed to post repo status")
 		return
 	}
 
 	if b.PullOpts.PostInsecureStatusChecks {
 		status.Context = &b.PullOpts.StatusCheckContext
-		if err := b.postGitHubRepoStatus(ctx, client, owner, repo, sha, status); err != nil {
+		if err := b.PostGitHubRepoStatus(ctx, client, owner, repo, sha, status); err != nil {
 			logger.Err(errors.WithStack(err)).Msg("Failed to post repo status with StatusCheckContext")
 		}
 	}
@@ -139,7 +139,7 @@ func (b *Base) PostStatus(ctx context.Context, prctx pull.Context, client *githu
 	return
 }
 
-func (b *Base) postGitHubRepoStatus(ctx context.Context, client *github.Client, owner, repo, ref string, status *github.RepoStatus) error {
+func (b *Base) PostGitHubRepoStatus(ctx context.Context, client *github.Client, owner, repo, ref string, status *github.RepoStatus) error {
 	logger := zerolog.Ctx(ctx)
 	logger.Info().Msgf("Setting %q status on %s to %s: %s", status.GetContext(), ref, status.GetState(), status.GetDescription())
 	_, _, err := client.Repositories.CreateStatus(ctx, owner, repo, ref, status)
