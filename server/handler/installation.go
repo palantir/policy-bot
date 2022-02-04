@@ -26,29 +26,51 @@ import (
 	"github.com/rs/zerolog"
 )
 
-type InstallationRepositories struct {
+type Installation struct {
 	Base
 }
 
-func (h *InstallationRepositories) Handles() []string { return []string{"installation_repositories"} }
+func (h *Installation) Handles() []string {
+	return []string{"installation", "installation_repositories"}
+}
 
-// Handle installation_repositories
+// Handle installation, installation_repositories
+// https://docs.github.com/en/developers/webhooks-and-events/webhooks/webhook-events-and-payloads#installation
 // https://docs.github.com/en/developers/webhooks-and-events/webhooks/webhook-events-and-payloads#installation_repositories
-func (h *InstallationRepositories) Handle(ctx context.Context, eventType, deliveryID string, payload []byte) error {
-	var event github.InstallationRepositoriesEvent
-	if err := json.Unmarshal(payload, &event); err != nil {
-		return errors.Wrap(err, "failed to parse installation repositories event payload")
+func (h *Installation) Handle(ctx context.Context, eventType, deliveryID string, payload []byte) error {
+	var action string
+	var installationID int64
+	var repositories []*github.Repository
+
+	switch eventType {
+	case "installation":
+		var event github.InstallationEvent
+		if err := json.Unmarshal(payload, &event); err != nil {
+			return errors.Wrap(err, "failed to parse installation event payload")
+		}
+
+		action = event.GetAction()
+		installationID = githubapp.GetInstallationIDFromEvent(&event)
+		repositories = event.Repositories
+
+	case "installation_repositories":
+		var event github.InstallationRepositoriesEvent
+		if err := json.Unmarshal(payload, &event); err != nil {
+			return errors.Wrap(err, "failed to parse installation repositories event payload")
+		}
+
+		action = event.GetAction()
+		installationID = githubapp.GetInstallationIDFromEvent(&event)
+		repositories = event.RepositoriesAdded
 	}
 
-	installationID := githubapp.GetInstallationIDFromEvent(&event)
-	client, err := h.NewInstallationClient(installationID)
-	if err != nil {
-		return err
-	}
-
-	switch event.GetAction() {
-	case "added":
-		for _, repo := range event.RepositoriesAdded {
+	switch action {
+	case "created", "added":
+		client, err := h.NewInstallationClient(installationID)
+		if err != nil {
+			return err
+		}
+		for _, repo := range repositories {
 			h.postRepoInstallationStatus(ctx, client, repo)
 		}
 	}
@@ -56,7 +78,7 @@ func (h *InstallationRepositories) Handle(ctx context.Context, eventType, delive
 	return nil
 }
 
-func (h *InstallationRepositories) postRepoInstallationStatus(ctx context.Context, client *github.Client, r *github.Repository) {
+func (h *Installation) postRepoInstallationStatus(ctx context.Context, client *github.Client, r *github.Repository) {
 	logger := zerolog.Ctx(ctx)
 
 	repoFullName := strings.Split(r.GetFullName(), "/")

@@ -149,7 +149,7 @@ func New(c *Config) (*Server, error) {
 
 	dispatcher := githubapp.NewEventDispatcher(
 		[]githubapp.EventHandler{
-			&handler.InstallationRepositories{Base: basePolicyHandler},
+			&handler.Installation{Base: basePolicyHandler},
 			&handler.PullRequest{Base: basePolicyHandler},
 			&handler.PullRequestReview{Base: basePolicyHandler},
 			&handler.IssueComment{Base: basePolicyHandler},
