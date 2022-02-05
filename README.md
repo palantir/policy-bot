@@ -635,15 +635,19 @@ this approach.
 ### Status Checks
 
 `policy-bot` reports approval status to GitHub using [commit statuses][]. While
-statuses cannot be deleted, they can be overwritten by any user with write
-access to a repository. `policy-bot` contains an auditing feature to detect
-this case and rewrite the correct status, but a well-timed attempt can still
+statuses cannot be deleted, they can be set or overwritten by any user with
+write access to a repository. To prevent forged statuses, GitHub allows setting
+an expected source for a status check when making it a [requirement on a
+protected branch][]. Policy Bot always should be set as the expect source for
+its checks.
+
+For older versions of GitHub Enterprise that do not support expected sources
+for status checks, `policy-bot` contains an auditing feature to detect
+overwritten statuses. In addition to logging an audit event, it will replace
+the forged status with a failure. However, a well-timed attempt can still
 approve and merge a pull request before `policy-bot` can detect the problem.
 Organizations concerned about this case should monitor and alert on the
-relevant audit logs.
-
-This issue can also be minimized by limiting write access and making
-contributions from forks.
+relevant audit logs or minimize write access to repositories.
 
 ### Comment Edits
 
@@ -688,6 +692,7 @@ issue by using the `ignore_commits_by` option in combination with the
 [commit-current-user-check][] pre-receive hook.
 
 [commit statuses]: https://developer.github.com/v3/repos/statuses/
+[requirement on a protected branch]: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/defining-the-mergeability-of-pull-requests/about-protected-branches#require-status-checks-before-merging
 [commit-current-user-check]: https://github.com/github/platform-samples/blob/master/pre-receive-hooks/commit-current-user-check.sh
 
 ## Deployment
