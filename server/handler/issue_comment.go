@@ -114,7 +114,7 @@ func (h *IssueComment) detectAndLogTampering(ctx context.Context, prctx pull.Con
 	var originalBody string
 	switch event.GetAction() {
 	case "edited":
-		originalBody = *event.GetChanges().Body.From
+		originalBody = event.GetChanges().GetBody().GetFrom()
 
 	case "deleted":
 		originalBody = event.GetComment().GetBody()
