@@ -147,8 +147,8 @@ Each list entry in `approval_rules` has the following specification:
 # "name" is required, and is used to reference rules in the "policy" block
 name: "example rule"
 
-# "description" is optional and that provides an explanation of the rule
-# or additional help for users. Unlike YAML comments, it appears in the pull
+# "description" is optional and provides an explanation of the rule or
+# additional help for users. Unlike YAML comments, it appears in the pull
 # request details UI along with other information about the rule.
 description: "A rule that explains how to configure all of the features"
 
