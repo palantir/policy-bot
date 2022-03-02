@@ -92,6 +92,11 @@ func New(c *Config) (*Server, error) {
 		githubTimeout = 10 * time.Second
 	}
 
+	v4URL, err := url.Parse(c.Github.V4APIURL)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid v4 API URL")
+	}
+
 	userAgent := fmt.Sprintf("policy-bot/%s", version.GetVersion())
 	cc, err := githubapp.NewDefaultCachingClientCreator(
 		c.Github,
@@ -101,7 +106,10 @@ func New(c *Config) (*Server, error) {
 			return lrucache.New(maxSize, 0)
 		}),
 		githubapp.WithClientMiddleware(
-			githubapp.ClientLogging(zerolog.DebugLevel),
+			githubapp.ClientLogging(
+				zerolog.DebugLevel,
+				githubapp.LogRequestBody("^"+v4URL.Path+"$"),
+			),
 			githubapp.ClientMetrics(base.Registry()),
 		),
 	)
