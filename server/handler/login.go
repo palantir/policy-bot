@@ -21,7 +21,7 @@ import (
 
 	"github.com/alexedwards/scs"
 	"github.com/bluekeyes/hatpear"
-	"github.com/google/go-github/v41/github"
+	"github.com/google/go-github/v43/github"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/go-githubapp/oauth2"
 	"github.com/pkg/errors"

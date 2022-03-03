@@ -18,11 +18,9 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gregjones/httpcache"
 	"github.com/rcrowley/go-metrics"
-	"github.com/rs/zerolog"
 )
 
 const (
@@ -108,40 +106,6 @@ func bucketStatus(status int) string {
 		return MetricsKeyRequests5xx
 	}
 	return ""
-}
-
-// ClientLogging creates client middleware that logs request and response
-// information at the given level. If the request fails without creating a
-// response, it is logged with a status code of -1. The middleware uses a
-// logger from the request context.
-func ClientLogging(lvl zerolog.Level) ClientMiddleware {
-	return func(next http.RoundTripper) http.RoundTripper {
-		return roundTripperFunc(func(r *http.Request) (*http.Response, error) {
-			start := time.Now()
-			res, err := next.RoundTrip(r)
-			elapsed := time.Now().Sub(start)
-
-			evt := zerolog.Ctx(r.Context()).
-				WithLevel(lvl).
-				Str("method", r.Method).
-				Str("path", r.URL.String()).
-				Dur("elapsed", elapsed)
-
-			if res != nil {
-				cached := res.Header.Get(httpcache.XFromCache) != ""
-				evt.Int("status", res.StatusCode).
-					Int64("size", res.ContentLength).
-					Bool("cached", cached)
-			} else {
-				evt.Int("status", -1).
-					Int64("size", -1).
-					Bool("cached", false)
-			}
-
-			evt.Msg("github_request")
-			return res, err
-		})
-	}
 }
 
 type roundTripperFunc func(*http.Request) (*http.Response, error)

@@ -8,10 +8,11 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/google/go-github/v39/github"
+	"github.com/google/go-github/v41/github"
 )
 
 const (
@@ -159,7 +160,8 @@ func (t *Transport) refreshToken(ctx context.Context) error {
 		return fmt.Errorf("could not convert installation token parameters into json: %s", err)
 	}
 
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/app/installations/%v/access_tokens", t.BaseURL, t.installationID), body)
+	requestURL := fmt.Sprintf("%s/app/installations/%v/access_tokens", strings.TrimRight(t.BaseURL, "/"), t.installationID)
+	req, err := http.NewRequest("POST", requestURL, body)
 	if err != nil {
 		return fmt.Errorf("could not create request: %s", err)
 	}
