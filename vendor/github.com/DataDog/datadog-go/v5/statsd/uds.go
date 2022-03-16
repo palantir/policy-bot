@@ -1,3 +1,5 @@
+// +build !windows
+
 package statsd
 
 import (
@@ -5,12 +7,6 @@ import (
 	"sync"
 	"time"
 )
-
-/*
-UDSTimeout holds the default timeout for UDS socket writes, as they can get
-blocking when the receiving buffer is full.
-*/
-const defaultUDSTimeout = 1 * time.Millisecond
 
 // udsWriter is an internal class wrapping around management of UDS connection
 type udsWriter struct {
@@ -24,20 +20,14 @@ type udsWriter struct {
 }
 
 // newUDSWriter returns a pointer to a new udsWriter given a socket file path as addr.
-func newUDSWriter(addr string) (*udsWriter, error) {
+func newUDSWriter(addr string, writeTimeout time.Duration) (*udsWriter, error) {
 	udsAddr, err := net.ResolveUnixAddr("unixgram", addr)
 	if err != nil {
 		return nil, err
 	}
 	// Defer connection to first Write
-	writer := &udsWriter{addr: udsAddr, conn: nil, writeTimeout: defaultUDSTimeout}
+	writer := &udsWriter{addr: udsAddr, conn: nil, writeTimeout: writeTimeout}
 	return writer, nil
-}
-
-// SetWriteTimeout allows the user to set a custom write timeout
-func (w *udsWriter) SetWriteTimeout(d time.Duration) error {
-	w.writeTimeout = d
-	return nil
 }
 
 // Write data to the UDS connection with write timeout and minimal error handling:
@@ -51,7 +41,7 @@ func (w *udsWriter) Write(data []byte) (int, error) {
 	conn.SetWriteDeadline(time.Now().Add(w.writeTimeout))
 	n, e := conn.Write(data)
 
-	if err, isNetworkErr := e.(net.Error); !isNetworkErr || !err.Temporary() {
+	if err, isNetworkErr := e.(net.Error); err != nil && (!isNetworkErr || !err.Temporary()) {
 		// Statsd server disconnected, retry connecting at next packet
 		w.unsetConnection()
 		return 0, e

@@ -16,10 +16,8 @@ package baseapp
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
-	"github.com/bluekeyes/hatpear"
 	"github.com/palantir/go-baseapp/pkg/errfmt"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -35,12 +33,7 @@ type httpError interface {
 // RichErrorMarshalFunc is a zerolog error marshaller that formats the error as
 // a string that includes a stack trace, if one is available.
 func RichErrorMarshalFunc(err error) interface{} {
-	switch err := err.(type) {
-	case hatpear.PanicError:
-		return fmt.Sprintf("%+v", err)
-	default:
-		return errfmt.Print(err)
-	}
+	return errfmt.Print(err)
 }
 
 // HandleRouteError is a hatpear error handler that logs the error and sends

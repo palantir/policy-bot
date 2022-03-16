@@ -37,7 +37,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"github.com/palantir/go-baseapp/baseapp"
 	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
@@ -64,13 +64,13 @@ func StartEmitter(s *baseapp.Server, c Config) error {
 		c.Interval = DefaultInterval
 	}
 
-	client, err := statsd.New(c.Address)
+	client, err := statsd.New(c.Address, statsd.WithTags(c.Tags))
 	if err != nil {
 		return errors.Wrap(err, "datadog: failed to create client")
 	}
-	client.Tags = append(client.Tags, c.Tags...)
 
 	emitter := NewEmitter(client, s.Registry())
+
 	go emitter.Emit(context.Background(), c.Interval)
 
 	return nil
@@ -79,7 +79,6 @@ func StartEmitter(s *baseapp.Server, c Config) error {
 type Emitter struct {
 	client   *statsd.Client
 	registry metrics.Registry
-
 	counters map[string]int64
 }
 
@@ -155,6 +154,10 @@ func (e *Emitter) EmitOnce() {
 			_ = e.client.Gauge(name+".95percentile", ms.Percentile(0.95), tags, 1)
 		}
 	})
+}
+
+func (e *Emitter) Flush() error {
+	return e.client.Flush()
 }
 
 // tagsFromName extracts the tags from a metric name and returns the base name

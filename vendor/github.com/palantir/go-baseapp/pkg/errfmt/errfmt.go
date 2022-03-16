@@ -12,10 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package errfmt implements formatting for error types. Specifically, it prints
+// error messages with the deepest available stacktrace for errors that include
+// stacktraces.
 package errfmt
 
 import (
 	"fmt"
+	"runtime"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -24,21 +29,29 @@ type causer interface {
 	Cause() error
 }
 
-type stackTracer interface {
+type pkgErrorsStackTracer interface {
 	StackTrace() errors.StackTrace
 }
 
+type runtimeStackTracer interface {
+	StackTrace() []runtime.Frame
+}
+
+// Print returns a string representation of err. It returns the empty string if
+// err is nil.
 func Print(err error) string {
 	if err == nil {
 		return ""
 	}
 
-	var deepestStack stackTracer
+	var deepestStack interface{}
 	currErr := err
 	for currErr != nil {
-		if st, ok := currErr.(stackTracer); ok {
-			deepestStack = st
+		switch currErr.(type) {
+		case pkgErrorsStackTracer, runtimeStackTracer:
+			deepestStack = currErr
 		}
+
 		cause, ok := currErr.(causer)
 		if !ok {
 			break
@@ -46,9 +59,22 @@ func Print(err error) string {
 		currErr = cause.Cause()
 	}
 
-	if deepestStack == nil {
-		return err.Error()
-	}
+	return err.Error() + fmtStack(deepestStack)
+}
 
-	return fmt.Sprintf("%s%+v", err.Error(), deepestStack.StackTrace())
+func fmtStack(tracer interface{}) string {
+	switch t := tracer.(type) {
+	case pkgErrorsStackTracer:
+		return fmt.Sprintf("%+v", t.StackTrace())
+	case runtimeStackTracer:
+		var s strings.Builder
+		for _, frame := range t.StackTrace() {
+			s.WriteByte('\n')
+			_, _ = fmt.Fprintf(&s, "%s\n\t", frame.Function)
+			_, _ = fmt.Fprintf(&s, "%s:%d", frame.File, frame.Line)
+		}
+		return s.String()
+	default:
+		return ""
+	}
 }

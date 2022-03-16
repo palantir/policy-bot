@@ -12,6 +12,7 @@ var (
 	distributionSymbol = []byte("d")
 	setSymbol          = []byte("s")
 	timingSymbol       = []byte("ms")
+	tagSeparatorSymbol = ","
 )
 
 func appendHeader(buffer []byte, namespace string, name string) []byte {
@@ -54,17 +55,41 @@ func appendTags(buffer []byte, globalTags []string, tags []string) []byte {
 
 	for _, tag := range globalTags {
 		if !firstTag {
-			buffer = append(buffer, ',')
+			buffer = append(buffer, tagSeparatorSymbol...)
 		}
 		buffer = appendWithoutNewlines(buffer, tag)
 		firstTag = false
 	}
 	for _, tag := range tags {
 		if !firstTag {
-			buffer = append(buffer, ',')
+			buffer = append(buffer, tagSeparatorSymbol...)
 		}
 		buffer = appendWithoutNewlines(buffer, tag)
 		firstTag = false
+	}
+	return buffer
+}
+
+func appendTagsAggregated(buffer []byte, globalTags []string, tags string) []byte {
+	if len(globalTags) == 0 && tags == "" {
+		return buffer
+	}
+
+	buffer = append(buffer, "|#"...)
+	firstTag := true
+
+	for _, tag := range globalTags {
+		if !firstTag {
+			buffer = append(buffer, tagSeparatorSymbol...)
+		}
+		buffer = appendWithoutNewlines(buffer, tag)
+		firstTag = false
+	}
+	if tags != "" {
+		if !firstTag {
+			buffer = append(buffer, tagSeparatorSymbol...)
+		}
+		buffer = appendWithoutNewlines(buffer, tags)
 	}
 	return buffer
 }
@@ -138,12 +163,12 @@ func appendEscapedEventText(buffer []byte, text string) []byte {
 	return buffer
 }
 
-func appendEvent(buffer []byte, event Event, globalTags []string) []byte {
+func appendEvent(buffer []byte, event *Event, globalTags []string) []byte {
 	escapedTextLen := escapedEventTextLen(event.Text)
 
 	buffer = append(buffer, "_e{"...)
 	buffer = strconv.AppendInt(buffer, int64(len(event.Title)), 10)
-	buffer = append(buffer, ',')
+	buffer = append(buffer, tagSeparatorSymbol...)
 	buffer = strconv.AppendInt(buffer, int64(escapedTextLen), 10)
 	buffer = append(buffer, "}:"...)
 	buffer = append(buffer, event.Title...)
@@ -202,7 +227,7 @@ func appendEscapedServiceCheckText(buffer []byte, text string) []byte {
 	return buffer
 }
 
-func appendServiceCheck(buffer []byte, serviceCheck ServiceCheck, globalTags []string) []byte {
+func appendServiceCheck(buffer []byte, serviceCheck *ServiceCheck, globalTags []string) []byte {
 	buffer = append(buffer, "_sc|"...)
 	buffer = append(buffer, serviceCheck.Name...)
 	buffer = append(buffer, '|')

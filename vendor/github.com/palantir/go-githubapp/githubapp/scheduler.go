@@ -16,7 +16,6 @@ package githubapp
 
 import (
 	"context"
-	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -57,8 +56,10 @@ func (d Dispatch) Execute(ctx context.Context) error {
 }
 
 // AsyncErrorCallback is called by an asynchronous scheduler when an event
-// handler returns an error. The error from the handler is passed directly as
-// the final argument.
+// handler returns an error or panics. The error from the handler is passed
+// directly as the final argument.
+//
+// If the handler panics, err will be a HandlerPanicError.
 type AsyncErrorCallback func(ctx context.Context, d Dispatch, err error)
 
 // DefaultAsyncErrorCallback logs errors.
@@ -168,10 +169,9 @@ func (s *scheduler) safeExecute(ctx context.Context, d Dispatch) {
 	defer func() {
 		atomic.AddInt64(&s.activeWorkers, -1)
 		if r := recover(); r != nil {
-			if rerr, ok := r.(error); ok {
-				err = rerr
-			} else {
-				err = fmt.Errorf("%v", r)
+			err = HandlerPanicError{
+				value: r,
+				stack: getStack(1),
 			}
 		}
 		if err != nil && s.onError != nil {
