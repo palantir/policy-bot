@@ -116,7 +116,7 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 
 			res.StatusDescription = desc
 			if desc == "" {
-				res.StatusDescription = "A precondition of this rule was satisfied"
+				res.StatusDescription = "A precondition of this rule was not satisfied"
 			}
 
 			return
