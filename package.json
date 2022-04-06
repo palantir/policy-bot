@@ -19,5 +19,6 @@
     "postcss": "^8.0",
     "postcss-cli": "^8.0",
     "tailwindcss": "^1.0"
-  }
+  },
+  "dependencies": {}
 }

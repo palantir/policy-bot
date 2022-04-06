@@ -56,6 +56,19 @@
 <li data-status="{{$s}}">
   <div class="bg-white p-2 shadow-sm max-w-lg status-stripe {{$s}}">
     {{template "result-details" .}}
+    {{if (or .PredicatesInfo (isRequiresNotEmpty .))}}
+    <details>
+      <summary>
+        <div class="text-dark-grey3 text-sm">Details </div>
+      </summary>
+      {{if .PredicatesInfo}}
+        {{template "result-predicates-details" .}}
+      {{end}}
+      {{if (isRequiresNotEmpty .)}}
+        {{template "result-requires-details" .}}
+      {{end}}
+    </details>
+    {{end}}
   </div>
   {{if .Children}}
   <ul class="tree">
@@ -75,4 +88,65 @@
   <p class="mb-2 text-dark-gray3 text-sm">{{.Description}}</p>
   {{end}}
   <p class="text-dark-gray3 text-sm">{{or .Error .StatusDescription}}</p>
+{{end}}
+
+{{define "result-predicates-details"}}
+  {{ $s := (or (and .Error "error") (.Status | print)) }}
+  {{if ne $s "skipped"}}
+    <b class="font-bold text-sm">This Rule is Selected Due to</b>
+  {{else}}
+    <b class="font-bold text-sm">This Rule is Skipped Due to</b>
+  {{end}}
+  {{template "result-predicates-info" .}}
+{{end}}
+
+{{define "result-predicates-info"}}
+  {{ $s := (or (and .Error "error") (.Status | print)) }}
+  <ul class="list-decimal list-inside">
+  {{range .PredicatesInfo}}
+    <li class="p-2 text-sm">
+      {{.Name}} :
+        <ul class="list-disc list-inside">
+          {{range getPredicateInfo .}}
+            <li class="ml-4">{{.}}</li>
+          {{end}}
+        </ul>
+        {{if ne $s "skipped"}}
+          satisfies the predicate {{.Type}} :
+        {{else}}
+          does not satisfy the predicate {{.Type}} :
+        {{end}}
+        <ul class="list-none list-inside">
+          {{range $key, $value := getPredicateRequirement .}}
+            <li class="ml-4">
+              <p>{{$key}}</p>
+              <ul class="list-disc list-inside">
+                {{range $value}}
+                  <li class="ml-4">{{.}}</li>
+                {{end}}
+              </ul>
+            </li>
+          {{end}}
+        </ul>
+    </li>
+  {{end}}
+  </ul>
+{{end}}
+
+{{define "result-requires-details"}}
+  <b class="font-bold text-sm">This Rule Requires Review from:</b>
+  <ul class="list-none list-inside">
+  {{range $key, $value := getRequires .}}
+    <li class="p-2 text-sm">
+    <p> {{$key}} : </p>
+      <ul class="list-disc list-inside">
+      {{range $value}}
+        <li class="ml-4">
+          <a href={{.Link}}>{{.Name}}</a>
+        </li>
+      {{end}}
+      </ul>
+    </li>
+  {{end}}
+  </ul>
 {{end}}

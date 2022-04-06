@@ -27,26 +27,37 @@ type HasValidSignatures bool
 
 var _ Predicate = HasValidSignatures(false)
 
-func (pred HasValidSignatures) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
+func (pred HasValidSignatures) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, *common.PredicateInfo, error) {
 	commits, err := prctx.Commits()
 	if err != nil {
-		return false, "", errors.Wrap(err, "failed to get commits")
+		return false, "", nil, errors.Wrap(err, "failed to get commits")
 	}
+	var commitInfo common.CommitInfo
+
+	predicateInfo := common.PredicateInfo{
+		Type:       "HasValidSignatures",
+		Name:       "Commit Hashes",
+		CommitInfo: &commitInfo,
+	}
+
+	var commitHashes []string
 
 	for _, c := range commits {
 		valid, desc := hasValidSignature(ctx, c)
+		commitHashes = append(commitHashes, c.SHA)
 		if !valid {
+			commitInfo.CommitHashes = []string{c.SHA}
 			if pred {
-				return false, desc, nil
+				return false, desc, &predicateInfo, nil
 			}
-			return true, "", nil
+			return true, "", &predicateInfo, nil
 		}
 	}
-
+	commitInfo.CommitHashes = commitHashes
 	if pred {
-		return true, "", nil
+		return true, "", &predicateInfo, nil
 	}
-	return false, "All commits are signed and have valid signatures", nil
+	return false, "All commits are signed and have valid signatures", &predicateInfo, nil
 }
 
 func (pred HasValidSignatures) Trigger() common.Trigger {
@@ -59,10 +70,18 @@ type HasValidSignaturesBy struct {
 
 var _ Predicate = &HasValidSignaturesBy{}
 
-func (pred *HasValidSignaturesBy) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
+func (pred *HasValidSignaturesBy) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, *common.PredicateInfo, error) {
 	commits, err := prctx.Commits()
 	if err != nil {
-		return false, "", errors.Wrap(err, "failed to get commits")
+		return false, "", nil, errors.Wrap(err, "failed to get commits")
+	}
+
+	var commitInfo common.CommitInfo
+
+	predicateInfo := common.PredicateInfo{
+		Type:       "HasValidSignaturesBy",
+		Name:       "Signers",
+		CommitInfo: &commitInfo,
 	}
 
 	signers := make(map[string]struct{})
@@ -70,7 +89,8 @@ func (pred *HasValidSignaturesBy) Evaluate(ctx context.Context, prctx pull.Conte
 	for _, c := range commits {
 		valid, desc := hasValidSignature(ctx, c)
 		if !valid {
-			return false, desc, nil
+			commitInfo.CommitHashes = []string{c.SHA}
+			return false, desc, &predicateInfo, nil
 		}
 		signers[c.Signature.Signer] = struct{}{}
 	}
@@ -78,14 +98,15 @@ func (pred *HasValidSignaturesBy) Evaluate(ctx context.Context, prctx pull.Conte
 	for signer := range signers {
 		member, err := pred.IsActor(ctx, prctx, signer)
 		if err != nil {
-			return false, "", err
+			return false, "", nil, err
 		}
 		if !member {
-			return false, fmt.Sprintf("Contributor %q does not meet the required membership conditions for signing", signer), nil
+			commitInfo.Signers = []string{signer}
+			return false, fmt.Sprintf("Contributor %q does not meet the required membership conditions for signing", signer), &predicateInfo, nil
 		}
 	}
-
-	return true, "", nil
+	commitInfo.Signers = getKeyValues(signers)
+	return true, "", &predicateInfo, nil
 }
 
 func (pred *HasValidSignaturesBy) Trigger() common.Trigger {
@@ -98,25 +119,37 @@ type HasValidSignaturesByKeys struct {
 
 var _ Predicate = &HasValidSignaturesByKeys{}
 
-func (pred *HasValidSignaturesByKeys) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
+func (pred *HasValidSignaturesByKeys) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, *common.PredicateInfo, error) {
 	commits, err := prctx.Commits()
 	if err != nil {
-		return false, "", errors.Wrap(err, "failed to get commits")
+		return false, "", nil, errors.Wrap(err, "failed to get commits")
+	}
+
+	var commitInfo common.CommitInfo
+
+	predicateInfo := common.PredicateInfo{
+		Type:       "HasValidSignaturesBy",
+		Name:       "Commit Hashes",
+		CommitInfo: &commitInfo,
 	}
 
 	keys := make(map[string]struct{})
 
+	var commitHashes []string
+
 	for _, c := range commits {
 		valid, desc := hasValidSignature(ctx, c)
 		if !valid {
-			return false, desc, nil
+			return false, desc, nil, nil
 		}
+		commitHashes = append(commitHashes, c.SHA)
 		// Only GPG signatures are valid for this predicate
 		switch c.Signature.Type {
 		case pull.SignatureGpg:
 			keys[c.Signature.KeyID] = struct{}{}
 		default:
-			return false, fmt.Sprintf("Commit %.10s signature is not a GPG signature", c.SHA), nil
+			commitInfo.CommitHashes = []string{c.SHA}
+			return false, fmt.Sprintf("Commit %.10s signature is not a GPG signature", c.SHA), &predicateInfo, nil
 		}
 	}
 
@@ -129,11 +162,14 @@ func (pred *HasValidSignaturesByKeys) Evaluate(ctx context.Context, prctx pull.C
 			}
 		}
 		if !isValidKey {
-			return false, fmt.Sprintf("Key %q does not meet the required key conditions for signing", key), nil
+			commitInfo.Keys = []string{key}
+			return false, fmt.Sprintf("Key %q does not meet the required key conditions for signing", key), &predicateInfo, nil
 		}
 	}
+	commitInfo.Keys = getKeyValues(keys)
+	commitInfo.CommitHashes = commitHashes
 
-	return true, "", nil
+	return true, "", &predicateInfo, nil
 }
 
 func (pred *HasValidSignaturesByKeys) Trigger() common.Trigger {

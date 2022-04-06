@@ -330,7 +330,7 @@ func runFileTests(t *testing.T, p Predicate, cases []FileTestCase) {
 				ChangedFilesValue: tc.Files,
 			}
 
-			ok, _, err := p.Evaluate(ctx, prctx)
+			ok, _, _, err := p.Evaluate(ctx, prctx)
 			if assert.NoError(t, err, "evaluation failed") {
 				assert.Equal(t, tc.Expected, ok, "predicate was not correct")
 			}

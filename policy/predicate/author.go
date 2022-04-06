@@ -29,17 +29,28 @@ type HasAuthorIn struct {
 
 var _ Predicate = &HasAuthorIn{}
 
-func (pred *HasAuthorIn) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
+func (pred *HasAuthorIn) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, *common.PredicateInfo, error) {
 	author := prctx.Author()
 
 	result, err := pred.IsActor(ctx, prctx, author)
 	desc := ""
-
+	contributorInfo := common.ContributorInfo{
+		Organizations: pred.Organizations,
+		Teams:         pred.Teams,
+		Users:         pred.Users,
+		Author:        author,
+		Contributors:  []string{},
+	}
+	predicateInfo := common.PredicateInfo{
+		Type:            "HasAuthorIn",
+		Name:            "Author",
+		ContributorInfo: &contributorInfo,
+	}
 	if !result {
 		desc = fmt.Sprintf("The pull request author %q does not meet the required membership conditions", author)
 	}
 
-	return result, desc, err
+	return result, desc, &predicateInfo, err
 }
 
 func (pred *HasAuthorIn) Trigger() common.Trigger {
@@ -52,10 +63,10 @@ type OnlyHasContributorsIn struct {
 
 var _ Predicate = &OnlyHasContributorsIn{}
 
-func (pred *OnlyHasContributorsIn) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
+func (pred *OnlyHasContributorsIn) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, *common.PredicateInfo, error) {
 	commits, err := prctx.Commits()
 	if err != nil {
-		return false, "", errors.Wrap(err, "failed to get commits")
+		return false, "", nil, errors.Wrap(err, "failed to get commits")
 	}
 
 	users := make(map[string]struct{})
@@ -67,17 +78,33 @@ func (pred *OnlyHasContributorsIn) Evaluate(ctx context.Context, prctx pull.Cont
 		}
 	}
 
+	contributors := getKeyValues(users)
+
+	contributorInfo := common.ContributorInfo{
+		Organizations: pred.Organizations,
+		Teams:         pred.Teams,
+		Users:         pred.Users,
+		Author:        "",
+		Contributors:  contributors,
+	}
+
+	predicateInfo := common.PredicateInfo{
+		Type:            "OnlyHasContributorsIn",
+		Name:            "Contributors",
+		ContributorInfo: &contributorInfo,
+	}
+
 	for user := range users {
 		member, err := pred.IsActor(ctx, prctx, user)
 		if err != nil {
-			return false, "", err
+			return false, "", nil, err
 		}
 		if !member {
-			return false, fmt.Sprintf("Contributor %q does not meet the required membership conditions", user), nil
+			return false, fmt.Sprintf("Contributor %q does not meet the required membership conditions", user), &predicateInfo, nil
 		}
 	}
 
-	return true, "", nil
+	return true, "", &predicateInfo, nil
 }
 
 func (pred *OnlyHasContributorsIn) Trigger() common.Trigger {
@@ -90,10 +117,10 @@ type HasContributorIn struct {
 
 var _ Predicate = &HasContributorIn{}
 
-func (pred *HasContributorIn) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
+func (pred *HasContributorIn) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, *common.PredicateInfo, error) {
 	commits, err := prctx.Commits()
 	if err != nil {
-		return false, "", errors.Wrap(err, "failed to get commits")
+		return false, "", nil, errors.Wrap(err, "failed to get commits")
 	}
 
 	users := make(map[string]struct{})
@@ -105,18 +132,31 @@ func (pred *HasContributorIn) Evaluate(ctx context.Context, prctx pull.Context) 
 		}
 	}
 
+	var contributorInfo common.ContributorInfo
+
+	contributorInfo.Organizations = pred.Organizations
+	contributorInfo.Teams = pred.Teams
+	contributorInfo.Users = pred.Users
+
+	predicateInfo := common.PredicateInfo{
+		Type:            "HasContributorsIn",
+		Name:            "Contributors",
+		ContributorInfo: &contributorInfo,
+	}
+
 	for user := range users {
 		member, err := pred.IsActor(ctx, prctx, user)
 		if err != nil {
-			return false, "", err
+			return false, "", nil, err
 		}
 		if member {
-			return true, "", nil
+			contributorInfo.Contributors = []string{user}
+			return true, "", &predicateInfo, nil
 		}
 	}
-
+	contributorInfo.Contributors = getKeyValues(users)
 	desc := "No contributors meet the required membership conditions"
-	return false, desc, nil
+	return false, desc, &predicateInfo, nil
 }
 
 func (pred *HasContributorIn) Trigger() common.Trigger {
@@ -127,28 +167,54 @@ type AuthorIsOnlyContributor bool
 
 var _ Predicate = AuthorIsOnlyContributor(false)
 
-func (pred AuthorIsOnlyContributor) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
+func (pred AuthorIsOnlyContributor) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, *common.PredicateInfo, error) {
 	commits, err := prctx.Commits()
 	if err != nil {
-		return false, "", errors.Wrap(err, "failed to get commits")
+		return false, "", nil, errors.Wrap(err, "failed to get commits")
 	}
 
 	author := prctx.Author()
+
+	users := make(map[string]struct{})
+
+	var contributorInfo common.ContributorInfo
+
+	contributorInfo.Author = author
+
+	predicateInfo := common.PredicateInfo{
+		Type:            "AuthorIsOnlyContributor",
+		Name:            "Author",
+		ContributorInfo: &contributorInfo,
+	}
+
 	for _, c := range commits {
+		for _, u := range c.Users() {
+			users[u] = struct{}{}
+		}
 		if c.Author != author || (!c.CommittedViaWeb && c.Committer != author) {
+			contributorInfo.Contributors = []string{c.Author, c.Committer}
 			if pred {
-				return false, fmt.Sprintf("Commit %.10s was authored or committed by a different user", c.SHA), nil
+				return false, fmt.Sprintf("Commit %.10s was authored or committed by a different user", c.SHA), &predicateInfo, nil
 			}
-			return true, "", nil
+			return true, "", &predicateInfo, nil
 		}
 	}
 
+	contributorInfo.Contributors = getKeyValues(users)
 	if pred {
-		return true, "", nil
+		return true, "", &predicateInfo, nil
 	}
-	return false, fmt.Sprintf("All commits were authored and committed by %s", author), nil
+	return false, fmt.Sprintf("All commits were authored and committed by %s", author), &predicateInfo, nil
 }
 
 func (pred AuthorIsOnlyContributor) Trigger() common.Trigger {
 	return common.TriggerCommit
+}
+
+func getKeyValues(m map[string]struct{}) []string {
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	return keys
 }

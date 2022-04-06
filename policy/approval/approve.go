@@ -33,7 +33,7 @@ type Rule struct {
 	Description string               `yaml:"description"`
 	Predicates  predicate.Predicates `yaml:"if"`
 	Options     Options              `yaml:"options"`
-	Requires    Requires             `yaml:"requires"`
+	Requires    common.Requires      `yaml:"requires"`
 }
 
 type Options struct {
@@ -71,12 +71,6 @@ func (opts *Options) GetMethods() *common.Methods {
 	return methods
 }
 
-type Requires struct {
-	Count int `yaml:"count"`
-
-	common.Actors `yaml:",inline"`
-}
-
 func (r *Rule) Trigger() common.Trigger {
 	t := common.TriggerCommit
 
@@ -103,9 +97,13 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 	res.Name = r.Name
 	res.Description = r.Description
 	res.Status = common.StatusSkipped
+	res.Requires = r.Requires
+
+	var predicatesInfo []*common.PredicateInfo
 
 	for _, p := range r.Predicates.Predicates() {
-		satisfied, desc, err := p.Evaluate(ctx, prctx)
+		satisfied, desc, pPredicateInfo, err := p.Evaluate(ctx, prctx)
+		predicatesInfo = append(predicatesInfo, pPredicateInfo)
 		if err != nil {
 			res.Error = errors.Wrap(err, "failed to evaluate predicate")
 			return
@@ -118,11 +116,11 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 			if desc == "" {
 				res.StatusDescription = "A precondition of this rule was not satisfied"
 			}
-
+			res.PredicatesInfo = []*common.PredicateInfo{pPredicateInfo}
 			return
 		}
 	}
-
+	res.PredicatesInfo = predicatesInfo
 	approved, msg, err := r.IsApproved(ctx, prctx)
 	if err != nil {
 		res.Error = errors.Wrap(err, "failed to compute approval status")

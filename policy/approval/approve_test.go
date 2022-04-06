@@ -29,6 +29,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type Requires = common.Requires
+
 func TestIsApproved(t *testing.T) {
 	logger := zerolog.New(os.Stdout)
 	ctx := logger.WithContext(context.Background())

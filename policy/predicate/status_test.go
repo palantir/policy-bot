@@ -85,7 +85,7 @@ func runStatusTestCase(t *testing.T, p Predicate, cases []StatusTestCase) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ok, _, err := p.Evaluate(ctx, tc.context)
+			ok, _, _, err := p.Evaluate(ctx, tc.context)
 			if assert.NoError(t, err, "evaluation failed") {
 				assert.Equal(t, tc.expected, ok, "predicate was not correct")
 			}

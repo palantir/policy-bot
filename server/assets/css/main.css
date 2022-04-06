@@ -16,7 +16,7 @@ a:hover {
 
 @tailwind components;
 
-/* custom components */
+/* custom compo nents */
 
 .tree {
   @apply pl-4;
@@ -197,6 +197,14 @@ a:hover {
 
 .bg-highlight {
   background-image: linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,0));
+}
+
+details summary {
+  cursor: pointer;
+}
+
+details summary > * {
+  display: inline-block;
 }
 
 /* end custom utilities */
