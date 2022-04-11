@@ -41,12 +41,12 @@ func TestWithNotMatchRule(t *testing.T) {
 				TitleValue: "",
 			},
 			&common.PredicateInfo{
-			    Type: "Title",
-			    Name: "Title",
-			    TitleInfo: &common.TitleInfo{
-	                NotMatchPatterns:   []string{"^(fix|feat|chore): (\\w| )+$"},
-	                PRTitle:    "",
-			    },
+				Type: "Title",
+				Name: "Title",
+				TitleInfo: &common.TitleInfo{
+					NotMatchPatterns: []string{"^(fix|feat|chore): (\\w| )+$"},
+					PRTitle:          "",
+				},
 			},
 		},
 		{
@@ -56,12 +56,12 @@ func TestWithNotMatchRule(t *testing.T) {
 				TitleValue: "chore: added tests",
 			},
 			&common.PredicateInfo{
-			    Type: "Title",
-			    Name: "Title",
-			    TitleInfo: &common.TitleInfo{
-	                NotMatchPatterns:   []string{"^(fix|feat|chore): (\\w| )+$"},
-	                PRTitle:    "chore: added tests",
-			    },
+				Type: "Title",
+				Name: "Title",
+				TitleInfo: &common.TitleInfo{
+					NotMatchPatterns: []string{"^(fix|feat|chore): (\\w| )+$"},
+					PRTitle:          "chore: added tests",
+				},
 			},
 		},
 		{
@@ -71,12 +71,12 @@ func TestWithNotMatchRule(t *testing.T) {
 				TitleValue: "changes: added tests",
 			},
 			&common.PredicateInfo{
-			    Type: "Title",
-			    Name: "Title",
-			    TitleInfo: &common.TitleInfo{
-	                NotMatchPatterns:   []string{"^(fix|feat|chore): (\\w| )+$"},
-	                PRTitle:    "changes: added tests",
-			    },
+				Type: "Title",
+				Name: "Title",
+				TitleInfo: &common.TitleInfo{
+					NotMatchPatterns: []string{"^(fix|feat|chore): (\\w| )+$"},
+					PRTitle:          "changes: added tests",
+				},
 			},
 		},
 	})
@@ -98,12 +98,12 @@ func TestWithMatchRule(t *testing.T) {
 				TitleValue: "",
 			},
 			&common.PredicateInfo{
-			    Type: "Title",
-			    Name: "Title",
-			    TitleInfo: &common.TitleInfo{
-	                MatchPatterns:  []string{"^BLOCKED"},
-	                PRTitle:    "",
-			    },
+				Type: "Title",
+				Name: "Title",
+				TitleInfo: &common.TitleInfo{
+					MatchPatterns: []string{"^BLOCKED"},
+					PRTitle:       "",
+				},
 			},
 		},
 		{
@@ -113,12 +113,12 @@ func TestWithMatchRule(t *testing.T) {
 				TitleValue: "BLOCKED: new feature",
 			},
 			&common.PredicateInfo{
-			    Type: "Title",
-			    Name: "Title",
-			    TitleInfo: &common.TitleInfo{
-	                MatchPatterns:  []string{"^BLOCKED"},
-	                PRTitle:    "BLOCKED: new feature",
-			    },
+				Type: "Title",
+				Name: "Title",
+				TitleInfo: &common.TitleInfo{
+					MatchPatterns: []string{"^BLOCKED"},
+					PRTitle:       "BLOCKED: new feature",
+				},
 			},
 		},
 		{
@@ -128,12 +128,12 @@ func TestWithMatchRule(t *testing.T) {
 				TitleValue: "feat: new feature",
 			},
 			&common.PredicateInfo{
-			    Type: "Title",
-			    Name: "Title",
-			    TitleInfo: &common.TitleInfo{
-	                MatchPatterns:  []string{"^BLOCKED"},
-	                PRTitle:    "feat: new feature",
-			    },
+				Type: "Title",
+				Name: "Title",
+				TitleInfo: &common.TitleInfo{
+					MatchPatterns: []string{"^BLOCKED"},
+					PRTitle:       "feat: new feature",
+				},
 			},
 		},
 	})
@@ -158,12 +158,12 @@ func TestWithMixedRules(t *testing.T) {
 				TitleValue: "",
 			},
 			&common.PredicateInfo{
-			    Type: "Title",
-			    Name: "Title",
-			    TitleInfo: &common.TitleInfo{
-			        NotMatchPatterns:  []string{"^(fix|feat|chore): (\\w| )+$", "^BREAKING CHANGE: (\\w| )+$"},
-	                PRTitle:    "",
-			    },
+				Type: "Title",
+				Name: "Title",
+				TitleInfo: &common.TitleInfo{
+					NotMatchPatterns: []string{"^(fix|feat|chore): (\\w| )+$", "^BREAKING CHANGE: (\\w| )+$"},
+					PRTitle:          "",
+				},
 			},
 		},
 		{
@@ -173,13 +173,13 @@ func TestWithMixedRules(t *testing.T) {
 				TitleValue: "fix: fixes failing tests",
 			},
 			&common.PredicateInfo{
-			    Type: "Title",
-			    Name: "Title",
-			    TitleInfo: &common.TitleInfo{
-	                MatchPatterns:  []string{"BLOCKED"},
-			        NotMatchPatterns:  []string{"^(fix|feat|chore): (\\w| )+$", "^BREAKING CHANGE: (\\w| )+$"},
-	                PRTitle:    "fix: fixes failing tests",
-			    },
+				Type: "Title",
+				Name: "Title",
+				TitleInfo: &common.TitleInfo{
+					MatchPatterns:    []string{"BLOCKED"},
+					NotMatchPatterns: []string{"^(fix|feat|chore): (\\w| )+$", "^BREAKING CHANGE: (\\w| )+$"},
+					PRTitle:          "fix: fixes failing tests",
+				},
 			},
 		},
 		{
@@ -189,13 +189,13 @@ func TestWithMixedRules(t *testing.T) {
 				TitleValue: "BREAKING CHANGE: new api version",
 			},
 			&common.PredicateInfo{
-			    Type: "Title",
-			    Name: "Title",
-			    TitleInfo: &common.TitleInfo{
-	                MatchPatterns:  []string{"BLOCKED"},
-			        NotMatchPatterns:  []string{"^(fix|feat|chore): (\\w| )+$", "^BREAKING CHANGE: (\\w| )+$"},
-	                PRTitle:    "BREAKING CHANGE: new api version",
-			    },
+				Type: "Title",
+				Name: "Title",
+				TitleInfo: &common.TitleInfo{
+					MatchPatterns:    []string{"BLOCKED"},
+					NotMatchPatterns: []string{"^(fix|feat|chore): (\\w| )+$", "^BREAKING CHANGE: (\\w| )+$"},
+					PRTitle:          "BREAKING CHANGE: new api version",
+				},
 			},
 		},
 		{
@@ -205,12 +205,12 @@ func TestWithMixedRules(t *testing.T) {
 				TitleValue: "BLOCKED: not working",
 			},
 			&common.PredicateInfo{
-			    Type: "Title",
-			    Name: "Title",
-			    TitleInfo: &common.TitleInfo{
-	                MatchPatterns:  []string{"BLOCKED"},
-	                PRTitle:    "BLOCKED: not working",
-			    },
+				Type: "Title",
+				Name: "Title",
+				TitleInfo: &common.TitleInfo{
+					MatchPatterns: []string{"BLOCKED"},
+					PRTitle:       "BLOCKED: not working",
+				},
 			},
 		},
 		{
@@ -220,12 +220,12 @@ func TestWithMixedRules(t *testing.T) {
 				TitleValue: "BREAKING CHANGE: BLOCKED",
 			},
 			&common.PredicateInfo{
-			    Type: "Title",
-			    Name: "Title",
-			    TitleInfo: &common.TitleInfo{
-	                MatchPatterns:  []string{"BLOCKED"},
-	                PRTitle:    "BREAKING CHANGE: BLOCKED",
-			    },
+				Type: "Title",
+				Name: "Title",
+				TitleInfo: &common.TitleInfo{
+					MatchPatterns: []string{"BLOCKED"},
+					PRTitle:       "BREAKING CHANGE: BLOCKED",
+				},
 			},
 		},
 		{
@@ -235,21 +235,21 @@ func TestWithMixedRules(t *testing.T) {
 				TitleValue: "test: adds tests",
 			},
 			&common.PredicateInfo{
-			    Type: "Title",
-			    Name: "Title",
-			    TitleInfo: &common.TitleInfo{
-			        NotMatchPatterns:  []string{"^(fix|feat|chore): (\\w| )+$", "^BREAKING CHANGE: (\\w| )+$"},
-	                PRTitle:    "test: adds tests",
-			    },
+				Type: "Title",
+				Name: "Title",
+				TitleInfo: &common.TitleInfo{
+					NotMatchPatterns: []string{"^(fix|feat|chore): (\\w| )+$", "^BREAKING CHANGE: (\\w| )+$"},
+					PRTitle:          "test: adds tests",
+				},
 			},
 		},
 	})
 }
 
 type TitleTestCase struct {
-	name     string
-	expected bool
-	context  pull.Context
+	name                  string
+	expected              bool
+	context               pull.Context
 	ExpectedPredicateInfo *common.PredicateInfo
 }
 

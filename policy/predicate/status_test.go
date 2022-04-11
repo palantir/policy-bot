@@ -38,11 +38,11 @@ func TestHasSuccessfulStatus(t *testing.T) {
 				},
 			},
 			&common.PredicateInfo{
-			    Type: "HasSuccessfulStatus",
-			    Name: "Status",
-			    StatusInfo: &common.StatusInfo{
-			        Status:   []string{"status-name", "status-name-2"},
-			    },
+				Type: "HasSuccessfulStatus",
+				Name: "Status",
+				StatusInfo: &common.StatusInfo{
+					Status: []string{"status-name", "status-name-2"},
+				},
 			},
 		},
 		{
@@ -55,11 +55,11 @@ func TestHasSuccessfulStatus(t *testing.T) {
 				},
 			},
 			&common.PredicateInfo{
-			    Type: "HasSuccessfulStatus",
-			    Name: "Status",
-			    StatusInfo: &common.StatusInfo{
-			        Status:   []string{"status-name-2"},
-			    },
+				Type: "HasSuccessfulStatus",
+				Name: "Status",
+				StatusInfo: &common.StatusInfo{
+					Status: []string{"status-name-2"},
+				},
 			},
 		},
 		{
@@ -72,11 +72,11 @@ func TestHasSuccessfulStatus(t *testing.T) {
 				},
 			},
 			&common.PredicateInfo{
-			    Type: "HasSuccessfulStatus",
-			    Name: "Status",
-			    StatusInfo: &common.StatusInfo{
-			        Status:   []string{"status-name", "status-name-2"},
-			    },
+				Type: "HasSuccessfulStatus",
+				Name: "Status",
+				StatusInfo: &common.StatusInfo{
+					Status: []string{"status-name", "status-name-2"},
+				},
 			},
 		},
 		{
@@ -88,11 +88,11 @@ func TestHasSuccessfulStatus(t *testing.T) {
 				},
 			},
 			&common.PredicateInfo{
-			    Type: "HasSuccessfulStatus",
-			    Name: "Status",
-			    StatusInfo: &common.StatusInfo{
-			        Status:   []string{"status-name-2"},
-			    },
+				Type: "HasSuccessfulStatus",
+				Name: "Status",
+				StatusInfo: &common.StatusInfo{
+					Status: []string{"status-name-2"},
+				},
 			},
 		},
 		{
@@ -100,20 +100,20 @@ func TestHasSuccessfulStatus(t *testing.T) {
 			false,
 			&pulltest.Context{},
 			&common.PredicateInfo{
-			    Type: "HasSuccessfulStatus",
-			    Name: "Status",
-			    StatusInfo: &common.StatusInfo{
-			        Status:   []string{"status-name", "status-name-2"},
-			    },
+				Type: "HasSuccessfulStatus",
+				Name: "Status",
+				StatusInfo: &common.StatusInfo{
+					Status: []string{"status-name", "status-name-2"},
+				},
 			},
 		},
 	})
 }
 
 type StatusTestCase struct {
-	name     string
-	expected bool
-	context  pull.Context
+	name                  string
+	expected              bool
+	context               pull.Context
 	ExpectedPredicateInfo *common.PredicateInfo
 }
 

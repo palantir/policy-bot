@@ -42,12 +42,12 @@ func TestChangedFiles(t *testing.T) {
 			false,
 			[]*pull.File{},
 			&common.PredicateInfo{
-			    Type: "ChangedFiles",
-			    Name: "Changed Files",
-			    FileInfo: &common.FileInfo{
-			        Paths:  []string{"app/.*\\.go", "server/.*\\.go"},
-			        IgnorePaths:    []string{".*/special\\.go"},
-			    },
+				Type: "ChangedFiles",
+				Name: "Changed Files",
+				FileInfo: &common.FileInfo{
+					Paths:       []string{"app/.*\\.go", "server/.*\\.go"},
+					IgnorePaths: []string{".*/special\\.go"},
+				},
 			},
 		},
 		{
@@ -64,13 +64,13 @@ func TestChangedFiles(t *testing.T) {
 				},
 			},
 			&common.PredicateInfo{
-			    Type: "ChangedFiles",
-			    Name: "Changed Files",
-			    FileInfo: &common.FileInfo{
-			        Paths:  []string{"app/.*\\.go", "server/.*\\.go"},
-			        IgnorePaths:    []string{".*/special\\.go"},
-			        ChangedFiles:   []string{"app/client.go"},
-			    },
+				Type: "ChangedFiles",
+				Name: "Changed Files",
+				FileInfo: &common.FileInfo{
+					Paths:        []string{"app/.*\\.go", "server/.*\\.go"},
+					IgnorePaths:  []string{".*/special\\.go"},
+					ChangedFiles: []string{"app/client.go"},
+				},
 			},
 		},
 		{
@@ -87,13 +87,13 @@ func TestChangedFiles(t *testing.T) {
 				},
 			},
 			&common.PredicateInfo{
-			    Type: "ChangedFiles",
-			    Name: "Changed Files",
-			    FileInfo: &common.FileInfo{
-			        Paths:  []string{"app/.*\\.go", "server/.*\\.go"},
-			        IgnorePaths:    []string{".*/special\\.go"},
-			        ChangedFiles:   []string{"app/client.go"},
-			    },
+				Type: "ChangedFiles",
+				Name: "Changed Files",
+				FileInfo: &common.FileInfo{
+					Paths:        []string{"app/.*\\.go", "server/.*\\.go"},
+					IgnorePaths:  []string{".*/special\\.go"},
+					ChangedFiles: []string{"app/client.go"},
+				},
 			},
 		},
 		{
@@ -110,13 +110,13 @@ func TestChangedFiles(t *testing.T) {
 				},
 			},
 			&common.PredicateInfo{
-			    Type: "ChangedFiles",
-			    Name: "Changed Files",
-			    FileInfo: &common.FileInfo{
-			        Paths:  []string{"app/.*\\.go", "server/.*\\.go"},
-			        IgnorePaths:    []string{".*/special\\.go"},
-			        ChangedFiles:   []string{"model/order.go", "model/user.go"},
-			    },
+				Type: "ChangedFiles",
+				Name: "Changed Files",
+				FileInfo: &common.FileInfo{
+					Paths:        []string{"app/.*\\.go", "server/.*\\.go"},
+					IgnorePaths:  []string{".*/special\\.go"},
+					ChangedFiles: []string{"model/order.go", "model/user.go"},
+				},
 			},
 		},
 		{
@@ -133,13 +133,13 @@ func TestChangedFiles(t *testing.T) {
 				},
 			},
 			&common.PredicateInfo{
-			    Type: "ChangedFiles",
-			    Name: "Changed Files",
-			    FileInfo: &common.FileInfo{
-			        Paths:  []string{"app/.*\\.go", "server/.*\\.go"},
-			        IgnorePaths:    []string{".*/special\\.go"},
-			        ChangedFiles:   []string{"app/special.go", "server/special.go"},
-			    },
+				Type: "ChangedFiles",
+				Name: "Changed Files",
+				FileInfo: &common.FileInfo{
+					Paths:        []string{"app/.*\\.go", "server/.*\\.go"},
+					IgnorePaths:  []string{".*/special\\.go"},
+					ChangedFiles: []string{"app/special.go", "server/special.go"},
+				},
 			},
 		},
 		{
@@ -156,13 +156,13 @@ func TestChangedFiles(t *testing.T) {
 				},
 			},
 			&common.PredicateInfo{
-			    Type: "ChangedFiles",
-			    Name: "Changed Files",
-			    FileInfo: &common.FileInfo{
-			        Paths:  []string{"app/.*\\.go", "server/.*\\.go"},
-			        IgnorePaths:    []string{".*/special\\.go"},
-			        ChangedFiles:   []string{"app/normal.go"},
-			    },
+				Type: "ChangedFiles",
+				Name: "Changed Files",
+				FileInfo: &common.FileInfo{
+					Paths:        []string{"app/.*\\.go", "server/.*\\.go"},
+					IgnorePaths:  []string{".*/special\\.go"},
+					ChangedFiles: []string{"app/normal.go"},
+				},
 			},
 		},
 	})
@@ -182,11 +182,11 @@ func TestOnlyChangedFiles(t *testing.T) {
 			false,
 			[]*pull.File{},
 			&common.PredicateInfo{
-			    Type: "OnlyChangedFiles",
-			    Name: "Changed Files",
-			    FileInfo: &common.FileInfo{
-			        Paths:  []string{"app/.*\\.go", "server/.*\\.go"},
-			    },
+				Type: "OnlyChangedFiles",
+				Name: "Changed Files",
+				FileInfo: &common.FileInfo{
+					Paths: []string{"app/.*\\.go", "server/.*\\.go"},
+				},
 			},
 		},
 		{
@@ -203,12 +203,12 @@ func TestOnlyChangedFiles(t *testing.T) {
 				},
 			},
 			&common.PredicateInfo{
-			    Type: "OnlyChangedFiles",
-			    Name: "Changed Files",
-			    FileInfo: &common.FileInfo{
-			        Paths:  []string{"app/.*\\.go", "server/.*\\.go"},
-			        ChangedFiles:   []string{"app/client.go", "server/server.go"},
-			    },
+				Type: "OnlyChangedFiles",
+				Name: "Changed Files",
+				FileInfo: &common.FileInfo{
+					Paths:        []string{"app/.*\\.go", "server/.*\\.go"},
+					ChangedFiles: []string{"app/client.go", "server/server.go"},
+				},
 			},
 		},
 		{
@@ -225,12 +225,12 @@ func TestOnlyChangedFiles(t *testing.T) {
 				},
 			},
 			&common.PredicateInfo{
-			    Type: "OnlyChangedFiles",
-			    Name: "Changed Files",
-			    FileInfo: &common.FileInfo{
-			        Paths:  []string{"app/.*\\.go", "server/.*\\.go"},
-			        ChangedFiles:   []string{"model/user.go"},
-			    },
+				Type: "OnlyChangedFiles",
+				Name: "Changed Files",
+				FileInfo: &common.FileInfo{
+					Paths:        []string{"app/.*\\.go", "server/.*\\.go"},
+					ChangedFiles: []string{"model/user.go"},
+				},
 			},
 		},
 		{
@@ -247,12 +247,12 @@ func TestOnlyChangedFiles(t *testing.T) {
 				},
 			},
 			&common.PredicateInfo{
-			    Type: "OnlyChangedFiles",
-			    Name: "Changed Files",
-			    FileInfo: &common.FileInfo{
-			        Paths:  []string{"app/.*\\.go", "server/.*\\.go"},
-			        ChangedFiles:   []string{"model/order.go"},
-			    },
+				Type: "OnlyChangedFiles",
+				Name: "Changed Files",
+				FileInfo: &common.FileInfo{
+					Paths:        []string{"app/.*\\.go", "server/.*\\.go"},
+					ChangedFiles: []string{"model/order.go"},
+				},
 			},
 		},
 	})
@@ -270,14 +270,14 @@ func TestModifiedLines(t *testing.T) {
 			false,
 			[]*pull.File{},
 			&common.PredicateInfo{
-		        Type:     "ModifiedLines",
-		        Name:     "Modified Lines",
-			    FileInfo: &common.FileInfo{
-	                AdditionLimit:  "> 100",
-	                DeletionLimit:  "> 10",
-	                AddedLines:     0,
-	                DeletedLines:   0,
-			    },
+				Type: "ModifiedLines",
+				Name: "Modified Lines",
+				FileInfo: &common.FileInfo{
+					AdditionLimit: "> 100",
+					DeletionLimit: "> 10",
+					AddedLines:    0,
+					DeletedLines:  0,
+				},
 			},
 		},
 		{
@@ -289,12 +289,12 @@ func TestModifiedLines(t *testing.T) {
 				{Additions: 45},
 			},
 			&common.PredicateInfo{
-		        Type:     "ModifiedLines",
-		        Name:     "Modified Lines",
-			    FileInfo: &common.FileInfo{
-	                AdditionLimit:  "> 100",
-	                AddedLines:     110,
-			    },
+				Type: "ModifiedLines",
+				Name: "Modified Lines",
+				FileInfo: &common.FileInfo{
+					AdditionLimit: "> 100",
+					AddedLines:    110,
+				},
 			},
 		},
 		{
@@ -307,12 +307,12 @@ func TestModifiedLines(t *testing.T) {
 				{Deletions: 10},
 			},
 			&common.PredicateInfo{
-		        Type:     "ModifiedLines",
-		        Name:     "Modified Lines",
-			    FileInfo: &common.FileInfo{
-	                DeletionLimit:  "> 10",
-	                DeletedLines:   20,
-			    },
+				Type: "ModifiedLines",
+				Name: "Modified Lines",
+				FileInfo: &common.FileInfo{
+					DeletionLimit: "> 10",
+					DeletedLines:  20,
+				},
 			},
 		},
 	})
@@ -332,12 +332,12 @@ func TestModifiedLines(t *testing.T) {
 				{Additions: 20, Deletions: 20},
 			},
 			&common.PredicateInfo{
-		        Type:     "ModifiedLines",
-		        Name:     "Modified Lines",
-			    FileInfo: &common.FileInfo{
-	                TotalLimit:  "> 100",
-                    TotalModifiedLines: 120,
-			    },
+				Type: "ModifiedLines",
+				Name: "Modified Lines",
+				FileInfo: &common.FileInfo{
+					TotalLimit:         "> 100",
+					TotalModifiedLines: 120,
+				},
 			},
 		},
 	})
@@ -434,9 +434,9 @@ func TestComparisonExpr(t *testing.T) {
 }
 
 type FileTestCase struct {
-	Name     string
-	Expected bool
-	Files    []*pull.File
+	Name                  string
+	Expected              bool
+	Files                 []*pull.File
 	ExpectedPredicateInfo *common.PredicateInfo
 }
 

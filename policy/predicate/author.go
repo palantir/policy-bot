@@ -78,11 +78,11 @@ func (pred *OnlyHasContributorsIn) Evaluate(ctx context.Context, prctx pull.Cont
 		}
 	}
 
-    var contributorInfo common.ContributorInfo
+	var contributorInfo common.ContributorInfo
 
-    contributorInfo.Organizations = pred.Organizations
-    contributorInfo.Teams = pred.Teams
-    contributorInfo.Users = pred.Users
+	contributorInfo.Organizations = pred.Organizations
+	contributorInfo.Teams = pred.Teams
+	contributorInfo.Users = pred.Users
 
 	predicateInfo := common.PredicateInfo{
 		Type:            "OnlyHasContributorsIn",
@@ -96,11 +96,11 @@ func (pred *OnlyHasContributorsIn) Evaluate(ctx context.Context, prctx pull.Cont
 			return false, "", nil, err
 		}
 		if !member {
-		    contributorInfo.Contributors = []string{user}
+			contributorInfo.Contributors = []string{user}
 			return false, fmt.Sprintf("Contributor %q does not meet the required membership conditions", user), &predicateInfo, nil
 		}
 	}
-    contributorInfo.Contributors = getKeyValues(users)
+	contributorInfo.Contributors = getKeyValues(users)
 	return true, "", &predicateInfo, nil
 }
 

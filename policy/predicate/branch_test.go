@@ -30,28 +30,28 @@ func TestBranches(t *testing.T) {
 			"simple match - master",
 			true,
 			"master",
-            &common.BranchInfo{
-                Patterns:   []string{"^master$"},
-                Branch:     "master",
-            },
+			&common.BranchInfo{
+				Patterns: []string{"^master$"},
+				Branch:   "master",
+			},
 		},
 		{
 			"simple non match",
 			false,
 			"another-branch",
-            &common.BranchInfo{
-                Patterns:   []string{"^master$"},
-                Branch:     "another-branch",
-            },
+			&common.BranchInfo{
+				Patterns: []string{"^master$"},
+				Branch:   "another-branch",
+			},
 		},
 		{
 			"tests anchoring",
 			false,
 			"not-master",
-            &common.BranchInfo{
-                Patterns:   []string{"^master$"},
-                Branch:     "not-master",
-            },
+			&common.BranchInfo{
+				Patterns: []string{"^master$"},
+				Branch:   "not-master",
+			},
 		},
 	})
 
@@ -60,19 +60,19 @@ func TestBranches(t *testing.T) {
 			"matches all example 1",
 			true,
 			"master",
-            &common.BranchInfo{
-                Patterns:   []string{".*"},
-                Branch:     "master",
-            },
+			&common.BranchInfo{
+				Patterns: []string{".*"},
+				Branch:   "master",
+			},
 		},
 		{
 			"matches all example 2",
 			true,
 			"another-one",
-            &common.BranchInfo{
-                Patterns:   []string{".*"},
-                Branch:     "another-one",
-            },
+			&common.BranchInfo{
+				Patterns: []string{".*"},
+				Branch:   "another-one",
+			},
 		},
 	})
 
@@ -81,37 +81,37 @@ func TestBranches(t *testing.T) {
 			"matches pattern - prod",
 			true,
 			"prod",
-            &common.BranchInfo{
-                Patterns:   []string{"(prod|staging)"},
-                Branch:     "prod",
-            },
+			&common.BranchInfo{
+				Patterns: []string{"(prod|staging)"},
+				Branch:   "prod",
+			},
 		},
 		{
 			"matches pattern - staging",
 			true,
 			"staging",
-            &common.BranchInfo{
-                Patterns:   []string{"(prod|staging)"},
-                Branch:     "staging",
-            },
+			&common.BranchInfo{
+				Patterns: []string{"(prod|staging)"},
+				Branch:   "staging",
+			},
 		},
 		{
 			"matches pattern - not-a-match",
 			false,
 			"not-a-match",
-            &common.BranchInfo{
-                Patterns:   []string{"(prod|staging)"},
-                Branch:     "not-a-match",
-            },
+			&common.BranchInfo{
+				Patterns: []string{"(prod|staging)"},
+				Branch:   "not-a-match",
+			},
 		},
 	})
 }
 
 // TODO: generalize this and use it all our test cases
 type branchesTestCase struct {
-	name       string
-	expected   bool
-	branchName string
+	name               string
+	expected           bool
+	branchName         string
 	expectedBranchInfo *common.BranchInfo
 }
 

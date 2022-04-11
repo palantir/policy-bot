@@ -35,12 +35,12 @@ func TestHasLabels(t *testing.T) {
 				LabelsValue: []string{"foo", "bar"},
 			},
 			&common.PredicateInfo{
-			    Type: "HasLabels",
-			    Name: "Labels",
-			    LabelInfo: &common.LabelInfo{
-			        RequiredLabels:  []string{"foo", "bar"},
-			        PRLabels:    []string{"foo", "bar"},
-			    },
+				Type: "HasLabels",
+				Name: "Labels",
+				LabelInfo: &common.LabelInfo{
+					RequiredLabels: []string{"foo", "bar"},
+					PRLabels:       []string{"foo", "bar"},
+				},
 			},
 		},
 		{
@@ -50,12 +50,12 @@ func TestHasLabels(t *testing.T) {
 				LabelsValue: []string{"foo"},
 			},
 			&common.PredicateInfo{
-			    Type: "HasLabels",
-			    Name: "Labels",
-			    LabelInfo: &common.LabelInfo{
-			        RequiredLabels:  []string{"bar"},
-			        PRLabels:    []string{"foo"},
-			    },
+				Type: "HasLabels",
+				Name: "Labels",
+				LabelInfo: &common.LabelInfo{
+					RequiredLabels: []string{"bar"},
+					PRLabels:       []string{"foo"},
+				},
 			},
 		},
 		{
@@ -65,12 +65,12 @@ func TestHasLabels(t *testing.T) {
 				LabelsValue: []string{},
 			},
 			&common.PredicateInfo{
-			    Type: "HasLabels",
-			    Name: "Labels",
-			    LabelInfo: &common.LabelInfo{
-			        RequiredLabels:  []string{"foo"},
-			        PRLabels:    []string{},
-			    },
+				Type: "HasLabels",
+				Name: "Labels",
+				LabelInfo: &common.LabelInfo{
+					RequiredLabels: []string{"foo"},
+					PRLabels:       []string{},
+				},
 			},
 		},
 		{
@@ -83,10 +83,10 @@ func TestHasLabels(t *testing.T) {
 }
 
 type HasLabelsTestCase struct {
-	name     string
-	expected bool
-	context  pull.Context
-	ExpectedPredicateInfo   *common.PredicateInfo
+	name                  string
+	expected              bool
+	context               pull.Context
+	ExpectedPredicateInfo *common.PredicateInfo
 }
 
 func runLabelsTestCase(t *testing.T, p Predicate, cases []HasLabelsTestCase) {
@@ -97,10 +97,10 @@ func runLabelsTestCase(t *testing.T, p Predicate, cases []HasLabelsTestCase) {
 			ok, _, predicateInfo, err := p.Evaluate(ctx, tc.context)
 			if assert.NoError(t, err, "evaluation failed") {
 				assert.Equal(t, tc.expected, ok, "predicate was not correct")
-				if tc.ExpectedPredicateInfo != nil{
-				    assert.Equal(t, *tc.ExpectedPredicateInfo.LabelInfo, *predicateInfo.LabelInfo, "LabelInfo was not correct")
-				    assert.Equal(t, tc.ExpectedPredicateInfo.Name, predicateInfo.Name, "PredicateInfo's Name was not correct")
-				    assert.Equal(t, tc.ExpectedPredicateInfo.Type, predicateInfo.Type, "PredicateInfo's Type was not correct")
+				if tc.ExpectedPredicateInfo != nil {
+					assert.Equal(t, *tc.ExpectedPredicateInfo.LabelInfo, *predicateInfo.LabelInfo, "LabelInfo was not correct")
+					assert.Equal(t, tc.ExpectedPredicateInfo.Name, predicateInfo.Name, "PredicateInfo's Name was not correct")
+					assert.Equal(t, tc.ExpectedPredicateInfo.Type, predicateInfo.Type, "PredicateInfo's Type was not correct")
 				}
 			}
 		})

@@ -84,9 +84,9 @@ func (pred *HasValidSignaturesBy) Evaluate(ctx context.Context, prctx pull.Conte
 		CommitInfo: &commitInfo,
 	}
 
-    commitInfo.Organizations = pred.Organizations
-    commitInfo.Teams = pred.Teams
-    commitInfo.Users = pred.Users
+	commitInfo.Organizations = pred.Organizations
+	commitInfo.Teams = pred.Teams
+	commitInfo.Users = pred.Users
 
 	signers := make(map[string]string)
 	var commitHashes []string
@@ -102,10 +102,10 @@ func (pred *HasValidSignaturesBy) Evaluate(ctx context.Context, prctx pull.Conte
 		commitHashes = append(commitHashes, c.SHA)
 	}
 
-    var signerList []string
+	var signerList []string
 
 	for signer := range signers {
-	    signerList = append(signerList, signer)
+		signerList = append(signerList, signer)
 		member, err := pred.IsActor(ctx, prctx, signer)
 		if err != nil {
 			return false, "", nil, err
@@ -152,8 +152,8 @@ func (pred *HasValidSignaturesByKeys) Evaluate(ctx context.Context, prctx pull.C
 	for _, c := range commits {
 		valid, desc := hasValidSignature(ctx, c)
 		if !valid {
-		    commitInfo.CommitHashes = []string{c.SHA}
-		    commitInfo.Keys = []string{}
+			commitInfo.CommitHashes = []string{c.SHA}
+			commitInfo.Keys = []string{}
 			return false, desc, &predicateInfo, nil
 		}
 		commitHashes = append(commitHashes, c.SHA)
@@ -171,7 +171,7 @@ func (pred *HasValidSignaturesByKeys) Evaluate(ctx context.Context, prctx pull.C
 	var keyList []string
 
 	for key := range keys {
-	    keyList = append(keyList, key)
+		keyList = append(keyList, key)
 		isValidKey := false
 		for _, acceptedKey := range pred.KeyIDs {
 			if key == acceptedKey {
@@ -180,7 +180,7 @@ func (pred *HasValidSignaturesByKeys) Evaluate(ctx context.Context, prctx pull.C
 			}
 		}
 		if !isValidKey {
-		    commitInfo.CommitHashes = []string{keys[key]}
+			commitInfo.CommitHashes = []string{keys[key]}
 			commitInfo.Keys = []string{key}
 			return false, fmt.Sprintf("Key %q does not meet the required key conditions for signing", key), &predicateInfo, nil
 		}
