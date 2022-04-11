@@ -172,8 +172,6 @@ func (pred AuthorIsOnlyContributor) Evaluate(ctx context.Context, prctx pull.Con
 
 	author := prctx.Author()
 
-	users := make(map[string]struct{})
-
 	var contributorInfo common.ContributorInfo
 
 	contributorInfo.Author = author
@@ -185,9 +183,6 @@ func (pred AuthorIsOnlyContributor) Evaluate(ctx context.Context, prctx pull.Con
 	}
 
 	for _, c := range commits {
-		for _, u := range c.Users() {
-			users[u] = struct{}{}
-		}
 		if c.Author != author || (!c.CommittedViaWeb && c.Committer != author) {
 			if pred {
 				return false, fmt.Sprintf("Commit %.10s was authored or committed by a different user", c.SHA), &predicateInfo, nil

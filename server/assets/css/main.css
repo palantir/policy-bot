@@ -16,7 +16,7 @@ a:hover {
 
 @tailwind components;
 
-/* custom compo nents */
+/* custom components */
 
 .tree {
   @apply pl-4;
