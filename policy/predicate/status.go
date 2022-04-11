@@ -51,18 +51,15 @@ func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context
 	}
 
 	if len(missingResults) > 0 {
-		statusInfo.Type = "missing"
 		statusInfo.Status = missingResults
 		return false, "One or more statuses is missing: " + strings.Join(missingResults, ", "), &predicateInfo, nil
 	}
 
 	if len(failingStatuses) > 0 {
-		statusInfo.Type = "failing"
-		statusInfo.Status = missingResults
+		statusInfo.Status = failingStatuses
 		return false, "One or more statuses has not passed: " + strings.Join(failingStatuses, ","), &predicateInfo, nil
 	}
 
-	statusInfo.Type = "success"
 	statusInfo.Status = pred
 
 	return true, "", &predicateInfo, nil

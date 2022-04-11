@@ -49,6 +49,13 @@ func TestHasValidSignatures(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateInfo{
+			    Type: "HasValidSignatures",
+			    Name: "Commit Hashes",
+			    CommitInfo: &common.CommitInfo{
+			        CommitHashes:   []string{"abcdef123456789"},
+			    },
+			},
 		},
 		{
 			"InvalidSignature",
@@ -70,6 +77,13 @@ func TestHasValidSignatures(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateInfo{
+			    Type: "HasValidSignatures",
+			    Name: "Commit Hashes",
+			    CommitInfo: &common.CommitInfo{
+			        CommitHashes:   []string{"abcdef123456789"},
+			    },
+			},
 		},
 		{
 			"NoSignature",
@@ -84,6 +98,13 @@ func TestHasValidSignatures(t *testing.T) {
 						Signature: nil,
 					},
 				},
+			},
+			&common.PredicateInfo{
+			    Type: "HasValidSignatures",
+			    Name: "Commit Hashes",
+			    CommitInfo: &common.CommitInfo{
+			        CommitHashes:   []string{"abcdef123456789"},
+			    },
 			},
 		},
 	}
@@ -127,6 +148,17 @@ func TestHasValidSignaturesBy(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateInfo{
+			    Type: "HasValidSignaturesBy",
+			    Name: "Commit Hashes and Signers",
+			    CommitInfo: &common.CommitInfo{
+			    	Organizations:  p.Organizations,
+                	Teams:  p.Teams,
+                	Users:  p.Users,
+			        CommitHashes:   []string{"abcdef123456789"},
+			        Signers:    []string{"mhaypenny"},
+			    },
+			},
 		},
 		{
 			"ValidSignatureButNotUser",
@@ -147,6 +179,17 @@ func TestHasValidSignaturesBy(t *testing.T) {
 						},
 					},
 				},
+			},
+			&common.PredicateInfo{
+			    Type: "HasValidSignaturesBy",
+			    Name: "Commit Hashes and Signers",
+			    CommitInfo: &common.CommitInfo{
+			    	Organizations:  p.Organizations,
+                	Teams:  p.Teams,
+                	Users:  p.Users,
+			        CommitHashes:   []string{"abcdef123456789"},
+			        Signers:    []string{"badcommitter"},
+			    },
 			},
 		},
 		{
@@ -174,6 +217,17 @@ func TestHasValidSignaturesBy(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateInfo{
+			    Type: "HasValidSignaturesBy",
+			    Name: "Commit Hashes and Signers",
+			    CommitInfo: &common.CommitInfo{
+			    	Organizations:  p.Organizations,
+                	Teams:  p.Teams,
+                	Users:  p.Users,
+			        CommitHashes:   []string{"abcdef123456789"},
+			        Signers:    []string{"ttest"},
+			    },
+			},
 		},
 		{
 			"NoSignature",
@@ -188,6 +242,17 @@ func TestHasValidSignaturesBy(t *testing.T) {
 						Signature: nil,
 					},
 				},
+			},
+			&common.PredicateInfo{
+			    Type: "HasValidSignaturesBy",
+			    Name: "Commit Hashes and Signers",
+			    CommitInfo: &common.CommitInfo{
+			    	Organizations:  p.Organizations,
+                	Teams:  p.Teams,
+                	Users:  p.Users,
+			        CommitHashes:   []string{"abcdef123456789"},
+			        Signers:    []string{},
+			    },
 			},
 		},
 	})
@@ -219,6 +284,14 @@ func TestHasValidSignaturesByKeys(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateInfo{
+			    Type: "HasValidSignaturesByKeys",
+			    Name: "Commit Hashes and Keys",
+			    CommitInfo: &common.CommitInfo{
+			        CommitHashes:   []string{"abcdef123456789"},
+			        Keys:    []string{"3AA5C34371567BD2"},
+			    },
+			},
 		},
 		{
 			"ValidSignatureByInvalidKey",
@@ -239,6 +312,14 @@ func TestHasValidSignaturesByKeys(t *testing.T) {
 						},
 					},
 				},
+			},
+			&common.PredicateInfo{
+			    Type: "HasValidSignaturesByKeys",
+			    Name: "Commit Hashes and Keys",
+			    CommitInfo: &common.CommitInfo{
+			        CommitHashes:   []string{"abcdef123456789"},
+			        Keys:    []string{"3AB5C35371567CE7"},
+			    },
 			},
 		},
 		{
@@ -261,6 +342,14 @@ func TestHasValidSignaturesByKeys(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateInfo{
+			    Type: "HasValidSignaturesByKeys",
+			    Name: "Commit Hashes and Keys",
+			    CommitInfo: &common.CommitInfo{
+			        CommitHashes:   []string{"abcdef123456789"},
+			        Keys:    []string{},
+			    },
+			},
 		},
 	})
 }
@@ -269,6 +358,7 @@ type SignatureTestCase struct {
 	Name     string
 	Expected bool
 	Context  pull.Context
+	ExpectedPredicateInfo   *common.PredicateInfo
 }
 
 func runSignatureTests(t *testing.T, p Predicate, cases []SignatureTestCase) {
@@ -276,9 +366,12 @@ func runSignatureTests(t *testing.T, p Predicate, cases []SignatureTestCase) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			ok, _, _, err := p.Evaluate(ctx, tc.Context)
+			ok, _, predicateInfo, err := p.Evaluate(ctx, tc.Context)
 			if assert.NoError(t, err, "evaluation failed") {
 				assert.Equal(t, tc.Expected, ok, "predicate was not correct")
+				assert.Equal(t, *tc.ExpectedPredicateInfo.CommitInfo, *predicateInfo.CommitInfo, "CommitInfo was not correct")
+				assert.Equal(t, tc.ExpectedPredicateInfo.Name, predicateInfo.Name, "PredicateInfo's Name was not correct")
+				assert.Equal(t, tc.ExpectedPredicateInfo.Type, predicateInfo.Type, "PredicateInfo's Type was not correct")
 			}
 		})
 	}

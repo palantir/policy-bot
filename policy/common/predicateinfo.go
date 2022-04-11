@@ -67,7 +67,6 @@ type CommitInfo struct {
 }
 
 type StatusInfo struct {
-	Type   string
 	Status []string
 }
 

@@ -40,6 +40,14 @@ func TestWithNotMatchRule(t *testing.T) {
 			&pulltest.Context{
 				TitleValue: "",
 			},
+			&common.PredicateInfo{
+			    Type: "Title",
+			    Name: "Title",
+			    TitleInfo: &common.TitleInfo{
+	                NotMatchPatterns:   []string{"^(fix|feat|chore): (\\w| )+$"},
+	                PRTitle:    "",
+			    },
+			},
 		},
 		{
 			"matches pattern",
@@ -47,12 +55,28 @@ func TestWithNotMatchRule(t *testing.T) {
 			&pulltest.Context{
 				TitleValue: "chore: added tests",
 			},
+			&common.PredicateInfo{
+			    Type: "Title",
+			    Name: "Title",
+			    TitleInfo: &common.TitleInfo{
+	                NotMatchPatterns:   []string{"^(fix|feat|chore): (\\w| )+$"},
+	                PRTitle:    "chore: added tests",
+			    },
+			},
 		},
 		{
 			"does not match pattern",
 			true,
 			&pulltest.Context{
 				TitleValue: "changes: added tests",
+			},
+			&common.PredicateInfo{
+			    Type: "Title",
+			    Name: "Title",
+			    TitleInfo: &common.TitleInfo{
+	                NotMatchPatterns:   []string{"^(fix|feat|chore): (\\w| )+$"},
+	                PRTitle:    "changes: added tests",
+			    },
 			},
 		},
 	})
@@ -73,6 +97,14 @@ func TestWithMatchRule(t *testing.T) {
 			&pulltest.Context{
 				TitleValue: "",
 			},
+			&common.PredicateInfo{
+			    Type: "Title",
+			    Name: "Title",
+			    TitleInfo: &common.TitleInfo{
+	                MatchPatterns:  []string{"^BLOCKED"},
+	                PRTitle:    "",
+			    },
+			},
 		},
 		{
 			"matches pattern",
@@ -80,12 +112,28 @@ func TestWithMatchRule(t *testing.T) {
 			&pulltest.Context{
 				TitleValue: "BLOCKED: new feature",
 			},
+			&common.PredicateInfo{
+			    Type: "Title",
+			    Name: "Title",
+			    TitleInfo: &common.TitleInfo{
+	                MatchPatterns:  []string{"^BLOCKED"},
+	                PRTitle:    "BLOCKED: new feature",
+			    },
+			},
 		},
 		{
 			"does not match pattern",
 			false,
 			&pulltest.Context{
 				TitleValue: "feat: new feature",
+			},
+			&common.PredicateInfo{
+			    Type: "Title",
+			    Name: "Title",
+			    TitleInfo: &common.TitleInfo{
+	                MatchPatterns:  []string{"^BLOCKED"},
+	                PRTitle:    "feat: new feature",
+			    },
 			},
 		},
 	})
@@ -109,12 +157,29 @@ func TestWithMixedRules(t *testing.T) {
 			&pulltest.Context{
 				TitleValue: "",
 			},
+			&common.PredicateInfo{
+			    Type: "Title",
+			    Name: "Title",
+			    TitleInfo: &common.TitleInfo{
+			        NotMatchPatterns:  []string{"^(fix|feat|chore): (\\w| )+$", "^BREAKING CHANGE: (\\w| )+$"},
+	                PRTitle:    "",
+			    },
+			},
 		},
 		{
 			"matches first pattern in matches list",
 			false,
 			&pulltest.Context{
 				TitleValue: "fix: fixes failing tests",
+			},
+			&common.PredicateInfo{
+			    Type: "Title",
+			    Name: "Title",
+			    TitleInfo: &common.TitleInfo{
+	                MatchPatterns:  []string{"BLOCKED"},
+			        NotMatchPatterns:  []string{"^(fix|feat|chore): (\\w| )+$", "^BREAKING CHANGE: (\\w| )+$"},
+	                PRTitle:    "fix: fixes failing tests",
+			    },
 			},
 		},
 		{
@@ -123,12 +188,29 @@ func TestWithMixedRules(t *testing.T) {
 			&pulltest.Context{
 				TitleValue: "BREAKING CHANGE: new api version",
 			},
+			&common.PredicateInfo{
+			    Type: "Title",
+			    Name: "Title",
+			    TitleInfo: &common.TitleInfo{
+	                MatchPatterns:  []string{"BLOCKED"},
+			        NotMatchPatterns:  []string{"^(fix|feat|chore): (\\w| )+$", "^BREAKING CHANGE: (\\w| )+$"},
+	                PRTitle:    "BREAKING CHANGE: new api version",
+			    },
+			},
 		},
 		{
 			"matches pattern in not_matches list",
 			true,
 			&pulltest.Context{
 				TitleValue: "BLOCKED: not working",
+			},
+			&common.PredicateInfo{
+			    Type: "Title",
+			    Name: "Title",
+			    TitleInfo: &common.TitleInfo{
+	                MatchPatterns:  []string{"BLOCKED"},
+	                PRTitle:    "BLOCKED: not working",
+			    },
 			},
 		},
 		{
@@ -137,12 +219,28 @@ func TestWithMixedRules(t *testing.T) {
 			&pulltest.Context{
 				TitleValue: "BREAKING CHANGE: BLOCKED",
 			},
+			&common.PredicateInfo{
+			    Type: "Title",
+			    Name: "Title",
+			    TitleInfo: &common.TitleInfo{
+	                MatchPatterns:  []string{"BLOCKED"},
+	                PRTitle:    "BREAKING CHANGE: BLOCKED",
+			    },
+			},
 		},
 		{
 			"does not match any pattern",
 			true,
 			&pulltest.Context{
 				TitleValue: "test: adds tests",
+			},
+			&common.PredicateInfo{
+			    Type: "Title",
+			    Name: "Title",
+			    TitleInfo: &common.TitleInfo{
+			        NotMatchPatterns:  []string{"^(fix|feat|chore): (\\w| )+$", "^BREAKING CHANGE: (\\w| )+$"},
+	                PRTitle:    "test: adds tests",
+			    },
 			},
 		},
 	})
@@ -152,6 +250,7 @@ type TitleTestCase struct {
 	name     string
 	expected bool
 	context  pull.Context
+	ExpectedPredicateInfo *common.PredicateInfo
 }
 
 func runTitleTestCase(t *testing.T, p Predicate, cases []TitleTestCase) {
@@ -159,9 +258,12 @@ func runTitleTestCase(t *testing.T, p Predicate, cases []TitleTestCase) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ok, _, _, err := p.Evaluate(ctx, tc.context)
+			ok, _, predicateInfo, err := p.Evaluate(ctx, tc.context)
 			if assert.NoError(t, err, "evaluation failed") {
 				assert.Equal(t, tc.expected, ok, "predicate was not correct")
+				assert.Equal(t, *tc.ExpectedPredicateInfo.TitleInfo, *predicateInfo.TitleInfo, "TitleInfo was not correct")
+				assert.Equal(t, tc.ExpectedPredicateInfo.Name, predicateInfo.Name, "PredicateInfo's Name was not correct")
+				assert.Equal(t, tc.ExpectedPredicateInfo.Type, predicateInfo.Type, "PredicateInfo's Type was not correct")
 			}
 		})
 	}

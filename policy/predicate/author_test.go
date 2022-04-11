@@ -50,12 +50,34 @@ func TestHasAuthorIn(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateInfo{
+			    Type: "HasAuthorIn",
+			    Name: "Author",
+			    ContributorInfo: &common.ContributorInfo{
+			        Organizations: p.Organizations,
+			        Teams:  p.Teams,
+			        Users:  p.Users,
+			        Author: "ttest",
+			        Contributors:   []string{},
+			    },
+			},
 		},
 		{
 			"authorInUsers",
 			true,
 			&pulltest.Context{
 				AuthorValue: "mhaypenny",
+			},
+			&common.PredicateInfo{
+			    Type: "HasAuthorIn",
+			    Name: "Author",
+			    ContributorInfo: &common.ContributorInfo{
+			        Organizations: p.Organizations,
+			        Teams:  p.Teams,
+			        Users:  p.Users,
+			        Author: "mhaypenny",
+			        Contributors:   []string{},
+			    },
 			},
 		},
 		{
@@ -70,6 +92,17 @@ func TestHasAuthorIn(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateInfo{
+			    Type: "HasAuthorIn",
+			    Name: "Author",
+			    ContributorInfo: &common.ContributorInfo{
+			        Organizations: p.Organizations,
+			        Teams:  p.Teams,
+			        Users:  p.Users,
+			        Author: "mortonh",
+			        Contributors:   []string{},
+			    },
+			},
 		},
 		{
 			"authorInOrgs",
@@ -82,6 +115,17 @@ func TestHasAuthorIn(t *testing.T) {
 						"testorg",
 					},
 				},
+			},
+			&common.PredicateInfo{
+			    Type: "HasAuthorIn",
+			    Name: "Author",
+			    ContributorInfo: &common.ContributorInfo{
+			        Organizations: p.Organizations,
+			        Teams:  p.Teams,
+			        Users:  p.Users,
+			        Author: "mortonh",
+			        Contributors:   []string{},
+			    },
 			},
 		},
 	})
@@ -115,6 +159,17 @@ func TestHasContributorIn(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateInfo{
+			    Type: "HasContributorsIn",
+			    Name: "Contributors",
+			    ContributorInfo: &common.ContributorInfo{
+			        Organizations: p.Organizations,
+			        Teams:  p.Teams,
+			        Users:  p.Users,
+			        Author: "",
+			        Contributors:   []string{"mhaypenny"},
+			    },
+			},
 		},
 		{
 			"commitCommitterInUsers",
@@ -133,6 +188,17 @@ func TestHasContributorIn(t *testing.T) {
 						Committer: "mhaypenny",
 					},
 				},
+			},
+			&common.PredicateInfo{
+			    Type: "HasContributorsIn",
+			    Name: "Contributors",
+			    ContributorInfo: &common.ContributorInfo{
+			        Organizations: p.Organizations,
+			        Teams:  p.Teams,
+			        Users:  p.Users,
+			        Author: "",
+			        Contributors:   []string{"mhaypenny"},
+			    },
 			},
 		},
 		{
@@ -158,6 +224,17 @@ func TestHasContributorIn(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateInfo{
+			    Type: "HasContributorsIn",
+			    Name: "Contributors",
+			    ContributorInfo: &common.ContributorInfo{
+			        Organizations: p.Organizations,
+			        Teams:  p.Teams,
+			        Users:  p.Users,
+			        Author: "",
+			        Contributors:   []string{"mhaypenny"},
+			    },
+			},
 		},
 		{
 			"commitAuthorInOrg",
@@ -181,6 +258,17 @@ func TestHasContributorIn(t *testing.T) {
 						Committer: "mhaypenny",
 					},
 				},
+			},
+			&common.PredicateInfo{
+			    Type: "HasContributorsIn",
+			    Name: "Contributors",
+			    ContributorInfo: &common.ContributorInfo{
+			        Organizations: p.Organizations,
+			        Teams:  p.Teams,
+			        Users:  p.Users,
+			        Author: "",
+			        Contributors:   []string{"mhaypenny"},
+			    },
 			},
 		},
 	})
@@ -209,6 +297,17 @@ func TestOnlyHasContributorsIn(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateInfo{
+			    Type: "OnlyHasContributorsIn",
+			    Name: "Contributors",
+			    ContributorInfo: &common.ContributorInfo{
+			        Organizations: p.Organizations,
+			        Teams:  p.Teams,
+			        Users:  p.Users,
+			        Author: "",
+			        Contributors:   []string{"ttest"},
+			    },
+			},
 		},
 		{
 			"containsCommitAuthorNotInList",
@@ -227,6 +326,17 @@ func TestOnlyHasContributorsIn(t *testing.T) {
 						Committer: "ttest",
 					},
 				},
+			},
+			&common.PredicateInfo{
+			    Type: "OnlyHasContributorsIn",
+			    Name: "Contributors",
+			    ContributorInfo: &common.ContributorInfo{
+			        Organizations: p.Organizations,
+			        Teams:  p.Teams,
+			        Users:  p.Users,
+			        Author: "",
+			        Contributors:   []string{"ttest"},
+			    },
 			},
 		},
 		{
@@ -247,6 +357,17 @@ func TestOnlyHasContributorsIn(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateInfo{
+ 			    Type: "OnlyHasContributorsIn",
+ 			    Name: "Contributors",
+ 			    ContributorInfo: &common.ContributorInfo{
+ 			        Organizations: p.Organizations,
+ 			        Teams:  p.Teams,
+ 			        Users:  p.Users,
+ 			        Author: "",
+ 			        Contributors:   []string{"ttest1", "ttest2"},
+ 			    },
+ 			},
 		},
 		{
 			"commitAuthorInTeam",
@@ -270,6 +391,17 @@ func TestOnlyHasContributorsIn(t *testing.T) {
 						Committer: "mhaypenny",
 					},
 				},
+			},
+			&common.PredicateInfo{
+			    Type: "OnlyHasContributorsIn",
+			    Name: "Contributors",
+			    ContributorInfo: &common.ContributorInfo{
+			        Organizations: p.Organizations,
+			        Teams:  p.Teams,
+			        Users:  p.Users,
+			        Author: "",
+			        Contributors:   []string{"ttest", "mhaypenny"},
+			    },
 			},
 		},
 		{
@@ -295,6 +427,17 @@ func TestOnlyHasContributorsIn(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateInfo{
+			    Type: "OnlyHasContributorsIn",
+			    Name: "Contributors",
+			    ContributorInfo: &common.ContributorInfo{
+			        Organizations: p.Organizations,
+			        Teams:  p.Teams,
+			        Users:  p.Users,
+			        Author: "",
+			        Contributors:   []string{"ttest", "mhaypenny"},
+			    },
+			},
 		},
 	})
 }
@@ -304,7 +447,7 @@ func TestAuthorIsOnlyContributor(t *testing.T) {
 
 	runAuthorTests(t, p, []AuthorTestCase{
 		{
-			"authorIsOnlyContributor",
+			"AuthorIsOnlyContributor",
 			true,
 			&pulltest.Context{
 				AuthorValue: "mhaypenny",
@@ -321,6 +464,13 @@ func TestAuthorIsOnlyContributor(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateInfo{
+			    Type: "AuthorIsOnlyContributor",
+			    Name: "Author",
+			    ContributorInfo: &common.ContributorInfo{
+			        Author: "mhaypenny",
+			    },
+			},
 		},
 		{
 			"authorIsOnlyContributorViaWeb",
@@ -335,6 +485,13 @@ func TestAuthorIsOnlyContributor(t *testing.T) {
 						CommittedViaWeb: true,
 					},
 				},
+			},
+			&common.PredicateInfo{
+			    Type: "AuthorIsOnlyContributor",
+			    Name: "Author",
+			    ContributorInfo: &common.ContributorInfo{
+			        Author: "mhaypenny",
+			    },
 			},
 		},
 		{
@@ -355,6 +512,13 @@ func TestAuthorIsOnlyContributor(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateInfo{
+			    Type: "AuthorIsOnlyContributor",
+			    Name: "Author",
+			    ContributorInfo: &common.ContributorInfo{
+			        Author: "mhaypenny",
+			    },
+			},
 		},
 		{
 			"authorIsNotOnlyCommitter",
@@ -373,6 +537,13 @@ func TestAuthorIsOnlyContributor(t *testing.T) {
 						Committer: "ttest",
 					},
 				},
+			},
+			&common.PredicateInfo{
+			    Type: "AuthorIsOnlyContributor",
+			    Name: "Author",
+			    ContributorInfo: &common.ContributorInfo{
+			        Author: "mhaypenny",
+			    },
 			},
 		},
 	})
@@ -400,6 +571,13 @@ func TestAuthorIsNotOnlyContributor(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateInfo{
+			    Type: "AuthorIsOnlyContributor",
+			    Name: "Author",
+			    ContributorInfo: &common.ContributorInfo{
+			        Author: "mhaypenny",
+			    },
+			},
 		},
 		{
 			"authorIsNotOnlyAuthor",
@@ -419,7 +597,14 @@ func TestAuthorIsNotOnlyContributor(t *testing.T) {
 					},
 				},
 			},
-		},
+			&common.PredicateInfo{
+			    Type: "AuthorIsOnlyContributor",
+			    Name: "Author",
+			    ContributorInfo: &common.ContributorInfo{
+			        Author: "mhaypenny",
+			    },
+			},
+	    },
 		{
 			"authorIsNotOnlyCommitter",
 			true,
@@ -438,6 +623,13 @@ func TestAuthorIsNotOnlyContributor(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateInfo{
+			    Type: "AuthorIsOnlyContributor",
+			    Name: "Author",
+			    ContributorInfo: &common.ContributorInfo{
+			        Author: "mhaypenny",
+			    },
+			},
 		},
 	})
 }
@@ -446,6 +638,11 @@ type AuthorTestCase struct {
 	Name     string
 	Expected bool
 	Context  pull.Context
+    ExpectedPredicateInfo *common.PredicateInfo
+}
+
+func isContributorInfoEqual(){
+
 }
 
 func runAuthorTests(t *testing.T, p Predicate, cases []AuthorTestCase) {
@@ -453,9 +650,17 @@ func runAuthorTests(t *testing.T, p Predicate, cases []AuthorTestCase) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			ok, _, _, err := p.Evaluate(ctx, tc.Context)
+			ok, _, predicateInfo, err := p.Evaluate(ctx, tc.Context)
 			if assert.NoError(t, err, "evaluation failed") {
 				assert.Equal(t, tc.Expected, ok, "predicate was not correct")
+				if (tc.ExpectedPredicateInfo.ContributorInfo.Contributors != nil){
+				    assert.Subset(t, tc.ExpectedPredicateInfo.ContributorInfo.Contributors, predicateInfo.ContributorInfo.Contributors, "ContributorInfo was not correct")
+				    tc.ExpectedPredicateInfo.ContributorInfo.Contributors = nil
+				    predicateInfo.ContributorInfo.Contributors = nil
+				}
+				assert.Equal(t, *tc.ExpectedPredicateInfo.ContributorInfo, *predicateInfo.ContributorInfo, "ContributorInfo was not correct")
+				assert.Equal(t, tc.ExpectedPredicateInfo.Name, predicateInfo.Name, "PredicateInfo's Name was not correct")
+				assert.Equal(t, tc.ExpectedPredicateInfo.Type, predicateInfo.Type, "PredicateInfo's Type was not correct")
 			}
 		})
 	}

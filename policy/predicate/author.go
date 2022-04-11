@@ -78,15 +78,11 @@ func (pred *OnlyHasContributorsIn) Evaluate(ctx context.Context, prctx pull.Cont
 		}
 	}
 
-	contributors := getKeyValues(users)
+    var contributorInfo common.ContributorInfo
 
-	contributorInfo := common.ContributorInfo{
-		Organizations: pred.Organizations,
-		Teams:         pred.Teams,
-		Users:         pred.Users,
-		Author:        "",
-		Contributors:  contributors,
-	}
+    contributorInfo.Organizations = pred.Organizations
+    contributorInfo.Teams = pred.Teams
+    contributorInfo.Users = pred.Users
 
 	predicateInfo := common.PredicateInfo{
 		Type:            "OnlyHasContributorsIn",
@@ -100,10 +96,11 @@ func (pred *OnlyHasContributorsIn) Evaluate(ctx context.Context, prctx pull.Cont
 			return false, "", nil, err
 		}
 		if !member {
+		    contributorInfo.Contributors = []string{user}
 			return false, fmt.Sprintf("Contributor %q does not meet the required membership conditions", user), &predicateInfo, nil
 		}
 	}
-
+    contributorInfo.Contributors = getKeyValues(users)
 	return true, "", &predicateInfo, nil
 }
 
@@ -192,7 +189,6 @@ func (pred AuthorIsOnlyContributor) Evaluate(ctx context.Context, prctx pull.Con
 			users[u] = struct{}{}
 		}
 		if c.Author != author || (!c.CommittedViaWeb && c.Committer != author) {
-			contributorInfo.Contributors = []string{c.Author, c.Committer}
 			if pred {
 				return false, fmt.Sprintf("Commit %.10s was authored or committed by a different user", c.SHA), &predicateInfo, nil
 			}
@@ -200,7 +196,6 @@ func (pred AuthorIsOnlyContributor) Evaluate(ctx context.Context, prctx pull.Con
 		}
 	}
 
-	contributorInfo.Contributors = getKeyValues(users)
 	if pred {
 		return true, "", &predicateInfo, nil
 	}

@@ -30,16 +30,28 @@ func TestBranches(t *testing.T) {
 			"simple match - master",
 			true,
 			"master",
+            &common.BranchInfo{
+                Patterns:   []string{"^master$"},
+                Branch:     "master",
+            },
 		},
 		{
 			"simple non match",
 			false,
 			"another-branch",
+            &common.BranchInfo{
+                Patterns:   []string{"^master$"},
+                Branch:     "another-branch",
+            },
 		},
 		{
 			"tests anchoring",
 			false,
 			"not-master",
+            &common.BranchInfo{
+                Patterns:   []string{"^master$"},
+                Branch:     "not-master",
+            },
 		},
 	})
 
@@ -48,11 +60,19 @@ func TestBranches(t *testing.T) {
 			"matches all example 1",
 			true,
 			"master",
+            &common.BranchInfo{
+                Patterns:   []string{".*"},
+                Branch:     "master",
+            },
 		},
 		{
 			"matches all example 2",
 			true,
 			"another-one",
+            &common.BranchInfo{
+                Patterns:   []string{".*"},
+                Branch:     "another-one",
+            },
 		},
 	})
 
@@ -61,16 +81,28 @@ func TestBranches(t *testing.T) {
 			"matches pattern - prod",
 			true,
 			"prod",
+            &common.BranchInfo{
+                Patterns:   []string{"(prod|staging)"},
+                Branch:     "prod",
+            },
 		},
 		{
 			"matches pattern - staging",
 			true,
 			"staging",
+            &common.BranchInfo{
+                Patterns:   []string{"(prod|staging)"},
+                Branch:     "staging",
+            },
 		},
 		{
 			"matches pattern - not-a-match",
 			false,
 			"not-a-match",
+            &common.BranchInfo{
+                Patterns:   []string{"(prod|staging)"},
+                Branch:     "not-a-match",
+            },
 		},
 	})
 }
@@ -80,6 +112,7 @@ type branchesTestCase struct {
 	name       string
 	expected   bool
 	branchName string
+	expectedBranchInfo *common.BranchInfo
 }
 
 func runBranchesTestCase(t *testing.T, regex string, cases []branchesTestCase) {
@@ -103,16 +136,22 @@ func runBranchesTestCase(t *testing.T, regex string, cases []branchesTestCase) {
 		}
 
 		t.Run(tc.name+" targets_branch", func(t *testing.T) {
-			ok, _, _, err := targetsPredicate.Evaluate(ctx, targetsContext)
+			ok, _, predicateInfo, err := targetsPredicate.Evaluate(ctx, targetsContext)
 			if assert.NoError(t, err, "targets_branch predicate evaluation failed") {
 				assert.Equal(t, tc.expected, ok, "targets_branch predicate was not correct")
+				assert.Equal(t, *tc.expectedBranchInfo, *predicateInfo.BranchInfo, "BranchInfo was not correct")
+				assert.Equal(t, "Target Branch", predicateInfo.Name, "PredicateInfo's Name was not correct")
+				assert.Equal(t, "TargetsBranch", predicateInfo.Type, "PredicateInfo's Type was not correct")
 			}
 		})
 
 		t.Run(tc.name+" from_branch", func(t *testing.T) {
-			ok, _, _, err := fromPredicate.Evaluate(ctx, fromContext)
+			ok, _, predicateInfo, err := fromPredicate.Evaluate(ctx, fromContext)
 			if assert.NoError(t, err, "from_branch predicate evaluation failed") {
 				assert.Equal(t, tc.expected, ok, "from_branch predicate was not correct")
+				assert.Equal(t, *tc.expectedBranchInfo, *predicateInfo.BranchInfo, "BranchInfo was not correct")
+				assert.Equal(t, "Source Branch", predicateInfo.Name, "PredicateInfo's Name was not correct")
+				assert.Equal(t, "FromBranch", predicateInfo.Type, "PredicateInfo's Type was not correct")
 			}
 		})
 	}

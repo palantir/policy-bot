@@ -102,6 +102,13 @@ func LoadTemplates(c *FilesConfig, basePath string) (templatetree.HTMLTree, erro
 					commitsAndKeys = append(commitsAndKeys, "Keys : "+strings.Join(predicateInfo.CommitInfo.Keys[:], ", "))
 				}
 				return commitsAndKeys
+			case "Commit Hashes and Signers":
+				var commitsAndSigners []string
+				commitsAndSigners = append(commitsAndSigners, "Commit Hashes : "+strings.Join(predicateInfo.CommitInfo.CommitHashes[:], ", "))
+				if len(predicateInfo.CommitInfo.Signers) > 0 {
+					commitsAndSigners = append(commitsAndSigners, "Signers : "+strings.Join(predicateInfo.CommitInfo.Signers[:], ", "))
+				}
+				return commitsAndSigners
 			case "Signers":
 				return predicateInfo.CommitInfo.Signers
 			case "Status":
@@ -163,6 +170,8 @@ func LoadTemplates(c *FilesConfig, basePath string) (templatetree.HTMLTree, erro
 					membershipInfo["Users"] = predicateInfo.CommitInfo.Users
 				}
 				return membershipInfo
+			case "HasValidSignaturesByKeys":
+				return map[string][]string{"keys": predicateInfo.CommitInfo.Keys}
 			case "Title":
 				patternInfo := make(map[string][]string)
 				if len(predicateInfo.TitleInfo.MatchPatterns) > 0 {

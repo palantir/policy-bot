@@ -80,32 +80,44 @@ func (pred *HasValidSignaturesBy) Evaluate(ctx context.Context, prctx pull.Conte
 
 	predicateInfo := common.PredicateInfo{
 		Type:       "HasValidSignaturesBy",
-		Name:       "Signers",
+		Name:       "Commit Hashes and Signers",
 		CommitInfo: &commitInfo,
 	}
 
-	signers := make(map[string]struct{})
+    commitInfo.Organizations = pred.Organizations
+    commitInfo.Teams = pred.Teams
+    commitInfo.Users = pred.Users
+
+	signers := make(map[string]string)
+	var commitHashes []string
 
 	for _, c := range commits {
 		valid, desc := hasValidSignature(ctx, c)
 		if !valid {
 			commitInfo.CommitHashes = []string{c.SHA}
+			commitInfo.Signers = []string{}
 			return false, desc, &predicateInfo, nil
 		}
-		signers[c.Signature.Signer] = struct{}{}
+		signers[c.Signature.Signer] = c.SHA
+		commitHashes = append(commitHashes, c.SHA)
 	}
 
+    var signerList []string
+
 	for signer := range signers {
+	    signerList = append(signerList, signer)
 		member, err := pred.IsActor(ctx, prctx, signer)
 		if err != nil {
 			return false, "", nil, err
 		}
 		if !member {
 			commitInfo.Signers = []string{signer}
+			commitInfo.CommitHashes = []string{signers[signer]}
 			return false, fmt.Sprintf("Contributor %q does not meet the required membership conditions for signing", signer), &predicateInfo, nil
 		}
 	}
-	commitInfo.Signers = getKeyValues(signers)
+	commitInfo.Signers = signerList
+	commitInfo.CommitHashes = commitHashes
 	return true, "", &predicateInfo, nil
 }
 
@@ -128,32 +140,38 @@ func (pred *HasValidSignaturesByKeys) Evaluate(ctx context.Context, prctx pull.C
 	var commitInfo common.CommitInfo
 
 	predicateInfo := common.PredicateInfo{
-		Type:       "HasValidSignaturesBy",
-		Name:       "Commit Hashes",
+		Type:       "HasValidSignaturesByKeys",
+		Name:       "Commit Hashes and Keys",
 		CommitInfo: &commitInfo,
 	}
 
-	keys := make(map[string]struct{})
+	keys := make(map[string]string)
 
 	var commitHashes []string
 
 	for _, c := range commits {
 		valid, desc := hasValidSignature(ctx, c)
 		if !valid {
-			return false, desc, nil, nil
+		    commitInfo.CommitHashes = []string{c.SHA}
+		    commitInfo.Keys = []string{}
+			return false, desc, &predicateInfo, nil
 		}
 		commitHashes = append(commitHashes, c.SHA)
 		// Only GPG signatures are valid for this predicate
 		switch c.Signature.Type {
 		case pull.SignatureGpg:
-			keys[c.Signature.KeyID] = struct{}{}
+			keys[c.Signature.KeyID] = c.SHA
 		default:
 			commitInfo.CommitHashes = []string{c.SHA}
+			commitInfo.Keys = []string{c.Signature.KeyID}
 			return false, fmt.Sprintf("Commit %.10s signature is not a GPG signature", c.SHA), &predicateInfo, nil
 		}
 	}
 
+	var keyList []string
+
 	for key := range keys {
+	    keyList = append(keyList, key)
 		isValidKey := false
 		for _, acceptedKey := range pred.KeyIDs {
 			if key == acceptedKey {
@@ -162,11 +180,12 @@ func (pred *HasValidSignaturesByKeys) Evaluate(ctx context.Context, prctx pull.C
 			}
 		}
 		if !isValidKey {
+		    commitInfo.CommitHashes = []string{keys[key]}
 			commitInfo.Keys = []string{key}
 			return false, fmt.Sprintf("Key %q does not meet the required key conditions for signing", key), &predicateInfo, nil
 		}
 	}
-	commitInfo.Keys = getKeyValues(keys)
+	commitInfo.Keys = keyList
 	commitInfo.CommitHashes = commitHashes
 
 	return true, "", &predicateInfo, nil
