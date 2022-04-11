@@ -138,6 +138,7 @@ func (pred *HasValidSignaturesByKeys) Evaluate(ctx context.Context, prctx pull.C
 	}
 
 	var commitInfo common.CommitInfo
+	commitInfo.RequiredKeys = pred.KeyIDs
 
 	predicateInfo := common.PredicateInfo{
 		Type:       "HasValidSignaturesByKeys",
@@ -145,7 +146,7 @@ func (pred *HasValidSignaturesByKeys) Evaluate(ctx context.Context, prctx pull.C
 		CommitInfo: &commitInfo,
 	}
 
-	keys := make(map[string]string)
+	keys := make(map[string][]string)
 
 	var commitHashes []string
 
@@ -160,7 +161,12 @@ func (pred *HasValidSignaturesByKeys) Evaluate(ctx context.Context, prctx pull.C
 		// Only GPG signatures are valid for this predicate
 		switch c.Signature.Type {
 		case pull.SignatureGpg:
-			keys[c.Signature.KeyID] = c.SHA
+			commitSHAs, ok := keys[c.Signature.KeyID]
+			if ok {
+				keys[c.Signature.KeyID] = append(commitSHAs, c.SHA)
+			} else {
+				keys[c.Signature.KeyID] = []string{c.SHA}
+			}
 		default:
 			commitInfo.CommitHashes = []string{c.SHA}
 			commitInfo.Keys = []string{c.Signature.KeyID}
@@ -180,7 +186,7 @@ func (pred *HasValidSignaturesByKeys) Evaluate(ctx context.Context, prctx pull.C
 			}
 		}
 		if !isValidKey {
-			commitInfo.CommitHashes = []string{keys[key]}
+			commitInfo.CommitHashes = keys[key]
 			commitInfo.Keys = []string{key}
 			return false, fmt.Sprintf("Key %q does not meet the required key conditions for signing", key), &predicateInfo, nil
 		}

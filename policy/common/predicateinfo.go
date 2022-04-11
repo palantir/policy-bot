@@ -61,6 +61,7 @@ type CommitInfo struct {
 	Organizations []string
 	Teams         []string
 	Users         []string
+	RequiredKeys  []string
 	Signers       []string
 	CommitHashes  []string
 	Keys          []string

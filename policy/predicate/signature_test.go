@@ -289,6 +289,7 @@ func TestHasValidSignaturesByKeys(t *testing.T) {
 				Name: "Commit Hashes and Keys",
 				CommitInfo: &common.CommitInfo{
 					CommitHashes: []string{"abcdef123456789"},
+					RequiredKeys: []string{"3AA5C34371567BD2"},
 					Keys:         []string{"3AA5C34371567BD2"},
 				},
 			},
@@ -318,6 +319,7 @@ func TestHasValidSignaturesByKeys(t *testing.T) {
 				Name: "Commit Hashes and Keys",
 				CommitInfo: &common.CommitInfo{
 					CommitHashes: []string{"abcdef123456789"},
+					RequiredKeys: []string{"3AA5C34371567BD2"},
 					Keys:         []string{"3AB5C35371567CE7"},
 				},
 			},
@@ -347,6 +349,7 @@ func TestHasValidSignaturesByKeys(t *testing.T) {
 				Name: "Commit Hashes and Keys",
 				CommitInfo: &common.CommitInfo{
 					CommitHashes: []string{"abcdef123456789"},
+					RequiredKeys: []string{"3AA5C34371567BD2"},
 					Keys:         []string{},
 				},
 			},
