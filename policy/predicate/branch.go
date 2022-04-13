@@ -28,7 +28,7 @@ type TargetsBranch struct {
 
 var _ Predicate = &TargetsBranch{}
 
-func (pred *TargetsBranch) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, *common.PredicateInfo, error) {
+func (pred *TargetsBranch) Evaluate(ctx context.Context, prctx pull.Context) (bool, *common.PredicateInfo, error) {
 	targetName, _ := prctx.Branches()
 	matches := pred.Pattern.Matches(targetName)
 
@@ -43,12 +43,13 @@ func (pred *TargetsBranch) Evaluate(ctx context.Context, prctx pull.Context) (bo
 	}
 
 	predicateInfo := common.PredicateInfo{
-		Type:       "TargetsBranch",
-		Name:       "Target Branch",
-		BranchInfo: &branchInfo,
+		Type:           "TargetsBranch",
+		Name:           "Target Branch",
+		Description:    desc,
+		BranchInfo:     &branchInfo,
 	}
 
-	return matches, desc, &predicateInfo, nil
+	return matches, &predicateInfo, nil
 }
 
 func (pred *TargetsBranch) Trigger() common.Trigger {
@@ -61,7 +62,7 @@ type FromBranch struct {
 
 var _ Predicate = &FromBranch{}
 
-func (pred *FromBranch) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, *common.PredicateInfo, error) {
+func (pred *FromBranch) Evaluate(ctx context.Context, prctx pull.Context) (bool, *common.PredicateInfo, error) {
 	_, sourceBranchName := prctx.Branches()
 	matches := pred.Pattern.Matches(sourceBranchName)
 
@@ -76,12 +77,13 @@ func (pred *FromBranch) Evaluate(ctx context.Context, prctx pull.Context) (bool,
 	}
 
 	predicateInfo := common.PredicateInfo{
-		Type:       "FromBranch",
-		Name:       "Source Branch",
-		BranchInfo: &branchInfo,
+		Type:           "FromBranch",
+		Name:           "Source Branch",
+		Description:    desc,
+		BranchInfo:     &branchInfo,
 	}
 
-	return matches, desc, &predicateInfo, nil
+	return matches, &predicateInfo, nil
 }
 
 func (pred *FromBranch) Trigger() common.Trigger {

@@ -17,6 +17,7 @@ package predicate
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
@@ -29,7 +30,7 @@ type HasAuthorIn struct {
 
 var _ Predicate = &HasAuthorIn{}
 
-func (pred *HasAuthorIn) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, *common.PredicateInfo, error) {
+func (pred *HasAuthorIn) Evaluate(ctx context.Context, prctx pull.Context) (bool, *common.PredicateInfo, error) {
 	author := prctx.Author()
 
 	result, err := pred.IsActor(ctx, prctx, author)
@@ -50,7 +51,8 @@ func (pred *HasAuthorIn) Evaluate(ctx context.Context, prctx pull.Context) (bool
 		desc = fmt.Sprintf("The pull request author %q does not meet the required membership conditions", author)
 	}
 
-	return result, desc, &predicateInfo, err
+    predicateInfo.Description = desc
+	return result, &predicateInfo, err
 }
 
 func (pred *HasAuthorIn) Trigger() common.Trigger {
@@ -63,10 +65,10 @@ type OnlyHasContributorsIn struct {
 
 var _ Predicate = &OnlyHasContributorsIn{}
 
-func (pred *OnlyHasContributorsIn) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, *common.PredicateInfo, error) {
+func (pred *OnlyHasContributorsIn) Evaluate(ctx context.Context, prctx pull.Context) (bool, *common.PredicateInfo, error) {
 	commits, err := prctx.Commits()
 	if err != nil {
-		return false, "", nil, errors.Wrap(err, "failed to get commits")
+		return false, nil, errors.Wrap(err, "failed to get commits")
 	}
 
 	users := make(map[string]struct{})
@@ -90,18 +92,25 @@ func (pred *OnlyHasContributorsIn) Evaluate(ctx context.Context, prctx pull.Cont
 		ContributorInfo: &contributorInfo,
 	}
 
-	for user := range users {
+    userList := make([]string, 0, len(users))
+    for user := range users {
+        userList = append(userList, user)
+    }
+    sort.Strings(userList)
+
+	for _, user := range userList {
 		member, err := pred.IsActor(ctx, prctx, user)
 		if err != nil {
-			return false, "", nil, err
+			return false, nil, err
 		}
 		if !member {
 			contributorInfo.Contributors = []string{user}
-			return false, fmt.Sprintf("Contributor %q does not meet the required membership conditions", user), &predicateInfo, nil
+			predicateInfo.Description = fmt.Sprintf("Contributor %q does not meet the required membership conditions", user)
+			return false, &predicateInfo, nil
 		}
 	}
-	contributorInfo.Contributors = getKeyValues(users)
-	return true, "", &predicateInfo, nil
+	contributorInfo.Contributors = userList
+	return true, &predicateInfo, nil
 }
 
 func (pred *OnlyHasContributorsIn) Trigger() common.Trigger {
@@ -114,10 +123,10 @@ type HasContributorIn struct {
 
 var _ Predicate = &HasContributorIn{}
 
-func (pred *HasContributorIn) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, *common.PredicateInfo, error) {
+func (pred *HasContributorIn) Evaluate(ctx context.Context, prctx pull.Context) (bool, *common.PredicateInfo, error) {
 	commits, err := prctx.Commits()
 	if err != nil {
-		return false, "", nil, errors.Wrap(err, "failed to get commits")
+		return false, nil, errors.Wrap(err, "failed to get commits")
 	}
 
 	users := make(map[string]struct{})
@@ -141,19 +150,25 @@ func (pred *HasContributorIn) Evaluate(ctx context.Context, prctx pull.Context) 
 		ContributorInfo: &contributorInfo,
 	}
 
-	for user := range users {
+    userList := make([]string, 0, len(users))
+    for user := range users {
+        userList = append(userList, user)
+    }
+    sort.Strings(userList)
+
+	for _, user := range userList {
 		member, err := pred.IsActor(ctx, prctx, user)
 		if err != nil {
-			return false, "", nil, err
+			return false, nil, err
 		}
 		if member {
 			contributorInfo.Contributors = []string{user}
-			return true, "", &predicateInfo, nil
+			return true, &predicateInfo, nil
 		}
 	}
-	contributorInfo.Contributors = getKeyValues(users)
-	desc := "No contributors meet the required membership conditions"
-	return false, desc, &predicateInfo, nil
+	contributorInfo.Contributors = userList
+	predicateInfo.Description = "No contributors meet the required membership conditions"
+	return false, &predicateInfo, nil
 }
 
 func (pred *HasContributorIn) Trigger() common.Trigger {
@@ -164,10 +179,10 @@ type AuthorIsOnlyContributor bool
 
 var _ Predicate = AuthorIsOnlyContributor(false)
 
-func (pred AuthorIsOnlyContributor) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, *common.PredicateInfo, error) {
+func (pred AuthorIsOnlyContributor) Evaluate(ctx context.Context, prctx pull.Context) (bool, *common.PredicateInfo, error) {
 	commits, err := prctx.Commits()
 	if err != nil {
-		return false, "", nil, errors.Wrap(err, "failed to get commits")
+		return false, nil, errors.Wrap(err, "failed to get commits")
 	}
 
 	author := prctx.Author()
@@ -185,26 +200,20 @@ func (pred AuthorIsOnlyContributor) Evaluate(ctx context.Context, prctx pull.Con
 	for _, c := range commits {
 		if c.Author != author || (!c.CommittedViaWeb && c.Committer != author) {
 			if pred {
-				return false, fmt.Sprintf("Commit %.10s was authored or committed by a different user", c.SHA), &predicateInfo, nil
+			    predicateInfo.Description = fmt.Sprintf("Commit %.10s was authored or committed by a different user", c.SHA)
+				return false, &predicateInfo, nil
 			}
-			return true, "", &predicateInfo, nil
+			return true, &predicateInfo, nil
 		}
 	}
 
 	if pred {
-		return true, "", &predicateInfo, nil
+		return true, &predicateInfo, nil
 	}
-	return false, fmt.Sprintf("All commits were authored and committed by %s", author), &predicateInfo, nil
+	predicateInfo.Description = fmt.Sprintf("All commits were authored and committed by %s", author)
+	return false, &predicateInfo, nil
 }
 
 func (pred AuthorIsOnlyContributor) Trigger() common.Trigger {
 	return common.TriggerCommit
-}
-
-func getKeyValues(m map[string]struct{}) []string {
-	keys := make([]string, 0, len(m))
-	for key := range m {
-		keys = append(keys, key)
-	}
-	return keys
 }

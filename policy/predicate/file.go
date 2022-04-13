@@ -32,7 +32,7 @@ type ChangedFiles struct {
 
 var _ Predicate = &ChangedFiles{}
 
-func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, *common.PredicateInfo, error) {
+func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (bool, *common.PredicateInfo, error) {
 	files, err := prctx.ChangedFiles()
 
 	var paths, ignorePaths, changedFiles []string
@@ -56,7 +56,7 @@ func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (boo
 	}
 
 	if err != nil {
-		return false, "", nil, errors.Wrap(err, "failed to list changed files")
+		return false, nil, errors.Wrap(err, "failed to list changed files")
 	}
 
 	for _, f := range files {
@@ -69,13 +69,14 @@ func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (boo
 
 		if anyMatches(pred.Paths, f.Filename) {
 			fileInfo.ChangedFiles = []string{f.Filename}
-			return true, f.Filename + " was changed", &predicateInfo, nil
+			predicateInfo.Description = f.Filename + " was changed"
+			return true, &predicateInfo, nil
 		}
 	}
 
 	fileInfo.ChangedFiles = changedFiles
-	desc := "No changed files match the required patterns"
-	return false, desc, &predicateInfo, nil
+	predicateInfo.Description = "No changed files match the required patterns"
+	return false, &predicateInfo, nil
 }
 
 func (pred *ChangedFiles) Trigger() common.Trigger {
@@ -88,10 +89,10 @@ type OnlyChangedFiles struct {
 
 var _ Predicate = &OnlyChangedFiles{}
 
-func (pred *OnlyChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, *common.PredicateInfo, error) {
+func (pred *OnlyChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (bool, *common.PredicateInfo, error) {
 	files, err := prctx.ChangedFiles()
 	if err != nil {
-		return false, "", nil, errors.Wrap(err, "failed to list changed files")
+		return false, nil, errors.Wrap(err, "failed to list changed files")
 	}
 
 	var paths []string
@@ -119,8 +120,8 @@ func (pred *OnlyChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) 
 			continue
 		}
 		fileInfo.ChangedFiles = []string{f.Filename}
-		desc := "A changed file does not match the required pattern"
-		return false, desc, &predicateInfo, nil
+		predicateInfo.Description = "A changed file does not match the required pattern"
+		return false, &predicateInfo, nil
 	}
 
 	filesChanged := len(files) > 0
@@ -131,8 +132,8 @@ func (pred *OnlyChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) 
 	}
 
 	fileInfo.ChangedFiles = changedFiles
-
-	return filesChanged, desc, &predicateInfo, nil
+    predicateInfo.Description = desc
+	return filesChanged, &predicateInfo, nil
 }
 
 func (pred *OnlyChangedFiles) Trigger() common.Trigger {
@@ -221,10 +222,10 @@ func (exp *ComparisonExpr) UnmarshalText(text []byte) error {
 	return nil
 }
 
-func (pred *ModifiedLines) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, *common.PredicateInfo, error) {
+func (pred *ModifiedLines) Evaluate(ctx context.Context, prctx pull.Context) (bool, *common.PredicateInfo, error) {
 	files, err := prctx.ChangedFiles()
 	if err != nil {
-		return false, "", nil, errors.Wrap(err, "failed to list changed files")
+		return false, nil, errors.Wrap(err, "failed to list changed files")
 	}
 
 	var fileInfo common.FileInfo
@@ -244,47 +245,48 @@ func (pred *ModifiedLines) Evaluate(ctx context.Context, prctx pull.Context) (bo
 	if !pred.Additions.IsEmpty() && pred.Additions.Evaluate(additions) {
 		res, err := pred.Additions.MarshalText()
 		if err != nil {
-			return false, "", nil, errors.Wrap(err, "failed to marshal text for addition limit")
+			return false, nil, errors.Wrap(err, "failed to marshal text for addition limit")
 		}
 		fileInfo.AdditionLimit = string(res[:])
 		fileInfo.AddedLines = additions
-		return true, "", &predicateInfo, nil
+		return true, &predicateInfo, nil
 	} else if !pred.Deletions.IsEmpty() && pred.Deletions.Evaluate(deletions) {
 		res, err := pred.Deletions.MarshalText()
 		if err != nil {
-			return false, "", nil, errors.Wrap(err, "failed to marshal text for deletion limit")
+			return false, nil, errors.Wrap(err, "failed to marshal text for deletion limit")
 		}
 		fileInfo.DeletionLimit = string(res[:])
 		fileInfo.DeletedLines = deletions
-		return true, "", &predicateInfo, nil
+		return true, &predicateInfo, nil
 	} else if !pred.Total.IsEmpty() && pred.Total.Evaluate(additions+deletions) {
 		res, err := pred.Total.MarshalText()
 		if err != nil {
-			return false, "", nil, errors.Wrap(err, "failed to marshal text for total limit")
+			return false, nil, errors.Wrap(err, "failed to marshal text for total limit")
 		}
 		fileInfo.TotalLimit = string(res[:])
 		fileInfo.TotalModifiedLines = additions + deletions
-		return true, "", &predicateInfo, nil
+		return true, &predicateInfo, nil
 	}
 	res, err := pred.Additions.MarshalText()
 	if err != nil {
-		return false, "", nil, errors.Wrap(err, "failed to marshal text for addition limit")
+		return false, nil, errors.Wrap(err, "failed to marshal text for addition limit")
 	}
 	fileInfo.AdditionLimit = string(res[:])
 	fileInfo.AddedLines = additions
 	res, err = pred.Deletions.MarshalText()
 	if err != nil {
-		return false, "", nil, errors.Wrap(err, "failed to marshal text for deletion limit")
+		return false, nil, errors.Wrap(err, "failed to marshal text for deletion limit")
 	}
 	fileInfo.DeletionLimit = string(res[:])
 	fileInfo.DeletedLines = deletions
 	res, err = pred.Total.MarshalText()
 	if err != nil {
-		return false, "", nil, errors.Wrap(err, "failed to marshal text for total limit")
+		return false, nil, errors.Wrap(err, "failed to marshal text for total limit")
 	}
 	fileInfo.TotalLimit = string(res[:])
 	fileInfo.TotalModifiedLines = additions + deletions
-	return false, fmt.Sprintf("modification of (+%d, -%d) does not match any conditions", additions, deletions), &predicateInfo, nil
+	predicateInfo.Description = fmt.Sprintf("modification of (+%d, -%d) does not match any conditions", additions, deletions)
+	return false, &predicateInfo, nil
 }
 
 func (pred *ModifiedLines) Trigger() common.Trigger {

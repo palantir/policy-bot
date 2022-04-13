@@ -369,7 +369,7 @@ func runSignatureTests(t *testing.T, p Predicate, cases []SignatureTestCase) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			ok, _, predicateInfo, err := p.Evaluate(ctx, tc.Context)
+			ok, predicateInfo, err := p.Evaluate(ctx, tc.Context)
 			if assert.NoError(t, err, "evaluation failed") {
 				assert.Equal(t, tc.Expected, ok, "predicate was not correct")
 				assert.Equal(t, *tc.ExpectedPredicateInfo.CommitInfo, *predicateInfo.CommitInfo, "CommitInfo was not correct")

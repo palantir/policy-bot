@@ -14,9 +14,23 @@
 
 package common
 
+type PredicateInfoType string
+
+const (
+  ContributorType PredicateInfoType = "contributor"
+  BranchType      PredicateInfoType = "branch"
+  FileType        PredicateInfoType = "file"
+  LabelType       PredicateInfoType = "label"
+  CommitType      PredicateInfoType = "commit"
+  StatusType      PredicateInfoType = "status"
+  TitleType       PredicateInfoType = "title"
+)
+
+
 type PredicateInfo struct {
 	Name string
 	Type string
+	Description string
 
 	ContributorInfo *ContributorInfo
 	BranchInfo      *BranchInfo

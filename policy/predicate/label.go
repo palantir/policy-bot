@@ -27,7 +27,7 @@ type HasLabels []string
 
 var _ Predicate = HasLabels([]string{})
 
-func (pred HasLabels) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, *common.PredicateInfo, error) {
+func (pred HasLabels) Evaluate(ctx context.Context, prctx pull.Context) (bool, *common.PredicateInfo, error) {
 
 	var labelInfo common.LabelInfo
 	predicateInfo := common.PredicateInfo{
@@ -38,18 +38,19 @@ func (pred HasLabels) Evaluate(ctx context.Context, prctx pull.Context) (bool, s
 	if len(pred) > 0 {
 		labels, err := prctx.Labels()
 		if err != nil {
-			return false, "", nil, errors.Wrap(err, "failed to list pull request labels")
+			return false, nil, errors.Wrap(err, "failed to list pull request labels")
 		}
 		labelInfo.PRLabels = labels
 		for _, requiredLabel := range pred {
 			if !contains(labels, strings.ToLower(requiredLabel)) {
 				labelInfo.RequiredLabels = []string{requiredLabel}
-				return false, "Missing label: " + requiredLabel, &predicateInfo, nil
+				predicateInfo.Description = "Missing label: " + requiredLabel
+				return false, &predicateInfo, nil
 			}
 		}
 	}
 	labelInfo.RequiredLabels = pred
-	return true, "", &predicateInfo, nil
+	return true, &predicateInfo, nil
 }
 
 func (pred HasLabels) Trigger() common.Trigger {

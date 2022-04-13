@@ -104,15 +104,16 @@ func (p *Policy) Evaluate(ctx context.Context, prctx pull.Context) (res common.R
 
 	res.Name = "disapproval"
 	res.Status = common.StatusSkipped
-	res.Requires = common.Requires{
-		Count:  1,
-		Actors: p.Requires.Actors,
-	}
+	res.Requires = common.Actors{
+	                    Organizations: p.Requires.Organizations,
+	                    Teams:  p.Requires.Teams,
+	                    Users:  p.Requires.Users,
+	                    }
 
 	var predicatesInfo []*common.PredicateInfo
 
 	for _, p := range p.Predicates.Predicates() {
-		satisfied, desc, pPredicateInfo, err := p.Evaluate(ctx, prctx)
+		satisfied, pPredicateInfo, err := p.Evaluate(ctx, prctx)
 		predicatesInfo = append(predicatesInfo, pPredicateInfo)
 		if err != nil {
 			res.Error = errors.Wrap(err, "failed to evaluate predicate")
@@ -123,6 +124,8 @@ func (p *Policy) Evaluate(ctx context.Context, prctx pull.Context) (res common.R
 			log.Debug().Msgf("disapproving, predicate of type %T was satisfied", p)
 
 			res.Status = common.StatusDisapproved
+
+			desc := pPredicateInfo.Description
 			res.StatusDescription = desc
 			if desc == "" {
 				res.StatusDescription = "A precondition of this rule was satisfied"

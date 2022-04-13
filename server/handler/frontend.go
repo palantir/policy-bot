@@ -197,24 +197,24 @@ func LoadTemplates(c *FilesConfig, basePath string) (templatetree.HTMLTree, erro
 			membershipInfo := make(map[string][]Membership)
 			for _, org := range result.Requires.Organizations {
 				if orgs, ok := membershipInfo["Organizations"]; ok {
-					membershipInfo["Organizations"] = append(orgs, Membership{Name: org, Link: "https://www.github.com/orgs/" + org})
+					membershipInfo["Organizations"] = append(orgs, Membership{Name: org, Link: "https://github.palantir.build/orgs/" + org})
 				} else {
-					membershipInfo["Organizations"] = []Membership{{Name: org, Link: "https://www.github.com/orgs/" + org}}
+					membershipInfo["Organizations"] = []Membership{{Name: org, Link: "https://github.palantir.build/orgs/" + org}}
 				}
 			}
 			for _, team := range result.Requires.Teams {
 				teamName := strings.Split(team, "/")
 				if teams, ok := membershipInfo["Teams"]; ok {
-					membershipInfo["Teams"] = append(teams, Membership{Name: team, Link: "https://www.github.com/orgs/" + teamName[0] + "/teams/" + teamName[1] + "/members"})
+					membershipInfo["Teams"] = append(teams, Membership{Name: team, Link: "https://github.palantir.build/orgs/" + teamName[0] + "/teams/" + teamName[1] + "/members"})
 				} else {
-					membershipInfo["Teams"] = []Membership{{Name: team, Link: "https://www.github.com/orgs/" + teamName[0] + "/teams/" + teamName[1] + "/members"}}
+					membershipInfo["Teams"] = []Membership{{Name: team, Link: "https://github.palantir.build/orgs/" + teamName[0] + "/teams/" + teamName[1] + "/members"}}
 				}
 			}
 			for _, user := range result.Requires.Users {
 				if users, ok := membershipInfo["Users"]; ok {
-					membershipInfo["Users"] = append(users, Membership{Name: user, Link: "https://www.github.com/" + user})
+					membershipInfo["Users"] = append(users, Membership{Name: user, Link: "https://github.palantir.build/" + user})
 				} else {
-					membershipInfo["Users"] = []Membership{{Name: user, Link: "https://www.github.com/" + user}}
+					membershipInfo["Users"] = []Membership{{Name: user, Link: "https://github.palantir.build/" + user}}
 				}
 			}
 			return membershipInfo

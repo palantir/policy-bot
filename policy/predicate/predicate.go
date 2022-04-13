@@ -26,5 +26,5 @@ type Predicate interface {
 
 	// Evaluate determines if the predicate is satisfied. It also returns an
 	// optional string providing details about the evaluation result.
-	Evaluate(ctx context.Context, prctx pull.Context) (bool, string, *common.PredicateInfo, error)
+	Evaluate(ctx context.Context, prctx pull.Context) (bool, *common.PredicateInfo, error)
 }

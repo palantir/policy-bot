@@ -365,7 +365,7 @@ func TestOnlyHasContributorsIn(t *testing.T) {
 					Teams:         p.Teams,
 					Users:         p.Users,
 					Author:        "",
-					Contributors:  []string{"ttest1", "ttest2"},
+					Contributors:  []string{"ttest1"},
 				},
 			},
 		},
@@ -400,7 +400,7 @@ func TestOnlyHasContributorsIn(t *testing.T) {
 					Teams:         p.Teams,
 					Users:         p.Users,
 					Author:        "",
-					Contributors:  []string{"ttest", "mhaypenny"},
+					Contributors:  []string{"mhaypenny", "ttest"},
 				},
 			},
 		},
@@ -435,7 +435,7 @@ func TestOnlyHasContributorsIn(t *testing.T) {
 					Teams:         p.Teams,
 					Users:         p.Users,
 					Author:        "",
-					Contributors:  []string{"ttest", "mhaypenny"},
+					Contributors:  []string{"mhaypenny", "ttest"},
 				},
 			},
 		},
@@ -650,14 +650,10 @@ func runAuthorTests(t *testing.T, p Predicate, cases []AuthorTestCase) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			ok, _, predicateInfo, err := p.Evaluate(ctx, tc.Context)
+			ok, predicateInfo, err := p.Evaluate(ctx, tc.Context)
 			if assert.NoError(t, err, "evaluation failed") {
 				assert.Equal(t, tc.Expected, ok, "predicate was not correct")
-				if tc.ExpectedPredicateInfo.ContributorInfo.Contributors != nil {
-					assert.Subset(t, tc.ExpectedPredicateInfo.ContributorInfo.Contributors, predicateInfo.ContributorInfo.Contributors, "ContributorInfo was not correct")
-					tc.ExpectedPredicateInfo.ContributorInfo.Contributors = nil
-					predicateInfo.ContributorInfo.Contributors = nil
-				}
+				assert.Equal(t, tc.ExpectedPredicateInfo.ContributorInfo.Contributors, predicateInfo.ContributorInfo.Contributors, "ContributorInfo was not correct")
 				assert.Equal(t, *tc.ExpectedPredicateInfo.ContributorInfo, *predicateInfo.ContributorInfo, "ContributorInfo was not correct")
 				assert.Equal(t, tc.ExpectedPredicateInfo.Name, predicateInfo.Name, "PredicateInfo's Name was not correct")
 				assert.Equal(t, tc.ExpectedPredicateInfo.Type, predicateInfo.Type, "PredicateInfo's Type was not correct")

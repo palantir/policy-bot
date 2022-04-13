@@ -72,7 +72,7 @@ type Result struct {
 	Status            EvaluationStatus
 	Error             error
 	PredicatesInfo    []*PredicateInfo
-	Requires          Requires
+	Requires          Actors
 
 	ReviewRequestRule *ReviewRequestRule
 

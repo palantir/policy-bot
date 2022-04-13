@@ -28,7 +28,7 @@ type Title struct {
 
 var _ Predicate = Title{}
 
-func (pred Title) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, *common.PredicateInfo, error) {
+func (pred Title) Evaluate(ctx context.Context, prctx pull.Context) (bool, *common.PredicateInfo, error) {
 	title := prctx.Title()
 
 	var titleInfo common.TitleInfo
@@ -53,19 +53,21 @@ func (pred Title) Evaluate(ctx context.Context, prctx pull.Context) (bool, strin
 	if len(pred.Matches) > 0 {
 		if anyMatches(pred.Matches, title) {
 			titleInfo.MatchPatterns = MatchPatterns
-			return true, "PR Title matches a Match pattern", &predicateInfo, nil
+			predicateInfo.Description = "PR Title matches a Match pattern"
+			return true, &predicateInfo, nil
 		}
 	}
 
 	if len(pred.NotMatches) > 0 {
 		if !anyMatches(pred.NotMatches, title) {
 			titleInfo.NotMatchPatterns = NotMatchPatterns
-			return true, "PR Title doesn't match a NotMatch pattern", &predicateInfo, nil
+			predicateInfo.Description = "PR Title doesn't match a NotMatch pattern"
+			return true, &predicateInfo, nil
 		}
 	}
 	titleInfo.MatchPatterns = MatchPatterns
 	titleInfo.NotMatchPatterns = NotMatchPatterns
-	return false, "", &predicateInfo, nil
+	return false, &predicateInfo, nil
 }
 
 func (pred Title) Trigger() common.Trigger {

@@ -33,7 +33,7 @@ type Rule struct {
 	Description string               `yaml:"description"`
 	Predicates  predicate.Predicates `yaml:"if"`
 	Options     Options              `yaml:"options"`
-	Requires    common.Requires      `yaml:"requires"`
+	Requires    Requires      `yaml:"requires"`
 }
 
 type Options struct {
@@ -71,6 +71,12 @@ func (opts *Options) GetMethods() *common.Methods {
 	return methods
 }
 
+type Requires struct {
+	Count int `yaml:"count"`
+
+	common.Actors `yaml:",inline"`
+}
+
 func (r *Rule) Trigger() common.Trigger {
 	t := common.TriggerCommit
 
@@ -97,12 +103,16 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 	res.Name = r.Name
 	res.Description = r.Description
 	res.Status = common.StatusSkipped
-	res.Requires = r.Requires
+	res.Requires = common.Actors{
+	                    Organizations: r.Requires.Organizations,
+	                    Teams:  r.Requires.Teams,
+	                    Users:  r.Requires.Users,
+	                    }
 
 	var predicatesInfo []*common.PredicateInfo
 
 	for _, p := range r.Predicates.Predicates() {
-		satisfied, desc, pPredicateInfo, err := p.Evaluate(ctx, prctx)
+		satisfied, pPredicateInfo, err := p.Evaluate(ctx, prctx)
 		predicatesInfo = append(predicatesInfo, pPredicateInfo)
 		if err != nil {
 			res.Error = errors.Wrap(err, "failed to evaluate predicate")
@@ -112,6 +122,7 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 		if !satisfied {
 			log.Debug().Msgf("skipping rule, predicate of type %T was not satisfied", p)
 
+            desc := pPredicateInfo.Description
 			res.StatusDescription = desc
 			if desc == "" {
 				res.StatusDescription = "A precondition of this rule was not satisfied"

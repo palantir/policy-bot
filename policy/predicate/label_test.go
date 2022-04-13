@@ -73,12 +73,6 @@ func TestHasLabels(t *testing.T) {
 				},
 			},
 		},
-		{
-			"labels does not exist",
-			false,
-			&pulltest.Context{},
-			nil,
-		},
 	})
 }
 
@@ -94,14 +88,12 @@ func runLabelsTestCase(t *testing.T, p Predicate, cases []HasLabelsTestCase) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ok, _, predicateInfo, err := p.Evaluate(ctx, tc.context)
+			ok, predicateInfo, err := p.Evaluate(ctx, tc.context)
 			if assert.NoError(t, err, "evaluation failed") {
 				assert.Equal(t, tc.expected, ok, "predicate was not correct")
-				if tc.ExpectedPredicateInfo != nil {
-					assert.Equal(t, *tc.ExpectedPredicateInfo.LabelInfo, *predicateInfo.LabelInfo, "LabelInfo was not correct")
-					assert.Equal(t, tc.ExpectedPredicateInfo.Name, predicateInfo.Name, "PredicateInfo's Name was not correct")
-					assert.Equal(t, tc.ExpectedPredicateInfo.Type, predicateInfo.Type, "PredicateInfo's Type was not correct")
-				}
+				assert.Equal(t, *tc.ExpectedPredicateInfo.LabelInfo, *predicateInfo.LabelInfo, "LabelInfo was not correct")
+				assert.Equal(t, tc.ExpectedPredicateInfo.Name, predicateInfo.Name, "PredicateInfo's Name was not correct")
+				assert.Equal(t, tc.ExpectedPredicateInfo.Type, predicateInfo.Type, "PredicateInfo's Type was not correct")
 			}
 		})
 	}

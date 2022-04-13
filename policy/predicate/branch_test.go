@@ -136,7 +136,7 @@ func runBranchesTestCase(t *testing.T, regex string, cases []branchesTestCase) {
 		}
 
 		t.Run(tc.name+" targets_branch", func(t *testing.T) {
-			ok, _, predicateInfo, err := targetsPredicate.Evaluate(ctx, targetsContext)
+			ok, predicateInfo, err := targetsPredicate.Evaluate(ctx, targetsContext)
 			if assert.NoError(t, err, "targets_branch predicate evaluation failed") {
 				assert.Equal(t, tc.expected, ok, "targets_branch predicate was not correct")
 				assert.Equal(t, *tc.expectedBranchInfo, *predicateInfo.BranchInfo, "BranchInfo was not correct")
@@ -146,7 +146,7 @@ func runBranchesTestCase(t *testing.T, regex string, cases []branchesTestCase) {
 		})
 
 		t.Run(tc.name+" from_branch", func(t *testing.T) {
-			ok, _, predicateInfo, err := fromPredicate.Evaluate(ctx, fromContext)
+			ok, predicateInfo, err := fromPredicate.Evaluate(ctx, fromContext)
 			if assert.NoError(t, err, "from_branch predicate evaluation failed") {
 				assert.Equal(t, tc.expected, ok, "from_branch predicate was not correct")
 				assert.Equal(t, *tc.expectedBranchInfo, *predicateInfo.BranchInfo, "BranchInfo was not correct")

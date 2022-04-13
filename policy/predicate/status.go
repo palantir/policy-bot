@@ -27,10 +27,10 @@ type HasSuccessfulStatus []string
 
 var _ Predicate = HasSuccessfulStatus([]string{})
 
-func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, *common.PredicateInfo, error) {
+func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context) (bool, *common.PredicateInfo, error) {
 	statuses, err := prctx.LatestStatuses()
 	if err != nil {
-		return false, "", nil, errors.Wrap(err, "failed to list commit statuses")
+		return false, nil, errors.Wrap(err, "failed to list commit statuses")
 	}
 	var statusInfo common.StatusInfo
 	predicateInfo := common.PredicateInfo{
@@ -52,17 +52,19 @@ func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context
 
 	if len(missingResults) > 0 {
 		statusInfo.Status = missingResults
-		return false, "One or more statuses is missing: " + strings.Join(missingResults, ", "), &predicateInfo, nil
+		predicateInfo.Description = "One or more statuses is missing: " + strings.Join(missingResults, ", ")
+		return false, &predicateInfo, nil
 	}
 
 	if len(failingStatuses) > 0 {
 		statusInfo.Status = failingStatuses
-		return false, "One or more statuses has not passed: " + strings.Join(failingStatuses, ","), &predicateInfo, nil
+        predicateInfo.Description = "One or more statuses has not passed: " + strings.Join(failingStatuses, ",")
+		return false, &predicateInfo, nil
 	}
 
 	statusInfo.Status = pred
 
-	return true, "", &predicateInfo, nil
+	return true, &predicateInfo, nil
 }
 
 func (pred HasSuccessfulStatus) Trigger() common.Trigger {
