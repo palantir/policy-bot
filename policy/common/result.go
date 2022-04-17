@@ -59,19 +59,13 @@ type ReviewRequestRule struct {
 	Mode RequestMode
 }
 
-type Requires struct {
-	Count int `yaml:"count"`
-
-	Actors `yaml:",inline"`
-}
-
 type Result struct {
 	Name              string
 	Description       string
 	StatusDescription string
 	Status            EvaluationStatus
 	Error             error
-	PredicatesInfo    []*PredicateInfo
+	PredicateResults  []*PredicateResult
 	Requires          Actors
 
 	ReviewRequestRule *ReviewRequestRule

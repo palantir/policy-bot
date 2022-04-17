@@ -36,46 +36,41 @@ func TestWithNotMatchRule(t *testing.T) {
 	runTitleTestCase(t, p, []TitleTestCase{
 		{
 			"empty title",
-			true,
 			&pulltest.Context{
 				TitleValue: "",
 			},
-			&common.PredicateInfo{
-				Type: "Title",
-				Name: "Title",
-				TitleInfo: &common.TitleInfo{
-					NotMatchPatterns: []string{"^(fix|feat|chore): (\\w| )+$"},
-					PRTitle:          "",
+			&common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{""},
+				ConditionsMap: map[string][]string{
+					"not match": {"^(fix|feat|chore): (\\w| )+$"},
 				},
 			},
 		},
 		{
 			"matches pattern",
-			false,
 			&pulltest.Context{
 				TitleValue: "chore: added tests",
 			},
-			&common.PredicateInfo{
-				Type: "Title",
-				Name: "Title",
-				TitleInfo: &common.TitleInfo{
-					NotMatchPatterns: []string{"^(fix|feat|chore): (\\w| )+$"},
-					PRTitle:          "chore: added tests",
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"chore: added tests"},
+				ConditionsMap: map[string][]string{
+					"not match": {"^(fix|feat|chore): (\\w| )+$"},
+					"match":     nil,
 				},
 			},
 		},
 		{
 			"does not match pattern",
-			true,
 			&pulltest.Context{
 				TitleValue: "changes: added tests",
 			},
-			&common.PredicateInfo{
-				Type: "Title",
-				Name: "Title",
-				TitleInfo: &common.TitleInfo{
-					NotMatchPatterns: []string{"^(fix|feat|chore): (\\w| )+$"},
-					PRTitle:          "changes: added tests",
+			&common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{"changes: added tests"},
+				ConditionsMap: map[string][]string{
+					"not match": {"^(fix|feat|chore): (\\w| )+$"},
 				},
 			},
 		},
@@ -93,46 +88,42 @@ func TestWithMatchRule(t *testing.T) {
 	runTitleTestCase(t, p, []TitleTestCase{
 		{
 			"empty title",
-			false,
 			&pulltest.Context{
 				TitleValue: "",
 			},
-			&common.PredicateInfo{
-				Type: "Title",
-				Name: "Title",
-				TitleInfo: &common.TitleInfo{
-					MatchPatterns: []string{"^BLOCKED"},
-					PRTitle:       "",
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{""},
+				ConditionsMap: map[string][]string{
+					"not match": nil,
+					"match":     {"^BLOCKED"},
 				},
 			},
 		},
 		{
 			"matches pattern",
-			true,
 			&pulltest.Context{
 				TitleValue: "BLOCKED: new feature",
 			},
-			&common.PredicateInfo{
-				Type: "Title",
-				Name: "Title",
-				TitleInfo: &common.TitleInfo{
-					MatchPatterns: []string{"^BLOCKED"},
-					PRTitle:       "BLOCKED: new feature",
+			&common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{"BLOCKED: new feature"},
+				ConditionsMap: map[string][]string{
+					"match": {"^BLOCKED"},
 				},
 			},
 		},
 		{
 			"does not match pattern",
-			false,
 			&pulltest.Context{
 				TitleValue: "feat: new feature",
 			},
-			&common.PredicateInfo{
-				Type: "Title",
-				Name: "Title",
-				TitleInfo: &common.TitleInfo{
-					MatchPatterns: []string{"^BLOCKED"},
-					PRTitle:       "feat: new feature",
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"feat: new feature"},
+				ConditionsMap: map[string][]string{
+					"not match": nil,
+					"match":     {"^BLOCKED"},
 				},
 			},
 		},
@@ -153,93 +144,81 @@ func TestWithMixedRules(t *testing.T) {
 	runTitleTestCase(t, p, []TitleTestCase{
 		{
 			"empty title",
-			true,
 			&pulltest.Context{
 				TitleValue: "",
 			},
-			&common.PredicateInfo{
-				Type: "Title",
-				Name: "Title",
-				TitleInfo: &common.TitleInfo{
-					NotMatchPatterns: []string{"^(fix|feat|chore): (\\w| )+$", "^BREAKING CHANGE: (\\w| )+$"},
-					PRTitle:          "",
+			&common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{""},
+				ConditionsMap: map[string][]string{
+					"not match": {"^(fix|feat|chore): (\\w| )+$", "^BREAKING CHANGE: (\\w| )+$"},
 				},
 			},
 		},
 		{
 			"matches first pattern in matches list",
-			false,
 			&pulltest.Context{
 				TitleValue: "fix: fixes failing tests",
 			},
-			&common.PredicateInfo{
-				Type: "Title",
-				Name: "Title",
-				TitleInfo: &common.TitleInfo{
-					MatchPatterns:    []string{"BLOCKED"},
-					NotMatchPatterns: []string{"^(fix|feat|chore): (\\w| )+$", "^BREAKING CHANGE: (\\w| )+$"},
-					PRTitle:          "fix: fixes failing tests",
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"fix: fixes failing tests"},
+				ConditionsMap: map[string][]string{
+					"not match": {"^(fix|feat|chore): (\\w| )+$", "^BREAKING CHANGE: (\\w| )+$"},
+					"match":     {"BLOCKED"},
 				},
 			},
 		},
 		{
 			"matches second pattern in matches list",
-			false,
 			&pulltest.Context{
 				TitleValue: "BREAKING CHANGE: new api version",
 			},
-			&common.PredicateInfo{
-				Type: "Title",
-				Name: "Title",
-				TitleInfo: &common.TitleInfo{
-					MatchPatterns:    []string{"BLOCKED"},
-					NotMatchPatterns: []string{"^(fix|feat|chore): (\\w| )+$", "^BREAKING CHANGE: (\\w| )+$"},
-					PRTitle:          "BREAKING CHANGE: new api version",
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"BREAKING CHANGE: new api version"},
+				ConditionsMap: map[string][]string{
+					"not match": {"^(fix|feat|chore): (\\w| )+$", "^BREAKING CHANGE: (\\w| )+$"},
+					"match":     {"BLOCKED"},
 				},
 			},
 		},
 		{
 			"matches pattern in not_matches list",
-			true,
 			&pulltest.Context{
 				TitleValue: "BLOCKED: not working",
 			},
-			&common.PredicateInfo{
-				Type: "Title",
-				Name: "Title",
-				TitleInfo: &common.TitleInfo{
-					MatchPatterns: []string{"BLOCKED"},
-					PRTitle:       "BLOCKED: not working",
+			&common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{"BLOCKED: not working"},
+				ConditionsMap: map[string][]string{
+					"match": {"BLOCKED"},
 				},
 			},
 		},
 		{
 			"matches pattern in both lists",
-			true,
 			&pulltest.Context{
 				TitleValue: "BREAKING CHANGE: BLOCKED",
 			},
-			&common.PredicateInfo{
-				Type: "Title",
-				Name: "Title",
-				TitleInfo: &common.TitleInfo{
-					MatchPatterns: []string{"BLOCKED"},
-					PRTitle:       "BREAKING CHANGE: BLOCKED",
+			&common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{"BREAKING CHANGE: BLOCKED"},
+				ConditionsMap: map[string][]string{
+					"match": {"BLOCKED"},
 				},
 			},
 		},
 		{
 			"does not match any pattern",
-			true,
 			&pulltest.Context{
 				TitleValue: "test: adds tests",
 			},
-			&common.PredicateInfo{
-				Type: "Title",
-				Name: "Title",
-				TitleInfo: &common.TitleInfo{
-					NotMatchPatterns: []string{"^(fix|feat|chore): (\\w| )+$", "^BREAKING CHANGE: (\\w| )+$"},
-					PRTitle:          "test: adds tests",
+			&common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{"test: adds tests"},
+				ConditionsMap: map[string][]string{
+					"not match": {"^(fix|feat|chore): (\\w| )+$", "^BREAKING CHANGE: (\\w| )+$"},
 				},
 			},
 		},
@@ -247,10 +226,9 @@ func TestWithMixedRules(t *testing.T) {
 }
 
 type TitleTestCase struct {
-	name                  string
-	expected              bool
-	context               pull.Context
-	ExpectedPredicateInfo *common.PredicateInfo
+	name                    string
+	context                 pull.Context
+	ExpectedPredicateResult *common.PredicateResult
 }
 
 func runTitleTestCase(t *testing.T, p Predicate, cases []TitleTestCase) {
@@ -258,12 +236,12 @@ func runTitleTestCase(t *testing.T, p Predicate, cases []TitleTestCase) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ok, predicateInfo, err := p.Evaluate(ctx, tc.context)
+			predicateResult, err := p.Evaluate(ctx, tc.context)
 			if assert.NoError(t, err, "evaluation failed") {
-				assert.Equal(t, tc.expected, ok, "predicate was not correct")
-				assert.Equal(t, *tc.ExpectedPredicateInfo.TitleInfo, *predicateInfo.TitleInfo, "TitleInfo was not correct")
-				assert.Equal(t, tc.ExpectedPredicateInfo.Name, predicateInfo.Name, "PredicateInfo's Name was not correct")
-				assert.Equal(t, tc.ExpectedPredicateInfo.Type, predicateInfo.Type, "PredicateInfo's Type was not correct")
+				assert.Equal(t, tc.ExpectedPredicateResult.Satisfied, predicateResult.Satisfied, "predicate was not correct")
+				assert.Equal(t, tc.ExpectedPredicateResult.Values, predicateResult.Values, "values were not correct")
+				assert.Equal(t, tc.ExpectedPredicateResult.ConditionsMap, predicateResult.ConditionsMap, "conditions were not correct")
+				assert.Equal(t, tc.ExpectedPredicateResult.ConditionValues, predicateResult.ConditionValues, "conditions were not correct")
 			}
 		})
 	}

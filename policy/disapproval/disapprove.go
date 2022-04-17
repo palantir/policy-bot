@@ -104,37 +104,33 @@ func (p *Policy) Evaluate(ctx context.Context, prctx pull.Context) (res common.R
 
 	res.Name = "disapproval"
 	res.Status = common.StatusSkipped
-	res.Requires = common.Actors{
-	                    Organizations: p.Requires.Organizations,
-	                    Teams:  p.Requires.Teams,
-	                    Users:  p.Requires.Users,
-	                    }
+	res.Requires = p.Requires.Actors
 
-	var predicatesInfo []*common.PredicateInfo
+	var predicateResults []*common.PredicateResult
 
 	for _, p := range p.Predicates.Predicates() {
-		satisfied, pPredicateInfo, err := p.Evaluate(ctx, prctx)
-		predicatesInfo = append(predicatesInfo, pPredicateInfo)
+		result, err := p.Evaluate(ctx, prctx)
 		if err != nil {
 			res.Error = errors.Wrap(err, "failed to evaluate predicate")
 			return
 		}
+		predicateResults = append(predicateResults, result)
 
-		if satisfied {
+		if result.Satisfied {
 			log.Debug().Msgf("disapproving, predicate of type %T was satisfied", p)
 
 			res.Status = common.StatusDisapproved
 
-			desc := pPredicateInfo.Description
+			desc := result.Description
 			res.StatusDescription = desc
 			if desc == "" {
 				res.StatusDescription = "A precondition of this rule was satisfied"
 			}
-			res.PredicatesInfo = []*common.PredicateInfo{pPredicateInfo}
+			res.PredicateResults = []*common.PredicateResult{result}
 			return
 		}
 	}
-	res.PredicatesInfo = predicatesInfo
+	res.PredicateResults = predicateResults
 	if p.Requires.IsEmpty() {
 		log.Debug().Msg("no users are allowed to disapprove; skipping")
 

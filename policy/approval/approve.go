@@ -33,7 +33,7 @@ type Rule struct {
 	Description string               `yaml:"description"`
 	Predicates  predicate.Predicates `yaml:"if"`
 	Options     Options              `yaml:"options"`
-	Requires    Requires      `yaml:"requires"`
+	Requires    Requires             `yaml:"requires"`
 }
 
 type Options struct {
@@ -103,35 +103,31 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 	res.Name = r.Name
 	res.Description = r.Description
 	res.Status = common.StatusSkipped
-	res.Requires = common.Actors{
-	                    Organizations: r.Requires.Organizations,
-	                    Teams:  r.Requires.Teams,
-	                    Users:  r.Requires.Users,
-	                    }
+	res.Requires = r.Requires.Actors
 
-	var predicatesInfo []*common.PredicateInfo
+	var predicateResults []*common.PredicateResult
 
 	for _, p := range r.Predicates.Predicates() {
-		satisfied, pPredicateInfo, err := p.Evaluate(ctx, prctx)
-		predicatesInfo = append(predicatesInfo, pPredicateInfo)
+		result, err := p.Evaluate(ctx, prctx)
 		if err != nil {
 			res.Error = errors.Wrap(err, "failed to evaluate predicate")
 			return
 		}
+		predicateResults = append(predicateResults, result)
 
-		if !satisfied {
+		if !result.Satisfied {
 			log.Debug().Msgf("skipping rule, predicate of type %T was not satisfied", p)
 
-            desc := pPredicateInfo.Description
+			desc := result.Description
 			res.StatusDescription = desc
 			if desc == "" {
 				res.StatusDescription = "A precondition of this rule was not satisfied"
 			}
-			res.PredicatesInfo = []*common.PredicateInfo{pPredicateInfo}
+			res.PredicateResults = []*common.PredicateResult{result}
 			return
 		}
 	}
-	res.PredicatesInfo = predicatesInfo
+	res.PredicateResults = predicateResults
 	approved, msg, err := r.IsApproved(ctx, prctx)
 	if err != nil {
 		res.Error = errors.Wrap(err, "failed to compute approval status")

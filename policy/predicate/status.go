@@ -27,17 +27,18 @@ type HasSuccessfulStatus []string
 
 var _ Predicate = HasSuccessfulStatus([]string{})
 
-func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context) (bool, *common.PredicateInfo, error) {
+func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
 	statuses, err := prctx.LatestStatuses()
+
+	predicateResult := common.PredicateResult{
+		ValuePhrase:     "check",
+		ConditionPhrase: "has successful status",
+	}
+
 	if err != nil {
-		return false, nil, errors.Wrap(err, "failed to list commit statuses")
+		return nil, errors.Wrap(err, "failed to list commit statuses")
 	}
-	var statusInfo common.StatusInfo
-	predicateInfo := common.PredicateInfo{
-		Type:       "HasSuccessfulStatus",
-		Name:       "Status",
-		StatusInfo: &statusInfo,
-	}
+
 	var missingResults []string
 	var failingStatuses []string
 	for _, status := range pred {
@@ -51,20 +52,23 @@ func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context
 	}
 
 	if len(missingResults) > 0 {
-		statusInfo.Status = missingResults
-		predicateInfo.Description = "One or more statuses is missing: " + strings.Join(missingResults, ", ")
-		return false, &predicateInfo, nil
+		predicateResult.Values = missingResults
+		predicateResult.Description = "One or more statuses is missing: " + strings.Join(missingResults, ", ")
+		predicateResult.Satisfied = false
+		return &predicateResult, nil
 	}
 
 	if len(failingStatuses) > 0 {
-		statusInfo.Status = failingStatuses
-        predicateInfo.Description = "One or more statuses has not passed: " + strings.Join(failingStatuses, ",")
-		return false, &predicateInfo, nil
+		predicateResult.Values = failingStatuses
+		predicateResult.Description = "One or more statuses has not passed: " + strings.Join(failingStatuses, ",")
+		predicateResult.Satisfied = false
+		return &predicateResult, nil
 	}
 
-	statusInfo.Status = pred
+	predicateResult.Values = pred
+	predicateResult.Satisfied = true
 
-	return true, &predicateInfo, nil
+	return &predicateResult, nil
 }
 
 func (pred HasSuccessfulStatus) Trigger() common.Trigger {

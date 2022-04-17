@@ -27,30 +27,30 @@ type HasLabels []string
 
 var _ Predicate = HasLabels([]string{})
 
-func (pred HasLabels) Evaluate(ctx context.Context, prctx pull.Context) (bool, *common.PredicateInfo, error) {
+func (pred HasLabels) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
 
-	var labelInfo common.LabelInfo
-	predicateInfo := common.PredicateInfo{
-		Type:      "HasLabels",
-		Name:      "Labels",
-		LabelInfo: &labelInfo,
+	predicateResult := common.PredicateResult{
+		ValuePhrase:     "labels",
+		ConditionPhrase: "contain the labels",
 	}
 	if len(pred) > 0 {
 		labels, err := prctx.Labels()
 		if err != nil {
-			return false, nil, errors.Wrap(err, "failed to list pull request labels")
+			return nil, errors.Wrap(err, "failed to list pull request labels")
 		}
-		labelInfo.PRLabels = labels
+		predicateResult.Values = labels
 		for _, requiredLabel := range pred {
 			if !contains(labels, strings.ToLower(requiredLabel)) {
-				labelInfo.RequiredLabels = []string{requiredLabel}
-				predicateInfo.Description = "Missing label: " + requiredLabel
-				return false, &predicateInfo, nil
+				predicateResult.ConditionValues = []string{requiredLabel}
+				predicateResult.Description = "Missing label: " + requiredLabel
+				predicateResult.Satisfied = false
+				return &predicateResult, nil
 			}
 		}
 	}
-	labelInfo.RequiredLabels = pred
-	return true, &predicateInfo, nil
+	predicateResult.ConditionValues = pred
+	predicateResult.Satisfied = true
+	return &predicateResult, nil
 }
 
 func (pred HasLabels) Trigger() common.Trigger {

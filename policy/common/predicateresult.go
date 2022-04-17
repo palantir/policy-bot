@@ -12,18 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package predicate
+package common
 
-import (
-	"context"
+type PredicateResult struct {
+	Satisfied bool
 
-	"github.com/palantir/policy-bot/policy/common"
-	"github.com/palantir/policy-bot/pull"
-)
+	Description string
 
-type Predicate interface {
-	common.Triggered
+	// Describes the values, used as "the $ValuesPhrase"; must be plural
+	ValuePhrase string
+	Values      []string
 
-	// Evaluate determines if the predicate is satisfied.
-	Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error)
+	// Describes the condition, used as "$ConditionPhrase" or "does not $ConditionPhrase"
+	ConditionPhrase string
+	// If non-empty, use the map, otherwise, use the regular list
+	ConditionsMap   map[string][]string
+	ConditionValues []string
 }

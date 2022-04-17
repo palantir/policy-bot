@@ -28,46 +28,45 @@ type Title struct {
 
 var _ Predicate = Title{}
 
-func (pred Title) Evaluate(ctx context.Context, prctx pull.Context) (bool, *common.PredicateInfo, error) {
+func (pred Title) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
 	title := prctx.Title()
 
-	var titleInfo common.TitleInfo
-	predicateInfo := common.PredicateInfo{
-		Type:      "Title",
-		Name:      "Title",
-		TitleInfo: &titleInfo,
+	predicateResult := common.PredicateResult{
+		ValuePhrase:     "title",
+		Values:          []string{title},
+		ConditionPhrase: "meet the pattern requirement",
 	}
 
-	titleInfo.PRTitle = title
-
-	var MatchPatterns, NotMatchPatterns []string
+	var matchPatterns, notMatchPatterns []string
 
 	for _, reg := range pred.Matches {
-		MatchPatterns = append(MatchPatterns, reg.String())
+		matchPatterns = append(matchPatterns, reg.String())
 	}
 
 	for _, reg := range pred.NotMatches {
-		NotMatchPatterns = append(NotMatchPatterns, reg.String())
+		notMatchPatterns = append(notMatchPatterns, reg.String())
 	}
 
 	if len(pred.Matches) > 0 {
 		if anyMatches(pred.Matches, title) {
-			titleInfo.MatchPatterns = MatchPatterns
-			predicateInfo.Description = "PR Title matches a Match pattern"
-			return true, &predicateInfo, nil
+			predicateResult.ConditionsMap = map[string][]string{"match": matchPatterns}
+			predicateResult.Description = "PR Title matches a Match pattern"
+			predicateResult.Satisfied = true
+			return &predicateResult, nil
 		}
 	}
 
 	if len(pred.NotMatches) > 0 {
 		if !anyMatches(pred.NotMatches, title) {
-			titleInfo.NotMatchPatterns = NotMatchPatterns
-			predicateInfo.Description = "PR Title doesn't match a NotMatch pattern"
-			return true, &predicateInfo, nil
+			predicateResult.ConditionsMap = map[string][]string{"not match": notMatchPatterns}
+			predicateResult.Description = "PR Title doesn't match a NotMatch pattern"
+			predicateResult.Satisfied = true
+			return &predicateResult, nil
 		}
 	}
-	titleInfo.MatchPatterns = MatchPatterns
-	titleInfo.NotMatchPatterns = NotMatchPatterns
-	return false, &predicateInfo, nil
+	predicateResult.Satisfied = false
+	predicateResult.ConditionsMap = map[string][]string{"match": matchPatterns, "not match": notMatchPatterns}
+	return &predicateResult, nil
 }
 
 func (pred Title) Trigger() common.Trigger {

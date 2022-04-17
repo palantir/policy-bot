@@ -32,10 +32,10 @@ type ChangedFiles struct {
 
 var _ Predicate = &ChangedFiles{}
 
-func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (bool, *common.PredicateInfo, error) {
+func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
 	files, err := prctx.ChangedFiles()
 
-	var paths, ignorePaths, changedFiles []string
+	var paths, ignorePaths []string
 
 	for _, path := range pred.Paths {
 		paths = append(paths, path.String())
@@ -45,19 +45,20 @@ func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (boo
 		ignorePaths = append(ignorePaths, ignorePath.String())
 	}
 
-	var fileInfo common.FileInfo
-	fileInfo.Paths = paths
-	fileInfo.IgnorePaths = ignorePaths
-
-	predicateInfo := common.PredicateInfo{
-		Type:     "ChangedFiles",
-		Name:     "Changed Files",
-		FileInfo: &fileInfo,
+	predicateResult := common.PredicateResult{
+		ValuePhrase:     "changed files",
+		ConditionPhrase: "match patterns",
+		ConditionsMap: map[string][]string{
+			"path patterns":        paths,
+			"while ignoring": ignorePaths,
+		},
 	}
 
 	if err != nil {
-		return false, nil, errors.Wrap(err, "failed to list changed files")
+		return nil, errors.Wrap(err, "failed to list changed files")
 	}
+
+	changedFiles := []string{}
 
 	for _, f := range files {
 
@@ -68,15 +69,17 @@ func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (boo
 		}
 
 		if anyMatches(pred.Paths, f.Filename) {
-			fileInfo.ChangedFiles = []string{f.Filename}
-			predicateInfo.Description = f.Filename + " was changed"
-			return true, &predicateInfo, nil
+			predicateResult.Values = []string{f.Filename}
+			predicateResult.Description = f.Filename + " was changed"
+			predicateResult.Satisfied = true
+			return &predicateResult, nil
 		}
 	}
 
-	fileInfo.ChangedFiles = changedFiles
-	predicateInfo.Description = "No changed files match the required patterns"
-	return false, &predicateInfo, nil
+	predicateResult.Values = changedFiles
+	predicateResult.Description = "No changed files match the required patterns"
+	predicateResult.Satisfied = false
+	return &predicateResult, nil
 }
 
 func (pred *ChangedFiles) Trigger() common.Trigger {
@@ -89,10 +92,16 @@ type OnlyChangedFiles struct {
 
 var _ Predicate = &OnlyChangedFiles{}
 
-func (pred *OnlyChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (bool, *common.PredicateInfo, error) {
+func (pred *OnlyChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
 	files, err := prctx.ChangedFiles()
+
+	predicateResult := common.PredicateResult{
+		ValuePhrase:     "changed files",
+		ConditionPhrase: "all match patterns",
+	}
+
 	if err != nil {
-		return false, nil, errors.Wrap(err, "failed to list changed files")
+		return nil, errors.Wrap(err, "failed to list changed files")
 	}
 
 	var paths []string
@@ -101,16 +110,9 @@ func (pred *OnlyChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) 
 		paths = append(paths, path.String())
 	}
 
-	var fileInfo common.FileInfo
-	fileInfo.Paths = paths
+	predicateResult.ConditionValues = paths
 
-	predicateInfo := common.PredicateInfo{
-		Type:     "OnlyChangedFiles",
-		Name:     "Changed Files",
-		FileInfo: &fileInfo,
-	}
-
-	var changedFiles []string
+	changedFiles := []string{}
 
 	for _, f := range files {
 
@@ -119,9 +121,10 @@ func (pred *OnlyChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) 
 		if anyMatches(pred.Paths, f.Filename) {
 			continue
 		}
-		fileInfo.ChangedFiles = []string{f.Filename}
-		predicateInfo.Description = "A changed file does not match the required pattern"
-		return false, &predicateInfo, nil
+		predicateResult.Values = []string{f.Filename}
+		predicateResult.Description = "A changed file does not match the required pattern"
+		predicateResult.Satisfied = false
+		return &predicateResult, nil
 	}
 
 	filesChanged := len(files) > 0
@@ -131,9 +134,10 @@ func (pred *OnlyChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) 
 		desc = "No files changed"
 	}
 
-	fileInfo.ChangedFiles = changedFiles
-    predicateInfo.Description = desc
-	return filesChanged, &predicateInfo, nil
+	predicateResult.Values = changedFiles
+	predicateResult.Description = desc
+	predicateResult.Satisfied = filesChanged
+	return &predicateResult, nil
 }
 
 func (pred *OnlyChangedFiles) Trigger() common.Trigger {
@@ -190,6 +194,14 @@ func (exp ComparisonExpr) MarshalText() ([]byte, error) {
 	return []byte(fmt.Sprintf("%s %d", op, exp.Value)), nil
 }
 
+func (exp ComparisonExpr) String() string {
+	res, err := exp.MarshalText()
+	if err != nil {
+		return fmt.Sprintf("?? (op:%d) %d", exp.Op, exp.Value)
+	}
+	return string(res[:])
+}
+
 func (exp *ComparisonExpr) UnmarshalText(text []byte) error {
 	text = bytes.TrimSpace(text)
 	if len(text) == 0 {
@@ -222,18 +234,16 @@ func (exp *ComparisonExpr) UnmarshalText(text []byte) error {
 	return nil
 }
 
-func (pred *ModifiedLines) Evaluate(ctx context.Context, prctx pull.Context) (bool, *common.PredicateInfo, error) {
+func (pred *ModifiedLines) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
 	files, err := prctx.ChangedFiles()
-	if err != nil {
-		return false, nil, errors.Wrap(err, "failed to list changed files")
+
+	predicateResult := common.PredicateResult{
+		ValuePhrase:     "file modifications",
+		ConditionPhrase: "meet the modification conditions",
 	}
 
-	var fileInfo common.FileInfo
-
-	predicateInfo := common.PredicateInfo{
-		Type:     "ModifiedLines",
-		Name:     "Modified Lines",
-		FileInfo: &fileInfo,
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list changed files")
 	}
 
 	var additions, deletions int64
@@ -242,51 +252,36 @@ func (pred *ModifiedLines) Evaluate(ctx context.Context, prctx pull.Context) (bo
 		deletions += int64(f.Deletions)
 	}
 
-	if !pred.Additions.IsEmpty() && pred.Additions.Evaluate(additions) {
-		res, err := pred.Additions.MarshalText()
-		if err != nil {
-			return false, nil, errors.Wrap(err, "failed to marshal text for addition limit")
+	if !pred.Additions.IsEmpty() {
+		predicateResult.Values = []string{fmt.Sprintf("+%d", additions)}
+		predicateResult.ConditionValues = []string{"added lines" + pred.Additions.String()}
+		if pred.Additions.Evaluate(additions) {
+			predicateResult.Satisfied = true
+			return &predicateResult, nil
 		}
-		fileInfo.AdditionLimit = string(res[:])
-		fileInfo.AddedLines = additions
-		return true, &predicateInfo, nil
-	} else if !pred.Deletions.IsEmpty() && pred.Deletions.Evaluate(deletions) {
-		res, err := pred.Deletions.MarshalText()
-		if err != nil {
-			return false, nil, errors.Wrap(err, "failed to marshal text for deletion limit")
+	}
+	if !pred.Deletions.IsEmpty() {
+		if pred.Deletions.Evaluate(deletions) {
+			predicateResult.Values = []string{fmt.Sprintf("-%d", deletions)}
+			predicateResult.ConditionValues = []string{"deleted lines" + pred.Deletions.String()}
+			predicateResult.Satisfied = true
+			return &predicateResult, nil
 		}
-		fileInfo.DeletionLimit = string(res[:])
-		fileInfo.DeletedLines = deletions
-		return true, &predicateInfo, nil
-	} else if !pred.Total.IsEmpty() && pred.Total.Evaluate(additions+deletions) {
-		res, err := pred.Total.MarshalText()
-		if err != nil {
-			return false, nil, errors.Wrap(err, "failed to marshal text for total limit")
+		predicateResult.Values = append(predicateResult.Values, fmt.Sprintf("-%d", deletions))
+		predicateResult.ConditionValues = append(predicateResult.ConditionValues, "deleted lines"+pred.Deletions.String())
+	}
+	if !pred.Total.IsEmpty() {
+		if pred.Total.Evaluate(additions + deletions) {
+			predicateResult.Values = []string{fmt.Sprintf("total %d", additions+deletions)}
+			predicateResult.ConditionValues = []string{"total modifications" + pred.Total.String()}
+			predicateResult.Satisfied = true
+			return &predicateResult, nil
 		}
-		fileInfo.TotalLimit = string(res[:])
-		fileInfo.TotalModifiedLines = additions + deletions
-		return true, &predicateInfo, nil
+		predicateResult.Values = append(predicateResult.Values, fmt.Sprintf("total %d", additions+deletions))
+		predicateResult.ConditionValues = append(predicateResult.ConditionValues, "total modifications"+pred.Total.String())
 	}
-	res, err := pred.Additions.MarshalText()
-	if err != nil {
-		return false, nil, errors.Wrap(err, "failed to marshal text for addition limit")
-	}
-	fileInfo.AdditionLimit = string(res[:])
-	fileInfo.AddedLines = additions
-	res, err = pred.Deletions.MarshalText()
-	if err != nil {
-		return false, nil, errors.Wrap(err, "failed to marshal text for deletion limit")
-	}
-	fileInfo.DeletionLimit = string(res[:])
-	fileInfo.DeletedLines = deletions
-	res, err = pred.Total.MarshalText()
-	if err != nil {
-		return false, nil, errors.Wrap(err, "failed to marshal text for total limit")
-	}
-	fileInfo.TotalLimit = string(res[:])
-	fileInfo.TotalModifiedLines = additions + deletions
-	predicateInfo.Description = fmt.Sprintf("modification of (+%d, -%d) does not match any conditions", additions, deletions)
-	return false, &predicateInfo, nil
+	predicateResult.Satisfied = false
+	return &predicateResult, nil
 }
 
 func (pred *ModifiedLines) Trigger() common.Trigger {

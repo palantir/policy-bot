@@ -31,7 +31,6 @@ func TestHasValidSignatures(t *testing.T) {
 	testCases := []SignatureTestCase{
 		{
 			"ValidSignature",
-			true,
 			&pulltest.Context{
 				AuthorValue: "mhaypenny",
 				CommitsValue: []*pull.Commit{
@@ -49,17 +48,13 @@ func TestHasValidSignatures(t *testing.T) {
 					},
 				},
 			},
-			&common.PredicateInfo{
-				Type: "HasValidSignatures",
-				Name: "Commit Hashes",
-				CommitInfo: &common.CommitInfo{
-					CommitHashes: []string{"abcdef123456789"},
-				},
+			&common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{"abcdef123456789"},
 			},
 		},
 		{
 			"InvalidSignature",
-			false,
 			&pulltest.Context{
 				AuthorValue: "mhaypenny",
 				CommitsValue: []*pull.Commit{
@@ -77,17 +72,13 @@ func TestHasValidSignatures(t *testing.T) {
 					},
 				},
 			},
-			&common.PredicateInfo{
-				Type: "HasValidSignatures",
-				Name: "Commit Hashes",
-				CommitInfo: &common.CommitInfo{
-					CommitHashes: []string{"abcdef123456789"},
-				},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"abcdef123456789"},
 			},
 		},
 		{
 			"NoSignature",
-			false,
 			&pulltest.Context{
 				AuthorValue: "mhaypenny",
 				CommitsValue: []*pull.Commit{
@@ -99,12 +90,9 @@ func TestHasValidSignatures(t *testing.T) {
 					},
 				},
 			},
-			&common.PredicateInfo{
-				Type: "HasValidSignatures",
-				Name: "Commit Hashes",
-				CommitInfo: &common.CommitInfo{
-					CommitHashes: []string{"abcdef123456789"},
-				},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"abcdef123456789"},
 			},
 		},
 	}
@@ -113,7 +101,7 @@ func TestHasValidSignatures(t *testing.T) {
 
 	// Invert the expected outcomes and test against the false predicate
 	for idx := range testCases {
-		testCases[idx].Expected = !testCases[idx].Expected
+		testCases[idx].ExpectedPredicateResult.Satisfied = !testCases[idx].ExpectedPredicateResult.Satisfied
 	}
 	runSignatureTests(t, pFalse, testCases)
 }
@@ -130,7 +118,6 @@ func TestHasValidSignaturesBy(t *testing.T) {
 	runSignatureTests(t, p, []SignatureTestCase{
 		{
 			"ValidSignatureByUser",
-			true,
 			&pulltest.Context{
 				AuthorValue: "mhaypenny",
 				CommitsValue: []*pull.Commit{
@@ -148,21 +135,18 @@ func TestHasValidSignaturesBy(t *testing.T) {
 					},
 				},
 			},
-			&common.PredicateInfo{
-				Type: "HasValidSignaturesBy",
-				Name: "Commit Hashes and Signers",
-				CommitInfo: &common.CommitInfo{
-					Organizations: p.Organizations,
-					Teams:         p.Teams,
-					Users:         p.Users,
-					CommitHashes:  []string{"abcdef123456789"},
-					Signers:       []string{"mhaypenny"},
+			&common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{"abcdef123456789"},
+				ConditionsMap: map[string][]string{
+					"Organizations": p.Organizations,
+					"Teams":         p.Teams,
+					"Users":         p.Users,
 				},
 			},
 		},
 		{
 			"ValidSignatureButNotUser",
-			false,
 			&pulltest.Context{
 				AuthorValue: "badcommitter",
 				CommitsValue: []*pull.Commit{
@@ -180,21 +164,18 @@ func TestHasValidSignaturesBy(t *testing.T) {
 					},
 				},
 			},
-			&common.PredicateInfo{
-				Type: "HasValidSignaturesBy",
-				Name: "Commit Hashes and Signers",
-				CommitInfo: &common.CommitInfo{
-					Organizations: p.Organizations,
-					Teams:         p.Teams,
-					Users:         p.Users,
-					CommitHashes:  []string{"abcdef123456789"},
-					Signers:       []string{"badcommitter"},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"badcommitter"},
+				ConditionsMap: map[string][]string{
+					"Organizations": p.Organizations,
+					"Teams":         p.Teams,
+					"Users":         p.Users,
 				},
 			},
 		},
 		{
 			"ValidSignatureByTeamMember",
-			true,
 			&pulltest.Context{
 				AuthorValue: "ttest",
 				TeamMemberships: map[string][]string{
@@ -217,21 +198,18 @@ func TestHasValidSignaturesBy(t *testing.T) {
 					},
 				},
 			},
-			&common.PredicateInfo{
-				Type: "HasValidSignaturesBy",
-				Name: "Commit Hashes and Signers",
-				CommitInfo: &common.CommitInfo{
-					Organizations: p.Organizations,
-					Teams:         p.Teams,
-					Users:         p.Users,
-					CommitHashes:  []string{"abcdef123456789"},
-					Signers:       []string{"ttest"},
+			&common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{"abcdef123456789"},
+				ConditionsMap: map[string][]string{
+					"Organizations": p.Organizations,
+					"Teams":         p.Teams,
+					"Users":         p.Users,
 				},
 			},
 		},
 		{
 			"NoSignature",
-			false,
 			&pulltest.Context{
 				AuthorValue: "mhaypenny",
 				CommitsValue: []*pull.Commit{
@@ -243,15 +221,13 @@ func TestHasValidSignaturesBy(t *testing.T) {
 					},
 				},
 			},
-			&common.PredicateInfo{
-				Type: "HasValidSignaturesBy",
-				Name: "Commit Hashes and Signers",
-				CommitInfo: &common.CommitInfo{
-					Organizations: p.Organizations,
-					Teams:         p.Teams,
-					Users:         p.Users,
-					CommitHashes:  []string{"abcdef123456789"},
-					Signers:       []string{},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"abcdef123456789"},
+				ConditionsMap: map[string][]string{
+					"Organizations": p.Organizations,
+					"Teams":         p.Teams,
+					"Users":         p.Users,
 				},
 			},
 		},
@@ -266,7 +242,6 @@ func TestHasValidSignaturesByKeys(t *testing.T) {
 	runSignatureTests(t, p, []SignatureTestCase{
 		{
 			"ValidSignatureByValidKey",
-			true,
 			&pulltest.Context{
 				AuthorValue: "mhaypenny",
 				CommitsValue: []*pull.Commit{
@@ -284,19 +259,14 @@ func TestHasValidSignaturesByKeys(t *testing.T) {
 					},
 				},
 			},
-			&common.PredicateInfo{
-				Type: "HasValidSignaturesByKeys",
-				Name: "Commit Hashes and Keys",
-				CommitInfo: &common.CommitInfo{
-					CommitHashes: []string{"abcdef123456789"},
-					RequiredKeys: []string{"3AA5C34371567BD2"},
-					Keys:         []string{"3AA5C34371567BD2"},
-				},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"abcdef123456789"},
+				ConditionValues: []string{"3AA5C34371567BD2"},
 			},
 		},
 		{
 			"ValidSignatureByInvalidKey",
-			false,
 			&pulltest.Context{
 				AuthorValue: "mhaypenny",
 				CommitsValue: []*pull.Commit{
@@ -314,19 +284,14 @@ func TestHasValidSignaturesByKeys(t *testing.T) {
 					},
 				},
 			},
-			&common.PredicateInfo{
-				Type: "HasValidSignaturesByKeys",
-				Name: "Commit Hashes and Keys",
-				CommitInfo: &common.CommitInfo{
-					CommitHashes: []string{"abcdef123456789"},
-					RequiredKeys: []string{"3AA5C34371567BD2"},
-					Keys:         []string{"3AB5C35371567CE7"},
-				},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"3AB5C35371567CE7"},
+				ConditionValues: []string{"3AA5C34371567BD2"},
 			},
 		},
 		{
 			"InvalidSignatureByInvalidKey",
-			false,
 			&pulltest.Context{
 				AuthorValue: "mhaypenny",
 				CommitsValue: []*pull.Commit{
@@ -344,24 +309,19 @@ func TestHasValidSignaturesByKeys(t *testing.T) {
 					},
 				},
 			},
-			&common.PredicateInfo{
-				Type: "HasValidSignaturesByKeys",
-				Name: "Commit Hashes and Keys",
-				CommitInfo: &common.CommitInfo{
-					CommitHashes: []string{"abcdef123456789"},
-					RequiredKeys: []string{"3AA5C34371567BD2"},
-					Keys:         []string{},
-				},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"abcdef123456789"},
+				ConditionValues: []string{"3AA5C34371567BD2"},
 			},
 		},
 	})
 }
 
 type SignatureTestCase struct {
-	Name                  string
-	Expected              bool
-	Context               pull.Context
-	ExpectedPredicateInfo *common.PredicateInfo
+	Name                    string
+	Context                 pull.Context
+	ExpectedPredicateResult *common.PredicateResult
 }
 
 func runSignatureTests(t *testing.T, p Predicate, cases []SignatureTestCase) {
@@ -369,12 +329,12 @@ func runSignatureTests(t *testing.T, p Predicate, cases []SignatureTestCase) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			ok, predicateInfo, err := p.Evaluate(ctx, tc.Context)
+			predicateResult, err := p.Evaluate(ctx, tc.Context)
 			if assert.NoError(t, err, "evaluation failed") {
-				assert.Equal(t, tc.Expected, ok, "predicate was not correct")
-				assert.Equal(t, *tc.ExpectedPredicateInfo.CommitInfo, *predicateInfo.CommitInfo, "CommitInfo was not correct")
-				assert.Equal(t, tc.ExpectedPredicateInfo.Name, predicateInfo.Name, "PredicateInfo's Name was not correct")
-				assert.Equal(t, tc.ExpectedPredicateInfo.Type, predicateInfo.Type, "PredicateInfo's Type was not correct")
+				assert.Equal(t, tc.ExpectedPredicateResult.Satisfied, predicateResult.Satisfied, "predicate was not correct")
+				assert.Equal(t, tc.ExpectedPredicateResult.Values, predicateResult.Values, "values were not correct")
+				assert.Equal(t, tc.ExpectedPredicateResult.ConditionsMap, predicateResult.ConditionsMap, "conditions were not correct")
+				assert.Equal(t, tc.ExpectedPredicateResult.ConditionValues, predicateResult.ConditionValues, "conditions were not correct")
 			}
 		})
 	}

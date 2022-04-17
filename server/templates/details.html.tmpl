@@ -56,18 +56,24 @@
 <li data-status="{{$s}}">
   <div class="bg-white p-2 shadow-sm max-w-lg status-stripe {{$s}}">
     {{template "result-details" .}}
-    {{if (or .PredicatesInfo (isRequiresNotEmpty .))}}
+    {{if (or .PredicateResults (hasRequires .Requires))}}
+    <div class="bg-light-gray3 pt-2">
     <details>
       <summary>
-        <div class="text-dark-grey3 text-sm">Details </div>
+        <div class="text-dark-gray3 text-sm">Details</div>
       </summary>
-      {{if .PredicatesInfo}}
-        {{template "result-predicates-details" .}}
+      {{if .PredicateResults}}
+        <div class="pt-2">
+          {{template "result-predicates-details" .}}
+        </div>
       {{end}}
-      {{if (isRequiresNotEmpty .)}}
+      {{if (hasRequires .Requires)}}
+        <div class="pt-2">
         {{template "result-requires-details" .}}
+        </div>
       {{end}}
     </details>
+    </div>
     {{end}}
   </div>
   {{if .Children}}
@@ -92,49 +98,47 @@
 
 {{define "result-predicates-details"}}
   {{ $s := (or (and .Error "error") (.Status | print)) }}
-  {{if ne $s "skipped"}}
-    <b class="font-bold text-sm">This Rule is Selected Due to</b>
+  {{if eq $s "skipped"}}
+    <b class="font-bold text-sm">This rule is skipped because</b>
   {{else}}
-    <b class="font-bold text-sm">This Rule is Skipped Due to</b>
+    <b class="font-bold text-sm">This rule is selected because</b>
   {{end}}
   {{template "result-predicates-info" .}}
 {{end}}
 
 {{define "result-predicates-info"}}
   {{ $s := (or (and .Error "error") (.Status | print)) }}
-  <ul class="list-decimal list-inside">
-  {{range .PredicatesInfo}}
-    <li class="p-2 text-sm">
-      {{.Name}} :
-        <ul class="list-disc list-inside">
-          {{range getPredicateInfo .}}
-            <li class="ml-4">{{.}}</li>
-          {{end}}
-        </ul>
-        {{if ne $s "skipped"}}
-          satisfies the predicate {{.Type}} :
-        {{else}}
-          does not satisfy the predicate {{.Type}} :
-        {{end}}
-        <ul class="list-none list-inside">
-          {{range $key, $value := getPredicateRequirement .}}
-            <li class="ml-4">
-              <p>{{$key}}</p>
-              <ul class="list-disc list-inside">
-                {{range $value}}
-                  <li class="ml-4">{{.}}</li>
-                {{end}}
-              </ul>
-            </li>
-          {{end}}
-        </ul>
-    </li>
+  <ul class="list-decimal list-inside py-2">
+  {{range .PredicateResults}}
+  <li>
+  The {{.ValuePhrase}}:
+  <ul class="list-star list-inside ml-2 mb-2">
+    {{range .Values}}<li>{{.}}</li>{{end}}
+  </ul>
+  <div class="mb-2">
+    {{if eq $s "skipped"}}do not {{end}}{{.ConditionPhrase}}
+  </div>
+  {{if .ConditionsMap}}
+  <dl>
+  {{range $k, $v := .ConditionsMap}}
+    {{if $v}}
+    <dt>{{$k}}</dt>
+    <dd>
+        <ul class="list-disc ml-2 list-inside">{{range $v}}<li>{{.}}</li>{{end}}</ul>
+    </dd>
+    {{end}}
+  {{end}}
+  </dl>
+  {{else}}
+  <ul class="ml-4 list-disc">{{range .ConditionValues}}<li>{{.}}</li>{{end}}</ul>
+  {{end}}
+  </li>
   {{end}}
   </ul>
 {{end}}
 
 {{define "result-requires-details"}}
-  <b class="font-bold text-sm">This Rule Requires Review from:</b>
+  <b class="font-bold text-sm">This rule requires review from</b>
   <ul class="list-none list-inside">
   {{range $key, $value := getRequires .}}
     <li class="p-2 text-sm">
