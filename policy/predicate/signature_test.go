@@ -49,8 +49,9 @@ func TestHasValidSignatures(t *testing.T) {
 				},
 			},
 			&common.PredicateResult{
-				Satisfied: true,
-				Values:    []string{"abcdef123456789"},
+				Satisfied:       true,
+				Values:          []string{"abcdef123456789"},
+				ConditionValues: []string{"valid signatures"},
 			},
 		},
 		{
@@ -73,8 +74,9 @@ func TestHasValidSignatures(t *testing.T) {
 				},
 			},
 			&common.PredicateResult{
-				Satisfied: false,
-				Values:    []string{"abcdef123456789"},
+				Satisfied:       false,
+				Values:          []string{"abcdef123456789"},
+				ConditionValues: []string{"valid signatures"},
 			},
 		},
 		{
@@ -91,8 +93,9 @@ func TestHasValidSignatures(t *testing.T) {
 				},
 			},
 			&common.PredicateResult{
-				Satisfied: false,
-				Values:    []string{"abcdef123456789"},
+				Satisfied:       false,
+				Values:          []string{"abcdef123456789"},
+				ConditionValues: []string{"valid signatures"},
 			},
 		},
 	}
@@ -331,10 +334,7 @@ func runSignatureTests(t *testing.T, p Predicate, cases []SignatureTestCase) {
 		t.Run(tc.Name, func(t *testing.T) {
 			predicateResult, err := p.Evaluate(ctx, tc.Context)
 			if assert.NoError(t, err, "evaluation failed") {
-				assert.Equal(t, tc.ExpectedPredicateResult.Satisfied, predicateResult.Satisfied, "predicate was not correct")
-				assert.Equal(t, tc.ExpectedPredicateResult.Values, predicateResult.Values, "values were not correct")
-				assert.Equal(t, tc.ExpectedPredicateResult.ConditionsMap, predicateResult.ConditionsMap, "conditions were not correct")
-				assert.Equal(t, tc.ExpectedPredicateResult.ConditionValues, predicateResult.ConditionValues, "conditions were not correct")
+				assertPredicateResult(t, tc.ExpectedPredicateResult, predicateResult)
 			}
 		})
 	}

@@ -41,7 +41,7 @@ func (pred *TargetsBranch) Evaluate(ctx context.Context, prctx pull.Context) (*c
 		Satisfied:       matches,
 		Description:     desc,
 		Values:          []string{targetName},
-		ValuePhrase:     "target branchs",
+		ValuePhrase:     "target branches",
 		ConditionPhrase: "match the required pattern",
 		ConditionValues: []string{pred.Pattern.String()},
 	}

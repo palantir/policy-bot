@@ -32,7 +32,7 @@ func (pred Title) Evaluate(ctx context.Context, prctx pull.Context) (*common.Pre
 	title := prctx.Title()
 
 	predicateResult := common.PredicateResult{
-		ValuePhrase:     "title",
+		ValuePhrase:     "titles",
 		Values:          []string{title},
 		ConditionPhrase: "meet the pattern requirement",
 	}

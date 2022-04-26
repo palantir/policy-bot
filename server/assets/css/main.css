@@ -185,14 +185,6 @@ details summary > * {
   @apply text-center;
 }
 
-.list-numbers > li {
-  @apply ml-2;
-}
-
-.list-star > li:before {
-  content: "*";
-}
-
 /* end custom components */
 
 @tailwind utilities;

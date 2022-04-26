@@ -31,8 +31,8 @@ func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context
 	statuses, err := prctx.LatestStatuses()
 
 	predicateResult := common.PredicateResult{
-		ValuePhrase:     "check",
-		ConditionPhrase: "has successful status",
+		ValuePhrase:     "status checks",
+		ConditionPhrase: "exist and pass",
 	}
 
 	if err != nil {
@@ -67,7 +67,6 @@ func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context
 
 	predicateResult.Values = pred
 	predicateResult.Satisfied = true
-
 	return &predicateResult, nil
 }
 

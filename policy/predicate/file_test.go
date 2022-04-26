@@ -44,7 +44,7 @@ func TestChangedFiles(t *testing.T) {
 				Satisfied: false,
 				Values:    []string{},
 				ConditionsMap: map[string][]string{
-					"path patterns":        {"app/.*\\.go", "server/.*\\.go"},
+					"path patterns":  {"app/.*\\.go", "server/.*\\.go"},
 					"while ignoring": {".*/special\\.go"},
 				},
 			},
@@ -65,7 +65,7 @@ func TestChangedFiles(t *testing.T) {
 				Satisfied: true,
 				Values:    []string{"app/client.go"},
 				ConditionsMap: map[string][]string{
-					"path patterns":        {"app/.*\\.go", "server/.*\\.go"},
+					"path patterns":  {"app/.*\\.go", "server/.*\\.go"},
 					"while ignoring": {".*/special\\.go"},
 				},
 			},
@@ -86,7 +86,7 @@ func TestChangedFiles(t *testing.T) {
 				Satisfied: true,
 				Values:    []string{"app/client.go"},
 				ConditionsMap: map[string][]string{
-					"path patterns":        {"app/.*\\.go", "server/.*\\.go"},
+					"path patterns":  {"app/.*\\.go", "server/.*\\.go"},
 					"while ignoring": {".*/special\\.go"},
 				},
 			},
@@ -107,7 +107,7 @@ func TestChangedFiles(t *testing.T) {
 				Satisfied: false,
 				Values:    []string{"model/order.go", "model/user.go"},
 				ConditionsMap: map[string][]string{
-					"path patterns":        {"app/.*\\.go", "server/.*\\.go"},
+					"path patterns":  {"app/.*\\.go", "server/.*\\.go"},
 					"while ignoring": {".*/special\\.go"},
 				},
 			},
@@ -128,7 +128,7 @@ func TestChangedFiles(t *testing.T) {
 				Satisfied: false,
 				Values:    []string{"app/special.go", "server/special.go"},
 				ConditionsMap: map[string][]string{
-					"path patterns":        {"app/.*\\.go", "server/.*\\.go"},
+					"path patterns":  {"app/.*\\.go", "server/.*\\.go"},
 					"while ignoring": {".*/special\\.go"},
 				},
 			},
@@ -149,7 +149,7 @@ func TestChangedFiles(t *testing.T) {
 				Satisfied: true,
 				Values:    []string{"app/normal.go"},
 				ConditionsMap: map[string][]string{
-					"path patterns":        {"app/.*\\.go", "server/.*\\.go"},
+					"path patterns":  {"app/.*\\.go", "server/.*\\.go"},
 					"while ignoring": {".*/special\\.go"},
 				},
 			},
@@ -245,7 +245,7 @@ func TestModifiedLines(t *testing.T) {
 			&common.PredicateResult{
 				Satisfied:       false,
 				Values:          []string{"+0", "-0"},
-				ConditionValues: []string{"added lines> 100", "deleted lines> 10"},
+				ConditionValues: []string{"added lines > 100", "deleted lines > 10"},
 			},
 		},
 		{
@@ -258,7 +258,7 @@ func TestModifiedLines(t *testing.T) {
 			&common.PredicateResult{
 				Satisfied:       true,
 				Values:          []string{"+110"},
-				ConditionValues: []string{"added lines> 100"},
+				ConditionValues: []string{"added lines > 100"},
 			},
 		},
 		{
@@ -272,7 +272,7 @@ func TestModifiedLines(t *testing.T) {
 			&common.PredicateResult{
 				Satisfied:       true,
 				Values:          []string{"-20"},
-				ConditionValues: []string{"deleted lines> 10"},
+				ConditionValues: []string{"deleted lines > 10"},
 			},
 		},
 	})
@@ -293,7 +293,7 @@ func TestModifiedLines(t *testing.T) {
 			&common.PredicateResult{
 				Satisfied:       true,
 				Values:          []string{"total 120"},
-				ConditionValues: []string{"total modifications> 100"},
+				ConditionValues: []string{"total modifications > 100"},
 			},
 		},
 	})
@@ -406,10 +406,7 @@ func runFileTests(t *testing.T, p Predicate, cases []FileTestCase) {
 
 			predicateResult, err := p.Evaluate(ctx, prctx)
 			if assert.NoError(t, err, "evaluation failed") {
-				assert.Equal(t, tc.ExpectedPredicateResult.Satisfied, predicateResult.Satisfied, "predicate was not correct")
-				assert.Equal(t, tc.ExpectedPredicateResult.Values, predicateResult.Values, "values were not correct")
-				assert.Equal(t, tc.ExpectedPredicateResult.ConditionsMap, predicateResult.ConditionsMap, "conditions were not correct")
-				assert.Equal(t, tc.ExpectedPredicateResult.ConditionValues, predicateResult.ConditionValues, "conditions were not correct")
+				assertPredicateResult(t, tc.ExpectedPredicateResult, predicateResult)
 			}
 		})
 	}

@@ -44,7 +44,7 @@ func (pred *HasAuthorIn) Evaluate(ctx context.Context, prctx pull.Context) (*com
 		Description:     desc,
 		ValuePhrase:     "authors",
 		Values:          []string{author},
-		ConditionPhrase: "meet the membership conditions",
+		ConditionPhrase: "meet the required membership conditions",
 		ConditionsMap: map[string][]string{
 			"Organizations": pred.Organizations,
 			"Teams":         pred.Teams,
@@ -69,7 +69,7 @@ func (pred *OnlyHasContributorsIn) Evaluate(ctx context.Context, prctx pull.Cont
 
 	predicateResult := common.PredicateResult{
 		ValuePhrase:     "contributors",
-		ConditionPhrase: "all meet the membership conditions",
+		ConditionPhrase: "all meet the required membership conditions",
 		ConditionsMap: map[string][]string{
 			"Organizations": pred.Organizations,
 			"Teams":         pred.Teams,
@@ -78,7 +78,7 @@ func (pred *OnlyHasContributorsIn) Evaluate(ctx context.Context, prctx pull.Cont
 	}
 
 	if err != nil {
-		return &predicateResult, errors.Wrap(err, "failed to get commits")
+		return nil, errors.Wrap(err, "failed to get commits")
 	}
 
 	users := make(map[string]struct{})
@@ -127,7 +127,7 @@ func (pred *HasContributorIn) Evaluate(ctx context.Context, prctx pull.Context) 
 	commits, err := prctx.Commits()
 
 	predicateResult := common.PredicateResult{
-		ValuePhrase:     "Contributors",
+		ValuePhrase:     "contributors",
 		ConditionPhrase: "meet the required membership conditions ",
 		ConditionsMap: map[string][]string{
 			"Organizations": pred.Organizations,
@@ -137,7 +137,6 @@ func (pred *HasContributorIn) Evaluate(ctx context.Context, prctx pull.Context) 
 	}
 
 	if err != nil {
-		predicateResult.Satisfied = false
 		return nil, errors.Wrap(err, "failed to get commits")
 	}
 
@@ -159,7 +158,6 @@ func (pred *HasContributorIn) Evaluate(ctx context.Context, prctx pull.Context) 
 	for _, user := range userList {
 		member, err := pred.IsActor(ctx, prctx, user)
 		if err != nil {
-			predicateResult.Satisfied = false
 			return nil, err
 		}
 		if member {
@@ -186,8 +184,8 @@ func (pred AuthorIsOnlyContributor) Evaluate(ctx context.Context, prctx pull.Con
 	commits, err := prctx.Commits()
 
 	predicateResult := common.PredicateResult{
-		ValuePhrase:     "author",
-		ConditionPhrase: "meet",
+		ValuePhrase:     "authors",
+		ConditionPhrase: "meet the condition",
 	}
 	if pred {
 		predicateResult.ConditionValues = []string{"they are the only contributors"}

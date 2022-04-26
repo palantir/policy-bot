@@ -60,7 +60,9 @@ func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatet
 
 			return r
 		},
-		"hasRequires": hasRequires,
+		"hasRequires": func(requires common.Actors) bool {
+			return !requires.IsEmpty()
+		},
 		"getRequires": func(results *common.Result) map[string][]Membership {
 			return getRequires(results, strings.TrimSuffix(githubURL, "/"))
 		},
@@ -81,13 +83,6 @@ func Static(prefix string, c *FilesConfig) http.Handler {
 	}
 
 	return http.StripPrefix(prefix, http.FileServer(http.Dir(dir)))
-}
-
-func hasRequires(result common.Actors) bool {
-	if len(result.Organizations) != 0 || len(result.Teams) != 0 || len(result.Users) != 0 {
-		return true
-	}
-	return false
 }
 
 func getRequires(result *common.Result, githubURL string) map[string][]Membership {

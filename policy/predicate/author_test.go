@@ -587,10 +587,7 @@ func runAuthorTests(t *testing.T, p Predicate, cases []AuthorTestCase) {
 		t.Run(tc.Name, func(t *testing.T) {
 			predicateResult, err := p.Evaluate(ctx, tc.Context)
 			if assert.NoError(t, err, "evaluation failed") {
-				assert.Equal(t, tc.ExpectedPredicateResult.Satisfied, predicateResult.Satisfied, "predicate was not correct")
-				assert.Equal(t, tc.ExpectedPredicateResult.Values, predicateResult.Values, "values were not correct")
-				assert.Equal(t, tc.ExpectedPredicateResult.ConditionsMap, predicateResult.ConditionsMap, "conditions were not correct")
-				assert.Equal(t, tc.ExpectedPredicateResult.ConditionValues, predicateResult.ConditionValues, "conditions were not correct")
+				assertPredicateResult(t, tc.ExpectedPredicateResult, predicateResult)
 			}
 		})
 	}

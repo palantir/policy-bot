@@ -137,20 +137,14 @@ func runBranchesTestCase(t *testing.T, regex string, cases []branchesTestCase) {
 		t.Run(tc.name+" targets_branch", func(t *testing.T) {
 			predicateResult, err := targetsPredicate.Evaluate(ctx, targetsContext)
 			if assert.NoError(t, err, "targets_branch predicate evaluation failed") {
-				assert.Equal(t, tc.ExpectedPredicateResult.Satisfied, predicateResult.Satisfied, "predicate was not correct")
-				assert.Equal(t, tc.ExpectedPredicateResult.Values, predicateResult.Values, "values were not correct")
-				assert.Equal(t, tc.ExpectedPredicateResult.ConditionsMap, predicateResult.ConditionsMap, "conditions were not correct")
-				assert.Equal(t, tc.ExpectedPredicateResult.ConditionValues, predicateResult.ConditionValues, "conditions were not correct")
+				assertPredicateResult(t, tc.ExpectedPredicateResult, predicateResult)
 			}
 		})
 
 		t.Run(tc.name+" from_branch", func(t *testing.T) {
 			predicateResult, err := fromPredicate.Evaluate(ctx, fromContext)
 			if assert.NoError(t, err, "from_branch predicate evaluation failed") {
-				assert.Equal(t, tc.ExpectedPredicateResult.Satisfied, predicateResult.Satisfied, "predicate was not correct")
-				assert.Equal(t, tc.ExpectedPredicateResult.Values, predicateResult.Values, "values were not correct")
-				assert.Equal(t, tc.ExpectedPredicateResult.ConditionsMap, predicateResult.ConditionsMap, "conditions were not correct")
-				assert.Equal(t, tc.ExpectedPredicateResult.ConditionValues, predicateResult.ConditionValues, "conditions were not correct")
+				assertPredicateResult(t, tc.ExpectedPredicateResult, predicateResult)
 			}
 		})
 	}
