@@ -57,13 +57,10 @@
   <div class="bg-white p-2 shadow-sm max-w-lg status-stripe {{$s}}">
     {{template "result-details" .}}
     {{if (or .PredicateResults (hasRequires .Requires))}}
-    <div class="bg-light-gray3 pt-2">
-    <details>
-      <summary>
-        <div class="text-dark-gray3 text-sm">Details</div>
-      </summary>
+    <details class="bg-light-gray5 p-2 mt-2 text-sm">
+      <summary class="text-dark-gray3 font-semibold">Details</summary>
       {{if .PredicateResults}}
-        <div class="pt-2">
+        <div class="pt-2 mt-2 border-t border-light-gray3">
           {{template "result-predicates-details" .}}
         </div>
       {{end}}
@@ -73,7 +70,6 @@
         </div>
       {{end}}
     </details>
-    </div>
     {{end}}
   </div>
   {{if .Children}}
@@ -99,38 +95,36 @@
 {{define "result-predicates-details"}}
   {{ $s := (or (and .Error "error") (.Status | print)) }}
   {{if eq $s "skipped"}}
-    <b class="font-bold text-sm">This rule is skipped because</b>
+    <b class="font-bold">This rule is skipped because</b>
   {{else}}
-    <b class="font-bold text-sm">This rule is selected because</b>
+    <b class="font-bold">This rule is selected because</b>
   {{end}}
   {{template "result-predicates-info" .}}
 {{end}}
 
 {{define "result-predicates-info"}}
   {{ $s := (or (and .Error "error") (.Status | print)) }}
-  <ul class="list-decimal list-inside py-2">
+  <ul class="list-decimal list-outside pl-4 my-2">
   {{range .PredicateResults}}
   <li>
   The {{.ValuePhrase}}:
-  <ul class="list-star list-inside ml-2 mb-2">
-    {{range .Values}}<li>{{.}}</li>{{end}}
+  <ul class="list-disc list-outside pl-6 py-2">
+    {{range .Values}}<li class="font-mono text-sm-mono">{{.}}</li>{{end}}
   </ul>
-  <div class="mb-2">
-    {{if eq $s "skipped"}}do not {{end}}{{.ConditionPhrase}}
-  </div>
+  {{if eq $s "skipped"}}do not {{end}}{{.ConditionPhrase}}
   {{if .ConditionsMap}}
   <dl>
   {{range $k, $v := .ConditionsMap}}
     {{if $v}}
     <dt>{{$k}}</dt>
     <dd>
-        <ul class="list-disc ml-2 list-inside">{{range $v}}<li>{{.}}</li>{{end}}</ul>
+        <ul class="list-disc list-outside pl-6 py-2">{{range $v}}<li class="font-mono text-sm-mono">{{.}}</li>{{end}}</ul>
     </dd>
     {{end}}
   {{end}}
   </dl>
-  {{else}}
-  <ul class="ml-4 list-disc">{{range .ConditionValues}}<li>{{.}}</li>{{end}}</ul>
+  {{else if .ConditionValues}}
+    <ul class="list-disc list-outside pl-6 py-2">{{range .ConditionValues}}<li class="font-mono text-sm-mono">{{.}}</li>{{end}}</ul>
   {{end}}
   </li>
   {{end}}
