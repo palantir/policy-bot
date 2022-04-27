@@ -35,7 +35,12 @@ type FilesConfig struct {
 	Templates string `yaml:"templates"`
 }
 
-func LoadTemplates(c *FilesConfig, basePath string) (templatetree.HTMLTree, error) {
+type Membership struct {
+	Name string
+	Link string
+}
+
+func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatetree.HTMLTree, error) {
 	if basePath == "" {
 		basePath = "/"
 	}
@@ -55,6 +60,12 @@ func LoadTemplates(c *FilesConfig, basePath string) (templatetree.HTMLTree, erro
 
 			return r
 		},
+		"hasRequires": func(requires common.Actors) bool {
+			return !requires.IsEmpty()
+		},
+		"getRequires": func(results *common.Result) map[string][]Membership {
+			return getRequires(results, strings.TrimSuffix(githubURL, "/"))
+		},
 	})
 
 	dir := c.Templates
@@ -72,4 +83,20 @@ func Static(prefix string, c *FilesConfig) http.Handler {
 	}
 
 	return http.StripPrefix(prefix, http.FileServer(http.Dir(dir)))
+}
+
+func getRequires(result *common.Result, githubURL string) map[string][]Membership {
+	membershipInfo := make(map[string][]Membership)
+	for _, org := range result.Requires.Organizations {
+		membershipInfo["Organizations"] = append(membershipInfo["Organizations"], Membership{Name: org, Link: githubURL + "/orgs/" + org + "/people"})
+	}
+	for _, team := range result.Requires.Teams {
+		teamName := strings.Split(team, "/")
+		membershipInfo["Teams"] = append(membershipInfo["Teams"], Membership{Name: team, Link: githubURL + "/orgs/" + teamName[0] + "/teams/" + teamName[1] + "/members"})
+
+	}
+	for _, user := range result.Requires.Users {
+		membershipInfo["Users"] = append(membershipInfo["Users"], Membership{Name: user, Link: githubURL + "/" + user})
+	}
+	return membershipInfo
 }

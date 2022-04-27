@@ -14,6 +14,14 @@ a:hover {
   text-decoration: underline;
 }
 
+details summary {
+  cursor: pointer;
+}
+
+details summary > * {
+  display: inline-block;
+}
+
 @tailwind components;
 
 /* custom components */
@@ -197,6 +205,10 @@ a:hover {
 
 .bg-highlight {
   background-image: linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,0));
+}
+
+.text-sm-mono {
+  font-size: 0.8125rem;
 }
 
 /* end custom utilities */

@@ -65,6 +65,8 @@ type Result struct {
 	StatusDescription string
 	Status            EvaluationStatus
 	Error             error
+	PredicateResults  []*PredicateResult
+	Requires          Actors
 
 	ReviewRequestRule *ReviewRequestRule
 

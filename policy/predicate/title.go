@@ -28,22 +28,45 @@ type Title struct {
 
 var _ Predicate = Title{}
 
-func (pred Title) Evaluate(ctx context.Context, prctx pull.Context) (bool, string, error) {
+func (pred Title) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
 	title := prctx.Title()
+
+	predicateResult := common.PredicateResult{
+		ValuePhrase:     "titles",
+		Values:          []string{title},
+		ConditionPhrase: "meet the pattern requirement",
+	}
+
+	var matchPatterns, notMatchPatterns []string
+
+	for _, reg := range pred.Matches {
+		matchPatterns = append(matchPatterns, reg.String())
+	}
+
+	for _, reg := range pred.NotMatches {
+		notMatchPatterns = append(notMatchPatterns, reg.String())
+	}
 
 	if len(pred.Matches) > 0 {
 		if anyMatches(pred.Matches, title) {
-			return true, "PR Title matches a Match pattern", nil
+			predicateResult.ConditionsMap = map[string][]string{"match": matchPatterns}
+			predicateResult.Description = "PR Title matches a Match pattern"
+			predicateResult.Satisfied = true
+			return &predicateResult, nil
 		}
 	}
 
 	if len(pred.NotMatches) > 0 {
 		if !anyMatches(pred.NotMatches, title) {
-			return true, "PR Title doesn't match a NotMatch pattern", nil
+			predicateResult.ConditionsMap = map[string][]string{"not match": notMatchPatterns}
+			predicateResult.Description = "PR Title doesn't match a NotMatch pattern"
+			predicateResult.Satisfied = true
+			return &predicateResult, nil
 		}
 	}
-
-	return false, "", nil
+	predicateResult.Satisfied = false
+	predicateResult.ConditionsMap = map[string][]string{"match": matchPatterns, "not match": notMatchPatterns}
+	return &predicateResult, nil
 }
 
 func (pred Title) Trigger() common.Trigger {

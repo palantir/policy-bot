@@ -103,26 +103,31 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 	res.Name = r.Name
 	res.Description = r.Description
 	res.Status = common.StatusSkipped
+	res.Requires = r.Requires.Actors
+
+	var predicateResults []*common.PredicateResult
 
 	for _, p := range r.Predicates.Predicates() {
-		satisfied, desc, err := p.Evaluate(ctx, prctx)
+		result, err := p.Evaluate(ctx, prctx)
 		if err != nil {
 			res.Error = errors.Wrap(err, "failed to evaluate predicate")
 			return
 		}
+		predicateResults = append(predicateResults, result)
 
-		if !satisfied {
+		if !result.Satisfied {
 			log.Debug().Msgf("skipping rule, predicate of type %T was not satisfied", p)
 
+			desc := result.Description
 			res.StatusDescription = desc
 			if desc == "" {
 				res.StatusDescription = "A precondition of this rule was not satisfied"
 			}
-
+			res.PredicateResults = []*common.PredicateResult{result}
 			return
 		}
 	}
-
+	res.PredicateResults = predicateResults
 	approved, msg, err := r.IsApproved(ctx, prctx)
 	if err != nil {
 		res.Error = errors.Wrap(err, "failed to compute approval status")

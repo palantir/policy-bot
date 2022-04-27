@@ -31,7 +31,6 @@ func TestHasValidSignatures(t *testing.T) {
 	testCases := []SignatureTestCase{
 		{
 			"ValidSignature",
-			true,
 			&pulltest.Context{
 				AuthorValue: "mhaypenny",
 				CommitsValue: []*pull.Commit{
@@ -49,10 +48,14 @@ func TestHasValidSignatures(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"abcdef123456789"},
+				ConditionValues: []string{"valid signatures"},
+			},
 		},
 		{
 			"InvalidSignature",
-			false,
 			&pulltest.Context{
 				AuthorValue: "mhaypenny",
 				CommitsValue: []*pull.Commit{
@@ -70,10 +73,14 @@ func TestHasValidSignatures(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"abcdef123456789"},
+				ConditionValues: []string{"valid signatures"},
+			},
 		},
 		{
 			"NoSignature",
-			false,
 			&pulltest.Context{
 				AuthorValue: "mhaypenny",
 				CommitsValue: []*pull.Commit{
@@ -85,6 +92,11 @@ func TestHasValidSignatures(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"abcdef123456789"},
+				ConditionValues: []string{"valid signatures"},
+			},
 		},
 	}
 
@@ -92,7 +104,7 @@ func TestHasValidSignatures(t *testing.T) {
 
 	// Invert the expected outcomes and test against the false predicate
 	for idx := range testCases {
-		testCases[idx].Expected = !testCases[idx].Expected
+		testCases[idx].ExpectedPredicateResult.Satisfied = !testCases[idx].ExpectedPredicateResult.Satisfied
 	}
 	runSignatureTests(t, pFalse, testCases)
 }
@@ -109,7 +121,6 @@ func TestHasValidSignaturesBy(t *testing.T) {
 	runSignatureTests(t, p, []SignatureTestCase{
 		{
 			"ValidSignatureByUser",
-			true,
 			&pulltest.Context{
 				AuthorValue: "mhaypenny",
 				CommitsValue: []*pull.Commit{
@@ -127,10 +138,18 @@ func TestHasValidSignaturesBy(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{"abcdef123456789"},
+				ConditionsMap: map[string][]string{
+					"Organizations": p.Organizations,
+					"Teams":         p.Teams,
+					"Users":         p.Users,
+				},
+			},
 		},
 		{
 			"ValidSignatureButNotUser",
-			false,
 			&pulltest.Context{
 				AuthorValue: "badcommitter",
 				CommitsValue: []*pull.Commit{
@@ -148,10 +167,18 @@ func TestHasValidSignaturesBy(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"badcommitter"},
+				ConditionsMap: map[string][]string{
+					"Organizations": p.Organizations,
+					"Teams":         p.Teams,
+					"Users":         p.Users,
+				},
+			},
 		},
 		{
 			"ValidSignatureByTeamMember",
-			true,
 			&pulltest.Context{
 				AuthorValue: "ttest",
 				TeamMemberships: map[string][]string{
@@ -174,10 +201,18 @@ func TestHasValidSignaturesBy(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{"abcdef123456789"},
+				ConditionsMap: map[string][]string{
+					"Organizations": p.Organizations,
+					"Teams":         p.Teams,
+					"Users":         p.Users,
+				},
+			},
 		},
 		{
 			"NoSignature",
-			false,
 			&pulltest.Context{
 				AuthorValue: "mhaypenny",
 				CommitsValue: []*pull.Commit{
@@ -187,6 +222,15 @@ func TestHasValidSignaturesBy(t *testing.T) {
 						Committer: "mhaypenny",
 						Signature: nil,
 					},
+				},
+			},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"abcdef123456789"},
+				ConditionsMap: map[string][]string{
+					"Organizations": p.Organizations,
+					"Teams":         p.Teams,
+					"Users":         p.Users,
 				},
 			},
 		},
@@ -201,7 +245,6 @@ func TestHasValidSignaturesByKeys(t *testing.T) {
 	runSignatureTests(t, p, []SignatureTestCase{
 		{
 			"ValidSignatureByValidKey",
-			true,
 			&pulltest.Context{
 				AuthorValue: "mhaypenny",
 				CommitsValue: []*pull.Commit{
@@ -219,10 +262,14 @@ func TestHasValidSignaturesByKeys(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"abcdef123456789"},
+				ConditionValues: []string{"3AA5C34371567BD2"},
+			},
 		},
 		{
 			"ValidSignatureByInvalidKey",
-			false,
 			&pulltest.Context{
 				AuthorValue: "mhaypenny",
 				CommitsValue: []*pull.Commit{
@@ -240,10 +287,14 @@ func TestHasValidSignaturesByKeys(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"3AB5C35371567CE7"},
+				ConditionValues: []string{"3AA5C34371567BD2"},
+			},
 		},
 		{
 			"InvalidSignatureByInvalidKey",
-			false,
 			&pulltest.Context{
 				AuthorValue: "mhaypenny",
 				CommitsValue: []*pull.Commit{
@@ -261,14 +312,19 @@ func TestHasValidSignaturesByKeys(t *testing.T) {
 					},
 				},
 			},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"abcdef123456789"},
+				ConditionValues: []string{"3AA5C34371567BD2"},
+			},
 		},
 	})
 }
 
 type SignatureTestCase struct {
-	Name     string
-	Expected bool
-	Context  pull.Context
+	Name                    string
+	Context                 pull.Context
+	ExpectedPredicateResult *common.PredicateResult
 }
 
 func runSignatureTests(t *testing.T, p Predicate, cases []SignatureTestCase) {
@@ -276,9 +332,9 @@ func runSignatureTests(t *testing.T, p Predicate, cases []SignatureTestCase) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			ok, _, err := p.Evaluate(ctx, tc.Context)
+			predicateResult, err := p.Evaluate(ctx, tc.Context)
 			if assert.NoError(t, err, "evaluation failed") {
-				assert.Equal(t, tc.Expected, ok, "predicate was not correct")
+				assertPredicateResult(t, tc.ExpectedPredicateResult, predicateResult)
 			}
 		})
 	}

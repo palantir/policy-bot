@@ -1,4 +1,4 @@
-// Copyright 2018 Palantir Technologies, Inc.
+// Copyright 2019 Palantir Technologies, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,15 +15,15 @@
 package predicate
 
 import (
-	"context"
+	"testing"
 
 	"github.com/palantir/policy-bot/policy/common"
-	"github.com/palantir/policy-bot/pull"
+	"github.com/stretchr/testify/assert"
 )
 
-type Predicate interface {
-	common.Triggered
-
-	// Evaluate determines if the predicate is satisfied.
-	Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error)
+func assertPredicateResult(t *testing.T, expected, actual *common.PredicateResult) {
+	assert.Equal(t, expected.Satisfied, actual.Satisfied, "predicate was not correct")
+	assert.Equal(t, expected.Values, actual.Values, "values were not correct")
+	assert.Equal(t, expected.ConditionsMap, actual.ConditionsMap, "conditions were not correct")
+	assert.Equal(t, expected.ConditionValues, actual.ConditionValues, "conditions were not correct")
 }

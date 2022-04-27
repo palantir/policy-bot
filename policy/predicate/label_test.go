@@ -18,6 +18,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/pull/pulltest"
 	"github.com/stretchr/testify/assert"
@@ -29,37 +30,44 @@ func TestHasLabels(t *testing.T) {
 	runLabelsTestCase(t, p, []HasLabelsTestCase{
 		{
 			"all labels",
-			true,
 			&pulltest.Context{
 				LabelsValue: []string{"foo", "bar"},
+			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"foo", "bar"},
+				ConditionValues: []string{"foo", "bar"},
 			},
 		},
 		{
 			"missing a label",
-			false,
 			&pulltest.Context{
 				LabelsValue: []string{"foo"},
+			},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"foo"},
+				ConditionValues: []string{"bar"},
 			},
 		},
 		{
 			"no labels",
-			false,
 			&pulltest.Context{
 				LabelsValue: []string{},
 			},
-		},
-		{
-			"labels does not exist",
-			false,
-			&pulltest.Context{},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{},
+				ConditionValues: []string{"foo"},
+			},
 		},
 	})
 }
 
 type HasLabelsTestCase struct {
-	name     string
-	expected bool
-	context  pull.Context
+	name                    string
+	context                 pull.Context
+	ExpectedPredicateResult *common.PredicateResult
 }
 
 func runLabelsTestCase(t *testing.T, p Predicate, cases []HasLabelsTestCase) {
@@ -67,9 +75,9 @@ func runLabelsTestCase(t *testing.T, p Predicate, cases []HasLabelsTestCase) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ok, _, err := p.Evaluate(ctx, tc.context)
+			predicateResult, err := p.Evaluate(ctx, tc.context)
 			if assert.NoError(t, err, "evaluation failed") {
-				assert.Equal(t, tc.expected, ok, "predicate was not correct")
+				assertPredicateResult(t, tc.ExpectedPredicateResult, predicateResult)
 			}
 		})
 	}

@@ -28,58 +28,90 @@ func TestBranches(t *testing.T) {
 	runBranchesTestCase(t, "^master$", []branchesTestCase{
 		{
 			"simple match - master",
-			true,
 			"master",
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"master"},
+				ConditionValues: []string{"^master$"},
+			},
 		},
 		{
 			"simple non match",
-			false,
 			"another-branch",
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"another-branch"},
+				ConditionValues: []string{"^master$"},
+			},
 		},
 		{
 			"tests anchoring",
-			false,
 			"not-master",
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"not-master"},
+				ConditionValues: []string{"^master$"},
+			},
 		},
 	})
 
 	runBranchesTestCase(t, ".*", []branchesTestCase{
 		{
 			"matches all example 1",
-			true,
 			"master",
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"master"},
+				ConditionValues: []string{".*"},
+			},
 		},
 		{
 			"matches all example 2",
-			true,
 			"another-one",
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"another-one"},
+				ConditionValues: []string{".*"},
+			},
 		},
 	})
 
 	runBranchesTestCase(t, "(prod|staging)", []branchesTestCase{
 		{
 			"matches pattern - prod",
-			true,
 			"prod",
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"prod"},
+				ConditionValues: []string{"(prod|staging)"},
+			},
 		},
 		{
 			"matches pattern - staging",
-			true,
 			"staging",
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"staging"},
+				ConditionValues: []string{"(prod|staging)"},
+			},
 		},
 		{
 			"matches pattern - not-a-match",
-			false,
 			"not-a-match",
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"not-a-match"},
+				ConditionValues: []string{"(prod|staging)"},
+			},
 		},
 	})
 }
 
 // TODO: generalize this and use it all our test cases
 type branchesTestCase struct {
-	name       string
-	expected   bool
-	branchName string
+	name                    string
+	branchName              string
+	ExpectedPredicateResult *common.PredicateResult
 }
 
 func runBranchesTestCase(t *testing.T, regex string, cases []branchesTestCase) {
@@ -103,16 +135,16 @@ func runBranchesTestCase(t *testing.T, regex string, cases []branchesTestCase) {
 		}
 
 		t.Run(tc.name+" targets_branch", func(t *testing.T) {
-			ok, _, err := targetsPredicate.Evaluate(ctx, targetsContext)
+			predicateResult, err := targetsPredicate.Evaluate(ctx, targetsContext)
 			if assert.NoError(t, err, "targets_branch predicate evaluation failed") {
-				assert.Equal(t, tc.expected, ok, "targets_branch predicate was not correct")
+				assertPredicateResult(t, tc.ExpectedPredicateResult, predicateResult)
 			}
 		})
 
 		t.Run(tc.name+" from_branch", func(t *testing.T) {
-			ok, _, err := fromPredicate.Evaluate(ctx, fromContext)
+			predicateResult, err := fromPredicate.Evaluate(ctx, fromContext)
 			if assert.NoError(t, err, "from_branch predicate evaluation failed") {
-				assert.Equal(t, tc.expected, ok, "from_branch predicate was not correct")
+				assertPredicateResult(t, tc.ExpectedPredicateResult, predicateResult)
 			}
 		})
 	}

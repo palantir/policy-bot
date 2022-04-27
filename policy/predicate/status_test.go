@@ -18,6 +18,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/pull/pulltest"
 	"github.com/stretchr/testify/assert"
@@ -29,55 +30,70 @@ func TestHasSuccessfulStatus(t *testing.T) {
 	runStatusTestCase(t, p, []StatusTestCase{
 		{
 			"all statuses succeed",
-			true,
 			&pulltest.Context{
 				LatestStatusesValue: map[string]string{
 					"status-name":   "success",
 					"status-name-2": "success",
 				},
 			},
+			&common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{"status-name", "status-name-2"},
+			},
 		},
 		{
 			"a status fails",
-			false,
 			&pulltest.Context{
 				LatestStatusesValue: map[string]string{
 					"status-name":   "success",
 					"status-name-2": "failure",
 				},
 			},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"status-name-2"},
+			},
 		},
 		{
 			"multiple statuses fail",
-			false,
 			&pulltest.Context{
 				LatestStatusesValue: map[string]string{
 					"status-name":   "failure",
 					"status-name-2": "failure",
 				},
 			},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"status-name", "status-name-2"},
+			},
 		},
 		{
 			"a status does not exist",
-			false,
 			&pulltest.Context{
 				LatestStatusesValue: map[string]string{
 					"status-name": "success",
 				},
 			},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"status-name-2"},
+			},
 		},
 		{
 			"multiple statuses do not exist",
-			false,
 			&pulltest.Context{},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"status-name", "status-name-2"},
+			},
 		},
 	})
 }
 
 type StatusTestCase struct {
-	name     string
-	expected bool
-	context  pull.Context
+	name                    string
+	context                 pull.Context
+	ExpectedPredicateResult *common.PredicateResult
 }
 
 func runStatusTestCase(t *testing.T, p Predicate, cases []StatusTestCase) {
@@ -85,9 +101,9 @@ func runStatusTestCase(t *testing.T, p Predicate, cases []StatusTestCase) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ok, _, err := p.Evaluate(ctx, tc.context)
+			predicateResult, err := p.Evaluate(ctx, tc.context)
 			if assert.NoError(t, err, "evaluation failed") {
-				assert.Equal(t, tc.expected, ok, "predicate was not correct")
+				assertPredicateResult(t, tc.ExpectedPredicateResult, predicateResult)
 			}
 		})
 	}

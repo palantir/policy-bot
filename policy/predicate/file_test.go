@@ -39,12 +39,18 @@ func TestChangedFiles(t *testing.T) {
 	runFileTests(t, p, []FileTestCase{
 		{
 			"empty",
-			false,
 			[]*pull.File{},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{},
+				ConditionsMap: map[string][]string{
+					"path patterns":  {"app/.*\\.go", "server/.*\\.go"},
+					"while ignoring": {".*/special\\.go"},
+				},
+			},
 		},
 		{
 			"onlyMatches",
-			true,
 			[]*pull.File{
 				{
 					Filename: "app/client.go",
@@ -55,10 +61,17 @@ func TestChangedFiles(t *testing.T) {
 					Status:   pull.FileModified,
 				},
 			},
+			&common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{"app/client.go"},
+				ConditionsMap: map[string][]string{
+					"path patterns":  {"app/.*\\.go", "server/.*\\.go"},
+					"while ignoring": {".*/special\\.go"},
+				},
+			},
 		},
 		{
 			"someMatches",
-			true,
 			[]*pull.File{
 				{
 					Filename: "app/client.go",
@@ -69,10 +82,17 @@ func TestChangedFiles(t *testing.T) {
 					Status:   pull.FileModified,
 				},
 			},
+			&common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{"app/client.go"},
+				ConditionsMap: map[string][]string{
+					"path patterns":  {"app/.*\\.go", "server/.*\\.go"},
+					"while ignoring": {".*/special\\.go"},
+				},
+			},
 		},
 		{
 			"noMatches",
-			false,
 			[]*pull.File{
 				{
 					Filename: "model/order.go",
@@ -83,10 +103,17 @@ func TestChangedFiles(t *testing.T) {
 					Status:   pull.FileModified,
 				},
 			},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"model/order.go", "model/user.go"},
+				ConditionsMap: map[string][]string{
+					"path patterns":  {"app/.*\\.go", "server/.*\\.go"},
+					"while ignoring": {".*/special\\.go"},
+				},
+			},
 		},
 		{
 			"ignoreAll",
-			false,
 			[]*pull.File{
 				{
 					Filename: "app/special.go",
@@ -97,10 +124,17 @@ func TestChangedFiles(t *testing.T) {
 					Status:   pull.FileModified,
 				},
 			},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"app/special.go", "server/special.go"},
+				ConditionsMap: map[string][]string{
+					"path patterns":  {"app/.*\\.go", "server/.*\\.go"},
+					"while ignoring": {".*/special\\.go"},
+				},
+			},
 		},
 		{
 			"ignoreSome",
-			true,
 			[]*pull.File{
 				{
 					Filename: "app/normal.go",
@@ -109,6 +143,14 @@ func TestChangedFiles(t *testing.T) {
 				{
 					Filename: "server/special.go",
 					Status:   pull.FileModified,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{"app/normal.go"},
+				ConditionsMap: map[string][]string{
+					"path patterns":  {"app/.*\\.go", "server/.*\\.go"},
+					"while ignoring": {".*/special\\.go"},
 				},
 			},
 		},
@@ -126,12 +168,15 @@ func TestOnlyChangedFiles(t *testing.T) {
 	runFileTests(t, p, []FileTestCase{
 		{
 			"empty",
-			false,
 			[]*pull.File{},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{},
+				ConditionValues: []string{"app/.*\\.go", "server/.*\\.go"},
+			},
 		},
 		{
 			"onlyMatches",
-			true,
 			[]*pull.File{
 				{
 					Filename: "app/client.go",
@@ -142,10 +187,14 @@ func TestOnlyChangedFiles(t *testing.T) {
 					Status:   pull.FileModified,
 				},
 			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"app/client.go", "server/server.go"},
+				ConditionValues: []string{"app/.*\\.go", "server/.*\\.go"},
+			},
 		},
 		{
 			"someMatches",
-			false,
 			[]*pull.File{
 				{
 					Filename: "app/client.go",
@@ -156,10 +205,14 @@ func TestOnlyChangedFiles(t *testing.T) {
 					Status:   pull.FileModified,
 				},
 			},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"model/user.go"},
+				ConditionValues: []string{"app/.*\\.go", "server/.*\\.go"},
+			},
 		},
 		{
 			"noMatches",
-			false,
 			[]*pull.File{
 				{
 					Filename: "model/order.go",
@@ -169,6 +222,11 @@ func TestOnlyChangedFiles(t *testing.T) {
 					Filename: "model/user.go",
 					Status:   pull.FileModified,
 				},
+			},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"model/order.go"},
+				ConditionValues: []string{"app/.*\\.go", "server/.*\\.go"},
 			},
 		},
 	})
@@ -183,26 +241,38 @@ func TestModifiedLines(t *testing.T) {
 	runFileTests(t, p, []FileTestCase{
 		{
 			"empty",
-			false,
 			[]*pull.File{},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"+0", "-0"},
+				ConditionValues: []string{"added lines > 100", "deleted lines > 10"},
+			},
 		},
 		{
 			"additions",
-			true,
 			[]*pull.File{
 				{Additions: 55},
 				{Additions: 10},
 				{Additions: 45},
 			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"+110"},
+				ConditionValues: []string{"added lines > 100"},
+			},
 		},
 		{
 			"deletions",
-			true,
 			[]*pull.File{
 				{Additions: 5},
 				{Additions: 10, Deletions: 10},
 				{Additions: 5},
 				{Deletions: 10},
+			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"-20"},
+				ConditionValues: []string{"deleted lines > 10"},
 			},
 		},
 	})
@@ -214,12 +284,16 @@ func TestModifiedLines(t *testing.T) {
 	runFileTests(t, p, []FileTestCase{
 		{
 			"total",
-			true,
 			[]*pull.File{
 				{Additions: 20, Deletions: 20},
 				{Additions: 20},
 				{Deletions: 20},
 				{Additions: 20, Deletions: 20},
+			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"total 120"},
+				ConditionValues: []string{"total modifications > 100"},
 			},
 		},
 	})
@@ -316,9 +390,9 @@ func TestComparisonExpr(t *testing.T) {
 }
 
 type FileTestCase struct {
-	Name     string
-	Expected bool
-	Files    []*pull.File
+	Name                    string
+	Files                   []*pull.File
+	ExpectedPredicateResult *common.PredicateResult
 }
 
 func runFileTests(t *testing.T, p Predicate, cases []FileTestCase) {
@@ -330,9 +404,9 @@ func runFileTests(t *testing.T, p Predicate, cases []FileTestCase) {
 				ChangedFilesValue: tc.Files,
 			}
 
-			ok, _, err := p.Evaluate(ctx, prctx)
+			predicateResult, err := p.Evaluate(ctx, prctx)
 			if assert.NoError(t, err, "evaluation failed") {
-				assert.Equal(t, tc.Expected, ok, "predicate was not correct")
+				assertPredicateResult(t, tc.ExpectedPredicateResult, predicateResult)
 			}
 		})
 	}
