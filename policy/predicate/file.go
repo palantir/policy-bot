@@ -45,7 +45,7 @@ func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (*co
 
 	predicateResult := common.PredicateResult{
 		ValuePhrase:     "changed files",
-		ConditionPhrase: "match patterns",
+		ConditionPhrase: "match",
 		ConditionsMap: map[string][]string{
 			"path patterns":  paths,
 			"while ignoring": ignorePaths,

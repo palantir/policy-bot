@@ -108,27 +108,31 @@
   {{ $s := (or (and .Error "error") (.Status | print)) }}
   <ul class="list-decimal list-outside pl-4 my-2">
   {{range .PredicateResults}}
-  <li>
-  The {{.ValuePhrase}}:
-  <ul class="list-disc list-outside pl-6 py-2">
-    {{range .Values}}<li class="font-mono text-sm-mono">{{.}}</li>{{end}}
-  </ul>
-  {{if eq $s "skipped"}}do not {{end}}{{.ConditionPhrase}}
-  {{if .ConditionsMap}}
-  <dl class="pt-2">
-  {{range $k, $v := .ConditionsMap}}
-    {{if $v}}
-    <dt>{{$k}}</dt>
-    <dd>
-        <ul class="list-disc list-outside pl-6 py-2">{{range $v}}<li class="font-mono text-sm-mono">{{.}}</li>{{end}}</ul>
-    </dd>
-    {{end}}
-  {{end}}
-  </dl>
-  {{else if .ConditionValues}}
-    <ul class="list-disc list-outside pl-6 py-2">{{range .ConditionValues}}<li class="font-mono text-sm-mono">{{.}}</li>{{end}}</ul>
-  {{end}}
-  </li>
+    <li>
+      {{if .Values}}
+        The {{.ValuePhrase}}:
+        <ul class="list-disc list-outside pl-6 py-2">
+          {{range .Values}}<li class="font-mono text-sm-mono">{{.}}</li>{{end}}
+        </ul>
+        {{if eq $s "skipped"}}do not {{end}}{{.ConditionPhrase}}
+        {{if .ConditionsMap}}
+        <dl class="pt-2 pl-4">
+        {{range $k, $v := .ConditionsMap}}
+          {{if $v}}
+          <dt>{{$k}}</dt>
+          <dd>
+              <ul class="list-disc list-outside pl-6 py-2">{{range $v}}<li class="font-mono text-sm-mono">{{.}}</li>{{end}}</ul>
+          </dd>
+          {{end}}
+        {{end}}
+        </dl>
+        {{else if .ConditionValues}}
+          <ul class="list-disc list-outside pl-6 py-2">{{range .ConditionValues}}<li class="font-mono text-sm-mono">{{.}}</li>{{end}}</ul>
+        {{end}}
+      {{else}}
+        There are no {{.ValuePhrase}}
+      {{end}}
+    </li>
   {{end}}
   </ul>
 {{end}}
