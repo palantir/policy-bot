@@ -21,11 +21,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/policy/predicate"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog"
 )
 
 type Rule struct {
@@ -41,6 +41,7 @@ type Options struct {
 	AllowContributor bool `yaml:"allow_contributor"`
 	InvalidateOnPush bool `yaml:"invalidate_on_push"`
 
+	IgnoreEditedBody     bool          `yaml:"ignore_edited_body"`
 	IgnoreEditedComments bool          `yaml:"ignore_edited_comments"`
 	IgnoreUpdateMerges   bool          `yaml:"ignore_update_merges"`
 	IgnoreCommitsBy      common.Actors `yaml:"ignore_commits_by"`
@@ -262,7 +263,14 @@ func (r *Rule) filteredCandidates(ctx context.Context, prctx pull.Context) ([]*c
 	sort.Stable(common.CandidatesByCreationTime(candidates))
 
 	if r.Options.IgnoreEditedComments {
-		candidates, err = r.filterEditedCandidates(ctx, prctx, candidates)
+		candidates, err = r.filterEditedCommentCandidates(ctx, prctx, candidates)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if r.Options.IgnoreEditedBody {
+		candidates, err = r.filterEditedBodyCandidates(ctx, prctx, candidates)
 		if err != nil {
 			return nil, err
 		}
@@ -278,10 +286,10 @@ func (r *Rule) filteredCandidates(ctx context.Context, prctx pull.Context) ([]*c
 	return candidates, nil
 }
 
-func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, error) {
+func (r *Rule) filterEditedCommentCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, error) {
 	log := zerolog.Ctx(ctx)
 
-	if !r.Options.IgnoreEditedComments {
+	if !r.Options.IgnoreEditedComments{
 		return candidates, nil
 	}
 
@@ -295,6 +303,28 @@ func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, c
 	}
 
 	log.Debug().Msgf("discarded %d candidates with edited comments",
+		len(candidates)-len(allowedCandidates))
+
+	return allowedCandidates, nil
+}
+
+func (r *Rule) filterEditedBodyCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, error) {
+	log := zerolog.Ctx(ctx)
+
+	if !r.Options.IgnoreEditedBody{
+		return candidates, nil
+	}
+
+	var allowedCandidates []*common.Candidate
+	for _, candidate := range candidates {
+		if r.Options.IgnoreEditedBody {
+			if candidate.UpdatedAt == candidate.CreatedAt {
+				allowedCandidates = append(allowedCandidates, candidate)
+			}
+		}
+	}
+
+	log.Debug().Msgf("discarded %d candidates with edited body",
 		len(candidates)-len(allowedCandidates))
 
 	return allowedCandidates, nil

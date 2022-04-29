@@ -185,6 +185,40 @@ func (ghc *GitHubContext) Title() string {
 	return ghc.pr.Title
 }
 
+// if adding new fields to this struct, modify Locator#toV4() and Locator#IsComplete() as well
+type v4PullRequestWithEditedAt struct {
+	Author       v4Actor
+	Editor       v4Actor
+	CreatedAt    time.Time
+	LastEditedAt time.Time
+	Body         string
+}
+
+func (ghc *GitHubContext) Body() (*PrBody, error) {
+	var q struct {
+		Repository struct {
+			PullRequest v4PullRequestWithEditedAt `graphql:"pullRequest(number: $number)"`
+		} `graphql:"repository(owner: $owner, name: $name)"`
+	}
+	qvars := map[string]interface{}{
+		"owner":  githubv4.String(ghc.owner),
+		"name":   githubv4.String(ghc.repo),
+		"number": githubv4.Int(ghc.number),
+	}
+	if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
+		return &PrBody{}, errors.Wrap(err, "failed to load pull request details")
+	}
+	graphqlResponse := &q.Repository.PullRequest
+
+	return &PrBody{
+		Body: graphqlResponse.Body,
+		CreatedAt: graphqlResponse.CreatedAt,
+		Editor: graphqlResponse.Editor.GetV3Login(),
+		Author: graphqlResponse.Author.GetV3Login(),
+		LastEditedAt: graphqlResponse.LastEditedAt,
+	}, nil
+}
+
 func (ghc *GitHubContext) Author() string {
 	return ghc.pr.Author.GetV3Login()
 }
@@ -706,6 +740,15 @@ func (ghc *GitHubContext) loadPagedData() error {
 	var q struct {
 		Repository struct {
 			PullRequest struct {
+				CreatedAt    time.Time
+				LastEditedAt time.Time
+				Body         string
+				Editor       struct {
+					Login string
+				}
+				Author struct {
+					Login string
+				}
 				Comments struct {
 					PageInfo v4PageInfo
 					Nodes    []v4IssueComment

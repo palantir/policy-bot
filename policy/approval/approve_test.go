@@ -37,6 +37,13 @@ func TestIsApproved(t *testing.T) {
 	basePullContext := func() *pulltest.Context {
 		return &pulltest.Context{
 			AuthorValue: "mhaypenny",
+			BodyValue: &pull.PrBody{
+				Body: "/no-platform",
+				CreatedAt: now.Add(10 * time.Second),
+				LastEditedAt: now.Add(20 * time.Second),
+				Editor: "body-editor",
+				Author: "body-editor",
+			},
 			CommentsValue: []*pull.Comment{
 				{
 					CreatedAt: now.Add(10 * time.Second),
@@ -495,6 +502,33 @@ func TestIsApproved(t *testing.T) {
 		r.Options.IgnoreEditedComments = true
 
 		assertPending(t, prctx, r, "0/1 approvals required. Ignored 5 approvals from disqualified users")
+	})
+
+	t.Run("ignoreEditedBody", func(t *testing.T) {
+		prctx := basePullContext()
+
+		r := &Rule{
+			Requires: Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Users: []string{"body-editor"},
+				},
+			},
+			Options: Options{
+				Methods: &common.Methods{
+					BodyPatterns: []common.Regexp{
+						common.NewCompiledRegexp(regexp.MustCompile("/no-platform")),
+					},
+				},
+				IgnoreEditedBody: false,
+			},
+		}
+
+		assertApproved(t, prctx, r, "Approved by body-editor")
+
+		r.Options.IgnoreEditedBody = true
+
+		assertPending(t, prctx, r, "0/1 approvals required")
 	})
 }
 

@@ -18,7 +18,6 @@ import (
 	"context"
 	"strings"
 	"time"
-
 	"github.com/palantir/policy-bot/pull"
 )
 
@@ -27,6 +26,7 @@ type Methods struct {
 	CommentPatterns             []Regexp `yaml:"comment_patterns,omitempty"`
 	GithubReview                bool     `yaml:"github_review,omitempty"`
 	GithubReviewCommentPatterns []Regexp `yaml:"github_review_comment_patterns,omitempty"`
+	BodyPatterns                []Regexp `yaml:"body_patterns,omitempty"`
 
 	// If GithubReview is true, GithubReviewState is the state a review must
 	// have to be considered a candidated. It is currently excluded from
@@ -69,6 +69,29 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 					UpdatedAt: c.UpdatedAt,
 				})
 			}
+		}
+	}
+
+	if len(m.BodyPatterns) > 0 {
+		prBody, err := prctx.Body()
+		if err != nil {
+			return nil, err
+		}
+		if m.BodyMatches(prBody.Body) {
+			createdAt := prBody.CreatedAt
+			lastEditedAt := prBody.LastEditedAt
+			var updatedAt time.Time
+
+			if !lastEditedAt.IsZero() {
+				updatedAt = lastEditedAt
+			} else {
+				updatedAt = createdAt
+			}
+			candidates = append(candidates, &Candidate{
+				User:      prBody.Author,
+				CreatedAt: createdAt,
+				UpdatedAt: updatedAt,
+			})
 		}
 	}
 
@@ -136,6 +159,15 @@ func (m *Methods) CommentMatches(commentBody string) bool {
 func (m *Methods) githubReviewCommentMatches(commentBody string) bool {
 	for _, pattern := range m.GithubReviewCommentPatterns {
 		if pattern.Matches(commentBody) {
+			return true
+		}
+	}
+	return false
+}
+
+func (m *Methods) BodyMatches(prBody string) bool {
+	for _, pattern := range m.BodyPatterns {
+		if pattern.Matches(prBody) {
 			return true
 		}
 	}
