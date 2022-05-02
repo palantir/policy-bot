@@ -72,7 +72,7 @@ func (pred *FromBranch) Evaluate(ctx context.Context, prctx pull.Context) (*comm
 		Satisfied:       matches,
 		Description:     desc,
 		Values:          []string{sourceBranchName},
-		ValuePhrase:     "from branches",
+		ValuePhrase:     "source branches",
 		ConditionPhrase: "match the required pattern",
 		ConditionValues: []string{pred.Pattern.String()},
 	}
