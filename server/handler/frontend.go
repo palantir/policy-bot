@@ -93,10 +93,12 @@ func getRequires(result *common.Result, githubURL string) map[string][]Membershi
 	for _, team := range result.Requires.Teams {
 		teamName := strings.Split(team, "/")
 		membershipInfo["Teams"] = append(membershipInfo["Teams"], Membership{Name: team, Link: githubURL + "/orgs/" + teamName[0] + "/teams/" + teamName[1] + "/members"})
-
 	}
 	for _, user := range result.Requires.Users {
 		membershipInfo["Users"] = append(membershipInfo["Users"], Membership{Name: user, Link: githubURL + "/" + user})
+	}
+	for _, perm := range result.Requires.GetPermissions() {
+		membershipInfo["Users with Permission"] = append(membershipInfo["Users with Permission"], Membership{Name: perm.String()})
 	}
 	return membershipInfo
 }
