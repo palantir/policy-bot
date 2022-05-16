@@ -66,6 +66,9 @@ func New(c *Config) (*Server, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed parse public URL")
 	}
+	if publicURL.Scheme == "" || publicURL.Host == "" {
+		return nil, errors.Errorf("public URL must contain a scheme and a host: %s", c.Server.PublicURL)
+	}
 
 	basePath := strings.TrimSuffix(publicURL.Path, "/")
 	forceTLS := publicURL.Scheme == "https"
