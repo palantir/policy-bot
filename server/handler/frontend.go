@@ -109,7 +109,7 @@ func getRequires(result *common.Result, githubURL string) map[string][]Membershi
 
 func getPermissions(result *common.Result) []string {
 	permStrings := make([]string, len(result.Requires.Permissions))
-	for _, perm := range result.Requires.Permissions {
+	for _, perm := range result.Requires.GetPermissions() {
 		permStrings = append(permStrings, perm.String())
 	}
 	return permStrings
