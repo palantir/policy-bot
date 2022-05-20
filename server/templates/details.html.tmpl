@@ -70,6 +70,11 @@
           {{template "result-requires-details" .}}
           </div>
         {{end}}
+        {{if (hasRequiresPermissions .Requires)}}
+          <div class="pt-2">
+          {{template "result-requires-permissions-details" .}}
+          </div>
+        {{end}}
       </div>
     </details>
     {{end}}
@@ -147,4 +152,11 @@
     </dd>
   {{end}}
   </dl>
+{{end}}
+
+{{define "result-requires-permissions-details"}}
+  <b class="font-bold text-sm">This rule requires review from users with the following permissions</b>
+  <ul class="list-disc list-outside pl-6 py-2">
+    {{range getPermissions .}}<li class="font-mono text-sm-mono">{{.}}</li>{{end}}
+  </ul>
 {{end}}
