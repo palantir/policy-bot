@@ -56,7 +56,7 @@
 <li data-status="{{$s}}">
   <div class="bg-white p-2 shadow-sm max-w-lg status-stripe {{$s}}">
     {{template "result-details" .}}
-    {{if (or .PredicateResults (hasRequires .Requires))}}
+    {{if (or (.PredicateResults) (hasRequires .Requires) (hasRequiresPermissions .Requires))}}
     <details class="bg-light-gray5 p-2 mt-2 text-sm">
       <summary class="text-dark-gray3 font-semibold">Details</summary>
       <div class="border-t border-light-gray3 mt-2 overflow-x-auto whitespace-nowrap">
