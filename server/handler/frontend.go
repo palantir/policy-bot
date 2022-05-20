@@ -67,7 +67,7 @@ func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatet
 			return getRequires(results, strings.TrimSuffix(githubURL, "/"))
 		},
 		"hasRequiresPermissions": func(requires common.Actors) bool {
-			return len(requires.Permissions) > 0
+			return len(requires.GetPermissions()) > 0
 		},
 		"getPermissions": func(results *common.Result) []string {
 			return getPermissions(results)
@@ -108,8 +108,9 @@ func getRequires(result *common.Result, githubURL string) map[string][]Membershi
 }
 
 func getPermissions(result *common.Result) []string {
-	permStrings := make([]string, 0, len(result.Requires.GetPermissions()))
-	for _, perm := range result.Requires.GetPermissions() {
+	perms := result.Requires.GetPermissions()
+	permStrings := make([]string, 0, len(perms))
+	for _, perm := range perms {
 		permStrings = append(permStrings, perm.String())
 	}
 	return permStrings
