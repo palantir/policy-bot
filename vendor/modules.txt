@@ -90,7 +90,7 @@ github.com/rs/zerolog/internal/json
 github.com/rs/zerolog/log
 # github.com/sergi/go-diff v1.1.0
 ## explicit; go 1.12
-# github.com/shurcooL/githubv4 v0.0.0-20220115235240-a14260e6f8a2
+# github.com/shurcooL/githubv4 v0.0.0-20220520033151-0b4e3294ff00
 ## explicit
 github.com/shurcooL/githubv4
 # github.com/shurcooL/graphql v0.0.0-20181231061246-d48a9a75455f
