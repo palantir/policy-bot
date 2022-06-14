@@ -4,6 +4,7 @@ server:
   address: "0.0.0.0"
   port: 8080
   # The public URL, used for URL generation when the server is behind a proxy
+  # Can also be set by the POLICYBOT_PUBLIC_URL environment variable.
   public_url: http://localhost:8080
   # Uncomment the "tls_config" block to enable HTTPS support in the server.
   # The cert and key files must be usable by net/http.ListenAndServeTLS().
