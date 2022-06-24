@@ -282,12 +282,11 @@ func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 		if err != nil {
 			return nil, err
 		}
-		if len(commits) >= MaxPullRequestCommits {
-			return nil, errors.Errorf("too many commits in pull request, maximum is %d", MaxPullRequestCommits)
-		}
-
 		backfillPushedAt(commits, ghc.pr.HeadRefOID)
 		ghc.commits = commits
+	}
+	if len(ghc.commits) >= MaxPullRequestCommits {
+		return nil, errors.Errorf("too many commits in pull request, maximum is %d", MaxPullRequestCommits)
 	}
 	return ghc.commits, nil
 }
