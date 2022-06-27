@@ -38,9 +38,6 @@ github.com/golang/protobuf/proto
 # github.com/google/go-github/v41 v41.0.0
 ## explicit; go 1.16
 github.com/google/go-github/v41/github
-# github.com/google/go-github/v43 v43.0.0
-## explicit; go 1.17
-github.com/google/go-github/v43/github
 # github.com/google/go-github/v45 v45.2.0
 ## explicit; go 1.17
 github.com/google/go-github/v45/github
