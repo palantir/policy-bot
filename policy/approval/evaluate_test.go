@@ -63,6 +63,7 @@ func TestRules(t *testing.T) {
 	var rules []*Rule
 	require.NoError(t, yaml.UnmarshalStrict([]byte(ruleText), &rules))
 
+	defaultBool := true
 	expected := []*Rule{
 		{
 			Name: "rule1",
@@ -98,7 +99,7 @@ func TestRules(t *testing.T) {
 				// InvalidateOnPush: true,
 				Methods: &common.Methods{
 					Comments:     []string{"+1"},
-					GithubReview: true,
+					GithubReview: &defaultBool,
 				},
 			},
 			Requires: Requires{
@@ -113,6 +114,49 @@ func TestRules(t *testing.T) {
 	}
 
 	require.True(t, reflect.DeepEqual(expected, rules))
+
+	optionsText := `
+allow_author: true
+allow_contributor: true
+invalidate_on_push: true
+methods:
+  comments: ["+1"]
+`
+	expectedMethods := &common.Methods{
+		Comments:     []string{"+1"},
+		GithubReview: &defaultBool,
+	}
+	var options *Options
+	require.NoError(t, yaml.UnmarshalStrict([]byte(optionsText), &options))
+
+	methods := options.GetMethods()
+
+	require.True(t, reflect.DeepEqual(expectedMethods.Comments, methods.Comments))
+	require.True(t, reflect.DeepEqual(*expectedMethods.GithubReview, *methods.GithubReview))
+
+	optionsText = `
+allow_author: true
+allow_contributor: true
+invalidate_on_push: true
+methods:
+  github_review: true
+`
+	trueBool := true
+	expectedMethods = &common.Methods{
+		Comments: []string{
+			":+1:",
+			"👍",
+		},
+		GithubReview: &trueBool,
+	}
+
+	var optionsTwo *Options
+	require.NoError(t, yaml.UnmarshalStrict([]byte(optionsText), &optionsTwo))
+
+	methods = optionsTwo.GetMethods()
+
+	require.True(t, reflect.DeepEqual(expectedMethods.Comments, methods.Comments))
+	require.True(t, reflect.DeepEqual(*expectedMethods.GithubReview, *methods.GithubReview))
 }
 
 type mockRequirement struct {
