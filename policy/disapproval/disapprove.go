@@ -44,13 +44,12 @@ type Methods struct {
 func (opts *Options) GetDisapproveMethods() *common.Methods {
 	m := opts.Methods.Disapprove
 	if m == nil {
-		defaultBool := true
 		m = &common.Methods{
 			Comments: []string{
 				":-1:",
 				"👎",
 			},
-			GithubReview: &defaultBool,
+			GithubReview: true,
 		}
 	}
 
@@ -61,13 +60,12 @@ func (opts *Options) GetDisapproveMethods() *common.Methods {
 func (opts *Options) GetRevokeMethods() *common.Methods {
 	m := opts.Methods.Revoke
 	if m == nil {
-		defaultBool := true
 		m = &common.Methods{
 			Comments: []string{
 				":+1:",
 				"👍",
 			},
-			GithubReview: &defaultBool,
+			GithubReview: true,
 		}
 	}
 
@@ -89,7 +87,7 @@ func (p *Policy) Trigger() common.Trigger {
 		if len(dm.Comments) > 0 || len(rm.Comments) > 0 {
 			t |= common.TriggerComment
 		}
-		if *dm.GithubReview || *rm.GithubReview {
+		if dm.GithubReview || rm.GithubReview {
 			t |= common.TriggerReview
 		}
 	}

@@ -57,24 +57,13 @@ type RequestReview struct {
 
 func (opts *Options) GetMethods() *common.Methods {
 	methods := opts.Methods
-	defaultBool := true
 	if methods == nil {
 		methods = &common.Methods{
 			Comments: []string{
 				":+1:",
 				"👍",
 			},
-			GithubReview: &defaultBool,
-		}
-	} else {
-		if len(methods.Comments) == 0 {
-			methods.Comments = []string{
-				":+1:",
-				"👍",
-			}
-		}
-		if methods.GithubReview == nil {
-			methods.GithubReview = &defaultBool
+			GithubReview: true,
 		}
 	}
 
@@ -96,7 +85,7 @@ func (r *Rule) Trigger() common.Trigger {
 		if len(m.Comments) > 0 || len(m.CommentPatterns) > 0 {
 			t |= common.TriggerComment
 		}
-		if *m.GithubReview || len(m.GithubReviewCommentPatterns) > 0 {
+		if m.GithubReview || len(m.GithubReviewCommentPatterns) > 0 {
 			t |= common.TriggerReview
 		}
 	}
