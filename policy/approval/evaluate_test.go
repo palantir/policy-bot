@@ -157,6 +157,20 @@ methods:
 
 	require.True(t, reflect.DeepEqual(expectedMethods.Comments, methods.Comments))
 	require.True(t, reflect.DeepEqual(*expectedMethods.GithubReview, *methods.GithubReview))
+
+	optionsText = `
+allow_author: true
+allow_contributor: true
+invalidate_on_push: true
+`
+	var optionsThree *Options
+	require.NoError(t, yaml.UnmarshalStrict([]byte(optionsText), &optionsThree))
+
+	methods = optionsThree.GetMethods()
+
+	require.True(t, reflect.DeepEqual(expectedMethods.Comments, methods.Comments))
+	require.True(t, reflect.DeepEqual(*expectedMethods.GithubReview, *methods.GithubReview))
+
 }
 
 type mockRequirement struct {

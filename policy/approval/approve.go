@@ -59,23 +59,16 @@ func (opts *Options) GetMethods() *common.Methods {
 	methods := opts.Methods
 	defaultBool := true
 	if methods == nil {
-		methods = &common.Methods{
-			Comments: []string{
-				":+1:",
-				"👍",
-			},
-			GithubReview: &defaultBool,
+		methods = &common.Methods{}
+	}
+	if len(methods.Comments) == 0 {
+		methods.Comments = []string{
+			":+1:",
+			"👍",
 		}
-	} else {
-		if len(methods.Comments) == 0 {
-			methods.Comments = []string{
-				":+1:",
-				"👍",
-			}
-		}
-		if methods.GithubReview == nil {
-			methods.GithubReview = &defaultBool
-		}
+	}
+	if methods.GithubReview == nil {
+		methods.GithubReview = &defaultBool
 	}
 
 	methods.GithubReviewState = pull.ReviewApproved
