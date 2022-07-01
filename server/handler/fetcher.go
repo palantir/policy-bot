@@ -37,10 +37,18 @@ type ConfigFetcher struct {
 	Loader *appconfig.Loader
 }
 
-func (cf *ConfigFetcher) ConfigForPR(ctx context.Context, prctx pull.Context, client *github.Client) FetchedConfig {
+func (cf *ConfigFetcher) ConfigForPRBase(ctx context.Context, prctx pull.Context, client *github.Client) FetchedConfig {
 	base, _ := prctx.Branches()
+	return cf.configForPRBranch(ctx, prctx, client, base)
+}
 
-	c, err := cf.Loader.LoadConfig(ctx, client, prctx.RepositoryOwner(), prctx.RepositoryName(), base)
+func (cf *ConfigFetcher) ConfigForPRHead(ctx context.Context, prctx pull.Context, client *github.Client) FetchedConfig {
+	head := prctx.HeadSHA()
+	return cf.configForPRBranch(ctx, prctx, client, head)
+}
+
+func (cf *ConfigFetcher) configForPRBranch(ctx context.Context, prctx pull.Context, client *github.Client, ref string) FetchedConfig {
+	c, err := cf.Loader.LoadConfig(ctx, client, prctx.RepositoryOwner(), prctx.RepositoryName(), ref)
 	fc := FetchedConfig{
 		Source: c.Source,
 		Path:   c.Path,

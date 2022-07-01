@@ -172,13 +172,16 @@ func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger commo
 		return err
 	}
 
-	fetchedConfig := b.ConfigFetcher.ConfigForPR(ctx, prctx, client)
+	fetchedConfig := b.ConfigFetcher.ConfigForPRBase(ctx, prctx, client)
 	evaluator, err := b.ValidateFetchedConfig(ctx, prctx, client, fetchedConfig, trigger)
 	if err != nil {
 		return err
 	}
 	if evaluator == nil {
 		return nil
+	}
+	if err := b.ValidateChangedHeadConfig(ctx, prctx, client, trigger); err != nil {
+		return err
 	}
 
 	result, err := b.EvaluateFetchedConfig(ctx, prctx, client, evaluator, fetchedConfig)
@@ -266,6 +269,29 @@ func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, cl
 	b.PostStatus(ctx, prctx, client, statusState, statusDescription)
 
 	return result, nil
+}
+
+func (b *Base) ValidateChangedHeadConfig(ctx context.Context, prctx pull.Context, client *github.Client, trigger common.Trigger) error {
+	logger := zerolog.Ctx(ctx)
+
+	files, err := prctx.ChangedFiles()
+	if err != nil {
+		return err
+	}
+	for _, f := range files {
+		switch f.Status {
+		case pull.FileAdded, pull.FileModified:
+			switch f.Filename {
+			case b.PullOpts.PolicyPath, ".github/" + b.PullOpts.PolicyPath:
+				logger.Debug().Msg("Pull request changed policy file. Evaluating head version.")
+
+				fetchedConfig := b.ConfigFetcher.ConfigForPRHead(ctx, prctx, client)
+				_, err = b.ValidateFetchedConfig(ctx, prctx, client, fetchedConfig, trigger)
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (b *Base) RequestReviewsForResult(ctx context.Context, prctx pull.Context, client *github.Client, trigger common.Trigger, result common.Result) error {
