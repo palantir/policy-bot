@@ -57,7 +57,6 @@ type RequestReview struct {
 
 func (opts *Options) GetMethods() *common.Methods {
 	methods := opts.Methods
-	defaultGithubReview := true
 	if methods == nil {
 		methods = &common.Methods{}
 	}
@@ -69,6 +68,7 @@ func (opts *Options) GetMethods() *common.Methods {
 		methods.Comments = &defaultComments
 	}
 	if methods.GithubReview == nil {
+		defaultGithubReview := true
 		methods.GithubReview = &defaultGithubReview
 	}
 
