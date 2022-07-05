@@ -506,12 +506,13 @@ func TestTrigger(t *testing.T) {
 	})
 
 	t.Run("triggerCommentOnComments", func(t *testing.T) {
+		comments := []string{
+			"lgtm",
+		}
 		r := &Rule{
 			Options: Options{
 				Methods: &common.Methods{
-					Comments: []string{
-						"lgtm",
-					},
+					Comments: &comments,
 				},
 			},
 			Requires: Requires{
@@ -542,11 +543,11 @@ func TestTrigger(t *testing.T) {
 	})
 
 	t.Run("triggerReviewForGithubReview", func(t *testing.T) {
-		defaultBool := true
+		defaultGithubReview := true
 		r := &Rule{
 			Options: Options{
 				Methods: &common.Methods{
-					GithubReview: &defaultBool,
+					GithubReview: &defaultGithubReview,
 				},
 			},
 			Requires: Requires{

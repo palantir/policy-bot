@@ -44,13 +44,14 @@ type Methods struct {
 func (opts *Options) GetDisapproveMethods() *common.Methods {
 	m := opts.Methods.Disapprove
 	if m == nil {
-		defaultBool := true
+		githubReview := true
+		comments := []string{
+			":-1:",
+			"👎",
+		}
 		m = &common.Methods{
-			Comments: []string{
-				":-1:",
-				"👎",
-			},
-			GithubReview: &defaultBool,
+			Comments:     &comments,
+			GithubReview: &githubReview,
 		}
 	}
 
@@ -61,13 +62,14 @@ func (opts *Options) GetDisapproveMethods() *common.Methods {
 func (opts *Options) GetRevokeMethods() *common.Methods {
 	m := opts.Methods.Revoke
 	if m == nil {
-		defaultBool := true
+		githubReview := true
+		comments := []string{
+			":+1:",
+			"👍",
+		}
 		m = &common.Methods{
-			Comments: []string{
-				":+1:",
-				"👍",
-			},
-			GithubReview: &defaultBool,
+			Comments:     &comments,
+			GithubReview: &githubReview,
 		}
 	}
 
@@ -86,10 +88,10 @@ func (p *Policy) Trigger() common.Trigger {
 		dm := p.Options.GetDisapproveMethods()
 		rm := p.Options.GetRevokeMethods()
 
-		if len(dm.Comments) > 0 || len(rm.Comments) > 0 {
+		if dm.Comments != nil && len(*dm.Comments) > 0 || rm.Comments != nil && len(*rm.Comments) > 0 {
 			t |= common.TriggerComment
 		}
-		if *dm.GithubReview || *rm.GithubReview {
+		if dm.GithubReview != nil && *dm.GithubReview || rm.GithubReview != nil && *rm.GithubReview {
 			t |= common.TriggerReview
 		}
 	}

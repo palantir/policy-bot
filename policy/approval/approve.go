@@ -57,18 +57,19 @@ type RequestReview struct {
 
 func (opts *Options) GetMethods() *common.Methods {
 	methods := opts.Methods
-	defaultBool := true
+	defaultGithubReview := true
 	if methods == nil {
 		methods = &common.Methods{}
 	}
-	if len(methods.Comments) == 0 {
-		methods.Comments = []string{
+	if methods.Comments == nil {
+		defaultComments := []string{
 			":+1:",
 			"👍",
 		}
+		methods.Comments = &defaultComments
 	}
 	if methods.GithubReview == nil {
-		methods.GithubReview = &defaultBool
+		methods.GithubReview = &defaultGithubReview
 	}
 
 	methods.GithubReviewState = pull.ReviewApproved
@@ -86,10 +87,10 @@ func (r *Rule) Trigger() common.Trigger {
 
 	if r.Requires.Count > 0 {
 		m := r.Options.GetMethods()
-		if len(m.Comments) > 0 || len(m.CommentPatterns) > 0 {
+		if m.Comments != nil && len(*m.Comments) > 0 || len(m.CommentPatterns) > 0 {
 			t |= common.TriggerComment
 		}
-		if *m.GithubReview || len(m.GithubReviewCommentPatterns) > 0 {
+		if m.GithubReview != nil && *m.GithubReview || len(m.GithubReviewCommentPatterns) > 0 {
 			t |= common.TriggerReview
 		}
 	}

@@ -87,10 +87,9 @@ func TestCandidates(t *testing.T) {
 	}
 
 	t.Run("comments", func(t *testing.T) {
-		defaultBool := true
+		comments := []string{":+1:", ":lgtm:"}
 		m := &Methods{
-			Comments:     []string{":+1:", ":lgtm:"},
-			GithubReview: &defaultBool,
+			Comments: &comments,
 		}
 
 		cs, err := m.Candidates(ctx, prctx)
@@ -104,9 +103,7 @@ func TestCandidates(t *testing.T) {
 	})
 
 	t.Run("commentPatterns", func(t *testing.T) {
-		defaultBool := true
 		m := &Methods{
-			GithubReview: &defaultBool,
 			CommentPatterns: []Regexp{
 				NewCompiledRegexp(regexp.MustCompile("^(?i:looks good to me)")),
 			},
@@ -122,9 +119,9 @@ func TestCandidates(t *testing.T) {
 	})
 
 	t.Run("githubReviewCommentPatterns", func(t *testing.T) {
-		defaultBool := true
+		githubReview := true
 		m := &Methods{
-			GithubReview:      &defaultBool,
+			GithubReview:      &githubReview,
 			GithubReviewState: pull.ReviewApproved,
 			GithubReviewCommentPatterns: []Regexp{
 				NewCompiledRegexp(regexp.MustCompile("(?i)nice")),
@@ -142,9 +139,9 @@ func TestCandidates(t *testing.T) {
 	})
 
 	t.Run("reviews", func(t *testing.T) {
-		defaultBool := true
+		githubReview := true
 		m := &Methods{
-			GithubReview:      &defaultBool,
+			GithubReview:      &githubReview,
 			GithubReviewState: pull.ReviewChangesRequested,
 		}
 
@@ -158,10 +155,11 @@ func TestCandidates(t *testing.T) {
 	})
 
 	t.Run("deduplicate", func(t *testing.T) {
-		defaultBool := true
+		githubReview := true
+		comments := []string{":+1:", ":lgtm:"}
 		m := &Methods{
-			Comments:          []string{":+1:", ":lgtm:"},
-			GithubReview:      &defaultBool,
+			Comments:          &comments,
+			GithubReview:      &githubReview,
 			GithubReviewState: pull.ReviewApproved,
 		}
 

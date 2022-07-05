@@ -23,10 +23,10 @@ import (
 )
 
 type Methods struct {
-	Comments                    []string `yaml:"comments,omitempty"`
-	CommentPatterns             []Regexp `yaml:"comment_patterns,omitempty"`
-	GithubReview                *bool    `yaml:"github_review,omitempty"`
-	GithubReviewCommentPatterns []Regexp `yaml:"github_review_comment_patterns,omitempty"`
+	Comments                    *[]string `yaml:"comments,omitempty"`
+	CommentPatterns             []Regexp  `yaml:"comment_patterns,omitempty"`
+	GithubReview                *bool     `yaml:"github_review,omitempty"`
+	GithubReviewCommentPatterns []Regexp  `yaml:"github_review_comment_patterns,omitempty"`
 
 	// If GithubReview is true, GithubReviewState is the state a review must
 	// have to be considered a candidated. It is currently excluded from
@@ -55,7 +55,7 @@ func (cs CandidatesByCreationTime) Less(i, j int) bool {
 func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candidate, error) {
 	var candidates []*Candidate
 
-	if len(m.Comments) > 0 || len(m.CommentPatterns) > 0 {
+	if m.Comments != nil && len(*m.Comments) > 0 || len(m.CommentPatterns) > 0 {
 		comments, err := prctx.Comments()
 		if err != nil {
 			return nil, err
@@ -72,7 +72,7 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 		}
 	}
 
-	if *m.GithubReview || len(m.GithubReviewCommentPatterns) > 0 {
+	if m.GithubReview != nil && *m.GithubReview || len(m.GithubReviewCommentPatterns) > 0 {
 		reviews, err := prctx.Reviews()
 		if err != nil {
 			return nil, err
@@ -120,9 +120,11 @@ func deduplicateCandidates(all []*Candidate) []*Candidate {
 }
 
 func (m *Methods) CommentMatches(commentBody string) bool {
-	for _, comment := range m.Comments {
-		if strings.Contains(commentBody, comment) {
-			return true
+	if m.Comments != nil {
+		for _, comment := range *m.Comments {
+			if strings.Contains(commentBody, comment) {
+				return true
+			}
 		}
 	}
 	for _, pattern := range m.CommentPatterns {
