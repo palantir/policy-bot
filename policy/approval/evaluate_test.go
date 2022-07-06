@@ -103,7 +103,7 @@ func TestRules(t *testing.T) {
 				AllowContributor: true,
 				// InvalidateOnPush: true,
 				Methods: &common.Methods{
-					Comments:     &comments,
+					Comments:     comments,
 					GithubReview: &defaultGithubReview,
 				},
 			},
@@ -128,7 +128,7 @@ methods:
   comments: ["+1"]
 `
 	expectedMethods := &common.Methods{
-		Comments:     &comments,
+		Comments:     comments,
 		GithubReview: &defaultGithubReview,
 	}
 	var options *Options
@@ -136,7 +136,7 @@ methods:
 
 	methods := options.GetMethods()
 
-	require.True(t, reflect.DeepEqual(*expectedMethods.Comments, *methods.Comments))
+	require.True(t, reflect.DeepEqual(expectedMethods.Comments, methods.Comments))
 	require.True(t, reflect.DeepEqual(*expectedMethods.GithubReview, *methods.GithubReview))
 
 	optionsText = `
@@ -148,7 +148,7 @@ methods:
 `
 	falseGithubReview := false
 	expectedMethods = &common.Methods{
-		Comments:     &defaultComments,
+		Comments:     defaultComments,
 		GithubReview: &falseGithubReview,
 	}
 
@@ -157,7 +157,7 @@ methods:
 
 	methods = optionsTwo.GetMethods()
 
-	require.True(t, reflect.DeepEqual(*expectedMethods.Comments, *methods.Comments))
+	require.True(t, reflect.DeepEqual(expectedMethods.Comments, methods.Comments))
 	require.True(t, reflect.DeepEqual(*expectedMethods.GithubReview, *methods.GithubReview))
 
 	optionsText = `
@@ -166,7 +166,7 @@ allow_contributor: true
 invalidate_on_push: true
 `
 	expectedMethods = &common.Methods{
-		Comments:     &defaultComments,
+		Comments:     defaultComments,
 		GithubReview: &defaultGithubReview,
 	}
 	var optionsThree *Options
@@ -174,7 +174,7 @@ invalidate_on_push: true
 
 	methods = optionsThree.GetMethods()
 
-	require.True(t, reflect.DeepEqual(*expectedMethods.Comments, *methods.Comments))
+	require.True(t, reflect.DeepEqual(expectedMethods.Comments, methods.Comments))
 	require.True(t, reflect.DeepEqual(*expectedMethods.GithubReview, *methods.GithubReview))
 
 }

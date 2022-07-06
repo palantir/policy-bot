@@ -506,13 +506,12 @@ func TestTrigger(t *testing.T) {
 	})
 
 	t.Run("triggerCommentOnComments", func(t *testing.T) {
-		comments := []string{
-			"lgtm",
-		}
 		r := &Rule{
 			Options: Options{
 				Methods: &common.Methods{
-					Comments: &comments,
+					Comments: []string{
+						"lgtm",
+					},
 				},
 			},
 			Requires: Requires{

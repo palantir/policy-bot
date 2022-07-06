@@ -61,11 +61,10 @@ func (opts *Options) GetMethods() *common.Methods {
 		methods = &common.Methods{}
 	}
 	if methods.Comments == nil {
-		defaultComments := []string{
+		methods.Comments = []string{
 			":+1:",
 			"👍",
 		}
-		methods.Comments = &defaultComments
 	}
 	if methods.GithubReview == nil {
 		defaultGithubReview := true
@@ -87,7 +86,7 @@ func (r *Rule) Trigger() common.Trigger {
 
 	if r.Requires.Count > 0 {
 		m := r.Options.GetMethods()
-		if m.Comments != nil && len(*m.Comments) > 0 || len(m.CommentPatterns) > 0 {
+		if len(m.Comments) > 0 || len(m.CommentPatterns) > 0 {
 			t |= common.TriggerComment
 		}
 		if m.GithubReview != nil && *m.GithubReview || len(m.GithubReviewCommentPatterns) > 0 {

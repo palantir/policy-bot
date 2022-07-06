@@ -45,12 +45,11 @@ func (opts *Options) GetDisapproveMethods() *common.Methods {
 	m := opts.Methods.Disapprove
 	if m == nil {
 		githubReview := true
-		comments := []string{
-			":-1:",
-			"👎",
-		}
 		m = &common.Methods{
-			Comments:     &comments,
+			Comments: []string{
+				":-1:",
+				"👎",
+			},
 			GithubReview: &githubReview,
 		}
 	}
@@ -63,12 +62,11 @@ func (opts *Options) GetRevokeMethods() *common.Methods {
 	m := opts.Methods.Revoke
 	if m == nil {
 		githubReview := true
-		comments := []string{
-			":+1:",
-			"👍",
-		}
 		m = &common.Methods{
-			Comments:     &comments,
+			Comments: []string{
+				":+1:",
+				"👍",
+			},
 			GithubReview: &githubReview,
 		}
 	}
@@ -88,7 +86,7 @@ func (p *Policy) Trigger() common.Trigger {
 		dm := p.Options.GetDisapproveMethods()
 		rm := p.Options.GetRevokeMethods()
 
-		if dm.Comments != nil && len(*dm.Comments) > 0 || rm.Comments != nil && len(*rm.Comments) > 0 {
+		if len(dm.Comments) > 0 || len(rm.Comments) > 0 {
 			t |= common.TriggerComment
 		}
 		if dm.GithubReview != nil && *dm.GithubReview || rm.GithubReview != nil && *rm.GithubReview {

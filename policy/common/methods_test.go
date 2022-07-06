@@ -87,9 +87,8 @@ func TestCandidates(t *testing.T) {
 	}
 
 	t.Run("comments", func(t *testing.T) {
-		comments := []string{":+1:", ":lgtm:"}
 		m := &Methods{
-			Comments: &comments,
+			Comments: []string{":+1:", ":lgtm:"},
 		}
 
 		cs, err := m.Candidates(ctx, prctx)
@@ -156,9 +155,8 @@ func TestCandidates(t *testing.T) {
 
 	t.Run("deduplicate", func(t *testing.T) {
 		githubReview := true
-		comments := []string{":+1:", ":lgtm:"}
 		m := &Methods{
-			Comments:          &comments,
+			Comments:          []string{":+1:", ":lgtm:"},
 			GithubReview:      &githubReview,
 			GithubReviewState: pull.ReviewApproved,
 		}
