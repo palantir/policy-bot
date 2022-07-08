@@ -48,6 +48,8 @@ jobs:
 
   Dist:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     needs:
       - Verify
 
