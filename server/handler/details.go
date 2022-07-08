@@ -24,7 +24,7 @@ import (
 
 	"github.com/alexedwards/scs"
 	"github.com/bluekeyes/templatetree"
-	"github.com/google/go-github/v43/github"
+	"github.com/google/go-github/v45/github"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
