@@ -17,7 +17,7 @@ github.com/bluekeyes/hatpear
 # github.com/bluekeyes/templatetree v0.1.0
 ## explicit; go 1.11
 github.com/bluekeyes/templatetree
-# github.com/bradleyfalzon/ghinstallation/v2 v2.0.4
+# github.com/bradleyfalzon/ghinstallation/v2 v2.1.0
 ## explicit; go 1.13
 github.com/bradleyfalzon/ghinstallation/v2
 # github.com/c2h5oh/datasize v0.0.0-20171227191756-4eba002a5eae
@@ -29,15 +29,12 @@ github.com/davecgh/go-spew/spew
 # github.com/die-net/lrucache v0.0.0-20181227122439-19a39ef22a11
 ## explicit
 github.com/die-net/lrucache
-# github.com/golang-jwt/jwt/v4 v4.1.0
-## explicit; go 1.15
+# github.com/golang-jwt/jwt/v4 v4.4.1
+## explicit; go 1.16
 github.com/golang-jwt/jwt/v4
 # github.com/golang/protobuf v1.5.2
 ## explicit; go 1.9
 github.com/golang/protobuf/proto
-# github.com/google/go-github/v41 v41.0.0
-## explicit; go 1.16
-github.com/google/go-github/v41/github
 # github.com/google/go-github/v45 v45.2.0
 ## explicit; go 1.17
 github.com/google/go-github/v45/github
@@ -67,7 +64,7 @@ github.com/mattn/go-isatty
 github.com/palantir/go-baseapp/baseapp
 github.com/palantir/go-baseapp/baseapp/datadog
 github.com/palantir/go-baseapp/pkg/errfmt
-# github.com/palantir/go-githubapp v0.13.0
+# github.com/palantir/go-githubapp v0.13.1
 ## explicit; go 1.18
 github.com/palantir/go-githubapp/appconfig
 github.com/palantir/go-githubapp/githubapp
@@ -108,7 +105,7 @@ github.com/spf13/cobra
 # github.com/spf13/pflag v1.0.5
 ## explicit; go 1.12
 github.com/spf13/pflag
-# github.com/stretchr/testify v1.7.5
+# github.com/stretchr/testify v1.8.0
 ## explicit; go 1.13
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
