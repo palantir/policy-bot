@@ -18,6 +18,7 @@ import (
 	"context"
 	"strings"
 	"time"
+
 	"github.com/palantir/policy-bot/pull"
 )
 
