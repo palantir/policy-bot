@@ -238,9 +238,9 @@ type CollaboratorPermission struct {
 }
 
 type PrBody struct {
-	Body string
-	CreatedAt time.Time
-	Editor string
-	Author string
+	Body         string
+	CreatedAt    time.Time
+	Editor       string
+	Author       string
 	LastEditedAt time.Time
 }

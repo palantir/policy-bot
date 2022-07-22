@@ -289,7 +289,7 @@ func (r *Rule) filteredCandidates(ctx context.Context, prctx pull.Context) ([]*c
 func (r *Rule) filterEditedCommentCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, error) {
 	log := zerolog.Ctx(ctx)
 
-	if !r.Options.IgnoreEditedComments{
+	if !r.Options.IgnoreEditedComments {
 		return candidates, nil
 	}
 
@@ -311,7 +311,7 @@ func (r *Rule) filterEditedCommentCandidates(ctx context.Context, prctx pull.Con
 func (r *Rule) filterEditedBodyCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, error) {
 	log := zerolog.Ctx(ctx)
 
-	if !r.Options.IgnoreEditedBody{
+	if !r.Options.IgnoreEditedBody {
 		return candidates, nil
 	}
 

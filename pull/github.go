@@ -211,10 +211,10 @@ func (ghc *GitHubContext) Body() (*PrBody, error) {
 	graphqlResponse := &q.Repository.PullRequest
 
 	return &PrBody{
-		Body: graphqlResponse.Body,
-		CreatedAt: graphqlResponse.CreatedAt,
-		Editor: graphqlResponse.Editor.GetV3Login(),
-		Author: graphqlResponse.Author.GetV3Login(),
+		Body:         graphqlResponse.Body,
+		CreatedAt:    graphqlResponse.CreatedAt,
+		Editor:       graphqlResponse.Editor.GetV3Login(),
+		Author:       graphqlResponse.Author.GetV3Login(),
 		LastEditedAt: graphqlResponse.LastEditedAt,
 	}, nil
 }

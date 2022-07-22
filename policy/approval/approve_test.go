@@ -38,11 +38,11 @@ func TestIsApproved(t *testing.T) {
 		return &pulltest.Context{
 			AuthorValue: "mhaypenny",
 			BodyValue: &pull.PrBody{
-				Body: "/no-platform",
-				CreatedAt: now.Add(10 * time.Second),
+				Body:         "/no-platform",
+				CreatedAt:    now.Add(10 * time.Second),
 				LastEditedAt: now.Add(20 * time.Second),
-				Editor: "body-editor",
-				Author: "body-editor",
+				Editor:       "body-editor",
+				Author:       "body-editor",
 			},
 			CommentsValue: []*pull.Comment{
 				{
