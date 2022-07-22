@@ -4,6 +4,7 @@ server:
   address: "0.0.0.0"
   port: 8080
   # The public URL, used for URL generation when the server is behind a proxy
+  # Can also be set by the POLICYBOT_PUBLIC_URL environment variable.
   public_url: http://localhost:8080
   # Uncomment the "tls_config" block to enable HTTPS support in the server.
   # The cert and key files must be usable by net/http.ListenAndServeTLS().
@@ -81,20 +82,20 @@ sessions:
 #
 # options:
 #   # The path to the policy file in a repository. Can also be set by the
-#   # POLICYBOT_POLICY_PATH environment variable.
+#   # POLICYBOT_OPTIONS_POLICY_PATH environment variable.
 #   policy_path: .policy.yml
 #
 #   # The name of an organization repository to look in for a shared policy if
 #   # a repository does not define a policy file. Can also be set by the
-#   # POLICYBOT_SHARED_REPOSITORY environment variable.
+#   # POLICYBOT_OPTIONS_SHARED_REPOSITORY environment variable.
 #   shared_repository: .github
 #
 #   # The path to the policy file in the shared organization repository.
-#   # Can also be set by the POLICYBOT_SHARED_POLICY_PATH environment variable.
+#   # Can also be set by the POLICYBOT_OPTIONS_SHARED_POLICY_PATH environment variable.
 #   shared_policy_path: policy.yml
 #
 #   # The context prefix for status checks created by the bot. Can also be set by the
-#   # POLICYBOT_STATUS_CHECK_CONTEXT environment variable.
+#   # POLICYBOT_OPTIONS_STATUS_CHECK_CONTEXT environment variable.
 #   status_check_context: policy-bot
 
 # Options for locating the frontend files. By default, the server uses appropriate

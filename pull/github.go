@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v43/github"
+	"github.com/google/go-github/v45/github"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/shurcooL/githubv4"
@@ -316,12 +316,11 @@ func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 		if err != nil {
 			return nil, err
 		}
-		if len(commits) >= MaxPullRequestCommits {
-			return nil, errors.Errorf("too many commits in pull request, maximum is %d", MaxPullRequestCommits)
-		}
-
 		backfillPushedAt(commits, ghc.pr.HeadRefOID)
 		ghc.commits = commits
+	}
+	if len(ghc.commits) >= MaxPullRequestCommits {
+		return nil, errors.Errorf("too many commits in pull request, maximum is %d", MaxPullRequestCommits)
 	}
 	return ghc.commits, nil
 }

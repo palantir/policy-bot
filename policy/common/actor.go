@@ -16,6 +16,7 @@ package common
 
 import (
 	"context"
+	"sort"
 
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
@@ -35,10 +36,6 @@ type Actors struct {
 
 	// A list of GitHub collaborator permissions that are allowed. Values may
 	// be any of "admin", "maintain", "write", "triage", and "read".
-	//
-	// Each desired permission must be listed explicitly. For example, even
-	// though "admin" is a superset of "write" in GitHub, both "admin" and
-	// "write" must be included in the list to allow users with either role.
 	Permissions []pull.Permission
 }
 
@@ -46,6 +43,31 @@ type Actors struct {
 func (a *Actors) IsEmpty() bool {
 	return a == nil || (len(a.Users) == 0 && len(a.Teams) == 0 && len(a.Organizations) == 0 &&
 		len(a.Permissions) == 0 && !a.Admins && !a.WriteCollaborators)
+}
+
+// GetPermissions returns unique permissions ordered from most to least
+// permissive. It includes the permissions from the deprecated Admins and
+// WriteCollaborators fields.
+func (a *Actors) GetPermissions() []pull.Permission {
+	permSet := make(map[pull.Permission]struct{})
+	for _, p := range a.Permissions {
+		permSet[p] = struct{}{}
+	}
+	if a.Admins {
+		permSet[pull.PermissionAdmin] = struct{}{}
+	}
+	if a.WriteCollaborators {
+		permSet[pull.PermissionWrite] = struct{}{}
+	}
+
+	perms := make([]pull.Permission, 0, len(permSet))
+	for p := range permSet {
+		perms = append(perms, p)
+	}
+
+	// sort by decreasing privilege
+	sort.Slice(perms, func(i, j int) bool { return perms[i] > perms[j] })
+	return perms
 }
 
 // IsActor returns true if the given user satisfies at least one of the
@@ -77,14 +99,6 @@ func (a *Actors) IsActor(ctx context.Context, prctx pull.Context, user string) (
 		}
 	}
 
-	perms := append([]pull.Permission(nil), a.Permissions...)
-	if a.Admins {
-		perms = append(perms, pull.PermissionAdmin)
-	}
-	if a.WriteCollaborators {
-		perms = append(perms, pull.PermissionWrite)
-	}
-
 	userPerm, err := prctx.CollaboratorPermission(user)
 	if err != nil {
 		return false, err
@@ -93,7 +107,7 @@ func (a *Actors) IsActor(ctx context.Context, prctx pull.Context, user string) (
 		return false, nil
 	}
 
-	for _, p := range perms {
+	for _, p := range a.GetPermissions() {
 		if userPerm >= p {
 			return true, nil
 		}

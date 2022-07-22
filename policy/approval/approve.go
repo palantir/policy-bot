@@ -59,13 +59,17 @@ type RequestReview struct {
 func (opts *Options) GetMethods() *common.Methods {
 	methods := opts.Methods
 	if methods == nil {
-		methods = &common.Methods{
-			Comments: []string{
-				":+1:",
-				"👍",
-			},
-			GithubReview: true,
+		methods = &common.Methods{}
+	}
+	if methods.Comments == nil {
+		methods.Comments = []string{
+			":+1:",
+			"👍",
 		}
+	}
+	if methods.GithubReview == nil {
+		defaultGithubReview := true
+		methods.GithubReview = &defaultGithubReview
 	}
 
 	methods.GithubReviewState = pull.ReviewApproved
@@ -86,7 +90,7 @@ func (r *Rule) Trigger() common.Trigger {
 		if len(m.Comments) > 0 || len(m.CommentPatterns) > 0 {
 			t |= common.TriggerComment
 		}
-		if m.GithubReview || len(m.GithubReviewCommentPatterns) > 0 {
+		if m.GithubReview != nil && *m.GithubReview || len(m.GithubReviewCommentPatterns) > 0 {
 			t |= common.TriggerReview
 		}
 	}
@@ -155,19 +159,11 @@ func (r *Rule) getReviewRequestRule() *common.ReviewRequestRule {
 		mode = common.RequestModeRandomUsers
 	}
 
-	perms := append([]pull.Permission(nil), r.Requires.Permissions...)
-	if r.Requires.Admins {
-		perms = append(perms, pull.PermissionAdmin)
-	}
-	if r.Requires.WriteCollaborators {
-		perms = append(perms, pull.PermissionWrite)
-	}
-
 	return &common.ReviewRequestRule{
 		Users:         r.Requires.Users,
 		Teams:         r.Requires.Teams,
 		Organizations: r.Requires.Organizations,
-		Permissions:   perms,
+		Permissions:   r.Requires.GetPermissions(),
 		RequiredCount: r.Requires.Count,
 		Mode:          mode,
 	}

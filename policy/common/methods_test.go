@@ -118,8 +118,9 @@ func TestCandidates(t *testing.T) {
 	})
 
 	t.Run("githubReviewCommentPatterns", func(t *testing.T) {
+		githubReview := true
 		m := &Methods{
-			GithubReview:      true,
+			GithubReview:      &githubReview,
 			GithubReviewState: pull.ReviewApproved,
 			GithubReviewCommentPatterns: []Regexp{
 				NewCompiledRegexp(regexp.MustCompile("(?i)nice")),
@@ -137,8 +138,9 @@ func TestCandidates(t *testing.T) {
 	})
 
 	t.Run("reviews", func(t *testing.T) {
+		githubReview := true
 		m := &Methods{
-			GithubReview:      true,
+			GithubReview:      &githubReview,
 			GithubReviewState: pull.ReviewChangesRequested,
 		}
 
@@ -152,9 +154,10 @@ func TestCandidates(t *testing.T) {
 	})
 
 	t.Run("deduplicate", func(t *testing.T) {
+		githubReview := true
 		m := &Methods{
 			Comments:          []string{":+1:", ":lgtm:"},
-			GithubReview:      true,
+			GithubReview:      &githubReview,
 			GithubReviewState: pull.ReviewApproved,
 		}
 

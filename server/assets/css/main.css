@@ -211,4 +211,8 @@ details summary > * {
   font-size: 0.8125rem;
 }
 
+.whitespace-nowrap {
+  white-space: nowrap;
+}
+
 /* end custom utilities */

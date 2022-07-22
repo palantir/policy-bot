@@ -576,10 +576,11 @@ func TestTrigger(t *testing.T) {
 	})
 
 	t.Run("triggerReviewForGithubReview", func(t *testing.T) {
+		defaultGithubReview := true
 		r := &Rule{
 			Options: Options{
 				Methods: &common.Methods{
-					GithubReview: true,
+					GithubReview: &defaultGithubReview,
 				},
 			},
 			Requires: Requires{

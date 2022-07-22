@@ -25,7 +25,7 @@ import (
 type Methods struct {
 	Comments                    []string `yaml:"comments,omitempty"`
 	CommentPatterns             []Regexp `yaml:"comment_patterns,omitempty"`
-	GithubReview                bool     `yaml:"github_review,omitempty"`
+	GithubReview                *bool    `yaml:"github_review,omitempty"`
 	GithubReviewCommentPatterns []Regexp `yaml:"github_review_comment_patterns,omitempty"`
 	BodyPatterns                []Regexp `yaml:"body_patterns,omitempty"`
 
@@ -96,7 +96,7 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 		}
 	}
 
-	if m.GithubReview || len(m.GithubReviewCommentPatterns) > 0 {
+	if m.GithubReview != nil && *m.GithubReview || len(m.GithubReviewCommentPatterns) > 0 {
 		reviews, err := prctx.Reviews()
 		if err != nil {
 			return nil, err
