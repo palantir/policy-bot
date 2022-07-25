@@ -303,6 +303,10 @@ options:
   # will be ignored when evaluating approval rules. Default is false.
   ignore_edited_comments: false
 
+  # If true, if the PR body contains an approval and has been edited in any way
+  # the string will be ignored when evaluating approval rules. Default is false.
+  ignore_edited_body: false
+
   # If true, "update merges" do not invalidate approval (if invalidate_on_push
   # is enabled) and their authors/committers do not count as contributors. An
   # "update merge" is a merge commit that was created in the UI or via the API
@@ -365,6 +369,12 @@ options:
     # approval candidates. Defaults to an empty list.
     github_review_comment_patterns:
       - '\b(?i)domain\s*lgtm\b'
+
+    # Just like the "comment_patterns" and "github_review_comment_patterns" option, but
+    # for the PR Body description. If a PR body contains a string in this list, it counts as approval. Use
+    # the "body_patterns" option if you want to match strings.
+    body_patterns:
+      - "\b(?i)no-platform"
 
 # "requires" specifies the approval requirements for the rule. If the block
 # does not exist, the rule is automatically approved.
