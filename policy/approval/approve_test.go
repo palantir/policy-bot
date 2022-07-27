@@ -528,7 +528,7 @@ func TestIsApproved(t *testing.T) {
 
 		r.Options.IgnoreEditedBody = true
 
-		assertPending(t, prctx, r, "0/1 approvals required.  Ignored 5 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 approvals required. Ignored 5 approvals from disqualified users")
 	})
 }
 
