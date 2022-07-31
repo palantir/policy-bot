@@ -80,12 +80,8 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 		}
 		if m.BodyMatches(prBody.Body) {
 			createdAt := prBody.CreatedAt
-			lastEditedAt := prBody.LastEditedAt
-			var updatedAt time.Time
-
-			if !lastEditedAt.IsZero() {
-				updatedAt = lastEditedAt
-			} else {
+			updatedAt := prBody.LastEditedAt
+			if updatedAt.IsZero() {
 				updatedAt = createdAt
 			}
 			candidates = append(candidates, &Candidate{
