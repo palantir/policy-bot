@@ -193,7 +193,7 @@ type v4PullRequestWithEditedAt struct {
 	Body         string
 }
 
-func (ghc *GitHubContext) Body() (*PrBody, error) {
+func (ghc *GitHubContext) Body() (*Body, error) {
 	var q struct {
 		Repository struct {
 			PullRequest v4PullRequestWithEditedAt `graphql:"pullRequest(number: $number)"`
@@ -205,11 +205,11 @@ func (ghc *GitHubContext) Body() (*PrBody, error) {
 		"number": githubv4.Int(ghc.number),
 	}
 	if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
-		return &PrBody{}, errors.Wrap(err, "failed to load pull request details")
+		return &Body{}, errors.Wrap(err, "failed to load pull request details")
 	}
 	graphqlResponse := &q.Repository.PullRequest
 
-	return &PrBody{
+	return &Body{
 		Body:         graphqlResponse.Body,
 		CreatedAt:    graphqlResponse.CreatedAt,
 		Editor:       graphqlResponse.Editor.GetV3Login(),

@@ -37,7 +37,7 @@ func TestIsApproved(t *testing.T) {
 	basePullContext := func() *pulltest.Context {
 		return &pulltest.Context{
 			AuthorValue: "mhaypenny",
-			BodyValue: &pull.PrBody{
+			BodyValue: &pull.Body{
 				Body:         "/no-platform",
 				CreatedAt:    now.Add(10 * time.Second),
 				LastEditedAt: now.Add(20 * time.Second),

@@ -57,7 +57,7 @@ type Context interface {
 	Title() string
 
 	// Body returns a struct that includes Editor and LastEditedAt for the pull request body
-	Body() (*PrBody, error)
+	Body() (*Body, error)
 
 	// Author returns the username of the user who opened the pull request.
 	Author() string
@@ -237,7 +237,7 @@ type CollaboratorPermission struct {
 	ViaRepo bool
 }
 
-type PrBody struct {
+type Body struct {
 	Body         string
 	CreatedAt    time.Time
 	Editor       string
