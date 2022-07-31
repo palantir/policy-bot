@@ -185,7 +185,6 @@ func (ghc *GitHubContext) Title() string {
 	return ghc.pr.Title
 }
 
-// if adding new fields to this struct, modify Locator#toV4() and Locator#IsComplete() as well
 type v4PullRequestWithEditedAt struct {
 	Author       v4Actor
 	Editor       v4Actor
@@ -739,15 +738,6 @@ func (ghc *GitHubContext) loadPagedData() error {
 	var q struct {
 		Repository struct {
 			PullRequest struct {
-				CreatedAt    time.Time
-				LastEditedAt time.Time
-				Body         string
-				Editor       struct {
-					Login string
-				}
-				Author struct {
-					Login string
-				}
 				Comments struct {
 					PageInfo v4PageInfo
 					Nodes    []v4IssueComment

@@ -259,14 +259,14 @@ func (r *Rule) filteredCandidates(ctx context.Context, prctx pull.Context) ([]*c
 	sort.Stable(common.CandidatesByCreationTime(candidates))
 
 	if r.Options.IgnoreEditedComments {
-		candidates, err = r.filterEditedCommentCandidates(ctx, prctx, candidates)
+		candidates, err = r.filterEditedCandidates(ctx, prctx, candidates, "comments")
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if r.Options.IgnoreEditedBody {
-		candidates, err = r.filterEditedBodyCandidates(ctx, prctx, candidates)
+		candidates, err = r.filterEditedCandidates(ctx, prctx, candidates, "body")
 		if err != nil {
 			return nil, err
 		}
@@ -282,46 +282,18 @@ func (r *Rule) filteredCandidates(ctx context.Context, prctx pull.Context) ([]*c
 	return candidates, nil
 }
 
-func (r *Rule) filterEditedCommentCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, error) {
+func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate, candidateType string) ([]*common.Candidate, error) {
 	log := zerolog.Ctx(ctx)
-
-	if !r.Options.IgnoreEditedComments {
-		return candidates, nil
-	}
 
 	var allowedCandidates []*common.Candidate
 	for _, candidate := range candidates {
-		if r.Options.IgnoreEditedComments {
-			if candidate.UpdatedAt == candidate.CreatedAt {
-				allowedCandidates = append(allowedCandidates, candidate)
-			}
+		if candidate.UpdatedAt == candidate.CreatedAt {
+			allowedCandidates = append(allowedCandidates, candidate)
 		}
 	}
 
-	log.Debug().Msgf("discarded %d candidates with edited comments",
-		len(candidates)-len(allowedCandidates))
-
-	return allowedCandidates, nil
-}
-
-func (r *Rule) filterEditedBodyCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, error) {
-	log := zerolog.Ctx(ctx)
-
-	if !r.Options.IgnoreEditedBody {
-		return candidates, nil
-	}
-
-	var allowedCandidates []*common.Candidate
-	for _, candidate := range candidates {
-		if r.Options.IgnoreEditedBody {
-			if candidate.UpdatedAt == candidate.CreatedAt {
-				allowedCandidates = append(allowedCandidates, candidate)
-			}
-		}
-	}
-
-	log.Debug().Msgf("discarded %d candidates with edited body",
-		len(candidates)-len(allowedCandidates))
+	log.Debug().Msgf("discarded %d candidates with edited %s",
+		len(candidates)-len(allowedCandidates), candidateType)
 
 	return allowedCandidates, nil
 }
