@@ -48,7 +48,7 @@ type DetailsData struct {
 	PolicyURL        string
 }
 
-func (h *DetailsBase) getUrlParams(w http.ResponseWriter, r *http.Request) (string, string, int, error) {
+func (h *DetailsBase) getURLParams(w http.ResponseWriter, r *http.Request) (string, string, int, error) {
 	owner := pat.Param(r, "owner")
 	repo := pat.Param(r, "repo")
 	//number :=
@@ -101,20 +101,19 @@ func (h *DetailsBase) generatePrContext(ctx context.Context, owner string, repo 
 	return prCtx, err
 }
 
-func (h *DetailsBase) getPolicyConfig(ctx context.Context, prCtx pull.Context, branch string) (FetchedConfig, error) {
+func (h *DetailsBase) getPolicyConfig(ctx context.Context, prCtx pull.Context, branch string) (*FetchedConfig, error) {
 	owner := prCtx.RepositoryOwner()
 
 	installation, err := h.Installations.GetByOwner(ctx, owner)
 	if err != nil {
 		if _, notFound := err.(githubapp.InstallationNotFound); notFound {
-			//h.render404(w, owner, repo, number)
-			err = errors.Wrap(err, "failed to get github installation")
+			return nil, errors.Wrap(err, "failed to get github installation")
 		}
 	}
 	client, err := h.ClientCreator.NewInstallationClient(installation.ID)
 	if err != nil {
-		err = errors.Wrap(err, "failed to get github installaion")
-		//return nil, errors.Wrap(err, "failed to create github client")
+		err = errors.Wrap(err, "failed to get github installation")
+		return nil, errors.Wrap(err, "failed to create github client")
 	}
 
 	config := h.ConfigFetcher.ConfigForPRBranch(ctx, prCtx, client, branch)
@@ -122,7 +121,7 @@ func (h *DetailsBase) getPolicyConfig(ctx context.Context, prCtx pull.Context, b
 	return config, err
 }
 
-func (h *DetailsBase) generateEvaluationDetails(w http.ResponseWriter, r *http.Request, policyConfig FetchedConfig, prCtx pull.Context) (*DetailsData, *github.Client, common.Evaluator, error) {
+func (h *DetailsBase) generateEvaluationDetails(w http.ResponseWriter, r *http.Request, policyConfig *FetchedConfig, prCtx pull.Context) (*DetailsData, *github.Client, common.Evaluator, error) {
 	ctx := r.Context()
 	//logger := zerolog.Ctx(ctx)
 
@@ -196,7 +195,7 @@ func (h *DetailsBase) generateEvaluationDetails(w http.ResponseWriter, r *http.R
 
 func (h *DetailsBase) render404(w http.ResponseWriter, owner, repo string, number int) {
 	msg := fmt.Sprintf(
-		"Not Found: %s/%s#%DetailsData\n\nThe repository or pull request does not exist, you do not have permission, or policy-bot is not installed.",
+		"Not Found: %s/%s#%d\n\nThe repository or pull request does not exist, you do not have permission, or policy-bot is not installed.",
 		owner, repo, number,
 	)
 	http.Error(w, msg, http.StatusNotFound)
@@ -210,7 +209,7 @@ func (h *DetailsBase) render(w http.ResponseWriter, templateName string, data in
 	return h.Templates.ExecuteTemplate(w, templateName, data)
 }
 
-func getPolicyURL(pr *github.PullRequest, config FetchedConfig) string {
+func getPolicyURL(pr *github.PullRequest, config *FetchedConfig) string {
 	base := pr.GetBase().GetRepo().GetHTMLURL()
 	if u, _ := url.Parse(base); u != nil {
 		srcParts := strings.Split(config.Source, "@")

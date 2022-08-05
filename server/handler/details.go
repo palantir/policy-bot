@@ -15,6 +15,7 @@
 package handler
 
 import (
+	"github.com/pkg/errors"
 	"net/http"
 )
 
@@ -25,18 +26,23 @@ type Details struct {
 func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
-	owner, repo, number, err := h.getUrlParams(w, r)
+	owner, repo, number, err := h.getURLParams(w, r)
 	if err != nil {
 		return err
 	}
 
-	prCtx, err := h.generatePrContext(ctx, owner, repo, number)
+	prCtx, _ := h.generatePrContext(ctx, owner, repo, number)
 	branch, _ := prCtx.Branches()
 
-	policyConfig, _ := h.getPolicyConfig(ctx, prCtx, branch)
+	policyConfig, err := h.getPolicyConfig(ctx, prCtx, branch)
+	if err != nil {
+		h.render404(w, owner, repo, number)
+		return errors.Wrap(err, "failed to get policy config")
+	}
+
 	details, client, evaluator, _ := h.generateEvaluationDetails(w, r, policyConfig, prCtx)
 
-	result, err := h.Base.EvaluateFetchedConfig(ctx, prCtx, client, evaluator, policyConfig)
+	result, _ := h.Base.EvaluateFetchedConfig(ctx, prCtx, client, evaluator, policyConfig)
 	details.Result = &result
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)

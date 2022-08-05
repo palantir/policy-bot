@@ -16,6 +16,7 @@ package handler
 
 import (
 	"github.com/palantir/policy-bot/pull"
+	"github.com/pkg/errors"
 	"net/http"
 	"time"
 )
@@ -51,7 +52,7 @@ func (f *fakePrContext) addApproval(username string) {
 func (h *Simulate) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
-	owner, repo, number, err := h.getUrlParams(w, r)
+	owner, repo, number, err := h.getURLParams(w, r)
 	if err != nil {
 		return err
 	}
@@ -74,6 +75,10 @@ func (h *Simulate) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	policyConfig, _ := h.getPolicyConfig(ctx, prCtx, branch)
+	if err != nil {
+		h.render404(w, owner, repo, number)
+		return errors.Wrap(err, "failed to get policy config")
+	}
 	details, client, evaluator, _ := h.generateEvaluationDetails(w, r, policyConfig, prCtx)
 
 	result := h.Base.EvaluateConfig(ctx, prCtx, client, evaluator, policyConfig)

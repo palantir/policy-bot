@@ -114,7 +114,7 @@ func (b *Base) PostStatus(ctx context.Context, prctx pull.Context, client *githu
 	}
 
 	publicURL := strings.TrimSuffix(b.BaseConfig.PublicURL, "/")
-	detailsURL := fmt.Sprintf("%s/details/%s/%s/%DetailsData", publicURL, owner, repo, prctx.Number())
+	detailsURL := fmt.Sprintf("%s/details/%s/%s/%d", publicURL, owner, repo, prctx.Number())
 
 	contextWithBranch := fmt.Sprintf("%s: %s", b.PullOpts.StatusCheckContext, base)
 	status := &github.RepoStatus{
@@ -189,7 +189,7 @@ func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger commo
 	return b.RequestReviewsForResult(ctx, prctx, client, trigger, result)
 }
 
-func (b *Base) ValidateFetchedConfig(ctx context.Context, prctx pull.Context, client *github.Client, fc FetchedConfig, trigger common.Trigger) (common.Evaluator, error) {
+func (b *Base) ValidateFetchedConfig(ctx context.Context, prctx pull.Context, client *github.Client, fc *FetchedConfig, trigger common.Trigger) (common.Evaluator, error) {
 	logger := zerolog.Ctx(ctx)
 
 	switch {
@@ -233,13 +233,13 @@ func (b *Base) ValidateFetchedConfig(ctx context.Context, prctx pull.Context, cl
 	return evaluator, nil
 }
 
-func (b *Base) EvaluateConfig(ctx context.Context, prctx pull.Context, client *github.Client, evaluator common.Evaluator, fc FetchedConfig) common.Result {
+func (b *Base) EvaluateConfig(ctx context.Context, prctx pull.Context, client *github.Client, evaluator common.Evaluator, fc *FetchedConfig) common.Result {
 	result := evaluator.Evaluate(ctx, prctx)
 
 	return result
 }
 
-func (b *Base) PostEvaluatedResults(ctx context.Context, prctx pull.Context, client *github.Client, evaluator common.Evaluator, fc FetchedConfig, result common.Result) (common.Result, error) {
+func (b *Base) PostEvaluatedResults(ctx context.Context, prctx pull.Context, client *github.Client, evaluator common.Evaluator, fc *FetchedConfig, result common.Result) (common.Result, error) {
 	logger := zerolog.Ctx(ctx)
 	statusDescription := result.StatusDescription
 
@@ -272,7 +272,7 @@ func (b *Base) PostEvaluatedResults(ctx context.Context, prctx pull.Context, cli
 	return result, nil
 }
 
-func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, client *github.Client, evaluator common.Evaluator, fc FetchedConfig) (common.Result, error) {
+func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, client *github.Client, evaluator common.Evaluator, fc *FetchedConfig) (common.Result, error) {
 	res := b.EvaluateConfig(ctx, prctx, client, evaluator, fc)
 	var result, err = b.PostEvaluatedResults(ctx, prctx, client, evaluator, fc, res)
 
