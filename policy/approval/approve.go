@@ -37,9 +37,10 @@ type Rule struct {
 }
 
 type Options struct {
-	AllowAuthor      bool `yaml:"allow_author"`
-	AllowContributor bool `yaml:"allow_contributor"`
-	InvalidateOnPush bool `yaml:"invalidate_on_push"`
+	AllowAuthor               bool `yaml:"allow_author"`
+	AllowContributor          bool `yaml:"allow_contributor"`
+	AllowNonAuthorContributor bool `yaml:"allow_non_author_contributor"`
+	InvalidateOnPush          bool `yaml:"invalidate_on_push"`
 
 	IgnoreEditedComments bool          `yaml:"ignore_edited_comments"`
 	IgnoreUpdateMerges   bool          `yaml:"ignore_update_merges"`
@@ -189,6 +190,11 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 	// "author" is the user who opened the PR
 	// if contributors are allowed, the author counts as a contributor
 	author := prctx.Author()
+
+	if !r.Options.AllowAuthor && !r.Options.AllowNonAuthorContributor && !r.Options.AllowContributor {
+		banned[author] = true
+	}
+
 	if !r.Options.AllowAuthor && !r.Options.AllowContributor {
 		banned[author] = true
 	}

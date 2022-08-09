@@ -184,6 +184,22 @@ func TestIsApproved(t *testing.T) {
 		assertApproved(t, prctx, r, "Approved by comment-approver, review-approver")
 	})
 
+	t.Run("authorCanApprove", func(t *testing.T) {
+		prctx := basePullContext()
+		r := &Rule{
+			Options: Options{
+				AllowAuthor: true,
+			},
+			Requires: Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Organizations: []string{"everyone"},
+				},
+			},
+		}
+		assertApproved(t, prctx, r, "Approved by comment-approver, mhaypenny, review-approver")
+	})
+
 	t.Run("contributorsCannotApprove", func(t *testing.T) {
 		prctx := basePullContext()
 		r := &Rule{
@@ -200,11 +216,62 @@ func TestIsApproved(t *testing.T) {
 		assertApproved(t, prctx, r, "Approved by comment-approver, review-approver")
 	})
 
-	t.Run("contributorsCanApprove", func(t *testing.T) {
+	t.Run("contributorsIncludingAuthorCanApprove", func(t *testing.T) {
 		prctx := basePullContext()
 		r := &Rule{
 			Options: Options{
 				AllowContributor: true,
+				AllowAuthor:      false,
+			},
+			Requires: Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Organizations: []string{"everyone"},
+				},
+			},
+		}
+		assertApproved(t, prctx, r, "Approved by comment-approver, mhaypenny, contributor-author, contributor-committer, review-approver")
+	})
+
+	t.Run("contributorsExcludingAuthorCanApprove", func(t *testing.T) {
+		prctx := basePullContext()
+		r := &Rule{
+			Options: Options{
+				AllowNonAuthorContributor: true,
+			},
+			Requires: Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Organizations: []string{"everyone"},
+				},
+			},
+		}
+		assertApproved(t, prctx, r, "Approved by comment-approver, review-approver")
+	})
+
+	t.Run("nonAuthorContributorsAndAuthorCanApprove", func(t *testing.T) {
+		prctx := basePullContext()
+		r := &Rule{
+			Options: Options{
+				AllowNonAuthorContributor: true,
+				AllowAuthor:               true,
+			},
+			Requires: Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Organizations: []string{"everyone"},
+				},
+			},
+		}
+		assertApproved(t, prctx, r, "Approved by comment-approver, mhaypenny, review-approver")
+	})
+
+	t.Run("contributorsAndAuthorCanApprove", func(t *testing.T) {
+		prctx := basePullContext()
+		r := &Rule{
+			Options: Options{
+				AllowNonAuthorContributor: true,
+				AllowContributor:          true,
 			},
 			Requires: Requires{
 				Count: 1,

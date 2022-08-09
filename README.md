@@ -295,6 +295,13 @@ options:
   # always wins. False by default.
   allow_contributor: false
 
+  # If true, the approvals of someone who has committed to the pull request are
+  # considered when calculating the status. In this case, pull request author is NOT
+  # considered a contributor. If combined with any combination of allow_author: true
+  # or allow_contributors: true, then the pull request author IS considered when
+  # calculating approval. False by default.
+  allow_non_author_contributor: false
+
   # If true, pushing new commits to a pull request will invalidate existing
   # approvals for this rule. False by default.
   invalidate_on_push: false
