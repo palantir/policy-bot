@@ -246,7 +246,7 @@ func TestIsApproved(t *testing.T) {
 				},
 			},
 		}
-		assertApproved(t, prctx, r, "Approved by comment-approver, review-approver")
+		assertApproved(t, prctx, r, "Approved by comment-approver, contributor-author, contributor-committer, review-approver")
 	})
 
 	t.Run("nonAuthorContributorsAndAuthorCanApprove", func(t *testing.T) {
@@ -263,7 +263,7 @@ func TestIsApproved(t *testing.T) {
 				},
 			},
 		}
-		assertApproved(t, prctx, r, "Approved by comment-approver, mhaypenny, review-approver")
+		assertApproved(t, prctx, r, "Approved by comment-approver, mhaypenny, contributor-author, contributor-committer, review-approver")
 	})
 
 	t.Run("contributorsAndAuthorCanApprove", func(t *testing.T) {

@@ -191,16 +191,12 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 	// if contributors are allowed, the author counts as a contributor
 	author := prctx.Author()
 
-	if !r.Options.AllowAuthor && !r.Options.AllowNonAuthorContributor && !r.Options.AllowContributor {
-		banned[author] = true
-	}
-
 	if !r.Options.AllowAuthor && !r.Options.AllowContributor {
 		banned[author] = true
 	}
 
 	// "contributor" is any user who added a commit to the PR
-	if !r.Options.AllowContributor {
+	if !r.Options.AllowContributor && !r.Options.AllowNonAuthorContributor {
 		commits, err := r.filteredCommits(ctx, prctx)
 		if err != nil {
 			return false, "", err
