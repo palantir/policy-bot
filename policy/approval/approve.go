@@ -286,7 +286,7 @@ func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, c
 	var allowedCandidates []*common.Candidate
 	for _, candidate := range candidates {
 		if r.Options.IgnoreEditedComments {
-			if candidate.UpdatedAt == candidate.CreatedAt {
+			if candidate.LastEditedAt.IsZero() {
 				allowedCandidates = append(allowedCandidates, candidate)
 			}
 		}
