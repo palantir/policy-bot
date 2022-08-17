@@ -18,7 +18,7 @@
                   },
                   "body": ":+1:",
                   "createdAt": "2018-06-27T20:28:22Z",
-                  "updatedAt": "2018-06-27T20:28:22Z"
+                  "lastEditedAt": "2018-06-27T20:28:22Z"
                 },
                 {
                   "author": {
@@ -27,7 +27,7 @@
                   },
                   "body": "I comment!",
                   "createdAt": "2018-06-27T20:28:22Z",
-                  "updatedAt": "2018-06-27T20:28:22Z"
+                  "lastEditedAt": "2018-06-27T20:28:22Z"
                 }
               ]
             },
@@ -44,7 +44,7 @@
                   "state": "CHANGES_REQUESTED",
                   "body": "",
                   "submittedAt": "2018-06-27T20:33:26Z",
-                  "updatedAt": "2018-06-27T20:33:26Z"
+                  "lastEditedAt": "2018-06-27T20:33:26Z"
                 }
               ]
             }
@@ -79,7 +79,7 @@
                   "state": "APPROVED",
                   "body": "the body",
                   "submittedAt": "2018-06-27T20:33:27Z",
-                  "updatedAt": "2018-06-27T20:33:27Z"
+                  "lastEditedAt": "2018-06-27T20:33:27Z"
                 },
                 {
                   "author": {
@@ -88,7 +88,7 @@
                   "state": "COMMENTED",
                   "body": "A review comment",
                   "submittedAt": "2018-06-27T20:38:22Z",
-                  "updatedAt": "2018-06-27T20:38:22Z"
+                  "lastEditedAt": "2018-06-27T20:38:22Z"
                 }
               ]
             }

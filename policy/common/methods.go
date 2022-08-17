@@ -66,7 +66,7 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 				candidates = append(candidates, &Candidate{
 					User:      c.Author,
 					CreatedAt: c.CreatedAt,
-					UpdatedAt: c.UpdatedAt,
+					UpdatedAt: c.LastEditedAt,
 				})
 			}
 		}
@@ -85,14 +85,14 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 						candidates = append(candidates, &Candidate{
 							User:      r.Author,
 							CreatedAt: r.CreatedAt,
-							UpdatedAt: r.UpdatedAt,
+							UpdatedAt: r.LastEditedAt,
 						})
 					}
 				} else {
 					candidates = append(candidates, &Candidate{
 						User:      r.Author,
 						CreatedAt: r.CreatedAt,
-						UpdatedAt: r.UpdatedAt,
+						UpdatedAt: r.LastEditedAt,
 					})
 				}
 			}
