@@ -35,9 +35,9 @@ type Methods struct {
 }
 
 type Candidate struct {
-	User      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	User         string
+	CreatedAt    time.Time
+	LastEditedAt time.Time
 }
 
 type CandidatesByCreationTime []*Candidate
@@ -64,9 +64,9 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 		for _, c := range comments {
 			if m.CommentMatches(c.Body) {
 				candidates = append(candidates, &Candidate{
-					User:      c.Author,
-					CreatedAt: c.CreatedAt,
-					UpdatedAt: c.LastEditedAt,
+					User:         c.Author,
+					CreatedAt:    c.CreatedAt,
+					LastEditedAt: c.LastEditedAt,
 				})
 			}
 		}
@@ -83,16 +83,16 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 				if len(m.GithubReviewCommentPatterns) > 0 {
 					if m.githubReviewCommentMatches(r.Body) {
 						candidates = append(candidates, &Candidate{
-							User:      r.Author,
-							CreatedAt: r.CreatedAt,
-							UpdatedAt: r.LastEditedAt,
+							User:         r.Author,
+							CreatedAt:    r.CreatedAt,
+							LastEditedAt: r.LastEditedAt,
 						})
 					}
 				} else {
 					candidates = append(candidates, &Candidate{
-						User:      r.Author,
-						CreatedAt: r.CreatedAt,
-						UpdatedAt: r.LastEditedAt,
+						User:         r.Author,
+						CreatedAt:    r.CreatedAt,
+						LastEditedAt: r.LastEditedAt,
 					})
 				}
 			}
