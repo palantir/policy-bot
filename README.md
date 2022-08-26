@@ -248,6 +248,18 @@ if:
     - "label-1"
     - "label-2"
       
+  # "repository" is satisfied if the pull request repository matches any one of the
+  # patterns within the "matches" list, and does not match all of the patterns
+  # within the "not_matches" list.
+  #
+  # Note: Double-quote strings must escape backslashes while single/plain do not.
+  # See the Notes on YAML Syntax section of this README for more information.
+  repository:
+    matches:
+      - "palantir/policy.*"
+    not_matches:
+      - "palantir/.*docs"
+
   # "title" is satisfied if the pull request title matches any one of the
   # patterns within the "matches" list, and does not match all of the patterns
   # within the "not_matches" list.
