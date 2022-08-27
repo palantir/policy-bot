@@ -978,6 +978,7 @@ func (pi v4PageInfo) UpdateCursor(vars map[string]interface{}, name string) bool
 }
 
 type v4PullRequestReview struct {
+	DatabaseID   int64
 	Author       v4Actor
 	State        string
 	Body         string
@@ -1004,6 +1005,7 @@ func (r *v4PullRequestReview) ToReview() *Review {
 	}
 
 	return &Review{
+		ID:           r.DatabaseID,
 		CreatedAt:    r.SubmittedAt,
 		LastEditedAt: r.LastEditedAt,
 		Author:       r.Author.GetV3Login(),
@@ -1024,6 +1026,7 @@ func (r *v4PullRequestReview) ToComment() *Comment {
 }
 
 type v4IssueComment struct {
+	DatabaseID   int64
 	Author       v4Actor
 	Body         string
 	CreatedAt    time.Time
@@ -1032,6 +1035,7 @@ type v4IssueComment struct {
 
 func (c *v4IssueComment) ToComment() *Comment {
 	return &Comment{
+		ID:           c.DatabaseID,
 		CreatedAt:    c.CreatedAt,
 		LastEditedAt: c.LastEditedAt,
 		Author:       c.Author.GetV3Login(),

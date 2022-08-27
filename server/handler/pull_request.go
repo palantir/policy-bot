@@ -17,6 +17,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/google/go-github/v45/github"
 	"github.com/palantir/go-githubapp/githubapp"
@@ -111,44 +112,38 @@ func (h *PullRequest) dismissStaleReviews(ctx context.Context, prctx pull.Contex
 			return err
 		}
 
-		for _, c := range invalidatedCandidates {
-			if c.Type != common.ReviewCandidate {
+		reviews, err := prctx.Reviews()
+		if err != nil {
+			return err
+		}
+
+		repo := prctx.RepositoryName()
+		owner := prctx.RepositoryOwner()
+		number := prctx.Number()
+
+		for _, review := range reviews {
+			if review.State != "approved" {
 				continue
 			}
 
-			review, err := h.getReviewByID(prctx, c.ID)
-			if err != nil {
-				return err
-			}
+			for _, c := range invalidatedCandidates {
+				if c.Type != common.ReviewCandidate {
+					continue
+				}
 
-			if review.State != "APPROVED" {
-				continue
-			}
-
-			repo := prctx.RepositoryName()
-			owner := prctx.RepositoryOwner()
-			number := prctx.Number()
-			dismissalRequest := &github.PullRequestReviewDismissalRequest{}
-			_, _, err = client.PullRequests.DismissReview(ctx, owner, repo, number, review.ID, dismissalRequest)
-			if err != nil {
-				return err
+				if c.ID == review.ID {
+					message := fmt.Sprintf("%s was dismissed by policy-bot", r.Name)
+					dismissalRequest := &github.PullRequestReviewDismissalRequest{
+						Message: &message,
+					}
+					_, _, err = client.PullRequests.DismissReview(ctx, owner, repo, number, review.ID, dismissalRequest)
+					if err != nil {
+						return err
+					}
+				}
 			}
 		}
+
 	}
 	return nil
-}
-
-func (h *PullRequest) getReviewByID(prctx pull.Context, id int64) (*pull.Review, error) {
-	reviews, err := prctx.Reviews()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, r := range reviews {
-		if r.ID == id {
-			return r, nil
-		}
-	}
-
-	return nil, nil
 }
