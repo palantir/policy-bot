@@ -181,6 +181,7 @@ type Signature struct {
 }
 
 type Comment struct {
+	ID           int64
 	CreatedAt    time.Time
 	LastEditedAt time.Time
 	Author       string
@@ -198,6 +199,7 @@ const (
 )
 
 type Review struct {
+	ID           int64
 	CreatedAt    time.Time
 	LastEditedAt time.Time
 	Author       string

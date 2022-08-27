@@ -177,7 +177,7 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 		return true, "No approval required", nil
 	}
 
-	candidates, err := r.filteredCandidates(ctx, prctx)
+	candidates, _, err := r.FilteredCandidates(ctx, prctx)
 	if err != nil {
 		return false, "", err
 	}
@@ -251,29 +251,30 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 	return false, msg, nil
 }
 
-func (r *Rule) filteredCandidates(ctx context.Context, prctx pull.Context) ([]*common.Candidate, error) {
+func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*common.Candidate, []*common.Candidate, error) {
 	candidates, err := r.Options.GetMethods().Candidates(ctx, prctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get approval candidates")
+		return nil, nil, errors.Wrap(err, "failed to get approval candidates")
 	}
 
 	sort.Stable(common.CandidatesByCreationTime(candidates))
 
+	var invalidatedCandidates []*common.Candidate
 	if r.Options.IgnoreEditedComments {
 		candidates, err = r.filterEditedCandidates(ctx, prctx, candidates)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
 	if r.Options.InvalidateOnPush {
-		candidates, err = r.filterInvalidCandidates(ctx, prctx, candidates)
+		candidates, invalidatedCandidates, err = r.filterInvalidCandidates(ctx, prctx, candidates)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
-	return candidates, nil
+	return candidates, invalidatedCandidates, nil
 }
 
 func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, error) {
@@ -298,39 +299,42 @@ func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, c
 	return allowedCandidates, nil
 }
 
-func (r *Rule) filterInvalidCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, error) {
+func (r *Rule) filterInvalidCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, []*common.Candidate, error) {
 	log := zerolog.Ctx(ctx)
 
 	if !r.Options.InvalidateOnPush {
-		return candidates, nil
+		return candidates, nil, nil
 	}
 
 	commits, err := r.filteredCommits(ctx, prctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if len(commits) == 0 {
-		return candidates, nil
+		return candidates, nil, nil
 	}
 
 	last := findLastPushed(commits)
 	if last == nil {
-		return nil, errors.New("no commit contained a push date")
+		return nil, nil, errors.New("no commit contained a push date")
 	}
 
 	var allowedCandidates []*common.Candidate
+	var invalidatedCandidates []*common.Candidate
 	for _, candidate := range candidates {
 		if candidate.CreatedAt.After(*last.PushedAt) {
 			allowedCandidates = append(allowedCandidates, candidate)
+		} else {
+			invalidatedCandidates = append(invalidatedCandidates, candidate)
 		}
 	}
 
 	log.Debug().Msgf("discarded %d candidates invalidated by push of %s at %s",
-		len(candidates)-len(allowedCandidates),
+		len(invalidatedCandidates),
 		last.SHA,
 		last.PushedAt.Format(time.RFC3339))
 
-	return allowedCandidates, nil
+	return allowedCandidates, invalidatedCandidates, nil
 }
 
 func (r *Rule) filteredCommits(ctx context.Context, prctx pull.Context) ([]*pull.Commit, error) {

@@ -34,7 +34,16 @@ type Methods struct {
 	GithubReviewState pull.ReviewState `yaml:"-" json:"-"`
 }
 
+type CandidateType string
+
+const (
+	ReviewCandidate  CandidateType = "review"
+	CommentCandidate CandidateType = "comment"
+)
+
 type Candidate struct {
+	Type         CandidateType
+	ID           int64
 	User         string
 	CreatedAt    time.Time
 	LastEditedAt time.Time
@@ -64,6 +73,8 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 		for _, c := range comments {
 			if m.CommentMatches(c.Body) {
 				candidates = append(candidates, &Candidate{
+					Type:         CommentCandidate,
+					ID:           c.ID,
 					User:         c.Author,
 					CreatedAt:    c.CreatedAt,
 					LastEditedAt: c.LastEditedAt,
@@ -83,6 +94,8 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 				if len(m.GithubReviewCommentPatterns) > 0 {
 					if m.githubReviewCommentMatches(r.Body) {
 						candidates = append(candidates, &Candidate{
+							Type:         ReviewCandidate,
+							ID:           r.ID,
 							User:         r.Author,
 							CreatedAt:    r.CreatedAt,
 							LastEditedAt: r.LastEditedAt,
@@ -90,6 +103,8 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 					}
 				} else {
 					candidates = append(candidates, &Candidate{
+						Type:         ReviewCandidate,
+						ID:           r.ID,
 						User:         r.Author,
 						CreatedAt:    r.CreatedAt,
 						LastEditedAt: r.LastEditedAt,
