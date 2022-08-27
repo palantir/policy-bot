@@ -261,7 +261,7 @@ func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*c
 
 	var invalidatedCandidates []*common.Candidate
 	if r.Options.IgnoreEditedComments {
-		candidates, err = r.filterEditedCandidates(ctx, prctx, candidates)
+		candidates, invalidatedCandidates, err = r.filterEditedCandidates(ctx, prctx, candidates)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -277,26 +277,29 @@ func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*c
 	return candidates, invalidatedCandidates, nil
 }
 
-func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, error) {
+func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, []*common.Candidate, error) {
 	log := zerolog.Ctx(ctx)
 
 	if !r.Options.IgnoreEditedComments {
-		return candidates, nil
+		return candidates, nil, nil
 	}
 
 	var allowedCandidates []*common.Candidate
+	var invalidatedCandidates []*common.Candidate
 	for _, candidate := range candidates {
 		if r.Options.IgnoreEditedComments {
 			if candidate.LastEditedAt.IsZero() {
 				allowedCandidates = append(allowedCandidates, candidate)
+			} else {
+				invalidatedCandidates = append(invalidatedCandidates, candidate)
 			}
 		}
 	}
 
 	log.Debug().Msgf("discarded %d candidates with edited comments",
-		len(candidates)-len(allowedCandidates))
+		len(invalidatedCandidates))
 
-	return allowedCandidates, nil
+	return allowedCandidates, invalidatedCandidates, nil
 }
 
 func (r *Rule) filterInvalidCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, []*common.Candidate, error) {
