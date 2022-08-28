@@ -122,7 +122,7 @@ func (h *PullRequest) dismissStaleReviews(ctx context.Context, prctx pull.Contex
 		number := prctx.Number()
 
 		for _, review := range reviews {
-			if review.State != "approved" {
+			if review.State != pull.ReviewApproved {
 				continue
 			}
 
