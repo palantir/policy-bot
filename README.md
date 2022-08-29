@@ -249,7 +249,7 @@ if:
     - "label-2"
       
   # "repository" is satisfied if the pull request repository matches any one of the
-  # patterns within the "matches" list, and does not match all of the patterns
+  # patterns within the "matches" list or does not match all of the patterns
   # within the "not_matches" list.
   #
   # Note: Double-quote strings must escape backslashes while single/plain do not.
@@ -261,7 +261,7 @@ if:
       - "palantir/.*docs"
 
   # "title" is satisfied if the pull request title matches any one of the
-  # patterns within the "matches" list, and does not match all of the patterns
+  # patterns within the "matches" list or does not match all of the patterns
   # within the "not_matches" list.
   # e.g. this predicate triggers for titles including "BREAKING CHANGE" or titles
   # that are not marked as docs/style/chore changes (using conventional commits 

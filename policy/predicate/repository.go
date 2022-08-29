@@ -16,7 +16,6 @@ package predicate
 
 import (
 	"context"
-	"strings"
 
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
@@ -32,7 +31,7 @@ var _ Predicate = Repository{}
 func (pred Repository) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
 	owner := prctx.RepositoryOwner()
 	repo := prctx.RepositoryName()
-	repoFullName := strings.Join([]string{owner, repo}, "/")
+	repoFullName := owner + "/" + repo
 
 	predicateResult := common.PredicateResult{
 		ValuePhrase:     "repositories",
