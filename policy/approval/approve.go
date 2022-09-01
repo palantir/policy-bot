@@ -259,85 +259,90 @@ func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*c
 
 	sort.Stable(common.CandidatesByCreationTime(candidates))
 
-	var invalidatedCandidates []*common.Candidate
 	if r.Options.IgnoreEditedComments {
-		candidates, invalidatedCandidates, err = r.filterEditedCandidates(ctx, prctx, candidates)
+		candidates, err = r.filterEditedCandidates(ctx, prctx, candidates)
 		if err != nil {
 			return nil, nil, err
 		}
 	}
 
 	if r.Options.InvalidateOnPush {
-		candidates, invalidatedCandidates, err = r.filterInvalidCandidates(ctx, prctx, candidates)
+		candidates, err = r.filterInvalidCandidates(ctx, prctx, candidates)
 		if err != nil {
 			return nil, nil, err
 		}
 	}
 
-	return candidates, invalidatedCandidates, nil
+	var allowedCandidates []*common.Candidate
+	var discardedCandidates []*common.Candidate
+
+	for _, c := range candidates {
+		if len(c.DiscardedBecause) == 0 {
+			allowedCandidates = append(allowedCandidates, c)
+		} else {
+			discardedCandidates = append(discardedCandidates, c)
+		}
+	}
+
+	return allowedCandidates, discardedCandidates, nil
 }
 
-func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, []*common.Candidate, error) {
+func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, error) {
 	log := zerolog.Ctx(ctx)
 
 	if !r.Options.IgnoreEditedComments {
-		return candidates, nil, nil
+		return candidates, nil
 	}
 
-	var allowedCandidates []*common.Candidate
-	var invalidatedCandidates []*common.Candidate
+	discarded := 0
 	for _, candidate := range candidates {
 		if r.Options.IgnoreEditedComments {
-			if candidate.LastEditedAt.IsZero() {
-				allowedCandidates = append(allowedCandidates, candidate)
-			} else {
-				invalidatedCandidates = append(invalidatedCandidates, candidate)
+			if !candidate.LastEditedAt.IsZero() {
+				discarded++
+				candidate.DiscardedBecause = append(candidate.DiscardedBecause, common.EditedCandidate)
 			}
 		}
 	}
 
-	log.Debug().Msgf("discarded %d candidates with edited comments",
-		len(invalidatedCandidates))
+	log.Debug().Msgf("discarded %d candidates with edited comments", discarded)
 
-	return allowedCandidates, invalidatedCandidates, nil
+	return candidates, nil
 }
 
-func (r *Rule) filterInvalidCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, []*common.Candidate, error) {
+func (r *Rule) filterInvalidCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, error) {
 	log := zerolog.Ctx(ctx)
 
 	if !r.Options.InvalidateOnPush {
-		return candidates, nil, nil
+		return candidates, nil
 	}
 
 	commits, err := r.filteredCommits(ctx, prctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if len(commits) == 0 {
-		return candidates, nil, nil
+		return candidates, nil
 	}
 
 	last := findLastPushed(commits)
 	if last == nil {
-		return nil, nil, errors.New("no commit contained a push date")
+		return nil, errors.New("no commit contained a push date")
 	}
 
-	var allowedCandidates []*common.Candidate
-	var invalidatedCandidates []*common.Candidate
+	discarded := 0
 	for _, candidate := range candidates {
-		if candidate.CreatedAt.After(*last.PushedAt) {
-			allowedCandidates = append(allowedCandidates, candidate)
-		} else {
-			invalidatedCandidates = append(invalidatedCandidates, candidate)
+		if candidate.CreatedAt.Before(*last.PushedAt) {
+			discarded++
+			candidate.DiscardedBecause = append(candidate.DiscardedBecause, common.InvalidatedByPushCandidate)
 		}
 	}
 
 	log.Debug().Msgf("discarded %d candidates invalidated by push of %s at %s",
-		len(invalidatedCandidates),
+		discarded,
 		last.SHA,
 		last.PushedAt.Format(time.RFC3339))
 
-	return allowedCandidates, invalidatedCandidates, nil
+	return candidates, nil
 }
 
 func (r *Rule) filteredCommits(ctx context.Context, prctx pull.Context) ([]*pull.Commit, error) {

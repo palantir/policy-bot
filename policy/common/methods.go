@@ -41,12 +41,20 @@ const (
 	CommentCandidate CandidateType = "comment"
 )
 
+type DiscardReason string
+
+const (
+	EditedCandidate            DiscardReason = "edited"
+	InvalidatedByPushCandidate DiscardReason = "invalidated by pushing another commit"
+)
+
 type Candidate struct {
-	Type         CandidateType
-	ID           int64
-	User         string
-	CreatedAt    time.Time
-	LastEditedAt time.Time
+	Type             CandidateType
+	ID               string
+	User             string
+	CreatedAt        time.Time
+	LastEditedAt     time.Time
+	DiscardedBecause []DiscardReason
 }
 
 type CandidatesByCreationTime []*Candidate

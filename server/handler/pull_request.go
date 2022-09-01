@@ -25,6 +25,7 @@ import (
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
+	"github.com/shurcooL/githubv4"
 )
 
 type PullRequest struct {
@@ -80,7 +81,7 @@ func (h *PullRequest) Handle(ctx context.Context, eventType, deliveryID string, 
 	case "opened", "reopened", "ready_for_review":
 		t = common.TriggerCommit | common.TriggerPullRequest
 	case "synchronize":
-		err := h.dismissStaleReviews(ctx, prctx, client, fc.Config.ApprovalRules)
+		err := h.dismissStaleReviews(ctx, prctx, v4client, fc.Config.ApprovalRules)
 		if err != nil {
 			return err
 		}
@@ -101,13 +102,13 @@ func (h *PullRequest) Handle(ctx context.Context, eventType, deliveryID string, 
 	})
 }
 
-func (h *PullRequest) dismissStaleReviews(ctx context.Context, prctx pull.Context, client *github.Client, rules []*approval.Rule) error {
+func (h *PullRequest) dismissStaleReviews(ctx context.Context, prctx pull.Context, v4client *githubv4.Client, rules []*approval.Rule) error {
 	for _, r := range rules {
-		if !r.Options.InvalidateOnPush {
+		if !r.Options.InvalidateOnPush && !r.Options.IgnoreEditedComments {
 			continue
 		}
 
-		_, invalidatedCandidates, err := r.FilteredCandidates(ctx, prctx)
+		_, discardedCandidates, err := r.FilteredCandidates(ctx, prctx)
 		if err != nil {
 			return err
 		}
@@ -117,26 +118,19 @@ func (h *PullRequest) dismissStaleReviews(ctx context.Context, prctx pull.Contex
 			return err
 		}
 
-		repo := prctx.RepositoryName()
-		owner := prctx.RepositoryOwner()
-		number := prctx.Number()
-
 		for _, review := range reviews {
 			if review.State != pull.ReviewApproved {
 				continue
 			}
 
-			for _, c := range invalidatedCandidates {
+			for _, c := range discardedCandidates {
 				if c.Type != common.ReviewCandidate {
 					continue
 				}
 
 				if c.ID == review.ID {
-					message := fmt.Sprintf("%s was dismissed by policy-bot", r.Name)
-					dismissalRequest := &github.PullRequestReviewDismissalRequest{
-						Message: &message,
-					}
-					_, _, err = client.PullRequests.DismissReview(ctx, owner, repo, number, review.ID, dismissalRequest)
+					message := fmt.Sprintf("%s was dismissed by policy-bot because the approval was %s", c.DiscardedBecause, r.Name)
+					err = h.dismissPullRequestReview(ctx, v4client, review.ID, message)
 					if err != nil {
 						return err
 					}
@@ -145,5 +139,24 @@ func (h *PullRequest) dismissStaleReviews(ctx context.Context, prctx pull.Contex
 		}
 
 	}
+	return nil
+}
+
+func (h *PullRequest) dismissPullRequestReview(ctx context.Context, v4client *githubv4.Client, reviewID string, message string) error {
+	var m struct {
+		DismissPullRequestReview struct {
+			ClientMutationID *githubv4.String
+		} `graphql:"dismissPullRequestReview(input: $input)"`
+	}
+
+	input := githubv4.DismissPullRequestReviewInput{
+		PullRequestReviewID: githubv4.String(reviewID),
+		Message:             githubv4.String(message),
+	}
+
+	if err := v4client.Mutate(ctx, &m, input, nil); err != nil {
+		return errors.Wrapf(err, "failed to dismiss pull request review %s", reviewID)
+	}
+
 	return nil
 }
