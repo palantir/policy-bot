@@ -81,11 +81,11 @@ func (h *PullRequest) Handle(ctx context.Context, eventType, deliveryID string, 
 	case "opened", "reopened", "ready_for_review":
 		t = common.TriggerCommit | common.TriggerPullRequest
 	case "synchronize":
+		t = common.TriggerCommit
 		err := h.dismissStaleReviews(ctx, prctx, v4client, fc.Config.ApprovalRules)
 		if err != nil {
 			return err
 		}
-		t = common.TriggerCommit
 	case "edited":
 		t = common.TriggerPullRequest
 	case "labeled", "unlabeled":
