@@ -103,17 +103,21 @@ func (h *PullRequest) Handle(ctx context.Context, eventType, deliveryID string, 
 }
 
 func (h *PullRequest) dismissStaleReviews(ctx context.Context, prctx pull.Context, v4client *githubv4.Client, rules []*approval.Rule) error {
+	reviews, err := prctx.Reviews()
+	if err != nil {
+		return err
+	}
+
+	if len(reviews) == 0 {
+		return nil
+	}
+
 	for _, r := range rules {
 		if !r.Options.InvalidateOnPush && !r.Options.IgnoreEditedComments {
 			continue
 		}
 
 		_, discardedCandidates, err := r.FilteredCandidates(ctx, prctx)
-		if err != nil {
-			return err
-		}
-
-		reviews, err := prctx.Reviews()
 		if err != nil {
 			return err
 		}
