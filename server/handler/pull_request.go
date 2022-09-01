@@ -133,7 +133,7 @@ func (h *PullRequest) dismissStaleReviews(ctx context.Context, prctx pull.Contex
 				}
 
 				if c.ID == review.ID {
-					message := fmt.Sprintf("%s was dismissed by policy-bot because the approval was %s", c.DiscardedBecause, r.Name)
+					message := fmt.Sprintf("%s was dismissed by policy-bot because the approval was %s", r.Name, c.DiscardedBecause)
 					err = h.dismissPullRequestReview(ctx, v4client, review.ID, message)
 					if err != nil {
 						return err
