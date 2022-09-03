@@ -296,11 +296,9 @@ func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, c
 
 	discarded := 0
 	for _, candidate := range candidates {
-		if r.Options.IgnoreEditedComments {
-			if !candidate.LastEditedAt.IsZero() {
-				discarded++
-				candidate.DiscardedBecause = append(candidate.DiscardedBecause, common.EditedCandidate)
-			}
+		if !candidate.LastEditedAt.IsZero() {
+			discarded++
+			candidate.DiscardedBecause = append(candidate.DiscardedBecause, common.EditedCandidate)
 		}
 	}
 
