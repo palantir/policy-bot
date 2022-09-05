@@ -122,6 +122,10 @@ func (h *PullRequest) dismissStaleReviews(ctx context.Context, prctx pull.Contex
 			return err
 		}
 
+		if len(discardedCandidates) == 0 {
+			continue
+		}
+
 		for _, review := range reviews {
 			if review.State != pull.ReviewApproved {
 				continue
