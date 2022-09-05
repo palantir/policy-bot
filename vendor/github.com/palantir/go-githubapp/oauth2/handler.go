@@ -125,10 +125,20 @@ func OnLogin(c LoginCallback) Param {
 	}
 }
 
+// WithRedirectURL sets a static redirect URL. By default, the redirect URL is
+// generated using the request path, the Host header, and the ForceTLS option.
+func WithRedirectURL(uri string) Param {
+	return func(h *handler) {
+		h.config.RedirectURL = uri
+	}
+}
+
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// copy config for modification
 	conf := *h.config
-	conf.RedirectURL = redirectURL(r, h.forceTLS)
+	if conf.RedirectURL == "" {
+		conf.RedirectURL = redirectURL(r, h.forceTLS)
+	}
 
 	// if the provider returned an error, abort the processes
 	if r.FormValue(queryError) != "" {
