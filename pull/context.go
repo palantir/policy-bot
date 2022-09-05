@@ -181,7 +181,6 @@ type Signature struct {
 }
 
 type Comment struct {
-	ID           string
 	CreatedAt    time.Time
 	LastEditedAt time.Time
 	Author       string

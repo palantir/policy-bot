@@ -82,7 +82,6 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 			if m.CommentMatches(c.Body) {
 				candidates = append(candidates, &Candidate{
 					Type:         CommentCandidate,
-					ID:           c.ID,
 					User:         c.Author,
 					CreatedAt:    c.CreatedAt,
 					LastEditedAt: c.LastEditedAt,

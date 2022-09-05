@@ -1026,7 +1026,6 @@ func (r *v4PullRequestReview) ToComment() *Comment {
 }
 
 type v4IssueComment struct {
-	ID           string
 	Author       v4Actor
 	Body         string
 	CreatedAt    time.Time
@@ -1035,7 +1034,6 @@ type v4IssueComment struct {
 
 func (c *v4IssueComment) ToComment() *Comment {
 	return &Comment{
-		ID:           c.ID,
 		CreatedAt:    c.CreatedAt,
 		LastEditedAt: c.LastEditedAt,
 		Author:       c.Author.GetV3Login(),
