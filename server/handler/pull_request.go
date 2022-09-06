@@ -78,29 +78,34 @@ func (h *PullRequest) Handle(ctx context.Context, eventType, deliveryID string, 
 	fc := h.ConfigFetcher.ConfigForPR(ctx, prctx, client)
 
 	var t common.Trigger
-	switch event.GetAction() {
-	case "opened", "reopened", "ready_for_review":
-		t = common.TriggerCommit | common.TriggerPullRequest
-	case "synchronize":
-		t = common.TriggerCommit
-		err := h.dismissStaleReviews(ctx, prctx, v4client, fc.Config.ApprovalRules)
-		if err != nil {
-			return err
+
+	if eventType == "pull_request" {
+		switch event.GetAction() {
+		case "opened", "reopened", "ready_for_review":
+			t = common.TriggerCommit | common.TriggerPullRequest
+		case "synchronize":
+			t = common.TriggerCommit
+			err := h.dismissStaleReviews(ctx, prctx, v4client, fc.Config.ApprovalRules)
+			if err != nil {
+				return err
+			}
+		case "edited":
+			t = common.TriggerPullRequest
+		case "labeled", "unlabeled":
+			t = common.TriggerLabel
+		default:
+			return nil
 		}
-	case "edited":
-		t = common.TriggerPullRequest
-	case "labeled", "unlabeled":
-		t = common.TriggerLabel
-	default:
-		return nil
 	}
 
-	switch eventType {
-	case "pull_request_review":
+	if eventType == "pull_request_review" {
 		t = common.TriggerReview
-		err := h.dismissStaleReviews(ctx, prctx, v4client, fc.Config.ApprovalRules)
-		if err != nil {
-			return err
+		switch event.GetAction() {
+		case "edited":
+			err := h.dismissStaleReviews(ctx, prctx, v4client, fc.Config.ApprovalRules)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
