@@ -92,6 +92,9 @@ type Context interface {
 	// implementation dependent.
 	Reviews() ([]*Review, error)
 
+	// DismissPullRequestReview dismisses a review on a Pull Request.
+	DismissPullRequestReview(reviewID string, message string) error
+
 	// IsDraft returns the draft status of the Pull Request.
 	IsDraft() bool
 

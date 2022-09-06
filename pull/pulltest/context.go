@@ -43,8 +43,9 @@ type Context struct {
 	CommentsValue []*pull.Comment
 	CommentsError error
 
-	ReviewsValue []*pull.Review
-	ReviewsError error
+	ReviewsValue                  []*pull.Review
+	ReviewsError                  error
+	DismissPullRequestReviewError error
 
 	TeamMemberships     map[string][]string
 	TeamMembershipError error
@@ -225,6 +226,10 @@ func (c *Context) Comments() ([]*pull.Comment, error) {
 
 func (c *Context) Reviews() ([]*pull.Review, error) {
 	return c.ReviewsValue, c.ReviewsError
+}
+
+func (c *Context) DismissPullRequestReview(reviewID string, message string) error {
+	return c.DismissPullRequestReviewError
 }
 
 func (c *Context) Teams() (map[string]pull.Permission, error) {
