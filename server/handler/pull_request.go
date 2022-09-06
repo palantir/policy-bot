@@ -32,10 +32,11 @@ type PullRequest struct {
 	Base
 }
 
-func (h *PullRequest) Handles() []string { return []string{"pull_request"} }
+func (h *PullRequest) Handles() []string { return []string{"pull_request", "pull_request_review"} }
 
-// Handle pull_request
+// Handle pull_request, pull_request_review
 // https://developer.github.com/v3/activity/events/types/#requestevent
+// https://developer.github.com/v3/activity/events/types/#pullrequestreviewevent
 func (h *PullRequest) Handle(ctx context.Context, eventType, deliveryID string, payload []byte) error {
 	var event github.PullRequestEvent
 	if err := json.Unmarshal(payload, &event); err != nil {
@@ -44,7 +45,7 @@ func (h *PullRequest) Handle(ctx context.Context, eventType, deliveryID string, 
 
 	repo := event.GetRepo()
 	owner := repo.GetOwner().GetLogin()
-	number := event.GetNumber()
+	number := event.GetPullRequest().GetNumber()
 	installationID := githubapp.GetInstallationIDFromEvent(&event)
 
 	client, err := h.NewInstallationClient(installationID)
@@ -92,6 +93,15 @@ func (h *PullRequest) Handle(ctx context.Context, eventType, deliveryID string, 
 		t = common.TriggerLabel
 	default:
 		return nil
+	}
+
+	switch eventType {
+	case "pull_request_review":
+		t = common.TriggerReview
+		err := h.dismissStaleReviews(ctx, prctx, v4client, fc.Config.ApprovalRules)
+		if err != nil {
+			return err
+		}
 	}
 
 	return h.Evaluate(ctx, installationID, t, pull.Locator{
