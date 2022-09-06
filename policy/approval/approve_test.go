@@ -46,69 +46,69 @@ func TestIsApproved(t *testing.T) {
 			},
 			CommentsValue: []*pull.Comment{
 				{
-					CreatedAt: now.Add(10 * time.Second),
-					UpdatedAt: now.Add(10 * time.Second),
-					Author:    "other-user",
-					Body:      "Why did you do this?",
+					CreatedAt:    now.Add(10 * time.Second),
+					LastEditedAt: time.Time{},
+					Author:       "other-user",
+					Body:         "Why did you do this?",
 				},
 				{
-					CreatedAt: now.Add(20 * time.Second),
-					UpdatedAt: now.Add(20 * time.Second),
-					Author:    "comment-approver",
-					Body:      "LGTM :+1: :shipit:",
+					CreatedAt:    now.Add(20 * time.Second),
+					LastEditedAt: time.Time{},
+					Author:       "comment-approver",
+					Body:         "LGTM :+1: :shipit:",
 				},
 				{
-					CreatedAt: now.Add(30 * time.Second),
-					UpdatedAt: now.Add(30 * time.Second),
-					Author:    "disapprover",
-					Body:      "I don't like things! :-1:",
+					CreatedAt:    now.Add(30 * time.Second),
+					LastEditedAt: time.Time{},
+					Author:       "disapprover",
+					Body:         "I don't like things! :-1:",
 				},
 				{
-					CreatedAt: now.Add(40 * time.Second),
-					UpdatedAt: now.Add(40 * time.Second),
-					Author:    "mhaypenny",
-					Body:      ":+1: my stuff is cool",
+					CreatedAt:    now.Add(40 * time.Second),
+					LastEditedAt: time.Time{},
+					Author:       "mhaypenny",
+					Body:         ":+1: my stuff is cool",
 				},
 				{
-					CreatedAt: now.Add(50 * time.Second),
-					UpdatedAt: now.Add(50 * time.Second),
-					Author:    "contributor-author",
-					Body:      ":+1: I added to this PR",
+					CreatedAt:    now.Add(50 * time.Second),
+					LastEditedAt: time.Time{},
+					Author:       "contributor-author",
+					Body:         ":+1: I added to this PR",
 				},
 				{
-					CreatedAt: now.Add(60 * time.Second),
-					UpdatedAt: now.Add(60 * time.Second),
-					Author:    "contributor-committer",
-					Body:      ":+1: I also added to this PR",
+					CreatedAt:    now.Add(60 * time.Second),
+					LastEditedAt: time.Time{},
+					Author:       "contributor-committer",
+					Body:         ":+1: I also added to this PR",
 				},
 				{
-					CreatedAt: now.Add(70 * time.Second),
-					UpdatedAt: now.Add(71 * time.Second),
-					Author:    "comment-editor",
-					Body:      "LGTM :+1: :shipit:",
+					CreatedAt:    now.Add(70 * time.Second),
+					LastEditedAt: now.Add(71 * time.Second),
+					Author:       "comment-editor",
+					Body:         "LGTM :+1: :shipit:",
 				},
 			},
 			ReviewsValue: []*pull.Review{
 				{
-					CreatedAt: now.Add(70 * time.Second),
-					UpdatedAt: now.Add(70 * time.Second),
-					Author:    "disapprover",
-					State:     pull.ReviewChangesRequested,
-					Body:      "I _really_ don't like things!",
+					CreatedAt:    now.Add(70 * time.Second),
+					LastEditedAt: time.Time{},
+					Author:       "disapprover",
+					State:        pull.ReviewChangesRequested,
+					Body:         "I _really_ don't like things!",
 				},
 				{
-					CreatedAt: now.Add(80 * time.Second),
-					UpdatedAt: now.Add(80 * time.Second),
-					Author:    "review-approver",
-					State:     pull.ReviewApproved,
-					Body:      "I LIKE THIS",
+					CreatedAt:    now.Add(80 * time.Second),
+					LastEditedAt: time.Time{},
+					Author:       "review-approver",
+					State:        pull.ReviewApproved,
+					Body:         "I LIKE THIS",
 				},
 				{
-					CreatedAt: now.Add(90 * time.Second),
-					UpdatedAt: now.Add(91 * time.Second),
-					Author:    "review-comment-editor",
-					State:     pull.ReviewApproved,
-					Body:      "I LIKE THIS",
+					CreatedAt:    now.Add(90 * time.Second),
+					LastEditedAt: now.Add(91 * time.Second),
+					Author:       "review-comment-editor",
+					State:        pull.ReviewApproved,
+					Body:         "I LIKE THIS",
 				},
 			},
 			CommitsValue: []*pull.Commit{
@@ -191,6 +191,22 @@ func TestIsApproved(t *testing.T) {
 		assertApproved(t, prctx, r, "Approved by comment-approver, review-approver")
 	})
 
+	t.Run("authorCanApprove", func(t *testing.T) {
+		prctx := basePullContext()
+		r := &Rule{
+			Options: Options{
+				AllowAuthor: true,
+			},
+			Requires: Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Organizations: []string{"everyone"},
+				},
+			},
+		}
+		assertApproved(t, prctx, r, "Approved by comment-approver, mhaypenny, review-approver")
+	})
+
 	t.Run("contributorsCannotApprove", func(t *testing.T) {
 		prctx := basePullContext()
 		r := &Rule{
@@ -207,11 +223,62 @@ func TestIsApproved(t *testing.T) {
 		assertApproved(t, prctx, r, "Approved by comment-approver, review-approver")
 	})
 
-	t.Run("contributorsCanApprove", func(t *testing.T) {
+	t.Run("contributorsIncludingAuthorCanApprove", func(t *testing.T) {
 		prctx := basePullContext()
 		r := &Rule{
 			Options: Options{
 				AllowContributor: true,
+				AllowAuthor:      false,
+			},
+			Requires: Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Organizations: []string{"everyone"},
+				},
+			},
+		}
+		assertApproved(t, prctx, r, "Approved by comment-approver, mhaypenny, contributor-author, contributor-committer, review-approver")
+	})
+
+	t.Run("contributorsExcludingAuthorCanApprove", func(t *testing.T) {
+		prctx := basePullContext()
+		r := &Rule{
+			Options: Options{
+				AllowNonAuthorContributor: true,
+			},
+			Requires: Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Organizations: []string{"everyone"},
+				},
+			},
+		}
+		assertApproved(t, prctx, r, "Approved by comment-approver, contributor-author, contributor-committer, review-approver")
+	})
+
+	t.Run("nonAuthorContributorsAndAuthorCanApprove", func(t *testing.T) {
+		prctx := basePullContext()
+		r := &Rule{
+			Options: Options{
+				AllowNonAuthorContributor: true,
+				AllowAuthor:               true,
+			},
+			Requires: Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Organizations: []string{"everyone"},
+				},
+			},
+		}
+		assertApproved(t, prctx, r, "Approved by comment-approver, mhaypenny, contributor-author, contributor-committer, review-approver")
+	})
+
+	t.Run("contributorsAndAuthorCanApprove", func(t *testing.T) {
+		prctx := basePullContext()
+		r := &Rule{
+			Options: Options{
+				AllowNonAuthorContributor: true,
+				AllowContributor:          true,
 			},
 			Requires: Requires{
 				Count: 1,

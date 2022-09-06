@@ -248,8 +248,20 @@ if:
     - "label-1"
     - "label-2"
       
+  # "repository" is satisfied if the pull request repository matches any one of the
+  # patterns within the "matches" list or does not match all of the patterns
+  # within the "not_matches" list.
+  #
+  # Note: Double-quote strings must escape backslashes while single/plain do not.
+  # See the Notes on YAML Syntax section of this README for more information.
+  repository:
+    matches:
+      - "palantir/policy.*"
+    not_matches:
+      - "palantir/.*docs"
+
   # "title" is satisfied if the pull request title matches any one of the
-  # patterns within the "matches" list, and does not match all of the patterns
+  # patterns within the "matches" list or does not match all of the patterns
   # within the "not_matches" list.
   # e.g. this predicate triggers for titles including "BREAKING CHANGE" or titles
   # that are not marked as docs/style/chore changes (using conventional commits 
@@ -294,6 +306,13 @@ options:
   # a contributor. If allow_author and allow_contributor would disagree, this option
   # always wins. False by default.
   allow_contributor: false
+
+  # If true, the approvals of someone who has committed to the pull request are
+  # considered when calculating the status. In this case, pull request author is NOT
+  # considered a contributor. If combined with any combination of allow_author: true
+  # or allow_contributors: true, then the pull request author IS considered when
+  # calculating approval. False by default.
+  allow_non_author_contributor: false
 
   # If true, pushing new commits to a pull request will invalidate existing
   # approvals for this rule. False by default.

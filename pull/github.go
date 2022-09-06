@@ -1011,11 +1011,11 @@ func (pi v4PageInfo) UpdateCursor(vars map[string]interface{}, name string) bool
 }
 
 type v4PullRequestReview struct {
-	Author      v4Actor
-	State       string
-	Body        string
-	SubmittedAt time.Time
-	UpdatedAt   time.Time
+	Author       v4Actor
+	State        string
+	Body         string
+	SubmittedAt  time.Time
+	LastEditedAt time.Time
 
 	Commit struct {
 		OID string
@@ -1037,38 +1037,38 @@ func (r *v4PullRequestReview) ToReview() *Review {
 	}
 
 	return &Review{
-		CreatedAt: r.SubmittedAt,
-		UpdatedAt: r.UpdatedAt,
-		Author:    r.Author.GetV3Login(),
-		State:     ReviewState(strings.ToLower(r.State)),
-		Body:      r.Body,
-		SHA:       r.Commit.OID,
-		Teams:     teams,
+		CreatedAt:    r.SubmittedAt,
+		LastEditedAt: r.LastEditedAt,
+		Author:       r.Author.GetV3Login(),
+		State:        ReviewState(strings.ToLower(r.State)),
+		Body:         r.Body,
+		SHA:          r.Commit.OID,
+		Teams:        teams,
 	}
 }
 
 func (r *v4PullRequestReview) ToComment() *Comment {
 	return &Comment{
-		CreatedAt: r.SubmittedAt,
-		UpdatedAt: r.UpdatedAt,
-		Author:    r.Author.GetV3Login(),
-		Body:      r.Body,
+		CreatedAt:    r.SubmittedAt,
+		LastEditedAt: r.LastEditedAt,
+		Author:       r.Author.GetV3Login(),
+		Body:         r.Body,
 	}
 }
 
 type v4IssueComment struct {
-	Author    v4Actor
-	Body      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	Author       v4Actor
+	Body         string
+	CreatedAt    time.Time
+	LastEditedAt time.Time
 }
 
 func (c *v4IssueComment) ToComment() *Comment {
 	return &Comment{
-		CreatedAt: c.CreatedAt,
-		UpdatedAt: c.UpdatedAt,
-		Author:    c.Author.GetV3Login(),
-		Body:      c.Body,
+		CreatedAt:    c.CreatedAt,
+		LastEditedAt: c.LastEditedAt,
+		Author:       c.Author.GetV3Login(),
+		Body:         c.Body,
 	}
 }
 

@@ -37,9 +37,10 @@ type Rule struct {
 }
 
 type Options struct {
-	AllowAuthor      bool `yaml:"allow_author"`
-	AllowContributor bool `yaml:"allow_contributor"`
-	InvalidateOnPush bool `yaml:"invalidate_on_push"`
+	AllowAuthor               bool `yaml:"allow_author"`
+	AllowContributor          bool `yaml:"allow_contributor"`
+	AllowNonAuthorContributor bool `yaml:"allow_non_author_contributor"`
+	InvalidateOnPush          bool `yaml:"invalidate_on_push"`
 
 	IgnoreEditedComments bool          `yaml:"ignore_edited_comments"`
 	IgnoreUpdateMerges   bool          `yaml:"ignore_update_merges"`
@@ -192,12 +193,13 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 	// "author" is the user who opened the PR
 	// if contributors are allowed, the author counts as a contributor
 	author := prctx.Author()
+
 	if !r.Options.AllowAuthor && !r.Options.AllowContributor {
 		banned[author] = true
 	}
 
 	// "contributor" is any user who added a commit to the PR
-	if !r.Options.AllowContributor {
+	if !r.Options.AllowContributor && !r.Options.AllowNonAuthorContributor {
 		commits, err := r.filteredCommits(ctx, prctx)
 		if err != nil {
 			return false, "", err
@@ -282,7 +284,7 @@ func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, c
 
 	var allowedCandidates []*common.Candidate
 	for _, candidate := range candidates {
-		if candidate.UpdatedAt == candidate.CreatedAt {
+		if candidate.LastEditedAt == candidate.CreatedAt || candidate.LastEditedAt.IsZero() {
 			allowedCandidates = append(allowedCandidates, candidate)
 		}
 	}

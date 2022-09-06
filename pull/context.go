@@ -184,10 +184,10 @@ type Signature struct {
 }
 
 type Comment struct {
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Author    string
-	Body      string
+	CreatedAt    time.Time
+	LastEditedAt time.Time
+	Author       string
+	Body         string
 }
 
 type ReviewState string
@@ -201,12 +201,12 @@ const (
 )
 
 type Review struct {
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Author    string
-	State     ReviewState
-	Body      string
-	SHA       string
+	CreatedAt    time.Time
+	LastEditedAt time.Time
+	Author       string
+	State        ReviewState
+	Body         string
+	SHA          string
 
 	Teams []string
 }

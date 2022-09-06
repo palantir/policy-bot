@@ -201,19 +201,19 @@ func TestReviews(t *testing.T) {
 
 	assert.Equal(t, "mhaypenny", reviews[0].Author)
 	assert.Equal(t, expectedTime, reviews[0].CreatedAt)
-	assert.Equal(t, expectedTime, reviews[0].UpdatedAt)
+	assert.Equal(t, expectedTime, reviews[0].LastEditedAt)
 	assert.Equal(t, ReviewChangesRequested, reviews[0].State)
 	assert.Equal(t, "", reviews[0].Body)
 
 	assert.Equal(t, "bkeyes", reviews[1].Author)
 	assert.Equal(t, expectedTime.Add(time.Second), reviews[1].CreatedAt)
-	assert.Equal(t, expectedTime.Add(time.Second), reviews[1].UpdatedAt)
+	assert.Equal(t, expectedTime.Add(time.Second), reviews[1].LastEditedAt)
 	assert.Equal(t, ReviewApproved, reviews[1].State)
 	assert.Equal(t, "the body", reviews[1].Body)
 
 	assert.Equal(t, "jgiannuzzi", reviews[2].Author)
 	assert.Equal(t, expectedTime.Add(-4*time.Second).Add(5*time.Minute), reviews[2].CreatedAt)
-	assert.Equal(t, expectedTime.Add(-4*time.Second).Add(5*time.Minute), reviews[2].UpdatedAt)
+	assert.Equal(t, expectedTime.Add(-4*time.Second).Add(5*time.Minute), reviews[2].LastEditedAt)
 	assert.Equal(t, ReviewCommented, reviews[2].State)
 	assert.Equal(t, "A review comment", reviews[2].Body)
 
@@ -288,17 +288,17 @@ func TestComments(t *testing.T) {
 
 	assert.Equal(t, "bkeyes", comments[0].Author)
 	assert.Equal(t, expectedTime, comments[0].CreatedAt)
-	assert.Equal(t, expectedTime, comments[0].UpdatedAt)
+	assert.Equal(t, expectedTime, comments[0].LastEditedAt)
 	assert.Equal(t, ":+1:", comments[0].Body)
 
 	assert.Equal(t, "bulldozer[bot]", comments[1].Author)
 	assert.Equal(t, expectedTime.Add(time.Minute), comments[1].CreatedAt)
-	assert.Equal(t, expectedTime.Add(time.Minute), comments[1].UpdatedAt)
+	assert.Equal(t, expectedTime.Add(time.Minute), comments[1].LastEditedAt)
 	assert.Equal(t, "I merge!", comments[1].Body)
 
 	assert.Equal(t, "jgiannuzzi", comments[2].Author)
 	assert.Equal(t, expectedTime.Add(10*time.Minute), comments[2].CreatedAt)
-	assert.Equal(t, expectedTime.Add(10*time.Minute), comments[2].UpdatedAt)
+	assert.Equal(t, expectedTime.Add(10*time.Minute), comments[2].LastEditedAt)
 	assert.Equal(t, "A review comment", comments[2].Body)
 
 	// verify that the commit list is cached
