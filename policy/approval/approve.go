@@ -282,10 +282,16 @@ func (r *Rule) filteredCandidates(ctx context.Context, prctx pull.Context) ([]*c
 func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, error) {
 	log := zerolog.Ctx(ctx)
 
+	if !r.Options.IgnoreEditedComments {
+		return candidates, nil
+	}
+
 	var allowedCandidates []*common.Candidate
 	for _, candidate := range candidates {
-		if candidate.LastEditedAt == candidate.CreatedAt || candidate.LastEditedAt.IsZero() {
-			allowedCandidates = append(allowedCandidates, candidate)
+		if r.Options.IgnoreEditedComments {
+			if candidate.LastEditedAt.IsZero() {
+				allowedCandidates = append(allowedCandidates, candidate)
+			}
 		}
 	}
 
