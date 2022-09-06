@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/google/go-github/v45/github"
 	"github.com/palantir/go-githubapp/githubapp"
@@ -152,7 +153,12 @@ func (h *PullRequest) dismissStaleReviews(ctx context.Context, prctx pull.Contex
 				}
 
 				if c.ID == review.ID {
-					message := fmt.Sprintf("%s was dismissed by policy-bot because the approval was %s", r.Name, c.DiscardedBecause)
+					var reasons []string
+					for _, reason := range c.DiscardedBecause {
+						reasons = append(reasons, string(reason))
+					}
+					because := strings.Join(reasons, " and ")
+					message := fmt.Sprintf("%s was dismissed by policy-bot because the approval was %s", r.Name, because)
 					err = h.dismissPullRequestReview(ctx, v4client, review.ID, message)
 					if err != nil {
 						return err
