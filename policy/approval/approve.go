@@ -41,7 +41,6 @@ type Options struct {
 	AllowContributor bool `yaml:"allow_contributor"`
 	InvalidateOnPush bool `yaml:"invalidate_on_push"`
 
-	IgnoreEditedBody     bool          `yaml:"ignore_edited_body"`
 	IgnoreEditedComments bool          `yaml:"ignore_edited_comments"`
 	IgnoreUpdateMerges   bool          `yaml:"ignore_update_merges"`
 	IgnoreCommitsBy      common.Actors `yaml:"ignore_commits_by"`
@@ -89,6 +88,9 @@ func (r *Rule) Trigger() common.Trigger {
 		m := r.Options.GetMethods()
 		if len(m.Comments) > 0 || len(m.CommentPatterns) > 0 {
 			t |= common.TriggerComment
+		}
+		if len(m.BodyPatterns) > 0 {
+			t |= common.TriggerPullRequest
 		}
 		if m.GithubReview != nil && *m.GithubReview || len(m.GithubReviewCommentPatterns) > 0 {
 			t |= common.TriggerReview
@@ -259,14 +261,7 @@ func (r *Rule) filteredCandidates(ctx context.Context, prctx pull.Context) ([]*c
 	sort.Stable(common.CandidatesByCreationTime(candidates))
 
 	if r.Options.IgnoreEditedComments {
-		candidates, err = r.filterEditedCandidates(ctx, prctx, candidates, "comments")
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if r.Options.IgnoreEditedBody {
-		candidates, err = r.filterEditedCandidates(ctx, prctx, candidates, "body")
+		candidates, err = r.filterEditedCandidates(ctx, prctx, candidates)
 		if err != nil {
 			return nil, err
 		}
@@ -282,7 +277,7 @@ func (r *Rule) filteredCandidates(ctx context.Context, prctx pull.Context) ([]*c
 	return candidates, nil
 }
 
-func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate, candidateType string) ([]*common.Candidate, error) {
+func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, error) {
 	log := zerolog.Ctx(ctx)
 
 	var allowedCandidates []*common.Candidate
@@ -292,8 +287,8 @@ func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, c
 		}
 	}
 
-	log.Debug().Msgf("discarded %d candidates with edited %s",
-		len(candidates)-len(allowedCandidates), candidateType)
+	log.Debug().Msgf("discarded %d candidates with edited comments",
+		len(candidates)-len(allowedCandidates))
 
 	return allowedCandidates, nil
 }

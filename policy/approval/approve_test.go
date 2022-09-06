@@ -504,7 +504,7 @@ func TestIsApproved(t *testing.T) {
 		assertPending(t, prctx, r, "0/1 approvals required. Ignored 5 approvals from disqualified users")
 	})
 
-	t.Run("ignoreEditedBody", func(t *testing.T) {
+	t.Run("ignoreEditedCommentsWithBodyPattern", func(t *testing.T) {
 		prctx := basePullContext()
 
 		r := &Rule{
@@ -520,13 +520,13 @@ func TestIsApproved(t *testing.T) {
 						common.NewCompiledRegexp(regexp.MustCompile("/no-platform")),
 					},
 				},
-				IgnoreEditedBody: false,
+				IgnoreEditedComments: false,
 			},
 		}
 
 		assertApproved(t, prctx, r, "Approved by body-editor")
 
-		r.Options.IgnoreEditedBody = true
+		r.Options.IgnoreEditedComments = true
 
 		assertPending(t, prctx, r, "0/1 approvals required. Ignored 5 approvals from disqualified users")
 	})
@@ -608,6 +608,24 @@ func TestTrigger(t *testing.T) {
 
 		assert.True(t, r.Trigger().Matches(common.TriggerCommit), "expected %s to match %s", r.Trigger(), common.TriggerCommit)
 		assert.True(t, r.Trigger().Matches(common.TriggerReview), "expected %s to match %s", r.Trigger(), common.TriggerReview)
+	})
+
+	t.Run("triggerPullRequestForBodyPatterns", func(t *testing.T) {
+		r := &Rule{
+			Options: Options{
+				Methods: &common.Methods{
+					BodyPatterns: []common.Regexp{
+						common.NewCompiledRegexp(regexp.MustCompile("(?i)nice")),
+					},
+				},
+				IgnoreEditedComments: false,
+			},
+			Requires: Requires{
+				Count: 1,
+			},
+		}
+
+		assert.True(t, r.Trigger().Matches(common.TriggerPullRequest), "expected %s to match %s", r.Trigger(), common.TriggerPullRequest)
 	})
 }
 

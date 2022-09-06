@@ -299,13 +299,9 @@ options:
   # approvals for this rule. False by default.
   invalidate_on_push: false
 
-  # If true, comments on PRs and review comments that have been edited in any way
+  # If true, comments on PRs, the PR Body, and review comments that have been edited in any way
   # will be ignored when evaluating approval rules. Default is false.
   ignore_edited_comments: false
-
-  # If true, if the PR body contains an approval and has been edited in any way
-  # the string will be ignored when evaluating approval rules. Default is false.
-  ignore_edited_body: false
 
   # If true, "update merges" do not invalidate approval (if invalidate_on_push
   # is enabled) and their authors/committers do not count as contributors. An
