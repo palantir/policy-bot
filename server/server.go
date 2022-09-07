@@ -162,6 +162,7 @@ func New(c *Config) (*Server, error) {
 		[]githubapp.EventHandler{
 			&handler.Installation{Base: basePolicyHandler},
 			&handler.PullRequest{Base: basePolicyHandler},
+			&handler.PullRequestReview{Base: basePolicyHandler},
 			&handler.IssueComment{Base: basePolicyHandler},
 			&handler.Status{Base: basePolicyHandler},
 			&handler.CheckRun{Base: basePolicyHandler},

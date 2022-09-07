@@ -25,38 +25,24 @@ import (
 	"github.com/pkg/errors"
 )
 
-type PullRequest struct {
+type PullRequestReview struct {
 	Base
 }
 
-func (h *PullRequest) Handles() []string { return []string{"pull_request"} }
+func (h *PullRequestReview) Handles() []string { return []string{"pull_request_review"} }
 
-// Handle pull_request
-// https://developer.github.com/v3/activity/events/types/#requestevent
-func (h *PullRequest) Handle(ctx context.Context, eventType, deliveryID string, payload []byte) error {
-	var event github.PullRequestEvent
+// Handle pull_request_review
+// https://developer.github.com/v3/activity/events/types/#pullrequestreviewevent
+func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID string, payload []byte) error {
+	var event github.PullRequestReviewEvent
 	if err := json.Unmarshal(payload, &event); err != nil {
-		return errors.Wrap(err, "failed to parse pull request event payload")
+		return errors.Wrap(err, "failed to parse pull request review event payload")
 	}
 
 	installationID := githubapp.GetInstallationIDFromEvent(&event)
 	ctx, _ = h.PreparePRContext(ctx, installationID, event.GetPullRequest())
 
-	var t common.Trigger
-	switch event.GetAction() {
-	case "opened", "reopened", "ready_for_review":
-		t = common.TriggerCommit | common.TriggerPullRequest
-	case "synchronize":
-		t = common.TriggerCommit
-	case "edited":
-		t = common.TriggerPullRequest
-	case "labeled", "unlabeled":
-		t = common.TriggerLabel
-	default:
-		return nil
-	}
-
-	return h.Evaluate(ctx, installationID, t, pull.Locator{
+	return h.Evaluate(ctx, installationID, common.TriggerReview, pull.Locator{
 		Owner:  event.GetRepo().GetOwner().GetLogin(),
 		Repo:   event.GetRepo().GetName(),
 		Number: event.GetPullRequest().GetNumber(),

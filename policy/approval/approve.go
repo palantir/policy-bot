@@ -146,7 +146,37 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 		res.Status = common.StatusPending
 		res.ReviewRequestRule = r.getReviewRequestRule()
 	}
+
+	res.DiscardedReviews, err = r.getDiscardedReviews(ctx, prctx)
+	if err != nil {
+		res.Error = errors.Wrap(err, "failed to get discarded reviews")
+		return
+	}
+
 	return
+}
+
+func (r *Rule) getDiscardedReviews(ctx context.Context, prctx pull.Context) ([]*common.DiscardedReview, error) {
+	_, discarded, err := r.filteredCandidates(ctx, prctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var discardedReviews []*common.DiscardedReview
+
+	if len(discarded) != 0 {
+		for _, d := range discarded {
+			if d.Type == common.ReviewCandidate {
+				discardedReviews = append(discardedReviews, &common.DiscardedReview{
+					ID:     d.ID,
+					Reason: d.DiscardedBecause,
+					State:  d.ReviewState,
+				})
+			}
+		}
+	}
+
+	return discardedReviews, nil
 }
 
 func (r *Rule) getReviewRequestRule() *common.ReviewRequestRule {
@@ -177,7 +207,7 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 		return true, "No approval required", nil
 	}
 
-	candidates, _, err := r.FilteredCandidates(ctx, prctx)
+	candidates, _, err := r.filteredCandidates(ctx, prctx)
 	if err != nil {
 		return false, "", err
 	}
@@ -251,7 +281,7 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 	return false, msg, nil
 }
 
-func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*common.Candidate, []*common.Candidate, error) {
+func (r *Rule) filteredCandidates(ctx context.Context, prctx pull.Context) ([]*common.Candidate, []*common.Candidate, error) {
 	candidates, err := r.Options.GetMethods().Candidates(ctx, prctx)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to get approval candidates")

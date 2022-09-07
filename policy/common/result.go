@@ -59,6 +59,12 @@ type ReviewRequestRule struct {
 	Mode RequestMode
 }
 
+type DiscardedReview struct {
+	ID     string
+	Reason []DiscardReason
+	State  pull.ReviewState
+}
+
 type Result struct {
 	Name              string
 	Description       string
@@ -69,6 +75,7 @@ type Result struct {
 	Requires          Actors
 
 	ReviewRequestRule *ReviewRequestRule
+	DiscardedReviews  []*DiscardedReview
 
 	Children []*Result
 }

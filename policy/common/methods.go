@@ -55,6 +55,7 @@ type Candidate struct {
 	CreatedAt        time.Time
 	LastEditedAt     time.Time
 	DiscardedBecause []DiscardReason
+	ReviewState      pull.ReviewState
 }
 
 type CandidatesByCreationTime []*Candidate
@@ -106,6 +107,7 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 							User:         r.Author,
 							CreatedAt:    r.CreatedAt,
 							LastEditedAt: r.LastEditedAt,
+							ReviewState:  r.State,
 						})
 					}
 				} else {
@@ -115,6 +117,7 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 						User:         r.Author,
 						CreatedAt:    r.CreatedAt,
 						LastEditedAt: r.LastEditedAt,
+						ReviewState:  r.State,
 					})
 				}
 			}
