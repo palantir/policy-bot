@@ -6,9 +6,6 @@
         "repository": {
           "pullRequest": {
             "body": "/no-platform",
-            "editor": {
-              "login": "agirlnamedsophia"
-            },
             "createdAt": "2018-01-12T00:11:50Z",
             "lastEditedAt": "2018-01-12T00:11:50Z",
             "author": {

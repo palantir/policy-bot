@@ -263,7 +263,6 @@ func TestBody(t *testing.T) {
 
 	assert.Equal(t, "/no-platform", prBody.Body)
 	assert.Equal(t, "agirlnamedsophia", prBody.Author)
-	assert.Equal(t, "agirlnamedsophia", prBody.Editor)
 	assert.Equal(t, expectedTime, prBody.CreatedAt)
 	assert.Equal(t, expectedTime, prBody.LastEditedAt)
 }

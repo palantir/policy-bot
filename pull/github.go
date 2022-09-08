@@ -212,7 +212,6 @@ func (ghc *GitHubContext) Body() (*Body, error) {
 	return &Body{
 		Body:         graphqlResponse.Body,
 		CreatedAt:    graphqlResponse.CreatedAt,
-		Editor:       graphqlResponse.Editor.GetV3Login(),
 		Author:       graphqlResponse.Author.GetV3Login(),
 		LastEditedAt: graphqlResponse.LastEditedAt,
 	}, nil
