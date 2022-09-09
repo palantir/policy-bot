@@ -187,7 +187,6 @@ func (ghc *GitHubContext) Title() string {
 
 type v4PullRequestWithEditedAt struct {
 	Author       v4Actor
-	Editor       v4Actor
 	CreatedAt    time.Time
 	LastEditedAt time.Time
 	Body         string

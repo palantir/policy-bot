@@ -56,7 +56,7 @@ type Context interface {
 	// Title returns the title of the pull request
 	Title() string
 
-	// Body returns a struct that includes Editor and LastEditedAt for the pull request body
+	// Body returns a struct that includes LastEditedAt for the pull request body
 	Body() (*Body, error)
 
 	// Author returns the username of the user who opened the pull request.
@@ -240,7 +240,6 @@ type CollaboratorPermission struct {
 type Body struct {
 	Body         string
 	CreatedAt    time.Time
-	Editor       string
 	Author       string
 	LastEditedAt time.Time
 }

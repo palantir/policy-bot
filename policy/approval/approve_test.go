@@ -41,7 +41,6 @@ func TestIsApproved(t *testing.T) {
 				Body:         "/no-platform",
 				CreatedAt:    now.Add(10 * time.Second),
 				LastEditedAt: now.Add(20 * time.Second),
-				Editor:       "body-editor",
 				Author:       "body-editor",
 			},
 			CommentsValue: []*pull.Comment{
