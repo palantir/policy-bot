@@ -204,7 +204,7 @@ func (ghc *GitHubContext) Body() (*Body, error) {
 		"number": githubv4.Int(ghc.number),
 	}
 	if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
-		return &Body{}, errors.Wrap(err, "failed to load pull request details")
+		return nil, errors.Wrap(err, "failed to load pull request details")
 	}
 	graphqlResponse := &q.Repository.PullRequest
 
