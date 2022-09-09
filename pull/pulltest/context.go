@@ -34,6 +34,9 @@ type Context struct {
 	BranchBaseName string
 	BranchHeadName string
 
+	BodyValue *pull.Body
+	BodyError error
+
 	ChangedFilesValue []*pull.File
 	ChangedFilesError error
 
@@ -75,6 +78,10 @@ func (c *Context) RepositoryOwner() string {
 		return c.OwnerValue
 	}
 	return "pulltest"
+}
+
+func (c *Context) Body() (*pull.Body, error) {
+	return c.BodyValue, c.BodyError
 }
 
 func (c *Context) RepositoryName() string {

@@ -90,6 +90,9 @@ func (r *Rule) Trigger() common.Trigger {
 		if len(m.Comments) > 0 || len(m.CommentPatterns) > 0 {
 			t |= common.TriggerComment
 		}
+		if len(m.BodyPatterns) > 0 {
+			t |= common.TriggerPullRequest
+		}
 		if m.GithubReview != nil && *m.GithubReview || len(m.GithubReviewCommentPatterns) > 0 {
 			t |= common.TriggerReview
 		}
