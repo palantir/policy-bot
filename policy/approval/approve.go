@@ -133,11 +133,20 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 		}
 	}
 	res.PredicateResults = predicateResults
-	approved, msg, err := r.IsApproved(ctx, prctx)
+
+	allowedReviews, discardedReviews, err := r.filteredCandidates(ctx, prctx)
+	if err != nil {
+		res.Error = errors.Wrap(err, "failed to filter candidates")
+		return
+	}
+
+	approved, msg, err := r.IsApproved(ctx, prctx, allowedReviews)
 	if err != nil {
 		res.Error = errors.Wrap(err, "failed to compute approval status")
 		return
 	}
+
+	res.DiscardedReviews = discardedReviews
 
 	res.StatusDescription = msg
 	if approved {
@@ -147,32 +156,8 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 		res.ReviewRequestRule = r.getReviewRequestRule()
 	}
 
-	// res.DiscardedReviews, err = r.getDiscardedReviews(ctx, prctx)
-	if err != nil {
-		res.Error = errors.Wrap(err, "failed to get discarded reviews")
-		return
-	}
-
 	return
 }
-
-// func (r *Rule) getDiscardedReviews(ctx context.Context, prctx pull.Context) ([]*common.DiscardedReview, error) {
-// 	_, discarded, err := r.filteredCandidates(ctx, prctx)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	for _, d := range discarded {
-// 		if d.Type == common.ReviewCandidate {
-// 			discardedReviews = append(discardedReviews, &common.DiscardedReview{
-// 				ID:     d.ReviewID,
-// 				Reason: d.DiscardedBecause,
-// 			})
-// 		}
-// 	}
-
-// 	return discardedReviews, nil
-// }
 
 func (r *Rule) getReviewRequestRule() *common.ReviewRequestRule {
 	if !r.Options.RequestReview.Enabled {
@@ -194,17 +179,12 @@ func (r *Rule) getReviewRequestRule() *common.ReviewRequestRule {
 	}
 }
 
-func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string, error) {
+func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) (bool, string, error) {
 	log := zerolog.Ctx(ctx)
 
 	if r.Requires.Count <= 0 {
 		log.Debug().Msg("rule requires no approvals")
 		return true, "No approval required", nil
-	}
-
-	candidates, _, err := r.filteredCandidates(ctx, prctx)
-	if err != nil {
-		return false, "", err
 	}
 
 	log.Debug().Msgf("found %d candidates for approval", len(candidates))

@@ -402,14 +402,38 @@ func selectionToReviewersRequest(s reviewer.Selection) github.ReviewersRequest {
 	return req
 }
 
+func (b *Base) dedupDiscardedReviews(discardedReviews []*common.DiscardedReview) []*common.DiscardedReview {
+	var reviews []*common.DiscardedReview
+
+Reviews:
+	for _, d := range discardedReviews {
+		for _, r := range reviews {
+			if r.ID == d.ID {
+				continue Reviews
+			}
+		}
+		reviews = append(reviews, d)
+	}
+
+	return reviews
+}
+
 func (b *Base) dismissStaleReviewsForResult(ctx context.Context, v4client *githubv4.Client, result common.Result) error {
-	for _, d := range result.DiscardedReviews {
-		message := fmt.Sprintf("dismissed because the approval was %s", d.Reason)
-		err := b.dismissPullRequestReview(ctx, v4client, d.ID, message)
+	var reviews []*common.DiscardedReview
+
+	for _, c := range result.Children {
+		dedupedReviews := b.dedupDiscardedReviews(c.DiscardedReviews)
+		for _, d := range dedupedReviews {
+			reviews = append(reviews, d)
+		}
+	}
+
+	for _, r := range reviews {
+		message := fmt.Sprintf("dismissed because the approval was %s", r.Reason)
+		err := b.dismissPullRequestReview(ctx, v4client, r.ID, message)
 		if err != nil {
 			return err
 		}
-
 	}
 	return nil
 }

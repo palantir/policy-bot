@@ -135,7 +135,7 @@ func TestIsApproved(t *testing.T) {
 	}
 
 	assertApproved := func(t *testing.T, prctx pull.Context, r *Rule, expected string) {
-		approved, msg, err := r.IsApproved(ctx, prctx)
+		approved, msg, err := r.IsApproved(ctx, prctx, candidates)
 		require.NoError(t, err)
 
 		if assert.True(t, approved, "pull request was not approved") {
@@ -144,7 +144,7 @@ func TestIsApproved(t *testing.T) {
 	}
 
 	assertPending := func(t *testing.T, prctx pull.Context, r *Rule, expected string) {
-		approved, msg, err := r.IsApproved(ctx, prctx)
+		approved, msg, err := r.IsApproved(ctx, prctx, candidates)
 		require.NoError(t, err)
 
 		if assert.False(t, approved, "pull request was incorrectly approved") {
