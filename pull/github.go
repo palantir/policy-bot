@@ -309,25 +309,6 @@ func (ghc *GitHubContext) Reviews() ([]*Review, error) {
 	return ghc.reviews, nil
 }
 
-func (ghc *GitHubContext) DismissPullRequestReview(reviewID string, message string) error {
-	var m struct {
-		DismissPullRequestReview struct {
-			ClientMutationID *githubv4.String
-		} `graphql:"dismissPullRequestReview(input: $input)"`
-	}
-
-	input := githubv4.DismissPullRequestReviewInput{
-		PullRequestReviewID: githubv4.String(reviewID),
-		Message:             githubv4.String(message),
-	}
-
-	if err := ghc.v4client.Mutate(ghc.ctx, &m, input, nil); err != nil {
-		return errors.Wrapf(err, "failed to dismiss pull request review %s", reviewID)
-	}
-
-	return nil
-}
-
 func (ghc *GitHubContext) RepositoryCollaborators() ([]*Collaborator, error) {
 	if ghc.collaborators == nil {
 		// For reviewer assignment, we need to figure out how each collaborator

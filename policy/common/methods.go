@@ -41,21 +41,12 @@ const (
 	CommentCandidate CandidateType = "comment"
 )
 
-type DiscardReason string
-
-const (
-	EditedCandidate            DiscardReason = "edited"
-	InvalidatedByPushCandidate DiscardReason = "invalidated by pushing another commit"
-)
-
 type Candidate struct {
-	Type             CandidateType
-	ID               string
-	User             string
-	CreatedAt        time.Time
-	LastEditedAt     time.Time
-	DiscardedBecause []DiscardReason
-	ReviewState      pull.ReviewState
+	Type         CandidateType
+	ReviewID     string
+	User         string
+	CreatedAt    time.Time
+	LastEditedAt time.Time
 }
 
 type CandidatesByCreationTime []*Candidate
@@ -103,21 +94,19 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 					if m.githubReviewCommentMatches(r.Body) {
 						candidates = append(candidates, &Candidate{
 							Type:         ReviewCandidate,
-							ID:           r.ID,
+							ReviewID:     r.ID,
 							User:         r.Author,
 							CreatedAt:    r.CreatedAt,
 							LastEditedAt: r.LastEditedAt,
-							ReviewState:  r.State,
 						})
 					}
 				} else {
 					candidates = append(candidates, &Candidate{
 						Type:         ReviewCandidate,
-						ID:           r.ID,
+						ReviewID:     r.ID,
 						User:         r.Author,
 						CreatedAt:    r.CreatedAt,
 						LastEditedAt: r.LastEditedAt,
-						ReviewState:  r.State,
 					})
 				}
 			}

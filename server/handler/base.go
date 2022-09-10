@@ -31,6 +31,7 @@ import (
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"github.com/shurcooL/githubv4"
 )
 
 const (
@@ -191,7 +192,7 @@ func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger commo
 		return err
 	}
 
-	err = b.dismissStaleReviewsForResult(ctx, prctx, result)
+	err = b.dismissStaleReviewsForResult(ctx, v4client, result)
 	if err != nil {
 		return err
 	}
@@ -369,7 +370,7 @@ func (b *Base) requestReviews(ctx context.Context, prctx pull.Context, client *g
 	}
 
 	if diff := selection.Difference(reviewers); !diff.IsEmpty() {
-		req := b.selectionToReviewersRequest(diff)
+		req := selectionToReviewersRequest(diff)
 		logger.Debug().
 			Strs("users", req.Reviewers).
 			Strs("teams", req.TeamReviewers).
@@ -383,7 +384,7 @@ func (b *Base) requestReviews(ctx context.Context, prctx pull.Context, client *g
 	return nil
 }
 
-func (b *Base) selectionToReviewersRequest(s reviewer.Selection) github.ReviewersRequest {
+func selectionToReviewersRequest(s reviewer.Selection) github.ReviewersRequest {
 	req := github.ReviewersRequest{}
 
 	if len(s.Users) > 0 {
@@ -401,28 +402,34 @@ func (b *Base) selectionToReviewersRequest(s reviewer.Selection) github.Reviewer
 	return req
 }
 
-func (b *Base) dismissStaleReviewsForResult(ctx context.Context, prctx pull.Context, result common.Result) error {
-	if len(result.DiscardedReviews) == 0 {
-		return nil
-	}
-
+func (b *Base) dismissStaleReviewsForResult(ctx context.Context, v4client *githubv4.Client, result common.Result) error {
 	for _, d := range result.DiscardedReviews {
-		if d.State != pull.ReviewApproved {
-			continue
-		}
-
-		var reasons []string
-		for _, reason := range d.Reason {
-			reasons = append(reasons, string(reason))
-		}
-		because := strings.Join(reasons, " and ")
-		message := fmt.Sprintf("%s was dismissed by policy-bot because the approval was %s", result.Name, because)
-		err := prctx.DismissPullRequestReview(d.ID, message)
+		message := fmt.Sprintf("dismissed because the approval was %s", d.Reason)
+		err := b.dismissPullRequestReview(ctx, v4client, d.ID, message)
 		if err != nil {
 			return err
 		}
 
 	}
+	return nil
+}
+
+func (b *Base) dismissPullRequestReview(ctx context.Context, v4client *githubv4.Client, reviewID string, message string) error {
+	var m struct {
+		DismissPullRequestReview struct {
+			ClientMutationID *githubv4.String
+		} `graphql:"dismissPullRequestReview(input: $input)"`
+	}
+
+	input := githubv4.DismissPullRequestReviewInput{
+		PullRequestReviewID: githubv4.String(reviewID),
+		Message:             githubv4.String(message),
+	}
+
+	if err := v4client.Mutate(ctx, &m, input, nil); err != nil {
+		return errors.Wrapf(err, "failed to dismiss pull request review %s", reviewID)
+	}
+
 	return nil
 }
 

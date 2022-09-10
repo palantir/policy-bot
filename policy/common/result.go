@@ -61,8 +61,7 @@ type ReviewRequestRule struct {
 
 type DiscardedReview struct {
 	ID     string
-	Reason []DiscardReason
-	State  pull.ReviewState
+	Reason string
 }
 
 type Result struct {
