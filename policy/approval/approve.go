@@ -134,7 +134,7 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 	}
 	res.PredicateResults = predicateResults
 
-	allowedReviews, discardedReviews, err := r.filteredCandidates(ctx, prctx)
+	allowedReviews, discardedReviews, err := r.FilteredCandidates(ctx, prctx)
 	if err != nil {
 		res.Error = errors.Wrap(err, "failed to filter candidates")
 		return
@@ -256,7 +256,7 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context, candidates []
 	return false, msg, nil
 }
 
-func (r *Rule) filteredCandidates(ctx context.Context, prctx pull.Context) ([]*common.Candidate, []*common.DiscardedReview, error) {
+func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*common.Candidate, []*common.DiscardedReview, error) {
 	candidates, err := r.Options.GetMethods().Candidates(ctx, prctx)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to get approval candidates")
