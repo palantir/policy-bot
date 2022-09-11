@@ -134,13 +134,13 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 	}
 	res.PredicateResults = predicateResults
 
-	allowedReviews, discardedReviews, err := r.FilteredCandidates(ctx, prctx)
+	allowedCandidates, discardedReviews, err := r.FilteredCandidates(ctx, prctx)
 	if err != nil {
 		res.Error = errors.Wrap(err, "failed to filter candidates")
 		return
 	}
 
-	approved, msg, err := r.IsApproved(ctx, prctx, allowedReviews)
+	approved, msg, err := r.IsApproved(ctx, prctx, allowedCandidates)
 	if err != nil {
 		res.Error = errors.Wrap(err, "failed to compute approval status")
 		return
@@ -274,10 +274,12 @@ func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*c
 		}
 
 		for _, c := range discardedCandidates {
-			discardedReviews = append(discardedReviews, &common.DiscardedReview{
-				ID:     c.ReviewID,
-				Reason: "edited",
-			})
+			if c.Type == common.ReviewCandidate {
+				discardedReviews = append(discardedReviews, &common.DiscardedReview{
+					ID:     c.ReviewID,
+					Reason: "edited",
+				})
+			}
 		}
 	}
 
@@ -288,10 +290,12 @@ func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*c
 		}
 
 		for _, c := range discardedCandidates {
-			discardedReviews = append(discardedReviews, &common.DiscardedReview{
-				ID:     c.ReviewID,
-				Reason: "invalidated by pushing another commit",
-			})
+			if c.Type == common.ReviewCandidate {
+				discardedReviews = append(discardedReviews, &common.DiscardedReview{
+					ID:     c.ReviewID,
+					Reason: "invalidated by pushing another commit",
+				})
+			}
 		}
 	}
 

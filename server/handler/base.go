@@ -418,11 +418,23 @@ Reviews:
 	return reviews
 }
 
+func (b *Base) findResultsWithDiscardedReviews(result *common.Result) []*common.Result {
+	var results []*common.Result
+	for _, c := range result.Children {
+		results = append(results, b.findResultsWithDiscardedReviews(c)...)
+	}
+	if len(result.Children) == 0 && len(result.DiscardedReviews) > 0 && result.Error == nil {
+		results = append(results, result)
+	}
+	return results
+}
+
 func (b *Base) dismissStaleReviewsForResult(ctx context.Context, v4client *githubv4.Client, result common.Result) error {
 	var reviews []*common.DiscardedReview
 
-	for _, c := range result.Children {
-		dedupedReviews := b.dedupDiscardedReviews(c.DiscardedReviews)
+	results := b.findResultsWithDiscardedReviews(&result)
+	for _, r := range results {
+		dedupedReviews := b.dedupDiscardedReviews(r.DiscardedReviews)
 		for _, d := range dedupedReviews {
 			reviews = append(reviews, d)
 		}
