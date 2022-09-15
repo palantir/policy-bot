@@ -28,17 +28,17 @@ import (
 // period-separated strings where each element is a level in the query tree.
 // For example, the prefix:
 //
-//  repository.pullRequest.timeline
+//	repository.pullRequest.timeline
 //
 // corresponds to this GraphQL query:
 //
-//   repository(...) {
-//     pullRequest(...) {
-//       timeline(...) {
-//         ...
-//       }
-//     }
-//   }
+//	repository(...) {
+//	  pullRequest(...) {
+//	    timeline(...) {
+//	      ...
+//	    }
+//	  }
+//	}
 //
 // If the query contains type conditions, fields selects for a specific type
 // can by added to the prefix by adding the type name as an element.
