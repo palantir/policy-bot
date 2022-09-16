@@ -91,7 +91,7 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 		for _, r := range reviews {
 			if r.State == m.GithubReviewState {
 				if len(m.GithubReviewCommentPatterns) > 0 {
-					if m.githubReviewCommentMatches(r.Body) {
+					if m.GithubReviewCommentMatches(r.Body) {
 						candidates = append(candidates, &Candidate{
 							Type:         ReviewCandidate,
 							ReviewID:     r.ID,
@@ -147,7 +147,7 @@ func (m *Methods) CommentMatches(commentBody string) bool {
 	return false
 }
 
-func (m *Methods) githubReviewCommentMatches(commentBody string) bool {
+func (m *Methods) GithubReviewCommentMatches(commentBody string) bool {
 	for _, pattern := range m.GithubReviewCommentPatterns {
 		if pattern.Matches(commentBody) {
 			return true

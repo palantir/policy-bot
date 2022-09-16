@@ -59,11 +59,6 @@ type ReviewRequestRule struct {
 	Mode RequestMode
 }
 
-type DiscardedReview struct {
-	ID     string
-	Reason string
-}
-
 type Result struct {
 	Name              string
 	Description       string
@@ -74,7 +69,7 @@ type Result struct {
 	Requires          Actors
 
 	ReviewRequestRule *ReviewRequestRule
-	DiscardedReviews  []*DiscardedReview
+	AllowedCandidates []*Candidate
 
 	Children []*Result
 }

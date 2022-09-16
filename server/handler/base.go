@@ -192,7 +192,7 @@ func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger commo
 		return err
 	}
 
-	err = b.dismissStaleReviewsForResult(ctx, v4client, result)
+	err = b.dismissStaleReviewsForResult(ctx, prctx, v4client, result)
 	if err != nil {
 		return err
 	}
@@ -402,51 +402,80 @@ func selectionToReviewersRequest(s reviewer.Selection) github.ReviewersRequest {
 	return req
 }
 
-func (b *Base) dedupDiscardedReviews(discardedReviews []*common.DiscardedReview) []*common.DiscardedReview {
-	var reviews []*common.DiscardedReview
-
-Reviews:
-	for _, d := range discardedReviews {
-		for _, r := range reviews {
-			if r.ID == d.ID {
-				continue Reviews
-			}
-		}
-		reviews = append(reviews, d)
-	}
-
-	return reviews
-}
-
-func (b *Base) findResultsWithDiscardedReviews(result *common.Result) []*common.Result {
+func (b *Base) findResultsWithAllowedCandidates(result *common.Result) []*common.Result {
 	var results []*common.Result
 	for _, c := range result.Children {
-		results = append(results, b.findResultsWithDiscardedReviews(c)...)
+		results = append(results, b.findResultsWithAllowedCandidates(c)...)
 	}
-	if len(result.Children) == 0 && len(result.DiscardedReviews) > 0 && result.Error == nil {
+
+	if len(result.Children) == 0 && len(result.AllowedCandidates) > 0 && result.Error == nil {
 		results = append(results, result)
 	}
+
 	return results
 }
 
-func (b *Base) dismissStaleReviewsForResult(ctx context.Context, v4client *githubv4.Client, result common.Result) error {
-	var reviews []*common.DiscardedReview
-
-	results := b.findResultsWithDiscardedReviews(&result)
-	for _, r := range results {
-		dedupedReviews := b.dedupDiscardedReviews(r.DiscardedReviews)
-		for _, d := range dedupedReviews {
-			reviews = append(reviews, d)
+func (b *Base) reviewIsAllowed(review *pull.Review, allowedCandidates []*common.Candidate) bool {
+	for _, candidate := range allowedCandidates {
+		if review.ID == candidate.ReviewID {
+			return true
 		}
+	}
+
+	return false
+}
+
+func (b *Base) reasonForDimissedReview(review *pull.Review) string {
+	if !review.LastEditedAt.IsZero() {
+		return "was edited"
+	}
+
+	if review.CreatedAt.Before(time.Now().Add(-5 * time.Second)) {
+		return "was invalidated by another commit"
+	}
+
+	return "didn't include a valid comment pattern"
+}
+
+func (b *Base) dismissStaleReviewsForResult(ctx context.Context, prctx pull.Context, v4client *githubv4.Client, result common.Result) error {
+	logger := zerolog.Ctx(ctx)
+
+	var allowedCandidates []*common.Candidate
+
+	results := b.findResultsWithAllowedCandidates(&result)
+	for _, res := range results {
+		for _, candidate := range res.AllowedCandidates {
+			if candidate.Type != common.ReviewCandidate {
+				continue
+			}
+			allowedCandidates = append(allowedCandidates, candidate)
+		}
+	}
+
+	reviews, err := prctx.Reviews()
+	if err != nil {
+		return err
 	}
 
 	for _, r := range reviews {
-		message := fmt.Sprintf("dismissed because the approval was %s", r.Reason)
+		if r.State != pull.ReviewApproved {
+			continue
+		}
+
+		if b.reviewIsAllowed(r, allowedCandidates) {
+			continue
+		}
+
+		reason := b.reasonForDimissedReview(r)
+		message := fmt.Sprintf("dismissed because the approval %s", reason)
+		logger.Info().Msgf("dismissing stale review %s because it %s", r.ID, reason)
 		err := b.dismissPullRequestReview(ctx, v4client, r.ID, message)
 		if err != nil {
+			logger.Err(errors.WithStack(err)).Msg("Failed to dismiss stale review")
 			return err
 		}
 	}
+
 	return nil
 }
 

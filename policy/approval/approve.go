@@ -134,7 +134,7 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 	}
 	res.PredicateResults = predicateResults
 
-	allowedCandidates, discardedReviews, err := r.FilteredCandidates(ctx, prctx)
+	allowedCandidates, err := r.FilteredCandidates(ctx, prctx)
 	if err != nil {
 		res.Error = errors.Wrap(err, "failed to filter candidates")
 		return
@@ -146,7 +146,7 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 		return
 	}
 
-	res.DiscardedReviews = discardedReviews
+	res.AllowedCandidates = allowedCandidates
 
 	res.StatusDescription = msg
 	if approved {
@@ -256,112 +256,83 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context, candidates []
 	return false, msg, nil
 }
 
-func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*common.Candidate, []*common.DiscardedReview, error) {
+func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*common.Candidate, error) {
 	candidates, err := r.Options.GetMethods().Candidates(ctx, prctx)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to get approval candidates")
+		return nil, errors.Wrap(err, "failed to get approval candidates")
 	}
 
 	sort.Stable(common.CandidatesByCreationTime(candidates))
 
-	var discardedCandidates []*common.Candidate
-	var discardedReviews []*common.DiscardedReview
-
 	if r.Options.IgnoreEditedComments {
-		candidates, discardedCandidates, err = r.filterEditedCandidates(ctx, prctx, candidates)
+		candidates, err = r.filterEditedCandidates(ctx, prctx, candidates)
 		if err != nil {
-			return nil, nil, err
-		}
-
-		for _, c := range discardedCandidates {
-			if c.Type == common.ReviewCandidate {
-				discardedReviews = append(discardedReviews, &common.DiscardedReview{
-					ID:     c.ReviewID,
-					Reason: "edited",
-				})
-			}
+			return nil, err
 		}
 	}
 
 	if r.Options.InvalidateOnPush {
-		candidates, discardedCandidates, err = r.filterInvalidCandidates(ctx, prctx, candidates)
+		candidates, err = r.filterInvalidCandidates(ctx, prctx, candidates)
 		if err != nil {
-			return nil, nil, err
-		}
-
-		for _, c := range discardedCandidates {
-			if c.Type == common.ReviewCandidate {
-				discardedReviews = append(discardedReviews, &common.DiscardedReview{
-					ID:     c.ReviewID,
-					Reason: "invalidated by pushing another commit",
-				})
-			}
+			return nil, err
 		}
 	}
 
-	return candidates, discardedReviews, nil
+	return candidates, nil
 }
 
-func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) (allowed []*common.Candidate, discarded []*common.Candidate, err error) {
+func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, error) {
 	log := zerolog.Ctx(ctx)
 
 	if !r.Options.IgnoreEditedComments {
-		return candidates, nil, nil
+		return candidates, nil
 	}
 
 	var allowedCandidates []*common.Candidate
-	var discardedCandidates []*common.Candidate
-
 	for _, candidate := range candidates {
 		if candidate.LastEditedAt.IsZero() {
 			allowedCandidates = append(allowedCandidates, candidate)
-		} else {
-			discardedCandidates = append(discardedCandidates, candidate)
 		}
 	}
 
-	log.Debug().Msgf("discarded %d candidates with edited comments", len(discardedCandidates))
+	log.Debug().Msgf("discarded %d candidates with edited comments", len(candidates)-len(allowedCandidates))
 
-	return allowedCandidates, discardedCandidates, nil
+	return allowedCandidates, nil
 }
 
-func (r *Rule) filterInvalidCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) (allowed []*common.Candidate, discarded []*common.Candidate, err error) {
+func (r *Rule) filterInvalidCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, error) {
 	log := zerolog.Ctx(ctx)
 
 	if !r.Options.InvalidateOnPush {
-		return candidates, nil, nil
+		return candidates, nil
 	}
 
 	commits, err := r.filteredCommits(ctx, prctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if len(commits) == 0 {
-		return candidates, nil, nil
+		return candidates, nil
 	}
 
 	last := findLastPushed(commits)
 	if last == nil {
-		return nil, nil, errors.New("no commit contained a push date")
+		return nil, errors.New("no commit contained a push date")
 	}
 
 	var allowedCandidates []*common.Candidate
-	var discardedCandidates []*common.Candidate
-
 	for _, candidate := range candidates {
 		if candidate.CreatedAt.After(*last.PushedAt) {
 			allowedCandidates = append(allowedCandidates, candidate)
-		} else {
-			discardedCandidates = append(discardedCandidates, candidate)
 		}
 	}
 
 	log.Debug().Msgf("discarded %d candidates invalidated by push of %s at %s",
-		len(discardedCandidates),
+		len(candidates)-len(allowedCandidates),
 		last.SHA,
 		last.PushedAt.Format(time.RFC3339))
 
-	return allowedCandidates, discardedCandidates, nil
+	return allowedCandidates, nil
 }
 
 func (r *Rule) filteredCommits(ctx context.Context, prctx pull.Context) ([]*pull.Commit, error) {
