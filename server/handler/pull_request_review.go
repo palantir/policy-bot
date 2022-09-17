@@ -20,6 +20,7 @@ import (
 
 	"github.com/google/go-github/v45/github"
 	"github.com/palantir/go-githubapp/githubapp"
+	"github.com/palantir/policy-bot/policy/approval"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
@@ -39,8 +40,40 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 		return errors.Wrap(err, "failed to parse pull request review event payload")
 	}
 
+	pr := event.GetPullRequest()
+	repo := event.GetRepo()
+	owner := repo.GetOwner().GetLogin()
+	number := event.GetPullRequest().GetNumber()
 	installationID := githubapp.GetInstallationIDFromEvent(&event)
+
+	client, err := h.NewInstallationClient(installationID)
+	if err != nil {
+		return err
+	}
+
+	v4client, err := h.NewInstallationV4Client(installationID)
+	if err != nil {
+		return err
+	}
+
 	ctx, _ = h.PreparePRContext(ctx, installationID, event.GetPullRequest())
+
+	mbrCtx := NewCrossOrgMembershipContext(ctx, client, owner, h.Installations, h.ClientCreator)
+	prctx, err := pull.NewGitHubContext(ctx, mbrCtx, client, v4client, pull.Locator{
+		Owner:  owner,
+		Repo:   repo.GetName(),
+		Number: number,
+		Value:  pr,
+	})
+	if err != nil {
+		return err
+	}
+
+	fc := h.ConfigFetcher.ConfigForPR(ctx, prctx, client)
+
+	if !h.affectsApproval(event.GetReview().GetState(), fc.Config.ApprovalRules) {
+		return nil
+	}
 
 	return h.Evaluate(ctx, installationID, common.TriggerReview, pull.Locator{
 		Owner:  event.GetRepo().GetOwner().GetLogin(),
@@ -48,4 +81,14 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 		Number: event.GetPullRequest().GetNumber(),
 		Value:  event.GetPullRequest(),
 	})
+}
+
+func (h *PullRequestReview) affectsApproval(reviewState string, rules []*approval.Rule) bool {
+	for _, rule := range rules {
+		if reviewState == string(rule.Options.GetMethods().GithubReviewState) {
+			return true
+		}
+	}
+
+	return false
 }

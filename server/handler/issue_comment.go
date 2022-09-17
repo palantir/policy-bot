@@ -100,6 +100,10 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 		return nil
 	}
 
+	if !h.affectsApproval(event.GetComment().GetBody(), fc.Config.ApprovalRules) {
+		return nil
+	}
+
 	result, err := h.Base.EvaluateFetchedConfig(ctx, prctx, client, evaluator, fc)
 	if err != nil {
 		return err
