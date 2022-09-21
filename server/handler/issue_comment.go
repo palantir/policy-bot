@@ -100,7 +100,7 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 		return nil
 	}
 
-	if !h.affectsApproval(event.GetComment().GetBody(), fc.Config.ApprovalRules) {
+	if !h.affectsApproval(event, fc.Config.ApprovalRules) {
 		return nil
 	}
 
@@ -115,15 +115,7 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 func (h *IssueComment) detectAndLogTampering(ctx context.Context, prctx pull.Context, client *github.Client, event github.IssueCommentEvent, config *policy.Config) bool {
 	logger := zerolog.Ctx(ctx)
 
-	var originalBody string
-	switch event.GetAction() {
-	case "edited":
-		originalBody = event.GetChanges().GetBody().GetFrom()
-
-	case "deleted":
-		originalBody = event.GetComment().GetBody()
-
-	default:
+	if event.GetAction() == "created" {
 		return false
 	}
 
@@ -133,7 +125,7 @@ func (h *IssueComment) detectAndLogTampering(ctx context.Context, prctx pull.Con
 		return false
 	}
 
-	if h.affectsApproval(originalBody, config.ApprovalRules) {
+	if h.affectsApproval(event, config.ApprovalRules) {
 		msg := fmt.Sprintf("Entity %s edited approval comment by %s", eventAuthor, commentAuthor)
 		logger.Warn().Str(LogKeyAudit, "issue_comment").Msg(msg)
 
@@ -145,9 +137,18 @@ func (h *IssueComment) detectAndLogTampering(ctx context.Context, prctx pull.Con
 	return true
 }
 
-func (h *IssueComment) affectsApproval(actualComment string, rules []*approval.Rule) bool {
+func (h *IssueComment) affectsApproval(event github.IssueCommentEvent, rules []*approval.Rule) bool {
+	var originalBody string
+	switch event.GetAction() {
+	case "edited":
+		originalBody = event.GetChanges().GetBody().GetFrom()
+
+	case "created", "deleted":
+		originalBody = event.GetComment().GetBody()
+	}
+
 	for _, rule := range rules {
-		if rule.Options.GetMethods().CommentMatches(actualComment) {
+		if rule.Options.GetMethods().CommentMatches(originalBody) {
 			return true
 		}
 	}

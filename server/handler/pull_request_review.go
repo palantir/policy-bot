@@ -71,21 +71,30 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 
 	fc := h.ConfigFetcher.ConfigForPR(ctx, prctx, client)
 
-	if !h.affectsApproval(event.GetReview().GetState(), fc.Config.ApprovalRules) {
+	evaluator, err := h.Base.ValidateFetchedConfig(ctx, prctx, client, fc, common.TriggerReview)
+	if err != nil {
+		return err
+	}
+	if evaluator == nil {
 		return nil
 	}
 
-	return h.Evaluate(ctx, installationID, common.TriggerReview, pull.Locator{
-		Owner:  event.GetRepo().GetOwner().GetLogin(),
-		Repo:   event.GetRepo().GetName(),
-		Number: event.GetPullRequest().GetNumber(),
-		Value:  event.GetPullRequest(),
-	})
+	reviewState := pull.ReviewState(event.GetReview().GetState())
+	if !h.affectsApproval(reviewState, fc.Config.ApprovalRules) {
+		return nil
+	}
+
+	_, err = h.Base.EvaluateFetchedConfig(ctx, prctx, client, evaluator, fc)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (h *PullRequestReview) affectsApproval(reviewState string, rules []*approval.Rule) bool {
+func (h *PullRequestReview) affectsApproval(reviewState pull.ReviewState, rules []*approval.Rule) bool {
 	for _, rule := range rules {
-		if reviewState == string(rule.Options.GetMethods().GithubReviewState) {
+		if reviewState == rule.Options.GetMethods().GithubReviewState {
 			return true
 		}
 	}
