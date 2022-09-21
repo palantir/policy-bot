@@ -425,7 +425,15 @@ func (b *Base) reviewIsAllowed(review *pull.Review, allowedCandidates []*common.
 	return false
 }
 
-func (b *Base) reasonForDimissedReview(review *pull.Review) string {
+// We already know that these are discarded review candidates for one of three reasons
+// so first we check for edited and then we check to see if its a review thats at least
+// 5 seconds old and we know that it was invalidated by a new commit, and then finally
+// if it was missing a github review comment pattern that was required.
+//
+// This is brittle and may need refactoring in future versions because it assumes the bot
+// will take less than 5 seconds to respond, but thought that having a dismissal reason
+// was valuable.
+func (b *Base) reasonForDismissedReview(review *pull.Review) string {
 	if !review.LastEditedAt.IsZero() {
 		return "was edited"
 	}
@@ -466,12 +474,12 @@ func (b *Base) dismissStaleReviewsForResult(ctx context.Context, prctx pull.Cont
 			continue
 		}
 
-		reason := b.reasonForDimissedReview(r)
-		message := fmt.Sprintf("dismissed because the approval %s", reason)
-		logger.Info().Msgf("dismissing stale review %s because it %s", r.ID, reason)
+		reason := b.reasonForDismissedReview(r)
+		message := fmt.Sprintf("Dismissed because the approval %s", reason)
+		logger.Info().Msgf("Dismissing stale review %s because it %s", r.ID, reason)
 		err := b.dismissPullRequestReview(ctx, v4client, r.ID, message)
 		if err != nil {
-			logger.Err(errors.WithStack(err)).Msg("Failed to dismiss stale review")
+			logger.Err(err).Msg("Failed to dismiss stale review")
 			return err
 		}
 	}
