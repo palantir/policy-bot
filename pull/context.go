@@ -201,6 +201,7 @@ const (
 )
 
 type Review struct {
+	ID           string
 	CreatedAt    time.Time
 	LastEditedAt time.Time
 	Author       string

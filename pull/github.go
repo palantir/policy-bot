@@ -1009,6 +1009,7 @@ func (pi v4PageInfo) UpdateCursor(vars map[string]interface{}, name string) bool
 }
 
 type v4PullRequestReview struct {
+	ID           string
 	Author       v4Actor
 	State        string
 	Body         string
@@ -1035,6 +1036,7 @@ func (r *v4PullRequestReview) ToReview() *Review {
 	}
 
 	return &Review{
+		ID:           r.ID,
 		CreatedAt:    r.SubmittedAt,
 		LastEditedAt: r.LastEditedAt,
 		Author:       r.Author.GetV3Login(),

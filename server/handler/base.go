@@ -31,6 +31,7 @@ import (
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"github.com/shurcooL/githubv4"
 )
 
 const (
@@ -186,7 +187,17 @@ func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger commo
 		return err
 	}
 
-	return b.RequestReviewsForResult(ctx, prctx, client, trigger, result)
+	err = b.RequestReviewsForResult(ctx, prctx, client, trigger, result)
+	if err != nil {
+		return err
+	}
+
+	err = b.dismissStaleReviewsForResult(ctx, prctx, v4client, result)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (b *Base) ValidateFetchedConfig(ctx context.Context, prctx pull.Context, client *github.Client, fc FetchedConfig, trigger common.Trigger) (common.Evaluator, error) {
@@ -389,6 +400,110 @@ func selectionToReviewersRequest(s reviewer.Selection) github.ReviewersRequest {
 	}
 
 	return req
+}
+
+func (b *Base) findResultsWithAllowedCandidates(result *common.Result) []*common.Result {
+	var results []*common.Result
+	for _, c := range result.Children {
+		results = append(results, b.findResultsWithAllowedCandidates(c)...)
+	}
+
+	if len(result.Children) == 0 && len(result.AllowedCandidates) > 0 && result.Error == nil {
+		results = append(results, result)
+	}
+
+	return results
+}
+
+func (b *Base) reviewIsAllowed(review *pull.Review, allowedCandidates []*common.Candidate) bool {
+	for _, candidate := range allowedCandidates {
+		if review.ID == candidate.ReviewID {
+			return true
+		}
+	}
+
+	return false
+}
+
+// We already know that these are discarded review candidates for one of three reasons
+// so first we check for edited and then we check to see if its a review thats at least
+// 5 seconds old and we know that it was invalidated by a new commit, and then finally
+// if it was missing a github review comment pattern that was required.
+//
+// This is brittle and may need refactoring in future versions because it assumes the bot
+// will take less than 5 seconds to respond, but thought that having a dismissal reason
+// was valuable.
+func (b *Base) reasonForDismissedReview(review *pull.Review) string {
+	if !review.LastEditedAt.IsZero() {
+		return "was edited"
+	}
+
+	if review.CreatedAt.Before(time.Now().Add(-5 * time.Second)) {
+		return "was invalidated by another commit"
+	}
+
+	return "didn't include a valid comment pattern"
+}
+
+func (b *Base) dismissStaleReviewsForResult(ctx context.Context, prctx pull.Context, v4client *githubv4.Client, result common.Result) error {
+	logger := zerolog.Ctx(ctx)
+
+	var allowedCandidates []*common.Candidate
+
+	results := b.findResultsWithAllowedCandidates(&result)
+	for _, res := range results {
+		for _, candidate := range res.AllowedCandidates {
+			if candidate.Type != common.ReviewCandidate {
+				continue
+			}
+			allowedCandidates = append(allowedCandidates, candidate)
+		}
+	}
+
+	reviews, err := prctx.Reviews()
+	if err != nil {
+		return err
+	}
+
+	for _, r := range reviews {
+		if r.State != pull.ReviewApproved {
+			continue
+		}
+
+		if b.reviewIsAllowed(r, allowedCandidates) {
+			continue
+		}
+
+		reason := b.reasonForDismissedReview(r)
+		message := fmt.Sprintf("Dismissed because the approval %s", reason)
+		logger.Info().Msgf("Dismissing stale review %s because it %s", r.ID, reason)
+		err := b.dismissPullRequestReview(ctx, v4client, r.ID, message)
+		if err != nil {
+			logger.Err(err).Msg("Failed to dismiss stale review")
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (b *Base) dismissPullRequestReview(ctx context.Context, v4client *githubv4.Client, reviewID string, message string) error {
+	var m struct {
+		DismissPullRequestReview struct {
+			ClientMutationID *githubv4.String
+		} `graphql:"dismissPullRequestReview(input: $input)"`
+	}
+
+	input := githubv4.DismissPullRequestReviewInput{
+		PullRequestReviewID: githubv4.String(reviewID),
+		Message:             githubv4.String(message),
+	}
+
+	if err := v4client.Mutate(ctx, &m, input, nil); err != nil {
+		return errors.Wrapf(err, "failed to dismiss pull request review %s", reviewID)
+	}
+
+	return nil
 }
 
 func setStringFromEnv(key, prefix string, value *string) bool {

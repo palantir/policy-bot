@@ -136,11 +136,20 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 		}
 	}
 	res.PredicateResults = predicateResults
-	approved, msg, err := r.IsApproved(ctx, prctx)
+
+	allowedCandidates, err := r.FilteredCandidates(ctx, prctx)
+	if err != nil {
+		res.Error = errors.Wrap(err, "failed to filter candidates")
+		return
+	}
+
+	approved, msg, err := r.IsApproved(ctx, prctx, allowedCandidates)
 	if err != nil {
 		res.Error = errors.Wrap(err, "failed to compute approval status")
 		return
 	}
+
+	res.AllowedCandidates = allowedCandidates
 
 	res.StatusDescription = msg
 	if approved {
@@ -149,6 +158,7 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 		res.Status = common.StatusPending
 		res.ReviewRequestRule = r.getReviewRequestRule()
 	}
+
 	return
 }
 
@@ -172,17 +182,12 @@ func (r *Rule) getReviewRequestRule() *common.ReviewRequestRule {
 	}
 }
 
-func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string, error) {
+func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) (bool, string, error) {
 	log := zerolog.Ctx(ctx)
 
 	if r.Requires.Count <= 0 {
 		log.Debug().Msg("rule requires no approvals")
 		return true, "No approval required", nil
-	}
-
-	candidates, err := r.filteredCandidates(ctx, prctx)
-	if err != nil {
-		return false, "", err
 	}
 
 	log.Debug().Msgf("found %d candidates for approval", len(candidates))
@@ -254,7 +259,7 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context) (bool, string
 	return false, msg, nil
 }
 
-func (r *Rule) filteredCandidates(ctx context.Context, prctx pull.Context) ([]*common.Candidate, error) {
+func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*common.Candidate, error) {
 	candidates, err := r.Options.GetMethods().Candidates(ctx, prctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get approval candidates")
@@ -288,15 +293,12 @@ func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, c
 
 	var allowedCandidates []*common.Candidate
 	for _, candidate := range candidates {
-		if r.Options.IgnoreEditedComments {
-			if candidate.LastEditedAt.IsZero() {
-				allowedCandidates = append(allowedCandidates, candidate)
-			}
+		if candidate.LastEditedAt.IsZero() {
+			allowedCandidates = append(allowedCandidates, candidate)
 		}
 	}
 
-	log.Debug().Msgf("discarded %d candidates with edited comments",
-		len(candidates)-len(allowedCandidates))
+	log.Debug().Msgf("discarded %d candidates with edited comments", len(candidates)-len(allowedCandidates))
 
 	return allowedCandidates, nil
 }
