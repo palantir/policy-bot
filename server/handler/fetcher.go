@@ -16,7 +16,6 @@ package handler
 
 import (
 	"context"
-
 	"github.com/google/go-github/v45/github"
 	"github.com/palantir/go-githubapp/appconfig"
 	"github.com/palantir/policy-bot/policy"
@@ -37,10 +36,8 @@ type ConfigFetcher struct {
 	Loader *appconfig.Loader
 }
 
-func (cf *ConfigFetcher) ConfigForPR(ctx context.Context, prctx pull.Context, client *github.Client) FetchedConfig {
-	base, _ := prctx.Branches()
-
-	c, err := cf.Loader.LoadConfig(ctx, client, prctx.RepositoryOwner(), prctx.RepositoryName(), base)
+func (cf *ConfigFetcher) ConfigForPRBranch(ctx context.Context, prctx pull.Context, client *github.Client, branch string) *FetchedConfig {
+	c, err := cf.Loader.LoadConfig(ctx, client, prctx.RepositoryOwner(), prctx.RepositoryName(), branch)
 	fc := FetchedConfig{
 		Source: c.Source,
 		Path:   c.Path,
@@ -49,9 +46,9 @@ func (cf *ConfigFetcher) ConfigForPR(ctx context.Context, prctx pull.Context, cl
 	switch {
 	case err != nil:
 		fc.LoadError = err
-		return fc
+		return &fc
 	case c.IsUndefined():
-		return fc
+		return &fc
 	}
 
 	var pc policy.Config
@@ -60,5 +57,11 @@ func (cf *ConfigFetcher) ConfigForPR(ctx context.Context, prctx pull.Context, cl
 	} else {
 		fc.Config = &pc
 	}
-	return fc
+	return &fc
+}
+
+func (cf *ConfigFetcher) ConfigForPR(ctx context.Context, prctx pull.Context, client *github.Client) *FetchedConfig {
+	base, _ := prctx.Branches()
+
+	return cf.ConfigForPRBranch(ctx, prctx, client, base)
 }

@@ -1,12 +1,14 @@
-{{/* templatetree:extends page.html.tmpl */}}
+{{/* templatetree:extends base-details.html.tmpl */}}
 {{define "title"}}{{.PullRequest.GetBase.GetRepo.GetFullName}}#{{.PullRequest.GetNumber}} - Details | PolicyBot{{end}}
 
 {{define "scripts"}}
-<script defer src="{{ resource "js/filter.js" }}"></script>
+  <script defer src="{{ resource "js/filter.js" }}"></script>
+  <script defer src="{{ resource "js/footer-link.js" }}"></script>
 {{end}}
 
 {{define "body-class"}}bg-light-gray5 text-dark-gray1 flex flex-col h-screen{{end}}
-{{define "body"}}
+
+{{define "top"}}
   <header class="w-full tripart p-4 bg-white shadow-sm z-10 relative">
     <a href="{{.PolicyURL}}" title="View the policy definition on GitHub"
        class="px-2 py-1 text-xs text-dark-gray3 bg-light-gray3 border border-light-gray2 rounded-sm truncate max-w-full hover:bg-light-gray2 no-underline hover:no-underline">
@@ -21,142 +23,10 @@
       {{.User}}
     </span>
   </header>
-  {{if .Error}}
-    <div class="status-banner error">
-      <h2 class="mb-1 text-lg font-bold">Error</h2>
-      <p>{{.Error}}</p>
-      {{if .IsTemporaryError}}
-          <p class="status-temporary">This error may be temporary. Wait 30 seconds and refresh this page to retry.</p>
-      {{end}}
-    </div>
-  {{else}}
-    {{ $s := (or (and .Result.Error "error") (.Result.Status | print)) }}
-    <div class="status-banner {{$s}} flex flex-wrap items-center justify-between">
-      <div>
-        <h2 class="mb-1 text-lg font-bold">Status: {{$s | titlecase}}</h2>
-        <p>{{or .Result.Error .Result.StatusDescription}}</p>
-      </div>
-      <div class="p-2 rounded-md bg-white text-dark-gray1 text-sm text-shadow-none">
-        <div class="toggle">
-            <input id="filter-toggle" type="checkbox" autocomplete="off" />
-            <label for="filter-toggle">Hide skipped rules</label>
-        </div>
-      </div>
-    </div>
-    <div class="pl-8 overflow-auto flex-grow">
-      <ul class="tree px-4 pb-4">
-          {{range .Result.Children | sortByStatus}}{{template "result" .}}{{end}}
-      </ul>
-    </div>
-  {{end}}
 {{end}}
 
-{{define "result"}}
-{{ $s := (or (and .Error "error") (.Status | print)) }}
-<li data-status="{{$s}}">
-  <div class="bg-white p-2 shadow-sm max-w-lg status-stripe {{$s}}">
-    {{template "result-details" .}}
-    {{if (or (.PredicateResults) (hasRequires .Requires) (hasRequiresPermissions .Requires))}}
-    <details class="bg-light-gray5 p-2 mt-2 text-sm">
-      <summary class="text-dark-gray3 font-semibold">Details</summary>
-      <div class="border-t border-light-gray3 mt-2 overflow-x-auto whitespace-nowrap">
-       {{if .PredicateResults}}
-          <div class="pt-2">
-            {{template "result-predicates-details" .}}
-          </div>
-        {{end}}
-        {{if (hasRequires .Requires)}}
-          <div class="pt-2">
-          {{template "result-requires-details" .}}
-          </div>
-        {{end}}
-        {{if (hasRequiresPermissions .Requires)}}
-          <div class="pt-2">
-          {{template "result-requires-permissions-details" .}}
-          </div>
-        {{end}}
-      </div>
-    </details>
-    {{end}}
-  </div>
-  {{if .Children}}
-  <ul class="tree">
-    {{range .Children | sortByStatus}}{{template "result" .}}{{end}}
-  </ul>
-  {{end}}
-</li>
-{{end}}
-
-{{define "result-details"}}
-  {{ $s := (or (and .Error "error") (.Status | print)) }}
-  <p class="mb-2 flex items-center">
-    <b class="font-bold">{{.Name}}</b>
-    <span class="flex-none status-badge {{$s}}">{{$s | titlecase}}</span>
-  </p>
-  {{if (and .Description (ne $s "skipped"))}}
-  <p class="mb-2 text-dark-gray3 text-sm">{{.Description}}</p>
-  {{end}}
-  <p class="text-dark-gray3 text-sm">{{or .Error .StatusDescription}}</p>
-{{end}}
-
-{{define "result-predicates-details"}}
-  {{ $s := (or (and .Error "error") (.Status | print)) }}
-  {{if eq $s "skipped"}}
-    <b class="font-bold">This rule is skipped because</b>
-  {{else}}
-    <b class="font-bold">This rule is selected because</b>
-  {{end}}
-  {{template "result-predicates-info" .}}
-{{end}}
-
-{{define "result-predicates-info"}}
-  {{ $s := (or (and .Error "error") (.Status | print)) }}
-  <ul class="list-decimal list-outside pl-4 my-2">
-  {{range .PredicateResults}}
-    <li>
-      {{if .Values}}
-        The {{.ValuePhrase}}:
-        <ul class="list-disc list-outside pl-6 py-2">
-          {{range .Values}}<li class="font-mono text-sm-mono">{{.}}</li>{{end}}
-        </ul>
-        {{if eq $s "skipped"}}do not {{end}}{{.ConditionPhrase}}
-        {{if .ConditionsMap}}
-        <dl class="pt-2 pl-4">
-        {{range $k, $v := .ConditionsMap}}
-          {{if $v}}
-          <dt>{{$k}}</dt>
-          <dd>
-              <ul class="list-disc list-outside pl-6 py-2">{{range $v}}<li class="font-mono text-sm-mono">{{.}}</li>{{end}}</ul>
-          </dd>
-          {{end}}
-        {{end}}
-        </dl>
-        {{else if .ConditionValues}}
-          <ul class="list-disc list-outside pl-6 py-2">{{range .ConditionValues}}<li class="font-mono text-sm-mono">{{.}}</li>{{end}}</ul>
-        {{end}}
-      {{else}}
-        There are no {{.ValuePhrase}}
-      {{end}}
-    </li>
-  {{end}}
-  </ul>
-{{end}}
-
-{{define "result-requires-details"}}
-  <b class="font-bold text-sm">This rule requires review from</b>
-  <dl class="my-2">
-  {{range $k, $v := getRequires .}}
-    <dt> {{$k}}</dt>
-    <dd>
-        <ul class="list-disc list-outside pl-6 py-2">{{range $v}}<li class="font-mono text-sm-mono"><a href={{.Link}}>{{.Name}}</a></li>{{end}}</ul>
-    </dd>
-  {{end}}
-  </dl>
-{{end}}
-
-{{define "result-requires-permissions-details"}}
-  <b class="font-bold text-sm">This rule requires review from users with the following permissions</b>
-  <ul class="list-disc list-outside pl-6 py-2">
-    {{range getPermissions .}}<li class="font-mono text-sm-mono">{{.}}</li>{{end}}
-  </ul>
+{{define "footer"}}
+  <footer class="bg-white shadow-sm w-full z-10">
+    <button id="details-to-simulate" class="bg-blue3 hover:bg-blue5 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="button">Simulate changes on this PR</button>
+  </footer>
 {{end}}
