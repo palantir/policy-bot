@@ -62,13 +62,12 @@ func (e HandlerPanicError) StackTrace() []runtime.Frame {
 
 // Format formats the error optionally including the stack trace.
 //
-//   %s    the error message
-//   %v    the error message and the source file and line number for each stack frame
+//	%s    the error message
+//	%v    the error message and the source file and line number for each stack frame
 //
 // Format accepts the following flags:
 //
-//   %+v   the error message and the function, file, and line for each stack frame
-//
+//	%+v   the error message and the function, file, and line for each stack frame
 func (e HandlerPanicError) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 's':
