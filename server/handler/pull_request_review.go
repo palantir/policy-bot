@@ -39,6 +39,11 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 		return errors.Wrap(err, "failed to parse pull request review event payload")
 	}
 
+	// Ignore events triggered by policy-bot (e.g. for dismissing stale reviews)
+	if event.GetSender().GetLogin() == h.AppName+"[bot]" {
+		return nil
+	}
+
 	installationID := githubapp.GetInstallationIDFromEvent(&event)
 	ctx, _ = h.PreparePRContext(ctx, installationID, event.GetPullRequest())
 
