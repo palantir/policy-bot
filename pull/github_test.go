@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-github/v45/github"
+	"github.com/google/go-github/v47/github"
 	"github.com/shurcooL/githubv4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -244,6 +244,27 @@ func TestNoReviews(t *testing.T) {
 
 	assert.Empty(t, reviews, "incorrect number of reviews")
 	assert.Equal(t, 1, dataRule.Count, "cached reviews were not used")
+}
+
+func TestBody(t *testing.T) {
+	rp := &ResponsePlayer{}
+	rp.AddRule(
+		GraphQLNodePrefixMatcher("repository.pullRequest"),
+		"testdata/responses/pull_body.yml",
+	)
+
+	ctx := makeContext(t, rp, nil)
+
+	prBody, err := ctx.Body()
+	require.NoError(t, err)
+
+	expectedTime, err := time.Parse(time.RFC3339, "2018-01-12T00:11:50Z")
+	assert.NoError(t, err)
+
+	assert.Equal(t, "/no-platform", prBody.Body)
+	assert.Equal(t, "agirlnamedsophia", prBody.Author)
+	assert.Equal(t, expectedTime, prBody.CreatedAt)
+	assert.Equal(t, expectedTime, prBody.LastEditedAt)
 }
 
 func TestComments(t *testing.T) {

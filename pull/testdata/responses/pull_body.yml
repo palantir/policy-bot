@@ -1,0 +1,17 @@
+- status: 200
+  body: |
+    {
+      "errors": [],
+      "data": {
+        "repository": {
+          "pullRequest": {
+            "body": "/no-platform",
+            "createdAt": "2018-01-12T00:11:50Z",
+            "lastEditedAt": "2018-01-12T00:11:50Z",
+            "author": {
+              "login": "agirlnamedsophia"
+            }
+          }
+        }
+      }
+    }

@@ -56,6 +56,9 @@ type Context interface {
 	// Title returns the title of the pull request
 	Title() string
 
+	// Body returns a struct that includes LastEditedAt for the pull request body
+	Body() (*Body, error)
+
 	// Author returns the username of the user who opened the pull request.
 	Author() string
 
@@ -198,6 +201,7 @@ const (
 )
 
 type Review struct {
+	ID           string
 	CreatedAt    time.Time
 	LastEditedAt time.Time
 	Author       string
@@ -232,4 +236,11 @@ type CollaboratorPermission struct {
 	// True if Permission is granted by a direct or team association with the
 	// repository. If false, the permission is granted by the organization.
 	ViaRepo bool
+}
+
+type Body struct {
+	Body         string
+	CreatedAt    time.Time
+	Author       string
+	LastEditedAt time.Time
 }

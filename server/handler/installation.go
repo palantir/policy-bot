@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/go-github/v45/github"
+	"github.com/google/go-github/v47/github"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -106,7 +106,7 @@ func (h *Installation) postRepoInstallationStatus(ctx context.Context, client *g
 		State:       &state,
 		Description: &message,
 	}
-	if err := h.PostGitHubRepoStatus(ctx, client, owner, repo, head, status); err != nil {
+	if err := PostStatus(ctx, client, owner, repo, head, status); err != nil {
 		logger.Err(errors.WithStack(err)).Msg("Failed to post repo status")
 	}
 }

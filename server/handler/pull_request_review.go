@@ -18,7 +18,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/google/go-github/v45/github"
+	"github.com/google/go-github/v47/github"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/policy-bot/policy/approval"
 	"github.com/palantir/policy-bot/policy/common"
@@ -40,26 +40,20 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 		return errors.Wrap(err, "failed to parse pull request review event payload")
 	}
 
+	// Ignore events triggered by policy-bot (e.g. for dismissing stale reviews)
+	if event.GetSender().GetLogin() == h.AppName+"[bot]" {
+		return nil
+	}
+
 	pr := event.GetPullRequest()
 	repo := event.GetRepo()
 	owner := repo.GetOwner().GetLogin()
 	number := event.GetPullRequest().GetNumber()
 	installationID := githubapp.GetInstallationIDFromEvent(&event)
 
-	client, err := h.NewInstallationClient(installationID)
-	if err != nil {
-		return err
-	}
+	ctx, _ = h.PreparePRContext(ctx, installationID, pr)
 
-	v4client, err := h.NewInstallationV4Client(installationID)
-	if err != nil {
-		return err
-	}
-
-	ctx, _ = h.PreparePRContext(ctx, installationID, event.GetPullRequest())
-
-	mbrCtx := NewCrossOrgMembershipContext(ctx, client, owner, h.Installations, h.ClientCreator)
-	prctx, err := pull.NewGitHubContext(ctx, mbrCtx, client, v4client, pull.Locator{
+	evalCtx, err := h.NewEvalContext(ctx, installationID, pull.Locator{
 		Owner:  owner,
 		Repo:   repo.GetName(),
 		Number: number,
@@ -69,9 +63,7 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 		return err
 	}
 
-	fc := h.ConfigFetcher.ConfigForPR(ctx, prctx, client)
-
-	evaluator, err := h.Base.ValidateFetchedConfig(ctx, prctx, client, fc, common.TriggerReview)
+	evaluator, err := evalCtx.ParseConfig(ctx, common.TriggerComment)
 	if err != nil {
 		return err
 	}
@@ -80,15 +72,16 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 	}
 
 	reviewState := pull.ReviewState(event.GetReview().GetState())
-	if !h.affectsApproval(reviewState, fc.Config.ApprovalRules) {
+	if !h.affectsApproval(reviewState, evalCtx.Config.Config.ApprovalRules) {
 		return nil
 	}
 
-	_, err = h.Base.EvaluateFetchedConfig(ctx, prctx, client, evaluator, fc)
+	result, err := evalCtx.EvaluatePolicy(ctx, evaluator)
 	if err != nil {
 		return err
 	}
 
+	evalCtx.RunPostEvaluateActions(ctx, result, common.TriggerComment)
 	return nil
 }
 

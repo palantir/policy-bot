@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v45/github"
+	"github.com/google/go-github/v47/github"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/shurcooL/githubv4"
@@ -183,6 +183,37 @@ func (ghc *GitHubContext) Number() int {
 
 func (ghc *GitHubContext) Title() string {
 	return ghc.pr.Title
+}
+
+type v4PullRequestWithEditedAt struct {
+	Author       v4Actor
+	CreatedAt    time.Time
+	LastEditedAt time.Time
+	Body         string
+}
+
+func (ghc *GitHubContext) Body() (*Body, error) {
+	var q struct {
+		Repository struct {
+			PullRequest v4PullRequestWithEditedAt `graphql:"pullRequest(number: $number)"`
+		} `graphql:"repository(owner: $owner, name: $name)"`
+	}
+	qvars := map[string]interface{}{
+		"owner":  githubv4.String(ghc.owner),
+		"name":   githubv4.String(ghc.repo),
+		"number": githubv4.Int(ghc.number),
+	}
+	if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
+		return nil, errors.Wrap(err, "failed to load pull request details")
+	}
+	graphqlResponse := &q.Repository.PullRequest
+
+	return &Body{
+		Body:         graphqlResponse.Body,
+		CreatedAt:    graphqlResponse.CreatedAt,
+		Author:       graphqlResponse.Author.GetV3Login(),
+		LastEditedAt: graphqlResponse.LastEditedAt,
+	}, nil
 }
 
 func (ghc *GitHubContext) Author() string {
@@ -978,6 +1009,7 @@ func (pi v4PageInfo) UpdateCursor(vars map[string]interface{}, name string) bool
 }
 
 type v4PullRequestReview struct {
+	ID           string
 	Author       v4Actor
 	State        string
 	Body         string
@@ -1004,6 +1036,7 @@ func (r *v4PullRequestReview) ToReview() *Review {
 	}
 
 	return &Review{
+		ID:           r.ID,
 		CreatedAt:    r.SubmittedAt,
 		LastEditedAt: r.LastEditedAt,
 		Author:       r.Author.GetV3Login(),

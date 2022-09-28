@@ -24,7 +24,7 @@ import (
 
 	"github.com/alexedwards/scs"
 	"github.com/bluekeyes/templatetree"
-	"github.com/google/go-github/v45/github"
+	"github.com/google/go-github/v47/github"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
@@ -64,11 +64,6 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to create github client")
 	}
 
-	v4client, err := h.ClientCreator.NewInstallationV4Client(installation.ID)
-	if err != nil {
-		return errors.Wrap(err, "failed to create github client")
-	}
-
 	sess := h.Sessions.Load(r)
 	user, err := sess.GetString(SessionKeyUsername)
 	if err != nil {
@@ -101,8 +96,7 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 
 	ctx, _ = h.PreparePRContext(ctx, installation.ID, pr)
 
-	mbrCtx := NewCrossOrgMembershipContext(ctx, client, owner, h.Installations, h.ClientCreator)
-	prctx, err := pull.NewGitHubContext(ctx, mbrCtx, client, v4client, pull.Locator{
+	evalCtx, err := h.NewEvalContext(ctx, installation.ID, pull.Locator{
 		Owner:  owner,
 		Repo:   repo,
 		Number: number,
@@ -123,21 +117,19 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 
 	data.PullRequest = pr
 	data.User = user
+	data.PolicyURL = getPolicyURL(pr, evalCtx.Config)
 
-	config := h.ConfigFetcher.ConfigForPR(ctx, prctx, client)
-	data.PolicyURL = getPolicyURL(pr, config)
-
-	evaluator, err := h.Base.ValidateFetchedConfig(ctx, prctx, client, config, common.TriggerAll)
+	evaluator, err := evalCtx.ParseConfig(ctx, common.TriggerAll)
 	if err != nil {
 		data.Error = err
 		return h.render(w, data)
 	}
 	if evaluator == nil {
-		data.Error = errors.Errorf("Invalid policy at %s: %s", config.Source, config.Path)
+		data.Error = errors.Errorf("Invalid policy at %s: %s", evalCtx.Config.Source, evalCtx.Config.Path)
 		return h.render(w, data)
 	}
 
-	result, err := h.Base.EvaluateFetchedConfig(ctx, prctx, client, evaluator, config)
+	result, err := evalCtx.EvaluatePolicy(ctx, evaluator)
 	data.Result = &result
 
 	if err != nil {
@@ -146,6 +138,11 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 		}
 		data.Error = err
 	}
+
+	// Intentionally skip evalCtx.RunPostEvaluateActions() for details
+	// evaluations to minimize side-effects when viewing policy status. These
+	// actions are best-effort, so if they were missed by normal event
+	// handling, we don't _need_ to retry them here.
 
 	return h.render(w, data)
 }

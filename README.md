@@ -318,7 +318,7 @@ options:
   # approvals for this rule. False by default.
   invalidate_on_push: false
 
-  # If true, comments on PRs and review comments that have been edited in any way
+  # If true, comments on PRs, the PR Body, and review comments that have been edited in any way
   # will be ignored when evaluating approval rules. Default is false.
   ignore_edited_comments: false
 
@@ -384,6 +384,12 @@ options:
     # approval candidates. Defaults to an empty list.
     github_review_comment_patterns:
       - '\b(?i)domain\s*lgtm\b'
+
+    # Just like the "comment_patterns" and "github_review_comment_patterns" option, but
+    # for the PR Body description. If a PR body contains a string in this list, it counts as approval. Use
+    # the "body_patterns" option if you want to match strings.
+    body_patterns:
+      - "\b(?i)no-platform"
 
 # "requires" specifies the approval requirements for the rule. If the block
 # does not exist, the rule is automatically approved.

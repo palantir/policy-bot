@@ -69,6 +69,7 @@ type Result struct {
 	Requires          Actors
 
 	ReviewRequestRule *ReviewRequestRule
+	AllowedCandidates []*Candidate
 
 	Children []*Result
 }
