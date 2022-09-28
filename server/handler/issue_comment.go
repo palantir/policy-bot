@@ -93,6 +93,7 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 	}
 
 	if !h.affectsApproval(event, evalCtx.Config.Config.ApprovalRules) {
+		logger.Debug().Msg("Skipping evaluation because this comment does not impact approval")
 		return nil
 	}
 
@@ -131,17 +132,19 @@ func (h *IssueComment) detectAndLogTampering(ctx context.Context, evalCtx *EvalC
 }
 
 func (h *IssueComment) affectsApproval(event github.IssueCommentEvent, rules []*approval.Rule) bool {
-	var originalBody string
+	var body, originalBody string
 	switch event.GetAction() {
 	case "edited":
+		body = event.GetComment().GetBody()
 		originalBody = event.GetChanges().GetBody().GetFrom()
-
-	case "created", "deleted":
-		originalBody = event.GetComment().GetBody()
+	default:
+		body = event.GetComment().GetBody()
+		originalBody = body
 	}
 
 	for _, rule := range rules {
-		if rule.Options.GetMethods().CommentMatches(originalBody) {
+		methods := rule.Options.GetMethods()
+		if methods.CommentMatches(body) || (body != originalBody && methods.CommentMatches(originalBody)) {
 			return true
 		}
 	}

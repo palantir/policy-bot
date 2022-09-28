@@ -51,7 +51,7 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 	number := event.GetPullRequest().GetNumber()
 	installationID := githubapp.GetInstallationIDFromEvent(&event)
 
-	ctx, _ = h.PreparePRContext(ctx, installationID, pr)
+	ctx, logger := h.PreparePRContext(ctx, installationID, pr)
 
 	evalCtx, err := h.NewEvalContext(ctx, installationID, pull.Locator{
 		Owner:  owner,
@@ -73,6 +73,7 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 
 	reviewState := pull.ReviewState(event.GetReview().GetState())
 	if !h.affectsApproval(reviewState, evalCtx.Config.Config.ApprovalRules) {
+		logger.Debug().Msg("Skipping evaluation because this review does not impact approval")
 		return nil
 	}
 
@@ -91,6 +92,5 @@ func (h *PullRequestReview) affectsApproval(reviewState pull.ReviewState, rules 
 			return true
 		}
 	}
-
 	return false
 }
