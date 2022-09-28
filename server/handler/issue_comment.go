@@ -21,7 +21,6 @@ import (
 
 	"github.com/google/go-github/v47/github"
 	"github.com/palantir/go-githubapp/githubapp"
-	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/approval"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
@@ -58,11 +57,6 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 		return err
 	}
 
-	v4client, err := h.NewInstallationV4Client(installationID)
-	if err != nil {
-		return err
-	}
-
 	pr, _, err := client.PullRequests.Get(ctx, owner, repo.GetName(), number)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get pull request %s/%s#%d", owner, repo.GetName(), number)
@@ -70,8 +64,7 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 
 	ctx, logger := h.PreparePRContext(ctx, installationID, pr)
 
-	mbrCtx := NewCrossOrgMembershipContext(ctx, client, owner, h.Installations, h.ClientCreator)
-	prctx, err := pull.NewGitHubContext(ctx, mbrCtx, client, v4client, pull.Locator{
+	evalCtx, err := h.NewEvalContext(ctx, installationID, pull.Locator{
 		Owner:  owner,
 		Repo:   repo.GetName(),
 		Number: number,
@@ -81,18 +74,17 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 		return err
 	}
 
-	fc := h.ConfigFetcher.ConfigForPR(ctx, prctx, client)
 	switch {
-	case fc.LoadError != nil || fc.ParseError != nil:
+	case evalCtx.Config.LoadError != nil || evalCtx.Config.ParseError != nil:
 		logger.Warn().Str(LogKeyAudit, "issue_comment").Msg("Skipping tampering check because the policy is not valid")
-	case fc.Config != nil:
-		tampered := h.detectAndLogTampering(ctx, prctx, client, event, fc.Config)
+	case evalCtx.Config.Config != nil:
+		tampered := h.detectAndLogTampering(ctx, evalCtx, event)
 		if tampered {
 			return nil
 		}
 	}
 
-	evaluator, err := h.Base.ValidateFetchedConfig(ctx, prctx, client, fc, common.TriggerComment)
+	evaluator, err := evalCtx.ParseConfig(ctx, common.TriggerComment)
 	if err != nil {
 		return err
 	}
@@ -100,15 +92,16 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 		return nil
 	}
 
-	result, err := h.Base.EvaluateFetchedConfig(ctx, prctx, client, evaluator, fc)
+	result, err := evalCtx.EvaluatePolicy(ctx, evaluator)
 	if err != nil {
 		return err
 	}
 
-	return h.Base.RequestReviewsForResult(ctx, prctx, client, common.TriggerComment, result)
+	evalCtx.RunPostEvaluateActions(ctx, result, common.TriggerComment)
+	return nil
 }
 
-func (h *IssueComment) detectAndLogTampering(ctx context.Context, prctx pull.Context, client *github.Client, event github.IssueCommentEvent, config *policy.Config) bool {
+func (h *IssueComment) detectAndLogTampering(ctx context.Context, evalCtx *EvalContext, event github.IssueCommentEvent) bool {
 	logger := zerolog.Ctx(ctx)
 
 	var originalBody string
@@ -129,11 +122,11 @@ func (h *IssueComment) detectAndLogTampering(ctx context.Context, prctx pull.Con
 		return false
 	}
 
-	if h.affectsApproval(originalBody, config.ApprovalRules) {
+	if h.affectsApproval(originalBody, evalCtx.Config.Config.ApprovalRules) {
 		msg := fmt.Sprintf("Entity %s edited approval comment by %s", eventAuthor, commentAuthor)
 		logger.Warn().Str(LogKeyAudit, "issue_comment").Msg(msg)
 
-		h.PostStatus(ctx, prctx, client, "failure", msg)
+		evalCtx.PostStatus(ctx, "failure", msg)
 		return true
 	}
 
@@ -147,6 +140,5 @@ func (h *IssueComment) affectsApproval(actualComment string, rules []*approval.R
 			return true
 		}
 	}
-
 	return false
 }
