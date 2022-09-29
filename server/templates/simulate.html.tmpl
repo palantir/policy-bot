@@ -1,10 +1,4 @@
 {{/* templatetree:extends base-details.html.tmpl */}}
-{{define "title"}}{{.PullRequest.GetBase.GetRepo.GetFullName}}#{{.PullRequest.GetNumber}} - Details | PolicyBot{{end}}
-
-{{define "scripts"}}
-  <script defer src="{{ resource "js/filter.js" }}"></script>
-  <script defer src="{{ resource "js/prefill.js" }}"></script>
-{{end}}
 
 {{define "body-class"}}bg-light-gray5 text-dark-gray1 flex flex-col h-screen{{end}}
 
@@ -36,7 +30,7 @@
             <label class="block text-gray-700 text-sm font-bold mb-2" for="branch">Repo Branch</label>
           </div>
           <div class="md:w-3/4">
-            <input class="w-full shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="branch" name="branch" type="text">
+            <input class="w-full shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="branch" name="branch" type="text" data-queryparam="branch">
             <p class="pb-2 pl-2 pt-1 text-gray2 text-sm">The branch of this repository to find .policy.yml</p>
           </div>
         </div>
@@ -45,7 +39,7 @@
             <label class="block text-gray-700 text-sm font-bold mb-2" for="username">Username</label>
           </div>
           <div class="md:w-3/4">
-            <input class="w-full shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="username" name="username" type="text">
+            <input class="w-full shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="username" name="username" type="text" data-queryparam="username">
             <p class="pb-2 pl-2 pt-1 text-gray2 text-sm">A user to simulate an approval from</p>
           </div>
         </div>

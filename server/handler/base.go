@@ -239,7 +239,7 @@ func (b *Base) EvaluateConfig(ctx context.Context, prctx pull.Context, client *g
 	return result
 }
 
-func (b *Base) PostEvaluatedResults(ctx context.Context, prctx pull.Context, client *github.Client, evaluator common.Evaluator, fc *FetchedConfig, result common.Result) (common.Result, error) {
+func (b *Base) PostEvaluatedResults(ctx context.Context, prctx pull.Context, client *github.Client, fc *FetchedConfig, result common.Result) (common.Result, error) {
 	logger := zerolog.Ctx(ctx)
 	statusDescription := result.StatusDescription
 
@@ -274,9 +274,8 @@ func (b *Base) PostEvaluatedResults(ctx context.Context, prctx pull.Context, cli
 
 func (b *Base) EvaluateFetchedConfig(ctx context.Context, prctx pull.Context, client *github.Client, evaluator common.Evaluator, fc *FetchedConfig) (common.Result, error) {
 	res := b.EvaluateConfig(ctx, prctx, client, evaluator, fc)
-	var result, err = b.PostEvaluatedResults(ctx, prctx, client, evaluator, fc, res)
 
-	return result, err
+	return b.PostEvaluatedResults(ctx, prctx, client, fc, res)
 }
 
 func (b *Base) RequestReviewsForResult(ctx context.Context, prctx pull.Context, client *github.Client, trigger common.Trigger, result common.Result) error {

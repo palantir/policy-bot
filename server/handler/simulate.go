@@ -25,13 +25,13 @@ type Simulate struct {
 	DetailsBase
 }
 
-type fakePrContext struct {
+type SimulatePullContext struct {
 	pull.Context
 
 	additionalApprovals []string
 }
 
-func (f *fakePrContext) Reviews() ([]*pull.Review, error) {
+func (f *SimulatePullContext) Reviews() ([]*pull.Review, error) {
 	reviews, err := f.Context.Reviews()
 
 	for _, username := range f.additionalApprovals {
@@ -41,18 +41,18 @@ func (f *fakePrContext) Reviews() ([]*pull.Review, error) {
 	return reviews, err
 }
 
-func new(ctx pull.Context) *fakePrContext {
-	return &fakePrContext{Context: ctx}
+func newSimulatePullContext(ctx pull.Context) *SimulatePullContext {
+	return &SimulatePullContext{Context: ctx}
 }
 
-func (f *fakePrContext) addApproval(username string) {
+func (f *SimulatePullContext) addApproval(username string) {
 	f.additionalApprovals = append(f.additionalApprovals, username)
 }
 
 func (h *Simulate) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
-	owner, repo, number, err := h.getURLParams(w, r)
+	owner, repo, number, err := h.getPrDetails(w, r)
 	if err != nil {
 		return err
 	}
@@ -69,7 +69,7 @@ func (h *Simulate) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 
 	if queryParams.Has("username") && queryParams.Get("username") != "" {
 		username = queryParams.Get("username")
-		fakePrContext := new(prCtx)
+		fakePrContext := newSimulatePullContext(prCtx)
 		fakePrContext.addApproval(username)
 		prCtx = fakePrContext
 	}
@@ -79,7 +79,10 @@ func (h *Simulate) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 		h.render404(w, owner, repo, number)
 		return errors.Wrap(err, "failed to get policy config")
 	}
-	details, client, evaluator, _ := h.generateEvaluationDetails(w, r, policyConfig, prCtx)
+	details, client, evaluator, err := h.generateEvaluationDetails(w, r, policyConfig, prCtx)
+	if err != nil {
+		h.render404(w, owner, repo, number)
+	}
 
 	result := h.Base.EvaluateConfig(ctx, prCtx, client, evaluator, policyConfig)
 	details.Result = &result

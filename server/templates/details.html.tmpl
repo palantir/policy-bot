@@ -1,12 +1,4 @@
 {{/* templatetree:extends base-details.html.tmpl */}}
-{{define "title"}}{{.PullRequest.GetBase.GetRepo.GetFullName}}#{{.PullRequest.GetNumber}} - Details | PolicyBot{{end}}
-
-{{define "scripts"}}
-  <script defer src="{{ resource "js/filter.js" }}"></script>
-  <script defer src="{{ resource "js/footer-link.js" }}"></script>
-{{end}}
-
-{{define "body-class"}}bg-light-gray5 text-dark-gray1 flex flex-col h-screen{{end}}
 
 {{define "top"}}
   <header class="w-full tripart p-4 bg-white shadow-sm z-10 relative">

@@ -48,10 +48,10 @@ type DetailsData struct {
 	PolicyURL        string
 }
 
-func (h *DetailsBase) getURLParams(w http.ResponseWriter, r *http.Request) (string, string, int, error) {
+func (h *DetailsBase) getPrDetails(w http.ResponseWriter, r *http.Request) (string, string, int, error) {
 	owner := pat.Param(r, "owner")
 	repo := pat.Param(r, "repo")
-	//number :=
+
 	number, err := strconv.Atoi(pat.Param(r, "number"))
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Invalid pull request number: %v", err), http.StatusBadRequest)
@@ -65,7 +65,6 @@ func (h *DetailsBase) generatePrContext(ctx context.Context, owner string, repo 
 	installation, err := h.Installations.GetByOwner(ctx, owner)
 	if err != nil {
 		if _, notFound := err.(githubapp.InstallationNotFound); notFound {
-			//h.render404(w, owner, repo, number)
 			return nil, nil
 		}
 		return nil, err
@@ -123,7 +122,6 @@ func (h *DetailsBase) getPolicyConfig(ctx context.Context, prCtx pull.Context, b
 
 func (h *DetailsBase) generateEvaluationDetails(w http.ResponseWriter, r *http.Request, policyConfig *FetchedConfig, prCtx pull.Context) (*DetailsData, *github.Client, common.Evaluator, error) {
 	ctx := r.Context()
-	//logger := zerolog.Ctx(ctx)
 
 	owner := prCtx.RepositoryOwner()
 	repo := prCtx.RepositoryName()
@@ -132,7 +130,6 @@ func (h *DetailsBase) generateEvaluationDetails(w http.ResponseWriter, r *http.R
 	installation, err := h.Installations.GetByOwner(ctx, owner)
 	if err != nil {
 		if _, notFound := err.(githubapp.InstallationNotFound); notFound {
-			h.render404(w, owner, repo, number)
 			return nil, nil, nil, errors.Wrap(err, "Unable to find installation")
 		}
 		return nil, nil, nil, err
@@ -205,7 +202,6 @@ func (h *DetailsBase) render(w http.ResponseWriter, templateName string, data in
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 
-	//fmt.Println(data)
 	return h.Templates.ExecuteTemplate(w, templateName, data)
 }
 
