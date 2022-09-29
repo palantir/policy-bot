@@ -20,6 +20,7 @@ import (
 
 	"github.com/google/go-github/v47/github"
 	"github.com/palantir/go-githubapp/githubapp"
+	"github.com/palantir/policy-bot/policy/approval"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
@@ -44,13 +45,52 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 		return nil
 	}
 
+	pr := event.GetPullRequest()
+	repo := event.GetRepo()
+	owner := repo.GetOwner().GetLogin()
+	number := event.GetPullRequest().GetNumber()
 	installationID := githubapp.GetInstallationIDFromEvent(&event)
-	ctx, _ = h.PreparePRContext(ctx, installationID, event.GetPullRequest())
 
-	return h.Evaluate(ctx, installationID, common.TriggerReview, pull.Locator{
-		Owner:  event.GetRepo().GetOwner().GetLogin(),
-		Repo:   event.GetRepo().GetName(),
-		Number: event.GetPullRequest().GetNumber(),
-		Value:  event.GetPullRequest(),
+	ctx, logger := h.PreparePRContext(ctx, installationID, pr)
+
+	evalCtx, err := h.NewEvalContext(ctx, installationID, pull.Locator{
+		Owner:  owner,
+		Repo:   repo.GetName(),
+		Number: number,
+		Value:  pr,
 	})
+	if err != nil {
+		return err
+	}
+
+	evaluator, err := evalCtx.ParseConfig(ctx, common.TriggerComment)
+	if err != nil {
+		return err
+	}
+	if evaluator == nil {
+		return nil
+	}
+
+	reviewState := pull.ReviewState(event.GetReview().GetState())
+	if !h.affectsApproval(reviewState, evalCtx.Config.Config.ApprovalRules) {
+		logger.Debug().Msg("Skipping evaluation because this review does not impact approval")
+		return nil
+	}
+
+	result, err := evalCtx.EvaluatePolicy(ctx, evaluator)
+	if err != nil {
+		return err
+	}
+
+	evalCtx.RunPostEvaluateActions(ctx, result, common.TriggerComment)
+	return nil
+}
+
+func (h *PullRequestReview) affectsApproval(reviewState pull.ReviewState, rules []*approval.Rule) bool {
+	for _, rule := range rules {
+		if reviewState == rule.Options.GetMethods().GithubReviewState {
+			return true
+		}
+	}
+	return false
 }

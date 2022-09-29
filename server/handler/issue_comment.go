@@ -92,6 +92,11 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 		return nil
 	}
 
+	if !h.affectsApproval(event, evalCtx.Config.Config.ApprovalRules) {
+		logger.Debug().Msg("Skipping evaluation because this comment does not impact approval")
+		return nil
+	}
+
 	result, err := evalCtx.EvaluatePolicy(ctx, evaluator)
 	if err != nil {
 		return err
@@ -104,15 +109,7 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 func (h *IssueComment) detectAndLogTampering(ctx context.Context, evalCtx *EvalContext, event github.IssueCommentEvent) bool {
 	logger := zerolog.Ctx(ctx)
 
-	var originalBody string
-	switch event.GetAction() {
-	case "edited":
-		originalBody = event.GetChanges().GetBody().GetFrom()
-
-	case "deleted":
-		originalBody = event.GetComment().GetBody()
-
-	default:
+	if event.GetAction() == "created" {
 		return false
 	}
 
@@ -122,7 +119,7 @@ func (h *IssueComment) detectAndLogTampering(ctx context.Context, evalCtx *EvalC
 		return false
 	}
 
-	if h.affectsApproval(originalBody, evalCtx.Config.Config.ApprovalRules) {
+	if h.affectsApproval(event, evalCtx.Config.Config.ApprovalRules) {
 		msg := fmt.Sprintf("Entity %s edited approval comment by %s", eventAuthor, commentAuthor)
 		logger.Warn().Str(LogKeyAudit, "issue_comment").Msg(msg)
 
@@ -134,9 +131,20 @@ func (h *IssueComment) detectAndLogTampering(ctx context.Context, evalCtx *EvalC
 	return true
 }
 
-func (h *IssueComment) affectsApproval(actualComment string, rules []*approval.Rule) bool {
+func (h *IssueComment) affectsApproval(event github.IssueCommentEvent, rules []*approval.Rule) bool {
+	var body, originalBody string
+	switch event.GetAction() {
+	case "edited":
+		body = event.GetComment().GetBody()
+		originalBody = event.GetChanges().GetBody().GetFrom()
+	default:
+		body = event.GetComment().GetBody()
+		originalBody = body
+	}
+
 	for _, rule := range rules {
-		if rule.Options.GetMethods().CommentMatches(actualComment) {
+		methods := rule.Options.GetMethods()
+		if methods.CommentMatches(body) || (body != originalBody && methods.CommentMatches(originalBody)) {
 			return true
 		}
 	}
