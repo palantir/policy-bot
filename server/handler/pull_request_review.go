@@ -63,7 +63,7 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 		return err
 	}
 
-	evaluator, err := evalCtx.ParseConfig(ctx, common.TriggerComment)
+	evaluator, err := evalCtx.ParseConfig(ctx, common.TriggerReview)
 	if err != nil {
 		return err
 	}
@@ -82,7 +82,7 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 		return err
 	}
 
-	evalCtx.RunPostEvaluateActions(ctx, result, common.TriggerComment)
+	evalCtx.RunPostEvaluateActions(ctx, result, common.TriggerReview)
 	return nil
 }
 
