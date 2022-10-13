@@ -106,7 +106,7 @@ func (p *Policy) Evaluate(ctx context.Context, prctx pull.Context) (res common.R
 
 	res.Name = "disapproval"
 	res.Status = common.StatusSkipped
-	res.Requires = p.Requires.Actors
+	res.Requires = common.Requires{Actors: p.Requires.Actors}
 
 	var predicateResults []*common.PredicateResult
 

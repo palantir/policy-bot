@@ -179,3 +179,7 @@ func (m *Methods) BodyMatches(prBody string) bool {
 	}
 	return false
 }
+
+func (m *Methods) IsEmpty() bool {
+	return m == nil || (len(m.Comments) == 0 && len(m.CommentPatterns) == 0 && len(m.GithubReviewCommentPatterns) == 0 && len(m.BodyPatterns) == 0)
+}

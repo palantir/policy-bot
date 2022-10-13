@@ -111,7 +111,8 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 	res.Name = r.Name
 	res.Description = r.Description
 	res.Status = common.StatusSkipped
-	res.Requires = r.Requires.Actors
+	res.Requires = common.Requires{Count: r.Requires.Count, Actors: r.Requires.Actors}
+	res.Methods = r.Options.GetMethods()
 
 	var predicateResults []*common.PredicateResult
 
