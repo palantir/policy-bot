@@ -104,49 +104,49 @@ func TestIsDisapproved(t *testing.T) {
 
 	t.Run("singleUserDisapproves", func(t *testing.T) {
 		p := &Policy{}
-		p.Requires.Users = []string{"disapprover-2"}
+		p.Requires.Actors.Users = []string{"disapprover-2"}
 
 		assertDisapproved(t, p, "Disapproved by disapprover-2")
 	})
 
 	t.Run("singleUserDisapprovesAndRevokes", func(t *testing.T) {
 		p := &Policy{}
-		p.Requires.Users = []string{"disapprover-1"}
+		p.Requires.Actors.Users = []string{"disapprover-1"}
 
 		assertSkipped(t, p, "Disapproval revoked by disapprover-1")
 	})
 
 	t.Run("multipleUsersDisapprove", func(t *testing.T) {
 		p := &Policy{}
-		p.Requires.Users = []string{"disapprover-2", "disapprover-3"}
+		p.Requires.Actors.Users = []string{"disapprover-2", "disapprover-3"}
 
 		assertDisapproved(t, p, "Disapproved by disapprover-3")
 	})
 
 	t.Run("otherUserRevokes", func(t *testing.T) {
 		p := &Policy{}
-		p.Requires.Users = []string{"disapprover-2", "disapprover-3", "revoker-1"}
+		p.Requires.Actors.Users = []string{"disapprover-2", "disapprover-3", "revoker-1"}
 
 		assertSkipped(t, p, "Disapproval revoked by revoker-1")
 	})
 
 	t.Run("singleUserDisapprovesWithReview", func(t *testing.T) {
 		p := &Policy{}
-		p.Requires.Users = []string{"disapprover-4"}
+		p.Requires.Actors.Users = []string{"disapprover-4"}
 
 		assertDisapproved(t, p, "Disapproved by disapprover-4")
 	})
 
 	t.Run("otherUserRevokesWithReview", func(t *testing.T) {
 		p := &Policy{}
-		p.Requires.Users = []string{"disapprover-4", "revoker-2"}
+		p.Requires.Actors.Users = []string{"disapprover-4", "revoker-2"}
 
 		assertSkipped(t, p, "Disapproval revoked by revoker-2")
 	})
 
 	t.Run("reviewsInteractWithComments", func(t *testing.T) {
 		p := &Policy{}
-		p.Requires.Users = []string{"disapprover-1", "revoker-1", "disapprover-4"}
+		p.Requires.Actors.Users = []string{"disapprover-1", "revoker-1", "disapprover-4"}
 
 		assertDisapproved(t, p, "Disapproved by disapprover-4")
 	})

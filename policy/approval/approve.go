@@ -33,7 +33,7 @@ type Rule struct {
 	Description string               `yaml:"description"`
 	Predicates  predicate.Predicates `yaml:"if"`
 	Options     Options              `yaml:"options"`
-	Requires    Requires             `yaml:"requires"`
+	Requires    common.Requires      `yaml:"requires"`
 }
 
 type Options struct {
@@ -76,12 +76,6 @@ func (opts *Options) GetMethods() *common.Methods {
 	return methods
 }
 
-type Requires struct {
-	Count int `yaml:"count"`
-
-	common.Actors `yaml:",inline"`
-}
-
 func (r *Rule) Trigger() common.Trigger {
 	t := common.TriggerCommit
 
@@ -111,7 +105,7 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 	res.Name = r.Name
 	res.Description = r.Description
 	res.Status = common.StatusSkipped
-	res.Requires = common.Requires{Count: r.Requires.Count, Actors: r.Requires.Actors}
+	res.Requires = r.Requires
 	res.Methods = r.Options.GetMethods()
 
 	var predicateResults []*common.PredicateResult
@@ -174,10 +168,10 @@ func (r *Rule) getReviewRequestRule() *common.ReviewRequestRule {
 	}
 
 	return &common.ReviewRequestRule{
-		Users:         r.Requires.Users,
-		Teams:         r.Requires.Teams,
-		Organizations: r.Requires.Organizations,
-		Permissions:   r.Requires.GetPermissions(),
+		Users:         r.Requires.Actors.Users,
+		Teams:         r.Requires.Actors.Teams,
+		Organizations: r.Requires.Actors.Organizations,
+		Permissions:   r.Requires.Actors.GetPermissions(),
 		RequiredCount: r.Requires.Count,
 		Mode:          mode,
 	}
@@ -228,7 +222,7 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context, candidates []
 			continue
 		}
 
-		isApprover, err := r.Requires.IsActor(ctx, prctx, c.User)
+		isApprover, err := r.Requires.Actors.IsActor(ctx, prctx, c.User)
 		if err != nil {
 			return false, "", errors.Wrap(err, "failed to check candidate status")
 		}

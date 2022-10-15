@@ -29,7 +29,7 @@ import (
 type Policy struct {
 	Predicates predicate.Predicates `yaml:"if"`
 	Options    Options              `yaml:"options"`
-	Requires   Requires             `yaml:"requires"`
+	Requires   common.Requires      `yaml:"requires"`
 }
 
 type Options struct {
@@ -75,14 +75,10 @@ func (opts *Options) GetRevokeMethods() *common.Methods {
 	return m
 }
 
-type Requires struct {
-	common.Actors `yaml:",inline"`
-}
-
 func (p *Policy) Trigger() common.Trigger {
 	t := common.TriggerCommit
 
-	if !p.Requires.IsEmpty() {
+	if !p.Requires.Actors.IsEmpty() {
 		dm := p.Options.GetDisapproveMethods()
 		rm := p.Options.GetRevokeMethods()
 
@@ -106,7 +102,7 @@ func (p *Policy) Evaluate(ctx context.Context, prctx pull.Context) (res common.R
 
 	res.Name = "disapproval"
 	res.Status = common.StatusSkipped
-	res.Requires = common.Requires{Actors: p.Requires.Actors}
+	res.Requires = p.Requires
 
 	var predicateResults []*common.PredicateResult
 
@@ -133,7 +129,7 @@ func (p *Policy) Evaluate(ctx context.Context, prctx pull.Context) (res common.R
 		}
 	}
 	res.PredicateResults = predicateResults
-	if p.Requires.IsEmpty() {
+	if p.Requires.Actors.IsEmpty() {
 		log.Debug().Msg("no users are allowed to disapprove; skipping")
 
 		res.StatusDescription = "No disapproval policy is specified or the policy is empty"
@@ -218,7 +214,7 @@ func (p *Policy) filter(ctx context.Context, prctx pull.Context, candidates []*c
 
 	var filtered []*common.Candidate
 	for _, c := range candidates {
-		ok, err := p.Requires.IsActor(ctx, prctx, c.User)
+		ok, err := p.Requires.Actors.IsActor(ctx, prctx, c.User)
 		if err != nil {
 			return nil, errors.WithMessage(err, "failed to check candidate status")
 		}

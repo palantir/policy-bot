@@ -60,8 +60,8 @@ type ReviewRequestRule struct {
 }
 
 type Requires struct {
-	Count  int
-	Actors Actors
+	Count  int    `yaml:"count"`
+	Actors Actors `yaml:",inline"`
 }
 
 type Result struct {

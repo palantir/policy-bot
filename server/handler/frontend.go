@@ -63,11 +63,8 @@ func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatet
 		"hasActors": func(requires *common.Requires) bool {
 			return len(requires.Actors.Users) > 0 || len(requires.Actors.Teams) > 0 || len(requires.Actors.Organizations) > 0
 		},
-		"hasPatterns": func(results *common.Result) bool {
-			return !results.Methods.IsEmpty()
-		},
-		"getPatterns": func(results *common.Result) map[string][]string {
-			return getPatterns(results)
+		"getMethods": func(results *common.Result) map[string][]string {
+			return getMethods(results)
 		},
 		"getActors": func(results *common.Result) map[string][]Membership {
 			return getActors(results, strings.TrimSuffix(githubURL, "/"))
@@ -97,19 +94,25 @@ func Static(prefix string, c *FilesConfig) http.Handler {
 	return http.StripPrefix(prefix, http.FileServer(http.Dir(dir)))
 }
 
-func getPatterns(result *common.Result) map[string][]string {
+func getMethods(result *common.Result) map[string][]string {
 	patternInfo := make(map[string][]string)
 	for _, comment := range result.Methods.Comments {
 		patternInfo["Comments"] = append(patternInfo["Comments"], comment)
 	}
 	for _, commentPattern := range result.Methods.CommentPatterns {
-		patternInfo["CommentPatterns"] = append(patternInfo["CommentPatterns"], commentPattern.String())
-	}
-	for _, githubReviewCommentPattern := range result.Methods.GithubReviewCommentPatterns {
-		patternInfo["GithubReviewCommentPatterns"] = append(patternInfo["GithubReviewCommentPatterns"], githubReviewCommentPattern.String())
+		patternInfo["Comment Patterns"] = append(patternInfo["Comment Patterns"], commentPattern.String())
 	}
 	for _, bodyPattern := range result.Methods.BodyPatterns {
-		patternInfo["BodyPatterns"] = append(patternInfo["BodyPatterns"], bodyPattern.String())
+		patternInfo["Body Patterns"] = append(patternInfo["Body Patterns"], bodyPattern.String())
+	}
+	if *result.Methods.GithubReview {
+		if len(result.Methods.GithubReviewCommentPatterns) > 0 {
+			for _, githubReviewCommentPattern := range result.Methods.GithubReviewCommentPatterns {
+				patternInfo["Github Review Comment Patterns + Github Review Approval"] = append(patternInfo["Github Review Comment Patterns + Github Review Approval"], githubReviewCommentPattern.String())
+			}
+		} else {
+			patternInfo["Github Review State"] = append(patternInfo["Github Review State"], string(result.Methods.GithubReviewState))
+		}
 	}
 	return patternInfo
 }
