@@ -17,7 +17,7 @@
 //
 // It supports a special format for metric names to add metric-specific tags:
 //
-//   metricName[tag1,tag2:value2,...]
+//	metricName[tag1,tag2:value2,...]
 //
 // Global tags for all metrics can be set in the configuration.
 //
