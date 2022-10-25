@@ -16,8 +16,8 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.28.0
 	github.com/shurcooL/githubv4 v0.0.0-20221021030919-a134b1472cc7
-	github.com/spf13/cobra v1.6.0
-	github.com/stretchr/testify v1.8.0
+	github.com/spf13/cobra v1.6.1
+	github.com/stretchr/testify v1.8.1
 	github.com/vektah/gqlparser v1.0.0
 	goji.io v2.0.2+incompatible
 	gopkg.in/yaml.v2 v2.4.0
