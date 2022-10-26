@@ -105,7 +105,7 @@ func getMethods(result *common.Result) map[string][]string {
 	for _, bodyPattern := range result.Methods.BodyPatterns {
 		patternInfo["Body Patterns"] = append(patternInfo["Body Patterns"], bodyPattern.String())
 	}
-	if result.Method.GithubReview != nil && *result.Methods.GithubReview {
+	if result.Methods.GithubReview != nil && *result.Methods.GithubReview {
 		if len(result.Methods.GithubReviewCommentPatterns) > 0 {
 			for _, githubReviewCommentPattern := range result.Methods.GithubReviewCommentPatterns {
 				patternInfo["Github Review Comment Patterns + Github Review Approval"] = append(patternInfo["Github Review Comment Patterns + Github Review Approval"], githubReviewCommentPattern.String())
