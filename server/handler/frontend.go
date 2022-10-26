@@ -60,14 +60,17 @@ func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatet
 
 			return r
 		},
-		"hasRequires": func(requires common.Actors) bool {
-			return len(requires.Users) > 0 || len(requires.Teams) > 0 || len(requires.Organizations) > 0
+		"hasActors": func(requires *common.Requires) bool {
+			return len(requires.Actors.Users) > 0 || len(requires.Actors.Teams) > 0 || len(requires.Actors.Organizations) > 0
 		},
-		"getRequires": func(results *common.Result) map[string][]Membership {
-			return getRequires(results, strings.TrimSuffix(githubURL, "/"))
+		"getMethods": func(results *common.Result) map[string][]string {
+			return getMethods(results)
 		},
-		"hasRequiresPermissions": func(requires common.Actors) bool {
-			return len(requires.GetPermissions()) > 0
+		"getActors": func(results *common.Result) map[string][]Membership {
+			return getActors(results, strings.TrimSuffix(githubURL, "/"))
+		},
+		"hasActorsPermissions": func(requires *common.Requires) bool {
+			return len(requires.Actors.GetPermissions()) > 0
 		},
 		"getPermissions": func(results *common.Result) []string {
 			return getPermissions(results)
@@ -91,24 +94,47 @@ func Static(prefix string, c *FilesConfig) http.Handler {
 	return http.StripPrefix(prefix, http.FileServer(http.Dir(dir)))
 }
 
-func getRequires(result *common.Result, githubURL string) map[string][]Membership {
+func getMethods(result *common.Result) map[string][]string {
+	patternInfo := make(map[string][]string)
+	for _, comment := range result.Methods.Comments {
+		patternInfo["Comments"] = append(patternInfo["Comments"], comment)
+	}
+	for _, commentPattern := range result.Methods.CommentPatterns {
+		patternInfo["Comment Patterns"] = append(patternInfo["Comment Patterns"], commentPattern.String())
+	}
+	for _, bodyPattern := range result.Methods.BodyPatterns {
+		patternInfo["Body Patterns"] = append(patternInfo["Body Patterns"], bodyPattern.String())
+	}
+	if result.Methods.GithubReview != nil && *result.Methods.GithubReview {
+		if len(result.Methods.GithubReviewCommentPatterns) > 0 {
+			for _, githubReviewCommentPattern := range result.Methods.GithubReviewCommentPatterns {
+				patternInfo["Github Review Comment Patterns + Github Review Approval"] = append(patternInfo["Github Review Comment Patterns + Github Review Approval"], githubReviewCommentPattern.String())
+			}
+		} else {
+			patternInfo["Github Review State"] = append(patternInfo["Github Review State"], string(result.Methods.GithubReviewState))
+		}
+	}
+	return patternInfo
+}
+
+func getActors(result *common.Result, githubURL string) map[string][]Membership {
 	membershipInfo := make(map[string][]Membership)
-	for _, org := range result.Requires.Organizations {
+	for _, org := range result.Requires.Actors.Organizations {
 		membershipInfo["Organizations"] = append(membershipInfo["Organizations"], Membership{Name: org, Link: githubURL + "/orgs/" + org + "/people"})
 	}
-	for _, team := range result.Requires.Teams {
+	for _, team := range result.Requires.Actors.Teams {
 		teamName := strings.Split(team, "/")
 		membershipInfo["Teams"] = append(membershipInfo["Teams"], Membership{Name: team, Link: githubURL + "/orgs/" + teamName[0] + "/teams/" + teamName[1] + "/members"})
 
 	}
-	for _, user := range result.Requires.Users {
+	for _, user := range result.Requires.Actors.Users {
 		membershipInfo["Users"] = append(membershipInfo["Users"], Membership{Name: user, Link: githubURL + "/" + user})
 	}
 	return membershipInfo
 }
 
 func getPermissions(result *common.Result) []string {
-	perms := result.Requires.GetPermissions()
+	perms := result.Requires.Actors.GetPermissions()
 	permStrings := make([]string, 0, len(perms))
 	for _, perm := range perms {
 		permStrings = append(permStrings, perm.String())

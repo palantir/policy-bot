@@ -56,6 +56,10 @@ func (ec *EvalContext) dismissStaleReviewsForResult(ctx context.Context, result 
 		}
 
 		reason := reasonForDismissedReview(r)
+		if reason == "" {
+			continue
+		}
+
 		message := fmt.Sprintf("Dismissed because the approval %s", reason)
 		logger.Info().Msgf("Dismissing stale review %s because it %s", r.ID, reason)
 		if err := dismissPullRequestReview(ctx, ec.V4Client, r.ID, message); err != nil {
@@ -88,10 +92,9 @@ func reviewIsAllowed(review *pull.Review, allowedCandidates []*common.Candidate)
 	return false
 }
 
-// We already know that these are discarded review candidates for one of three reasons
+// We already know that these are discarded review candidates for 1 of 2 reasons
 // so first we check for edited and then we check to see if its a review thats at least
-// 5 seconds old and we know that it was invalidated by a new commit, and then finally
-// if it was missing a github review comment pattern that was required.
+// 5 seconds old and we know that it was invalidated by a new commit.
 //
 // This is brittle and may need refactoring in future versions because it assumes the bot
 // will take less than 5 seconds to respond, but thought that having a dismissal reason
@@ -105,7 +108,7 @@ func reasonForDismissedReview(review *pull.Review) string {
 		return "was invalidated by another commit"
 	}
 
-	return "didn't include a valid comment pattern"
+	return ""
 }
 
 func dismissPullRequestReview(ctx context.Context, v4client *githubv4.Client, reviewID string, message string) error {

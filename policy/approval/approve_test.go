@@ -173,7 +173,7 @@ func TestIsApproved(t *testing.T) {
 	t.Run("singleApprovalRequired", func(t *testing.T) {
 		prctx := basePullContext()
 		r := &Rule{
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 			},
 		}
@@ -186,7 +186,7 @@ func TestIsApproved(t *testing.T) {
 			Options: Options{
 				AllowAuthor: false,
 			},
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 				Actors: common.Actors{
 					Organizations: []string{"everyone"},
@@ -202,7 +202,7 @@ func TestIsApproved(t *testing.T) {
 			Options: Options{
 				AllowAuthor: true,
 			},
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 				Actors: common.Actors{
 					Organizations: []string{"everyone"},
@@ -218,7 +218,7 @@ func TestIsApproved(t *testing.T) {
 			Options: Options{
 				AllowContributor: false,
 			},
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 				Actors: common.Actors{
 					Organizations: []string{"everyone"},
@@ -235,7 +235,7 @@ func TestIsApproved(t *testing.T) {
 				AllowContributor: true,
 				AllowAuthor:      false,
 			},
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 				Actors: common.Actors{
 					Organizations: []string{"everyone"},
@@ -251,7 +251,7 @@ func TestIsApproved(t *testing.T) {
 			Options: Options{
 				AllowNonAuthorContributor: true,
 			},
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 				Actors: common.Actors{
 					Organizations: []string{"everyone"},
@@ -268,7 +268,7 @@ func TestIsApproved(t *testing.T) {
 				AllowNonAuthorContributor: true,
 				AllowAuthor:               true,
 			},
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 				Actors: common.Actors{
 					Organizations: []string{"everyone"},
@@ -285,7 +285,7 @@ func TestIsApproved(t *testing.T) {
 				AllowNonAuthorContributor: true,
 				AllowContributor:          true,
 			},
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 				Actors: common.Actors{
 					Organizations: []string{"everyone"},
@@ -298,7 +298,7 @@ func TestIsApproved(t *testing.T) {
 	t.Run("specificUserApproves", func(t *testing.T) {
 		prctx := basePullContext()
 		r := &Rule{
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 				Actors: common.Actors{
 					Users: []string{"comment-approver"},
@@ -308,7 +308,7 @@ func TestIsApproved(t *testing.T) {
 		assertApproved(t, prctx, r, "Approved by comment-approver")
 
 		r = &Rule{
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 				Actors: common.Actors{
 					Users: []string{"does-not-exist"},
@@ -321,7 +321,7 @@ func TestIsApproved(t *testing.T) {
 	t.Run("specificOrgApproves", func(t *testing.T) {
 		prctx := basePullContext()
 		r := &Rule{
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 				Actors: common.Actors{
 					Organizations: []string{"cool-org"},
@@ -331,7 +331,7 @@ func TestIsApproved(t *testing.T) {
 		assertApproved(t, prctx, r, "Approved by comment-approver")
 
 		r = &Rule{
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 				Actors: common.Actors{
 					Organizations: []string{"does-not-exist", "other-org"},
@@ -344,7 +344,7 @@ func TestIsApproved(t *testing.T) {
 	t.Run("specificOrgsOrUserApproves", func(t *testing.T) {
 		prctx := basePullContext()
 		r := &Rule{
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 2,
 				Actors: common.Actors{
 					Users:         []string{"review-approver"},
@@ -367,7 +367,7 @@ func TestIsApproved(t *testing.T) {
 		}
 
 		r := &Rule{
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 				Actors: common.Actors{
 					Users: []string{"comment-approver"},
@@ -392,7 +392,7 @@ func TestIsApproved(t *testing.T) {
 		}
 
 		r := &Rule{
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 				Actors: common.Actors{
 					Users: []string{"review-approver"},
@@ -419,7 +419,7 @@ func TestIsApproved(t *testing.T) {
 		})
 
 		r := &Rule{
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 				Actors: common.Actors{
 					Users: []string{"comment-approver"},
@@ -454,7 +454,7 @@ func TestIsApproved(t *testing.T) {
 		})
 
 		r := &Rule{
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 				Actors: common.Actors{
 					Users: []string{"merge-committer"},
@@ -476,7 +476,7 @@ func TestIsApproved(t *testing.T) {
 		})
 
 		r := &Rule{
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 				Actors: common.Actors{
 					Users: []string{"comment-approver"},
@@ -495,7 +495,7 @@ func TestIsApproved(t *testing.T) {
 		prctx := basePullContext()
 
 		r := &Rule{
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 				Actors: common.Actors{
 					Users: []string{"contributor-author"},
@@ -522,7 +522,7 @@ func TestIsApproved(t *testing.T) {
 		}
 
 		r := &Rule{
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 				Actors: common.Actors{
 					Users: []string{"comment-approver"},
@@ -542,7 +542,7 @@ func TestIsApproved(t *testing.T) {
 		prctx := basePullContext()
 
 		r := &Rule{
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 				Actors: common.Actors{
 					Users: []string{"review-comment-editor"},
@@ -561,7 +561,7 @@ func TestIsApproved(t *testing.T) {
 		prctx := basePullContext()
 
 		r := &Rule{
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 				Actors: common.Actors{
 					Users: []string{"comment-editor"},
@@ -580,7 +580,7 @@ func TestIsApproved(t *testing.T) {
 		prctx := basePullContext()
 
 		r := &Rule{
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 				Actors: common.Actors{
 					Users: []string{"body-editor"},
@@ -620,7 +620,7 @@ func TestTrigger(t *testing.T) {
 					},
 				},
 			},
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 			},
 		}
@@ -638,7 +638,7 @@ func TestTrigger(t *testing.T) {
 					},
 				},
 			},
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 			},
 		}
@@ -655,7 +655,7 @@ func TestTrigger(t *testing.T) {
 					GithubReview: &defaultGithubReview,
 				},
 			},
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 			},
 		}
@@ -673,7 +673,7 @@ func TestTrigger(t *testing.T) {
 					},
 				},
 			},
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 			},
 		}
@@ -692,7 +692,7 @@ func TestTrigger(t *testing.T) {
 				},
 				IgnoreEditedComments: false,
 			},
-			Requires: Requires{
+			Requires: common.Requires{
 				Count: 1,
 			},
 		}

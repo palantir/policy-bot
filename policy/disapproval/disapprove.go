@@ -75,6 +75,8 @@ func (opts *Options) GetRevokeMethods() *common.Methods {
 	return m
 }
 
+// Requires is redefined instead of using common.Requires because disapproval
+// does not currently support required counts.
 type Requires struct {
 	common.Actors `yaml:",inline"`
 }
@@ -106,7 +108,7 @@ func (p *Policy) Evaluate(ctx context.Context, prctx pull.Context) (res common.R
 
 	res.Name = "disapproval"
 	res.Status = common.StatusSkipped
-	res.Requires = p.Requires.Actors
+	res.Requires = common.Requires{Actors: p.Requires.Actors}
 
 	var predicateResults []*common.PredicateResult
 
