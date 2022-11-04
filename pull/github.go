@@ -819,8 +819,8 @@ func (ghc *GitHubContext) loadCommits() ([]*Commit, error) {
 		return nil, errors.Errorf("head commit %.10s is missing, probably due to a force-push", ghc.pr.HeadRefOID)
 	}
 
-	// As of 2020-02-05, the pushed data may be missing when loaded via the
-	// pull request APIs if:
+	// As of 2020-02-05 (and still true as of 2022-11-04), the pushed data may
+	// be missing when loaded via the pull request APIs if:
 	//
 	//  - the commit comes from a fork (always missing in this case)
 	//  - the data has not propagated yet
@@ -875,6 +875,8 @@ func (ghc *GitHubContext) loadRawCommits() ([]*v4PullRequestCommit, error) {
 	return commits, nil
 }
 
+// loadPushedAt sets the PushedAt field of each commit by walking the history
+// of the pull request's branch. The commits must be present on the branch.
 func (ghc *GitHubContext) loadPushedAt(commits []*Commit) error {
 	commitsBySHA := make(map[string]*Commit, len(commits))
 	for _, c := range commits {
@@ -903,7 +905,6 @@ func (ghc *GitHubContext) loadPushedAt(commits []*Commit) error {
 		"cursor": (*githubv4.String)(nil),
 	}
 
-	loaded := 0
 	for {
 		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
 			return errors.Wrap(err, "failed to load commit pushed dates")
@@ -915,26 +916,36 @@ func (ghc *GitHubContext) loadPushedAt(commits []*Commit) error {
 			}
 		}
 
-		loaded += len(q.Repository.Object.Commit.History.Nodes)
-		if loaded > len(commits) {
+		// We found all the input commits
+		if len(commitsBySHA) == 0 {
 			break
 		}
 
+		// We reached the end of the branch history
 		if !q.Repository.Object.Commit.History.PageInfo.UpdateCursor(qvars, "cursor") {
 			break
 		}
 	}
 
+	// If this is true, we ran out of history on the branch without finding the
+	// input commits. This is probably a bug in policy-bot, but a user retry
+	// will likely find the data via the pull request API instead, so report
+	// this as a temporary error
 	if len(commitsBySHA) > 0 {
 		missingSHAs := make([]string, 0, len(commitsBySHA))
 		for sha := range commitsBySHA {
 			missingSHAs = append(missingSHAs, sha)
 		}
 
-		err := &TemporaryError{fmt.Sprintf("%d commits were not found while loading pushed dates. Missing %s.",
-			len(commitsBySHA), strings.Join(missingSHAs, ", "))}
-		return err
+		return &TemporaryError{
+			fmt.Sprintf(
+				"%d commits were not found while loading pushed dates. Missing %s.",
+				len(commitsBySHA),
+				strings.Join(missingSHAs, ", "),
+			),
+		}
 	}
+
 	return nil
 }
 
