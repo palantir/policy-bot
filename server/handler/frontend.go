@@ -15,6 +15,7 @@
 package handler
 
 import (
+	"fmt"
 	"html/template"
 	"net/http"
 	"path"
@@ -95,40 +96,54 @@ func Static(prefix string, c *FilesConfig) http.Handler {
 }
 
 func getMethods(result *common.Result) map[string][]string {
+	const (
+		commentKey        = "Comments containing"
+		commentPatternKey = "Comments matching patterns"
+		bodyPatternKey    = "The pull request body matching patterns"
+		reviewKey         = "GitHub reviews with status"
+	)
+
 	patternInfo := make(map[string][]string)
 	for _, comment := range result.Methods.Comments {
-		patternInfo["Comments"] = append(patternInfo["Comments"], comment)
+		patternInfo[commentKey] = append(patternInfo[commentKey], comment)
 	}
 	for _, commentPattern := range result.Methods.CommentPatterns {
-		patternInfo["Comment Patterns"] = append(patternInfo["Comment Patterns"], commentPattern.String())
+		patternInfo[commentPatternKey] = append(patternInfo[commentPatternKey], commentPattern.String())
 	}
 	for _, bodyPattern := range result.Methods.BodyPatterns {
-		patternInfo["Body Patterns"] = append(patternInfo["Body Patterns"], bodyPattern.String())
+		patternInfo[bodyPatternKey] = append(patternInfo[bodyPatternKey], bodyPattern.String())
 	}
 	if result.Methods.GithubReview != nil && *result.Methods.GithubReview {
+		reviewPatternKey := reviewKey + fmt.Sprintf(" %s matching patterns", result.Methods.GithubReviewState)
 		if len(result.Methods.GithubReviewCommentPatterns) > 0 {
 			for _, githubReviewCommentPattern := range result.Methods.GithubReviewCommentPatterns {
-				patternInfo["Github Review Comment Patterns + Github Review Approval"] = append(patternInfo["Github Review Comment Patterns + Github Review Approval"], githubReviewCommentPattern.String())
+				patternInfo[reviewPatternKey] = append(patternInfo[reviewPatternKey], githubReviewCommentPattern.String())
 			}
 		} else {
-			patternInfo["Github Review State"] = append(patternInfo["Github Review State"], string(result.Methods.GithubReviewState))
+			patternInfo[reviewKey] = append(patternInfo[reviewKey], string(result.Methods.GithubReviewState))
 		}
 	}
 	return patternInfo
 }
 
 func getActors(result *common.Result, githubURL string) map[string][]Membership {
+	const (
+		orgKey  = "Members of the organizations"
+		teamKey = "Members of the teams"
+		userKey = "Users"
+	)
+
 	membershipInfo := make(map[string][]Membership)
 	for _, org := range result.Requires.Actors.Organizations {
-		membershipInfo["Organizations"] = append(membershipInfo["Organizations"], Membership{Name: org, Link: githubURL + "/orgs/" + org + "/people"})
+		membershipInfo[orgKey] = append(membershipInfo[orgKey], Membership{Name: org, Link: githubURL + "/orgs/" + org + "/people"})
 	}
 	for _, team := range result.Requires.Actors.Teams {
 		teamName := strings.Split(team, "/")
-		membershipInfo["Teams"] = append(membershipInfo["Teams"], Membership{Name: team, Link: githubURL + "/orgs/" + teamName[0] + "/teams/" + teamName[1] + "/members"})
+		membershipInfo[teamKey] = append(membershipInfo[teamKey], Membership{Name: team, Link: githubURL + "/orgs/" + teamName[0] + "/teams/" + teamName[1] + "/members"})
 
 	}
 	for _, user := range result.Requires.Actors.Users {
-		membershipInfo["Users"] = append(membershipInfo["Users"], Membership{Name: user, Link: githubURL + "/" + user})
+		membershipInfo[userKey] = append(membershipInfo[userKey], Membership{Name: user, Link: githubURL + "/" + user})
 	}
 	return membershipInfo
 }
