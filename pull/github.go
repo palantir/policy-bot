@@ -798,13 +798,47 @@ func (ghc *GitHubContext) loadPagedData() error {
 func (ghc *GitHubContext) loadCommits() ([]*Commit, error) {
 	log := zerolog.Ctx(ghc.ctx)
 
-	rawCommits, err := ghc.loadRawCommits()
-	if err != nil {
-		return nil, err
+	// GitHub's API is eventually consistent for commit pushed dates. We can
+	// sometimes get around this by using alternate APIs (see notes in
+	// loadCommitsOnce), but for some merge commits, that still fails. The only
+	// fix I know of in this case is to wait and try again.
+	//
+	// Retry with exponential backoff until it works or we hit the max total
+	// latency to avoid users thinking the bot got stuck or dropped an event.
+	const baseDelay = 1 * time.Second
+	const maxLatency = 20 * time.Second
+
+	start := time.Now()
+	for delay := baseDelay; true; delay *= 2 {
+		head, commits, err := ghc.loadCommitsOnce()
+		if err != nil {
+			return nil, err
+		}
+		if head.PushedAt != nil {
+			return commits, nil
+		}
+
+		if time.Since(start)+delay >= maxLatency {
+			break
+		}
+		log.Debug().Dur("delay", delay).Str("sha", ghc.pr.HeadRefOID).Msg("Head commit is missing pushed data, sleeping and trying again")
+		time.Sleep(delay)
 	}
 
-	var head *Commit
-	commits := make([]*Commit, 0, len(rawCommits))
+	return nil, &TemporaryError{
+		fmt.Sprintf("Commit %.10s does not have a pushed date. This is usually caused by delays in the GitHub API", ghc.pr.HeadRefOID),
+	}
+}
+
+func (ghc *GitHubContext) loadCommitsOnce() (head *Commit, commits []*Commit, err error) {
+	log := zerolog.Ctx(ghc.ctx)
+
+	rawCommits, err := ghc.loadRawCommits()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	commits = make([]*Commit, 0, len(rawCommits))
 
 	for _, r := range rawCommits {
 		c := r.Commit.ToCommit()
@@ -816,7 +850,7 @@ func (ghc *GitHubContext) loadCommits() ([]*Commit, error) {
 
 	// fail early if head is missing from the pull request
 	if head == nil {
-		return nil, errors.Errorf("head commit %.10s is missing, probably due to a force-push", ghc.pr.HeadRefOID)
+		return nil, nil, errors.Errorf("head commit %.10s is missing, probably due to a force-push", ghc.pr.HeadRefOID)
 	}
 
 	// As of 2020-02-05 (and still true as of 2022-11-04), the pushed data may
@@ -834,14 +868,11 @@ func (ghc *GitHubContext) loadCommits() ([]*Commit, error) {
 			Msgf("failed to load pushed date via pull request, falling back to commit APIs")
 
 		if err := ghc.loadPushedAt(commits); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
-	if head.PushedAt == nil {
-		return nil, errors.Errorf("head commit %.10s is missing pushed date; this is probably a bug", ghc.pr.HeadRefOID)
-	}
-	return commits, nil
+	return head, commits, nil
 }
 
 func (ghc *GitHubContext) loadRawCommits() ([]*v4PullRequestCommit, error) {
