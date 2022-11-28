@@ -15,7 +15,7 @@ require (
 	github.com/palantir/go-githubapp v0.14.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.28.0
-	github.com/shurcooL/githubv4 v0.0.0-20221021030919-a134b1472cc7
+	github.com/shurcooL/githubv4 v0.0.0-20221126192849-0b5c4c7994eb
 	github.com/spf13/cobra v1.6.1
 	github.com/stretchr/testify v1.8.1
 	github.com/vektah/gqlparser v1.0.0
@@ -43,7 +43,7 @@ require (
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/shurcooL/graphql v0.0.0-20181231061246-d48a9a75455f // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	golang.org/x/crypto v0.2.0 // indirect
+	golang.org/x/crypto v0.3.0 // indirect
 	golang.org/x/net v0.2.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8 // indirect
 	golang.org/x/sys v0.2.0 // indirect
