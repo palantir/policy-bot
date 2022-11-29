@@ -1,0 +1,5 @@
+auto-label:
+  names:
+    circleci/manage-circleci: [ "merge when ready" ]
+  tags:
+    automerge: [ "merge when ready" ]
