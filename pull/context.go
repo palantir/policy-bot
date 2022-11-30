@@ -173,14 +173,16 @@ type SignatureType string
 const (
 	SignatureGpg   SignatureType = "GpgSignature"
 	SignatureSmime SignatureType = "SmimeSignature"
+	SignatureSsh   SignatureType = "SshSignature"
 )
 
 type Signature struct {
-	Type    SignatureType
-	IsValid bool
-	KeyID   string
-	Signer  string
-	State   string
+	Type           SignatureType
+	IsValid        bool
+	KeyID          string
+	KeyFingerprint string
+	Signer         string
+	State          string
 }
 
 type Comment struct {
