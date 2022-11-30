@@ -30,7 +30,7 @@ func TestHasValidSignatures(t *testing.T) {
 
 	testCases := []SignatureTestCase{
 		{
-			"ValidSignature",
+			"ValidGpgSignature",
 			&pulltest.Context{
 				AuthorValue: "mhaypenny",
 				CommitsValue: []*pull.Commit{
@@ -44,6 +44,31 @@ func TestHasValidSignatures(t *testing.T) {
 							Signer:  "ttest",
 							State:   "VALID",
 							KeyID:   "3AA5C34371567BD2",
+						},
+					},
+				},
+			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"abcdef123456789"},
+				ConditionValues: []string{"valid signatures"},
+			},
+		},
+		{
+			"ValidSshSignature",
+			&pulltest.Context{
+				AuthorValue: "mhaypenny",
+				CommitsValue: []*pull.Commit{
+					{
+						SHA:       "abcdef123456789",
+						Author:    "mhaypenny",
+						Committer: "mhaypenny",
+						Signature: &pull.Signature{
+							Type:           pull.SignatureSsh,
+							IsValid:        true,
+							Signer:         "ttest",
+							State:          "VALID",
+							KeyFingerprint: "Hello",
 						},
 					},
 				},
