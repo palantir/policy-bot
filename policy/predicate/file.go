@@ -28,12 +28,13 @@ import (
 type ChangedFiles struct {
 	Paths       []common.Regexp `yaml:"paths"`
 	IgnorePaths []common.Regexp `yaml:"ignore"`
+	RejectPaths []common.Regexp `yaml:"reject"`
 }
 
 var _ Predicate = &ChangedFiles{}
 
 func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
-	var paths, ignorePaths []string
+	var paths, ignorePaths, rejectPaths []string
 
 	for _, path := range pred.Paths {
 		paths = append(paths, path.String())
@@ -43,12 +44,17 @@ func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (*co
 		ignorePaths = append(ignorePaths, ignorePath.String())
 	}
 
+	for _, rejectPath := range pred.RejectPaths {
+		rejectPaths = append(rejectPaths, rejectPath.String())
+	}
+
 	predicateResult := common.PredicateResult{
 		ValuePhrase:     "changed files",
 		ConditionPhrase: "match",
 		ConditionsMap: map[string][]string{
-			"path patterns":  paths,
-			"while ignoring": ignorePaths,
+			"path patterns":   paths,
+			"while ignoring":  ignorePaths,
+			"while rejecting": rejectPaths,
 		},
 	}
 
@@ -58,6 +64,15 @@ func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (*co
 	}
 
 	changedFiles := []string{}
+
+	for _, f := range files {
+		if anyMatches(pred.RejectPaths, f.Filename) {
+			predicateResult.Values = []string{f.Filename}
+			predicateResult.Description = f.Filename + " was rejected"
+			predicateResult.Satisfied = false
+			return &predicateResult, nil
+		}
+	}
 
 	for _, f := range files {
 

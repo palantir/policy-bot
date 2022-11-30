@@ -159,8 +159,8 @@ if:
   # "changed_files" is satisfied if any file in the pull request matches any
   # regular expression in the "paths" list. If the "ignore" list is present,
   # files in the pull request matching these regular expressions are ignored
-  # by this rule.
-  #
+  # by this rule. If the list "reject" is present, pull request files matching 
+  # these regular expressions denied the rule.
   # Note: Double-quote strings must escape backslashes while single/plain do not.
   # See the Notes on YAML Syntax section of this README for more information.
   changed_files:
@@ -169,6 +169,8 @@ if:
       - "server/views/.*\\.tmpl"
     ignore:
       - "config/special\\.file"
+    reject:
+      - "secrets/.*"
 
   # "only_changed_files" is satisfied if all files changed by the pull request
   # match at least one regular expression in the list.

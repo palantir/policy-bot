@@ -34,6 +34,9 @@ func TestChangedFiles(t *testing.T) {
 		IgnorePaths: []common.Regexp{
 			common.NewCompiledRegexp(regexp.MustCompile(".*/special\\.go")),
 		},
+		RejectPaths: []common.Regexp{
+			common.NewCompiledRegexp(regexp.MustCompile("server/reject\\.go")),
+		},
 	}
 
 	runFileTests(t, p, []FileTestCase{
@@ -44,8 +47,9 @@ func TestChangedFiles(t *testing.T) {
 				Satisfied: false,
 				Values:    []string{},
 				ConditionsMap: map[string][]string{
-					"path patterns":  {"app/.*\\.go", "server/.*\\.go"},
-					"while ignoring": {".*/special\\.go"},
+					"path patterns":   {"app/.*\\.go", "server/.*\\.go"},
+					"while ignoring":  {".*/special\\.go"},
+					"while rejecting": {"server/reject\\.go"},
 				},
 			},
 		},
@@ -65,8 +69,9 @@ func TestChangedFiles(t *testing.T) {
 				Satisfied: true,
 				Values:    []string{"app/client.go"},
 				ConditionsMap: map[string][]string{
-					"path patterns":  {"app/.*\\.go", "server/.*\\.go"},
-					"while ignoring": {".*/special\\.go"},
+					"path patterns":   {"app/.*\\.go", "server/.*\\.go"},
+					"while ignoring":  {".*/special\\.go"},
+					"while rejecting": {"server/reject\\.go"},
 				},
 			},
 		},
@@ -86,8 +91,9 @@ func TestChangedFiles(t *testing.T) {
 				Satisfied: true,
 				Values:    []string{"app/client.go"},
 				ConditionsMap: map[string][]string{
-					"path patterns":  {"app/.*\\.go", "server/.*\\.go"},
-					"while ignoring": {".*/special\\.go"},
+					"path patterns":   {"app/.*\\.go", "server/.*\\.go"},
+					"while ignoring":  {".*/special\\.go"},
+					"while rejecting": {"server/reject\\.go"},
 				},
 			},
 		},
@@ -107,8 +113,9 @@ func TestChangedFiles(t *testing.T) {
 				Satisfied: false,
 				Values:    []string{"model/order.go", "model/user.go"},
 				ConditionsMap: map[string][]string{
-					"path patterns":  {"app/.*\\.go", "server/.*\\.go"},
-					"while ignoring": {".*/special\\.go"},
+					"path patterns":   {"app/.*\\.go", "server/.*\\.go"},
+					"while ignoring":  {".*/special\\.go"},
+					"while rejecting": {"server/reject\\.go"},
 				},
 			},
 		},
@@ -128,8 +135,9 @@ func TestChangedFiles(t *testing.T) {
 				Satisfied: false,
 				Values:    []string{"app/special.go", "server/special.go"},
 				ConditionsMap: map[string][]string{
-					"path patterns":  {"app/.*\\.go", "server/.*\\.go"},
-					"while ignoring": {".*/special\\.go"},
+					"path patterns":   {"app/.*\\.go", "server/.*\\.go"},
+					"while ignoring":  {".*/special\\.go"},
+					"while rejecting": {"server/reject\\.go"},
 				},
 			},
 		},
@@ -149,8 +157,35 @@ func TestChangedFiles(t *testing.T) {
 				Satisfied: true,
 				Values:    []string{"app/normal.go"},
 				ConditionsMap: map[string][]string{
-					"path patterns":  {"app/.*\\.go", "server/.*\\.go"},
-					"while ignoring": {".*/special\\.go"},
+					"path patterns":   {"app/.*\\.go", "server/.*\\.go"},
+					"while ignoring":  {".*/special\\.go"},
+					"while rejecting": {"server/reject\\.go"},
+				},
+			},
+		},
+		{
+			"rejectSome",
+			[]*pull.File{
+				{
+					Filename: "app/normal.go",
+					Status:   pull.FileDeleted,
+				},
+				{
+					Filename: "server/special.go",
+					Status:   pull.FileModified,
+				},
+				{
+					Filename: "server/reject.go",
+					Status:   pull.FileModified,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"server/reject.go"},
+				ConditionsMap: map[string][]string{
+					"path patterns":   {"app/.*\\.go", "server/.*\\.go"},
+					"while ignoring":  {".*/special\\.go"},
+					"while rejecting": {"server/reject\\.go"},
 				},
 			},
 		},
