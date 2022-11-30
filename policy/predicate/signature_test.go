@@ -64,7 +64,7 @@ func TestHasValidSignatures(t *testing.T) {
 						Author:    "mhaypenny",
 						Committer: "mhaypenny",
 						Signature: &pull.Signature{
-							Type:           pull.SignatureSsh,
+							Type:           pull.SignatureSSH,
 							IsValid:        true,
 							Signer:         "ttest",
 							State:          "VALID",

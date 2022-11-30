@@ -173,7 +173,7 @@ type SignatureType string
 const (
 	SignatureGpg   SignatureType = "GpgSignature"
 	SignatureSmime SignatureType = "SmimeSignature"
-	SignatureSsh   SignatureType = "SshSignature"
+	SignatureSSH   SignatureType = "SshSignature"
 )
 
 type Signature struct {
