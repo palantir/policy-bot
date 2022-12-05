@@ -806,7 +806,7 @@ func (ghc *GitHubContext) loadCommits() ([]*Commit, error) {
 	// Retry with exponential backoff until it works or we hit the max total
 	// latency to avoid users thinking the bot got stuck or dropped an event.
 	const baseDelay = 1 * time.Second
-	const maxLatency = 20 * time.Second
+	const maxLatency = 35 * time.Second
 
 	start := time.Now()
 	for delay := baseDelay; true; delay *= 2 {
@@ -821,7 +821,7 @@ func (ghc *GitHubContext) loadCommits() ([]*Commit, error) {
 		if time.Since(start)+delay >= maxLatency {
 			break
 		}
-		log.Debug().Dur("delay", delay).Str("sha", ghc.pr.HeadRefOID).Msg("Head commit is missing pushed data, sleeping and trying again")
+		log.Debug().Dur("delay", delay).Str("sha", ghc.pr.HeadRefOID).Msg("Head commit is missing pushed date, sleeping and trying again")
 		time.Sleep(delay)
 	}
 
