@@ -16,7 +16,7 @@ server:
 logging:
   # If true, logs are printed in human-readable form. We recommend using
   # "false" to output JSON-formatted logs in production
-  # Can also be set by the POLICYBOT_LOG_PRETTY environment variable.
+  # Can also be set by the POLICYBOT_LOG_TEXT environment variable.
   text: false
   # Set a minimum logging level threshold
   # Choose from: debug, info, warn, error

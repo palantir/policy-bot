@@ -16,6 +16,7 @@ package server
 
 import (
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/c2h5oh/datasize"
@@ -25,6 +26,10 @@ import (
 	"github.com/palantir/policy-bot/server/handler"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
+)
+
+const (
+	DefaultEnvPrefix = "POLICYBOT_"
 )
 
 type Config struct {
@@ -42,6 +47,17 @@ type Config struct {
 type LoggingConfig struct {
 	Level string `yaml:"level" json:"level"`
 	Text  bool   `yaml:"text" json:"text"`
+}
+
+func (c *LoggingConfig) SetValuesFromEnv(prefix string) {
+	if v, ok := os.LookupEnv(prefix + "LOG_LEVEL"); ok {
+		c.Level = v
+	}
+	if v, ok := os.LookupEnv(prefix + "LOG_TEXT"); ok {
+		if b, err := strconv.ParseBool(v); err == nil {
+			c.Text = b
+		}
+	}
 }
 
 type CachingConfig struct {
@@ -65,11 +81,12 @@ func ParseConfig(bytes []byte) (*Config, error) {
 		return nil, errors.Wrapf(err, "failed unmarshalling yaml")
 	}
 
-	c.Options.SetValuesFromEnv("POLICYBOT_OPTIONS_")
-	c.Server.SetValuesFromEnv("POLICYBOT_")
+	c.Options.SetValuesFromEnv(DefaultEnvPrefix + "OPTIONS_")
+	c.Server.SetValuesFromEnv(DefaultEnvPrefix)
+	c.Logging.SetValuesFromEnv(DefaultEnvPrefix)
 	c.Github.SetValuesFromEnv("")
 
-	if v, ok := os.LookupEnv("POLICYBOT_SESSIONS_KEY"); ok {
+	if v, ok := os.LookupEnv(DefaultEnvPrefix + "SESSIONS_KEY"); ok {
 		c.Sessions.Key = v
 	}
 
