@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-github/v47/github"
+	"github.com/google/go-github/v50/github"
 	"github.com/shurcooL/githubv4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -608,7 +608,7 @@ func defaultTestPR() *github.PullRequest {
 		Title:     github.String("test title"),
 		State:     github.String("open"),
 		Number:    github.Int(123),
-		CreatedAt: newTime(time.Date(2020, 9, 30, 17, 42, 10, 0, time.UTC)),
+		CreatedAt: &github.Timestamp{Time: time.Date(2020, 9, 30, 17, 42, 10, 0, time.UTC)},
 		Draft:     github.Bool(false),
 		User: &github.User{
 			Login: github.String("mhaypenny"),
