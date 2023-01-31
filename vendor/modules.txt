@@ -38,16 +38,16 @@ github.com/golang/protobuf/proto
 # github.com/google/go-github/v45 v45.2.0
 ## explicit; go 1.17
 github.com/google/go-github/v45/github
-# github.com/google/go-github/v47 v47.1.0
+# github.com/google/go-github/v50 v50.0.0
 ## explicit; go 1.17
-github.com/google/go-github/v47/github
+github.com/google/go-github/v50/github
 # github.com/google/go-querystring v1.1.0
 ## explicit; go 1.10
 github.com/google/go-querystring/query
 # github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 ## explicit
 github.com/gregjones/httpcache
-# github.com/hashicorp/golang-lru v0.5.4
+# github.com/hashicorp/golang-lru v0.6.0
 ## explicit; go 1.12
 github.com/hashicorp/golang-lru
 github.com/hashicorp/golang-lru/simplelru
@@ -67,8 +67,8 @@ github.com/mattn/go-isatty
 github.com/palantir/go-baseapp/baseapp
 github.com/palantir/go-baseapp/baseapp/datadog
 github.com/palantir/go-baseapp/pkg/errfmt
-# github.com/palantir/go-githubapp v0.14.0
-## explicit; go 1.18
+# github.com/palantir/go-githubapp v0.15.0
+## explicit; go 1.19
 github.com/palantir/go-githubapp/appconfig
 github.com/palantir/go-githubapp/githubapp
 github.com/palantir/go-githubapp/oauth2

@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v47/github"
+	"github.com/google/go-github/v50/github"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/shurcooL/githubv4"
@@ -100,7 +100,7 @@ func (loc Locator) toV4(ctx context.Context, client *githubv4.Client) (*v4PullRe
 	var v4 v4PullRequest
 	v4.Title = loc.Value.GetTitle()
 	v4.Author.Login = loc.Value.GetUser().GetLogin()
-	v4.CreatedAt = loc.Value.GetCreatedAt()
+	v4.CreatedAt = loc.Value.GetCreatedAt().Time
 	v4.State = loc.Value.GetState()
 	v4.IsCrossRepository = loc.Value.GetHead().GetRepo().GetID() != loc.Value.GetBase().GetRepo().GetID()
 	v4.HeadRefOID = loc.Value.GetHead().GetSHA()
