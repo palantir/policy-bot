@@ -1,9 +1,8 @@
 (function() {
   const hidden = [];
 
-  function toggleFilter(evt) {
-    const enabled = evt.target.checked;
-    if (enabled) {
+  function toggleFilter(target) {
+    if (target.checked) {
       document
         .querySelectorAll('[data-status="skipped"]')
         .forEach(elem => {
@@ -22,8 +21,11 @@
     }
   }
 
-  const toggle = document.getElementById('filter-toggle');
-  if (toggle) {
-    toggle.addEventListener('change', toggleFilter);
-  }
+  document.addEventListener('DOMContentLoaded', () => {
+    const toggle = document.getElementById('filter-toggle');
+    if (toggle) {
+      toggleFilter(toggle);
+      toggle.addEventListener('change', (event) => toggleFilter(event.target));
+    }
+  });
 })();
