@@ -81,6 +81,7 @@ approval_rules:
           - "^versions.lock$"
           - "^internal/generated/.*"
           - "^internal/generated_src/.*"
+          - "^gradle-baseline-java/src/main/resources/checkstyle.version$"
       has_valid_signatures_by_keys:
         key_ids: ["C9AF124A484882E0"]
 
