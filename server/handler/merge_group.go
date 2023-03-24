@@ -33,7 +33,7 @@ func (h *MergeGroup) Handles() []string { return []string{"merge_group"} }
 
 // Handle merge_group
 // https://docs.github.com/webhooks-and-events/webhooks/webhook-events-and-payloads#merge_group
-func (h *MergeGroup) Handle(ctx context.Context, payload []byte) error {
+func (h *MergeGroup) Handle(ctx context.Context, eventType, devlieryID string, payload []byte) error {
 	var event github.MergeGroupEvent
 	repository := event.GetRepo().GetName()
 	owner := event.GetOrg().GetName()
