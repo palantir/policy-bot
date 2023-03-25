@@ -87,7 +87,7 @@ func (h *MergeGroup) Handle(ctx context.Context, eventType, devlieryID string, p
 	}
 
 	if err := PostStatus(ctx, client, owner, repository, headSHA, status); err != nil {
-		logger.Err(errors.WithStack(err)).Msg("Failed to post repo status")
+		logger.Err(errors.WithStack(err)).Msg("Failed to post status check for merge group")
 	}
 
 	return nil
