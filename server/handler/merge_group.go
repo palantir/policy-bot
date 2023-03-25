@@ -18,9 +18,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/google/go-github/v50/github"
 	"github.com/palantir/go-githubapp/githubapp"
+	"github.com/palantir/policy-bot/policy/common"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
@@ -35,11 +37,6 @@ func (h *MergeGroup) Handles() []string { return []string{"merge_group"} }
 // https://docs.github.com/webhooks-and-events/webhooks/webhook-events-and-payloads#merge_group
 func (h *MergeGroup) Handle(ctx context.Context, eventType, devlieryID string, payload []byte) error {
 	var event github.MergeGroupEvent
-	repository := event.GetRepo().GetName()
-	owner := event.GetOrg().GetName()
-	mergeGroup := event.GetMergeGroup()
-	baseBranch := mergeGroup.GetBaseRef()
-	headSHA := mergeGroup.GetHeadSHA()
 
 	if err := json.Unmarshal(payload, &event); err != nil {
 		return errors.Wrap(err, "failed to parse merge group event payload")
@@ -56,20 +53,28 @@ func (h *MergeGroup) Handle(ctx context.Context, eventType, devlieryID string, p
 		return err
 	}
 
-	c, err := h.ConfigFetcher.Loader.LoadConfig(ctx, client, owner, repository, baseBranch)
-	fc := FetchedConfig{
-		Source: c.Source,
-		Path:   c.Path,
+	if err != nil {
+		return errors.Wrap(err, "failed to create evaluation context")
 	}
 
-	switch {
-	case err != nil:
-		fc.LoadError = err
-		msg := fmt.Sprintf("No policy defined on base branch: %s for repository: %s", baseBranch, repository)
-		logger.Warn().Err(errors.WithStack(err)).Msg(msg)
-		return nil
-	case c.IsUndefined():
-		return nil
+	repository := event.GetRepo().GetName()
+	owner := event.GetRepo().GetOwner().GetLogin()
+	mergeGroup := event.GetMergeGroup()
+	baseBranch := strings.TrimPrefix(mergeGroup.GetBaseRef(), "refs/heads/")
+	headSHA := mergeGroup.GetHeadSHA()
+
+	fetchedConfig := h.ConfigFetcher.ConfigForRepositoryBranch(ctx, client, owner, repository, baseBranch)
+
+	evalCtx := &EvalContext{
+		Client:    client,
+		Options:   h.PullOpts,
+		PublicURL: h.BaseConfig.PublicURL,
+		Config:    fetchedConfig,
+	}
+
+	_, err = evalCtx.ParseConfig(ctx, common.TriggerStatic)
+	if err != nil {
+		return err
 	}
 
 	contextWithBranch := fmt.Sprintf("%s: %s", h.PullOpts.StatusCheckContext, baseBranch)

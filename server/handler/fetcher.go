@@ -20,7 +20,6 @@ import (
 	"github.com/google/go-github/v50/github"
 	"github.com/palantir/go-githubapp/appconfig"
 	"github.com/palantir/policy-bot/policy"
-	"github.com/palantir/policy-bot/pull"
 	"gopkg.in/yaml.v2"
 )
 
@@ -37,10 +36,9 @@ type ConfigFetcher struct {
 	Loader *appconfig.Loader
 }
 
-func (cf *ConfigFetcher) ConfigForPR(ctx context.Context, prctx pull.Context, client *github.Client) FetchedConfig {
-	base, _ := prctx.Branches()
+func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *github.Client, owner string, repository string, branch string) FetchedConfig {
 
-	c, err := cf.Loader.LoadConfig(ctx, client, prctx.RepositoryOwner(), prctx.RepositoryName(), base)
+	c, err := cf.Loader.LoadConfig(ctx, client, owner, repository, branch)
 	fc := FetchedConfig{
 		Source: c.Source,
 		Path:   c.Path,
