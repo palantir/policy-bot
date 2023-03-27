@@ -52,10 +52,6 @@ func (h *MergeGroup) Handle(ctx context.Context, eventType, devlieryID string, p
 		return err
 	}
 
-	if err != nil {
-		return errors.Wrap(err, "failed to create evaluation context")
-	}
-
 	repository := event.GetRepo().GetName()
 	owner := event.GetRepo().GetOwner().GetLogin()
 	mergeGroup := event.GetMergeGroup()
