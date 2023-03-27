@@ -760,6 +760,7 @@ The app requires these permissions:
 | Checks | Read-only | Read check run results |
 | Repository administration | Read-only | Read admin team(s) membership |
 | Issues | Read-only | Read pull request comments |
+| Merge Queues | Read-only | Read repository merge queues |
 | Repository metadata | Read-only | Basic repository data |
 | Pull requests | Read & write | Receive pull request events, read metadata. Assign reviewers |
 | Commit status | Read & write | Post commit statuses |
@@ -769,6 +770,7 @@ The app should be subscribed to these events:
 
 * Check run
 * Issue comment
+* Merge groups
 * Pull request
 * Pull request review
 * Status
