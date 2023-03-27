@@ -22,7 +22,6 @@ import (
 
 	"github.com/google/go-github/v50/github"
 	"github.com/palantir/go-githubapp/githubapp"
-	"github.com/palantir/policy-bot/policy/common"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
@@ -63,18 +62,11 @@ func (h *MergeGroup) Handle(ctx context.Context, eventType, devlieryID string, p
 	baseBranch := strings.TrimPrefix(mergeGroup.GetBaseRef(), "refs/heads/")
 	headSHA := mergeGroup.GetHeadSHA()
 
+	// If a PR is added to the merge queue, presumably the policy existed and was valid at the time of merge,
+	// so we're just checking for the existance of a policy here and don't care about its validity.
 	fetchedConfig := h.ConfigFetcher.ConfigForRepositoryBranch(ctx, client, owner, repository, baseBranch)
-
-	evalCtx := &EvalContext{
-		Client:    client,
-		Options:   h.PullOpts,
-		PublicURL: h.BaseConfig.PublicURL,
-		Config:    fetchedConfig,
-	}
-
-	_, err = evalCtx.ParseConfig(ctx, common.TriggerStatic)
-	if err != nil {
-		return err
+	if fetchedConfig.Config == nil {
+		return nil
 	}
 
 	contextWithBranch := fmt.Sprintf("%s: %s", h.PullOpts.StatusCheckContext, baseBranch)

@@ -36,7 +36,7 @@ type ConfigFetcher struct {
 	Loader *appconfig.Loader
 }
 
-func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *github.Client, owner string, repository string, branch string) FetchedConfig {
+func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *github.Client, owner, repository, branch string) FetchedConfig {
 
 	c, err := cf.Loader.LoadConfig(ctx, client, owner, repository, branch)
 	fc := FetchedConfig{
