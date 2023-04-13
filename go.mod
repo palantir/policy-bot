@@ -14,7 +14,7 @@ require (
 	github.com/palantir/go-baseapp v0.4.2
 	github.com/palantir/go-githubapp v0.15.0
 	github.com/pkg/errors v0.9.1
-	github.com/rs/zerolog v1.29.0
+	github.com/rs/zerolog v1.29.1
 	github.com/shurcooL/githubv4 v0.0.0-20230305132112-efb623903184
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.2
@@ -40,7 +40,7 @@ require (
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
-	github.com/rs/xid v1.4.0 // indirect
+	github.com/rs/xid v1.5.0 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/shurcooL/graphql v0.0.0-20181231061246-d48a9a75455f // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
