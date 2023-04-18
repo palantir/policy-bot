@@ -20,7 +20,7 @@ import (
 
 	"github.com/google/go-github/v50/github"
 	"github.com/palantir/go-githubapp/githubapp"
-	"github.com/palantir/policy-bot/policy/approval"
+	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
@@ -72,7 +72,7 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 	}
 
 	reviewState := pull.ReviewState(event.GetReview().GetState())
-	if !h.affectsApproval(reviewState, evalCtx.Config.Config.ApprovalRules) {
+	if !h.affectsApproval(reviewState, evalCtx.Config.Config) {
 		logger.Debug().Msg("Skipping evaluation because this review does not impact approval")
 		return nil
 	}
@@ -86,9 +86,18 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 	return nil
 }
 
-func (h *PullRequestReview) affectsApproval(reviewState pull.ReviewState, rules []*approval.Rule) bool {
-	for _, rule := range rules {
-		if reviewState == rule.Options.GetMethods().GithubReviewState {
+func (h *PullRequestReview) affectsApproval(reviewState pull.ReviewState, config *policy.Config) bool {
+	states := make(map[pull.ReviewState]struct{})
+	for _, rule := range config.ApprovalRules {
+		states[rule.Options.GetMethods().GithubReviewState] = struct{}{}
+	}
+	if disapproval := config.Policy.Disapproval; disapproval != nil {
+		states[disapproval.Options.GetDisapproveMethods().GithubReviewState] = struct{}{}
+		states[disapproval.Options.GetRevokeMethods().GithubReviewState] = struct{}{}
+	}
+
+	for state := range states {
+		if state == reviewState {
 			return true
 		}
 	}
