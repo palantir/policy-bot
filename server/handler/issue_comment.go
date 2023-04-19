@@ -21,7 +21,7 @@ import (
 
 	"github.com/google/go-github/v50/github"
 	"github.com/palantir/go-githubapp/githubapp"
-	"github.com/palantir/policy-bot/policy/approval"
+	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
@@ -92,7 +92,7 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 		return nil
 	}
 
-	if !h.affectsApproval(event, evalCtx.Config.Config.ApprovalRules) {
+	if !h.affectsApproval(event, evalCtx.Config.Config) {
 		logger.Debug().Msg("Skipping evaluation because this comment does not impact approval")
 		return nil
 	}
@@ -119,7 +119,7 @@ func (h *IssueComment) detectAndLogTampering(ctx context.Context, evalCtx *EvalC
 		return false
 	}
 
-	if h.affectsApproval(event, evalCtx.Config.Config.ApprovalRules) {
+	if h.affectsApproval(event, evalCtx.Config.Config) {
 		msg := fmt.Sprintf("Entity %s edited approval comment by %s", eventAuthor, commentAuthor)
 		logger.Warn().Str(LogKeyAudit, "issue_comment").Msg(msg)
 
@@ -131,7 +131,7 @@ func (h *IssueComment) detectAndLogTampering(ctx context.Context, evalCtx *EvalC
 	return true
 }
 
-func (h *IssueComment) affectsApproval(event github.IssueCommentEvent, rules []*approval.Rule) bool {
+func (h *IssueComment) affectsApproval(event github.IssueCommentEvent, config *policy.Config) bool {
 	var body, originalBody string
 	switch event.GetAction() {
 	case "edited":
@@ -142,9 +142,17 @@ func (h *IssueComment) affectsApproval(event github.IssueCommentEvent, rules []*
 		originalBody = body
 	}
 
-	for _, rule := range rules {
-		methods := rule.Options.GetMethods()
-		if methods.CommentMatches(body) || (body != originalBody && methods.CommentMatches(originalBody)) {
+	var methods []*common.Methods
+	for _, rule := range config.ApprovalRules {
+		methods = append(methods, rule.Options.GetMethods())
+	}
+	if disapproval := config.Policy.Disapproval; disapproval != nil {
+		methods = append(methods, disapproval.Options.GetDisapproveMethods())
+		methods = append(methods, disapproval.Options.GetRevokeMethods())
+	}
+
+	for _, m := range methods {
+		if m.CommentMatches(body) || (body != originalBody && m.CommentMatches(originalBody)) {
 			return true
 		}
 	}
