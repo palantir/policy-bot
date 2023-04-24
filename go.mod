@@ -15,7 +15,7 @@ require (
 	github.com/palantir/go-githubapp v0.15.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.29.1
-	github.com/shurcooL/githubv4 v0.0.0-20230305132112-efb623903184
+	github.com/shurcooL/githubv4 v0.0.0-20230424031643-6cea62ecd5a9
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.2
 	github.com/vektah/gqlparser v1.0.0
