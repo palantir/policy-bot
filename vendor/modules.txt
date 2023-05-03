@@ -101,8 +101,8 @@ github.com/mattn/go-isatty
 github.com/palantir/go-baseapp/baseapp
 github.com/palantir/go-baseapp/baseapp/datadog
 github.com/palantir/go-baseapp/pkg/errfmt
-# github.com/palantir/go-githubapp v0.15.0
-## explicit; go 1.19
+# github.com/palantir/go-githubapp v0.16.0
+## explicit; go 1.20
 github.com/palantir/go-githubapp/appconfig
 github.com/palantir/go-githubapp/githubapp
 github.com/palantir/go-githubapp/oauth2
