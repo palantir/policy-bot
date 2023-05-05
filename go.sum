@@ -40,8 +40,6 @@ github.com/google/go-cmp v0.5.5/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/
 github.com/google/go-cmp v0.5.8/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 github.com/google/go-cmp v0.5.9 h1:O2Tfq5qg4qc4AmwVlvv0oLiVAGB7enBSJ2x2DqQFi38=
 github.com/google/go-cmp v0.5.9/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
-github.com/google/go-github/v50 v50.2.0 h1:j2FyongEHlO9nxXLc+LP3wuBSVU9mVxfpdYUexMpIfk=
-github.com/google/go-github/v50 v50.2.0/go.mod h1:VBY8FB6yPIjrtKhozXv4FQupxKLS6H4m6xFZlT43q8Q=
 github.com/google/go-github/v52 v52.0.0 h1:uyGWOY+jMQ8GVGSX8dkSwCzlehU3WfdxQ7GweO/JP7M=
 github.com/google/go-github/v52 v52.0.0/go.mod h1:WJV6VEEUPuMo5pXqqa2ZCZEdbQqua4zAk2MZTIo+m+4=
 github.com/google/go-querystring v1.1.0 h1:AnCroh3fv4ZBgVIf1Iwtovgjaw/GiKJo8M8yD/fhyJ8=
@@ -64,8 +62,8 @@ github.com/mattn/go-isatty v0.0.14 h1:yVuAays6BHfxijgZPzw+3Zlu5yQgKGP2/hcQbHb7S9
 github.com/mattn/go-isatty v0.0.14/go.mod h1:7GGIvUiUoEMVVmxf/4nioHXj79iQHKdU27kJ6hsGG94=
 github.com/palantir/go-baseapp v0.4.2 h1:467eN5W1CbFKTuMwNJ2O+9IpT8oQZyTSlBceq4l9Guw=
 github.com/palantir/go-baseapp v0.4.2/go.mod h1:q9HkqNo8w4I9U8nUrDn7/Cy0natYX1ZMI6ABEljxnlI=
-github.com/palantir/go-githubapp v0.15.0 h1:nGBfCxPOmtvzMMQEN5tkVFBMrl/KJvlbzbzZuufus20=
-github.com/palantir/go-githubapp v0.15.0/go.mod h1:q76fSMdapx/apTKLAi59MA8ACXbgwygaCQ789qC5yp8=
+github.com/palantir/go-githubapp v0.16.0 h1:bLeK3oTLyMvhTAQ0/aVy9ad9MuA/atHj9RkZbZRehkM=
+github.com/palantir/go-githubapp v0.16.0/go.mod h1:VdCUkPW8zfd+R2DOy6soNRarRHVfROLI3fytYX4/VHA=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
