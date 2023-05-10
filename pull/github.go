@@ -1210,6 +1210,7 @@ type v4GitSignature struct {
 	Type  string           `graphql:"__typename"`
 	GPG   v4GpgSignature   `graphql:"... on GpgSignature"`
 	SMIME v4SmimeSignature `graphql:"... on SmimeSignature"`
+	SSH   v4SshSignature   `graphql:"... on SshSignature"`
 }
 
 func (s *v4GitSignature) ToSignature() *Signature {
@@ -1228,6 +1229,14 @@ func (s *v4GitSignature) ToSignature() *Signature {
 			Signer:  s.SMIME.Signer.GetV3Login(),
 			State:   s.SMIME.State,
 			Type:    SignatureSmime,
+		}
+	case SignatureSSH:
+		return &Signature{
+			IsValid:        s.SSH.IsValid,
+			KeyFingerprint: s.SSH.KeyFingerprint,
+			Signer:         s.SSH.Signer.GetV3Login(),
+			State:          s.SSH.State,
+			Type:           SignatureSSH,
 		}
 	default:
 		return nil
@@ -1248,6 +1257,17 @@ type v4GpgSignature struct {
 	Email             string
 	IsValid           bool
 	KeyID             string
+	Payload           string
+	Signature         string
+	Signer            *v4Actor
+	State             string
+	WasSignedByGitHub bool
+}
+
+type v4SshSignature struct {
+	Email             string
+	IsValid           bool
+	KeyFingerprint    string
 	Payload           string
 	Signature         string
 	Signer            *v4Actor
