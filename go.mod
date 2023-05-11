@@ -29,7 +29,7 @@ require (
 	github.com/ProtonMail/go-crypto v0.0.0-20230217124315-7d5c6f04bbb8 // indirect
 	github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883 // indirect
 	github.com/bradleyfalzon/ghinstallation/v2 v2.4.0 // indirect
-	github.com/cloudflare/circl v1.1.0 // indirect
+	github.com/cloudflare/circl v1.3.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
