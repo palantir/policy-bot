@@ -141,25 +141,27 @@ func TestIsApproved(t *testing.T) {
 	}
 
 	assertApproved := func(t *testing.T, prctx pull.Context, r *Rule, expected string) {
-		allowedCandidates, err := r.FilteredCandidates(ctx, prctx)
+		allowedCandidates, _, err := r.FilteredCandidates(ctx, prctx)
 		require.NoError(t, err)
 
-		approved, msg, err := r.IsApproved(ctx, prctx, allowedCandidates)
+		approved, approvers, err := r.IsApproved(ctx, prctx, allowedCandidates)
 		require.NoError(t, err)
 
 		if assert.True(t, approved, "pull request was not approved") {
+			msg := r.statusDescription(approved, approvers, allowedCandidates)
 			assert.Equal(t, expected, msg)
 		}
 	}
 
 	assertPending := func(t *testing.T, prctx pull.Context, r *Rule, expected string) {
-		allowedCandidates, err := r.FilteredCandidates(ctx, prctx)
+		allowedCandidates, _, err := r.FilteredCandidates(ctx, prctx)
 		require.NoError(t, err)
 
-		approved, msg, err := r.IsApproved(ctx, prctx, allowedCandidates)
+		approved, approvers, err := r.IsApproved(ctx, prctx, allowedCandidates)
 		require.NoError(t, err)
 
 		if assert.False(t, approved, "pull request was incorrectly approved") {
+			msg := r.statusDescription(approved, approvers, allowedCandidates)
 			assert.Equal(t, expected, msg)
 		}
 	}
@@ -177,7 +179,7 @@ func TestIsApproved(t *testing.T) {
 				Count: 1,
 			},
 		}
-		assertPending(t, prctx, r, "0/1 approvals required. Ignored 7 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 7 approvals from disqualified users")
 	})
 
 	t.Run("authorCannotApprove", func(t *testing.T) {
@@ -315,7 +317,7 @@ func TestIsApproved(t *testing.T) {
 				},
 			},
 		}
-		assertPending(t, prctx, r, "0/1 approvals required. Ignored 7 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 7 approvals from disqualified users")
 	})
 
 	t.Run("specificOrgApproves", func(t *testing.T) {
@@ -338,7 +340,7 @@ func TestIsApproved(t *testing.T) {
 				},
 			},
 		}
-		assertPending(t, prctx, r, "0/1 approvals required. Ignored 7 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 7 approvals from disqualified users")
 	})
 
 	t.Run("specificOrgsOrUserApproves", func(t *testing.T) {
@@ -377,7 +379,7 @@ func TestIsApproved(t *testing.T) {
 		assertApproved(t, prctx, r, "Approved by comment-approver")
 
 		r.Options.InvalidateOnPush = true
-		assertPending(t, prctx, r, "0/1 approvals required. Ignored 6 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 6 approvals from disqualified users")
 	})
 
 	t.Run("invalidateReviewOnPush", func(t *testing.T) {
@@ -402,7 +404,7 @@ func TestIsApproved(t *testing.T) {
 		assertApproved(t, prctx, r, "Approved by review-approver")
 
 		r.Options.InvalidateOnPush = true
-		assertPending(t, prctx, r, "0/1 approvals required. Ignored 1 approval from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 1 approval from disqualified users")
 	})
 
 	t.Run("ignoreUpdateMergeAfterReview", func(t *testing.T) {
@@ -429,7 +431,7 @@ func TestIsApproved(t *testing.T) {
 				InvalidateOnPush: true,
 			},
 		}
-		assertPending(t, prctx, r, "0/1 approvals required. Ignored 6 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 6 approvals from disqualified users")
 
 		r.Options.IgnoreUpdateMerges = true
 		assertApproved(t, prctx, r, "Approved by comment-approver")
@@ -461,7 +463,7 @@ func TestIsApproved(t *testing.T) {
 				},
 			},
 		}
-		assertPending(t, prctx, r, "0/1 approvals required. Ignored 8 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 8 approvals from disqualified users")
 
 		r.Options.IgnoreUpdateMerges = true
 		assertApproved(t, prctx, r, "Approved by merge-committer")
@@ -483,7 +485,7 @@ func TestIsApproved(t *testing.T) {
 				},
 			},
 		}
-		assertPending(t, prctx, r, "0/1 approvals required. Ignored 7 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 7 approvals from disqualified users")
 
 		r.Options.IgnoreCommitsBy = common.Actors{
 			Users: []string{"comment-approver"},
@@ -507,7 +509,7 @@ func TestIsApproved(t *testing.T) {
 				},
 			},
 		}
-		assertPending(t, prctx, r, "0/1 approvals required. Ignored 7 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 7 approvals from disqualified users")
 	})
 
 	t.Run("ignoreCommitsInvalidateOnPush", func(t *testing.T) {
@@ -554,7 +556,7 @@ func TestIsApproved(t *testing.T) {
 
 		r.Options.IgnoreEditedComments = true
 
-		assertPending(t, prctx, r, "0/1 approvals required. Ignored 5 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 5 approvals from disqualified users")
 	})
 
 	t.Run("ignoreEditedComments", func(t *testing.T) {
@@ -573,7 +575,7 @@ func TestIsApproved(t *testing.T) {
 
 		r.Options.IgnoreEditedComments = true
 
-		assertPending(t, prctx, r, "0/1 approvals required. Ignored 5 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 5 approvals from disqualified users")
 	})
 
 	t.Run("ignoreEditedCommentsWithBodyPattern", func(t *testing.T) {
@@ -600,7 +602,7 @@ func TestIsApproved(t *testing.T) {
 
 		r.Options.IgnoreEditedComments = true
 
-		assertPending(t, prctx, r, "0/1 approvals required. Ignored 5 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 5 approvals from disqualified users")
 	})
 }
 
