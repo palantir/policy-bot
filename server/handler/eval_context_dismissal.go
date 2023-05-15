@@ -28,13 +28,18 @@ func (ec *EvalContext) dismissStaleReviewsForResult(ctx context.Context, result 
 
 	approvers := findAllApprovers(&result)
 
+	alreadyDismissed := make(map[string]bool)
 	for _, d := range findAllDismissals(&result) {
-		// Only dismiss stale review for now (ignore comments)
+		// Only dismiss stale reviews for now (ignore comments)
 		if d.Candidate.Type != common.ReviewCandidate {
 			continue
 		}
-		// Only dismiss reviews that have no impact on approval
+		// Only dismiss reviews from users who are not currently approvers
 		if approvers[d.Candidate.User] {
+			continue
+		}
+		// Only dismiss reviews once if they're dismissed by multiple rules
+		if alreadyDismissed[d.Candidate.ReviewID] {
 			continue
 		}
 
@@ -42,6 +47,7 @@ func (ec *EvalContext) dismissStaleReviewsForResult(ctx context.Context, result 
 		if err := dismissPullRequestReview(ctx, ec.V4Client, d.Candidate.ReviewID, d.Reason); err != nil {
 			return err
 		}
+		alreadyDismissed[d.Candidate.ReviewID] = true
 	}
 
 	return nil
