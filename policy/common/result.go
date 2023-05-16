@@ -74,8 +74,19 @@ type Result struct {
 	Requires          Requires
 	Methods           *Methods
 
+	// Approvers contains the candidates that satisfied the rule.
+	Approvers []*Candidate
+
+	// Dismissals contains candidates that should be discarded because they
+	// cannot satisfy any future evaluations.
+	Dismissals []*Dismissal
+
 	ReviewRequestRule *ReviewRequestRule
-	AllowedCandidates []*Candidate
 
 	Children []*Result
+}
+
+type Dismissal struct {
+	Candidate *Candidate
+	Reason    string
 }

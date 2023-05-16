@@ -16,11 +16,8 @@ package handler
 
 import (
 	"context"
-	"fmt"
-	"time"
 
 	"github.com/palantir/policy-bot/policy/common"
-	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/shurcooL/githubv4"
@@ -29,86 +26,61 @@ import (
 func (ec *EvalContext) dismissStaleReviewsForResult(ctx context.Context, result common.Result) error {
 	logger := zerolog.Ctx(ctx)
 
-	var allowedCandidates []*common.Candidate
+	approvers := findAllApprovers(&result)
 
-	results := findResultsWithAllowedCandidates(&result)
-	for _, res := range results {
-		for _, candidate := range res.AllowedCandidates {
-			if candidate.Type != common.ReviewCandidate {
-				continue
-			}
-			allowedCandidates = append(allowedCandidates, candidate)
+	alreadyDismissed := make(map[string]bool)
+	for _, d := range findAllDismissals(&result) {
+		// Only dismiss stale reviews for now (ignore comments)
+		if d.Candidate.Type != common.ReviewCandidate {
+			continue
 		}
-	}
-
-	reviews, err := ec.PullContext.Reviews()
-	if err != nil {
-		return err
-	}
-
-	for _, r := range reviews {
-		if r.State != pull.ReviewApproved {
+		// Only dismiss reviews from users who are not currently approvers
+		if approvers[d.Candidate.User] {
+			continue
+		}
+		// Only dismiss reviews once if they're dismissed by multiple rules
+		if alreadyDismissed[d.Candidate.ReviewID] {
 			continue
 		}
 
-		if reviewIsAllowed(r, allowedCandidates) {
-			continue
-		}
-
-		reason := reasonForDismissedReview(r)
-		if reason == "" {
-			continue
-		}
-
-		message := fmt.Sprintf("Dismissed because the approval %s", reason)
-		logger.Info().Msgf("Dismissing stale review %s because it %s", r.ID, reason)
-		if err := dismissPullRequestReview(ctx, ec.V4Client, r.ID, message); err != nil {
+		logger.Info().Str("reason", d.Reason).Msgf("Dismissing stale review %s", d.Candidate.ReviewID)
+		if err := dismissPullRequestReview(ctx, ec.V4Client, d.Candidate.ReviewID, d.Reason); err != nil {
 			return err
 		}
+		alreadyDismissed[d.Candidate.ReviewID] = true
 	}
 
 	return nil
 }
 
-func findResultsWithAllowedCandidates(result *common.Result) []*common.Result {
-	var results []*common.Result
+func findAllDismissals(result *common.Result) []*common.Dismissal {
+	var dismissals []*common.Dismissal
+
+	if len(result.Children) == 0 && result.Error == nil {
+		dismissals = append(dismissals, result.Dismissals...)
+	}
 	for _, c := range result.Children {
-		results = append(results, findResultsWithAllowedCandidates(c)...)
+		dismissals = append(dismissals, findAllDismissals(c)...)
 	}
 
-	if len(result.Children) == 0 && len(result.AllowedCandidates) > 0 && result.Error == nil {
-		results = append(results, result)
-	}
-
-	return results
+	return dismissals
 }
 
-func reviewIsAllowed(review *pull.Review, allowedCandidates []*common.Candidate) bool {
-	for _, candidate := range allowedCandidates {
-		if review.ID == candidate.ReviewID {
-			return true
+func findAllApprovers(result *common.Result) map[string]bool {
+	approvers := make(map[string]bool)
+
+	if len(result.Children) == 0 && result.Error == nil {
+		for _, a := range result.Approvers {
+			approvers[a.User] = true
 		}
 	}
-	return false
-}
-
-// We already know that these are discarded review candidates for 1 of 2 reasons
-// so first we check for edited and then we check to see if its a review thats at least
-// 5 seconds old and we know that it was invalidated by a new commit.
-//
-// This is brittle and may need refactoring in future versions because it assumes the bot
-// will take less than 5 seconds to respond, but thought that having a dismissal reason
-// was valuable.
-func reasonForDismissedReview(review *pull.Review) string {
-	if !review.LastEditedAt.IsZero() {
-		return "was edited"
+	for _, c := range result.Children {
+		for u := range findAllApprovers(c) {
+			approvers[u] = true
+		}
 	}
 
-	if review.CreatedAt.Before(time.Now().Add(-5 * time.Second)) {
-		return "was invalidated by another commit"
-	}
-
-	return ""
+	return approvers
 }
 
 func dismissPullRequestReview(ctx context.Context, v4client *githubv4.Client, reviewID string, message string) error {
