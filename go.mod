@@ -7,7 +7,7 @@ require (
 	github.com/bluekeyes/hatpear v0.1.1
 	github.com/bluekeyes/templatetree v0.1.0
 	github.com/c2h5oh/datasize v0.0.0-20220606134207-859f65c6625b
-	github.com/die-net/lrucache v0.0.0-20181227122439-19a39ef22a11
+	github.com/die-net/lrucache v0.0.0-20220628165024-20a71bc65bf1
 	github.com/google/go-github/v52 v52.0.0
 	github.com/google/go-querystring v1.1.0
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79

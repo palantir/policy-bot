@@ -60,8 +60,8 @@ github.com/cloudflare/circl/sign/ed448
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
-# github.com/die-net/lrucache v0.0.0-20181227122439-19a39ef22a11
-## explicit
+# github.com/die-net/lrucache v0.0.0-20220628165024-20a71bc65bf1
+## explicit; go 1.15
 github.com/die-net/lrucache
 # github.com/golang-jwt/jwt/v4 v4.5.0
 ## explicit; go 1.16
