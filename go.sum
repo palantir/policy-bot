@@ -13,6 +13,8 @@ github.com/bluekeyes/hatpear v0.1.1 h1:FA5diKynoYJi6YVTJPEDbe4MG6eA8h+7LYHUlm8bp
 github.com/bluekeyes/hatpear v0.1.1/go.mod h1:2bh+rl4wLhqzzL0hT7Q4SVGXIivrE8oKgH2WYM3ubt0=
 github.com/bluekeyes/templatetree v0.1.0 h1:XKehBOS8+QciDUgjQJbqOxOJkZTpXWvZVcPAXDZf2TQ=
 github.com/bluekeyes/templatetree v0.1.0/go.mod h1:F0jp7CTgfIsYPrplxgA43Ipv/lQG0c75DtpFO98fvAQ=
+github.com/bluekeyes/templatetree v0.5.0 h1:bJ5W/D/SzB9GWzUG0G+Js8duOAwasE1vEWndxxQRoO0=
+github.com/bluekeyes/templatetree v0.5.0/go.mod h1:doLcw8f06r6e1+9R30QkqYeq6/dDwxeQAF0FHjiOrIs=
 github.com/bradleyfalzon/ghinstallation/v2 v2.4.0 h1:zYSzkoIwekCQAr6GT6KxISLt4YRS6kd4/ixfzMN+7yc=
 github.com/bradleyfalzon/ghinstallation/v2 v2.4.0/go.mod h1:4MwZLSgBJJgg4i3nJwZJ95AMooSqN8fJDmegLVn9Q2U=
 github.com/bwesterb/go-ristretto v1.2.0/go.mod h1:fUIoIZaG73pV5biE2Blr2xEzDoMj7NFEuV9ekS419A0=
