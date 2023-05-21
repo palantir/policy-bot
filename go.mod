@@ -4,6 +4,7 @@ go 1.20
 
 require (
 	github.com/alexedwards/scs v1.4.1
+	github.com/alexedwards/scs/v2 v2.5.1
 	github.com/bluekeyes/hatpear v0.1.1
 	github.com/bluekeyes/templatetree v0.5.0
 	github.com/c2h5oh/datasize v0.0.0-20220606134207-859f65c6625b
