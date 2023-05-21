@@ -29,6 +29,8 @@ github.com/ProtonMail/go-crypto/openpgp/s2k
 ## explicit
 github.com/alexedwards/scs
 github.com/alexedwards/scs/stores/cookiestore
+# github.com/alexedwards/scs/v2 v2.5.1
+## explicit; go 1.12
 # github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883
 ## explicit
 # github.com/bluekeyes/hatpear v0.1.1
