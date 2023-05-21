@@ -18,7 +18,7 @@ require (
 	github.com/shurcooL/githubv4 v0.0.0-20230424031643-6cea62ecd5a9
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.3
-	github.com/vektah/gqlparser v1.0.0
+	github.com/vektah/gqlparser v1.3.1
 	goji.io v2.0.2+incompatible
 	gopkg.in/yaml.v2 v2.4.0
 )
