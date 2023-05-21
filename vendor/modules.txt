@@ -34,8 +34,8 @@ github.com/alexedwards/scs/stores/cookiestore
 # github.com/bluekeyes/hatpear v0.1.1
 ## explicit; go 1.11
 github.com/bluekeyes/hatpear
-# github.com/bluekeyes/templatetree v0.1.0
-## explicit; go 1.11
+# github.com/bluekeyes/templatetree v0.5.0
+## explicit; go 1.18
 github.com/bluekeyes/templatetree
 # github.com/bradleyfalzon/ghinstallation/v2 v2.4.0
 ## explicit; go 1.13
