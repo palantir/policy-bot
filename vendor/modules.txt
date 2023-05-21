@@ -149,6 +149,8 @@ github.com/vektah/gqlparser/ast
 github.com/vektah/gqlparser/gqlerror
 github.com/vektah/gqlparser/lexer
 github.com/vektah/gqlparser/parser
+# github.com/vektah/gqlparser/v2 v2.5.1
+## explicit; go 1.16
 # goji.io v2.0.2+incompatible
 ## explicit
 goji.io
