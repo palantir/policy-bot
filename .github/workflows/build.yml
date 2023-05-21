@@ -31,7 +31,7 @@ jobs:
         echo "::set-output name=version::${GO_VERSION}"
 
     - name: Set up Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v4
       with:
         go-version: ${{ steps.go_version.outputs.version }}
 
@@ -68,7 +68,7 @@ jobs:
         echo "::set-output name=version::${GO_VERSION}"
 
     - name: Set up Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v4
       with:
         go-version: ${{ steps.go_version.outputs.version }}
 
