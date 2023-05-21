@@ -21,6 +21,7 @@ require (
 	github.com/vektah/gqlparser v1.3.1
 	goji.io v2.0.2+incompatible
 	gopkg.in/yaml.v2 v2.4.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -50,5 +51,4 @@ require (
 	golang.org/x/sys v0.8.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
