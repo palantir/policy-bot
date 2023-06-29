@@ -29,7 +29,7 @@ import (
 //   - Adds a logger to request contexts
 //   - Adds a metrics registry to request contexts
 //   - Adds a request ID to all requests and responses
-//   - Logs and records metrics for all requests
+//   - Logs and records metrics for requests, respecting ignore rules
 //   - Handles errors returned by route handlers
 //   - Recovers from panics in route handlers
 //
@@ -40,6 +40,7 @@ func DefaultMiddleware(logger zerolog.Logger, registry metrics.Registry) []func(
 		hlog.NewHandler(logger),
 		NewMetricsHandler(registry),
 		hlog.RequestIDHandler("rid", "X-Request-ID"),
+		NewIgnoreHandler(),
 		AccessHandler(RecordRequest),
 		hatpear.Catch(HandleRouteError),
 		hatpear.Recover(),
@@ -59,6 +60,10 @@ func NewMetricsHandler(registry metrics.Registry) func(http.Handler) http.Handle
 
 // LogRequest is an AccessCallback that logs request information.
 func LogRequest(r *http.Request, status int, size int64, elapsed time.Duration) {
+	if IsIgnored(r, IgnoreRule{Logs: true}) {
+		return
+	}
+
 	hlog.FromRequest(r).Info().
 		Str("method", r.Method).
 		Str("path", r.URL.String()).
