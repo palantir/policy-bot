@@ -16,6 +16,7 @@ package handler
 
 import (
 	"os"
+	"strconv"
 )
 
 const (
@@ -72,13 +73,22 @@ func (p *PullEvaluationOptions) SetValuesFromEnv(prefix string) {
 	setStringFromEnv("SHARED_REPOSITORY", prefix, &p.SharedRepository)
 	setStringFromEnv("SHARED_POLICY_PATH", prefix, &p.SharedPolicyPath)
 	setStringFromEnv("STATUS_CHECK_CONTEXT", prefix, &p.StatusCheckContext)
-	setStringFromEnv("DO_NOT_LOAD_COMMIT_PUSHED_DATE", prefix, &p.StatusCheckContext)
+	setStringFromEnv("DO_NOT_LOAD_COMMIT_PUSHED_DATE", prefix, &p.DoNotLoadCommitPushedDate)
 	p.fillDefaults()
 }
 
 func setStringFromEnv(key, prefix string, value *string) bool {
 	if v, ok := os.LookupEnv(prefix + key); ok {
 		*value = v
+		return true
+	}
+	return false
+}
+
+func setBoolFromEnv(key, prefix string, value *bool) bool {
+	if v, ok := os.LookupEnv(prefix + key); ok {
+		parsedResult, _ := strconv.ParseBool(v)
+		*value = parsedResult
 		return true
 	}
 	return false
