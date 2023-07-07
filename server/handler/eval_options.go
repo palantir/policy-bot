@@ -73,7 +73,7 @@ func (p *PullEvaluationOptions) SetValuesFromEnv(prefix string) {
 	setStringFromEnv("SHARED_REPOSITORY", prefix, &p.SharedRepository)
 	setStringFromEnv("SHARED_POLICY_PATH", prefix, &p.SharedPolicyPath)
 	setStringFromEnv("STATUS_CHECK_CONTEXT", prefix, &p.StatusCheckContext)
-	setStringFromEnv("DO_NOT_LOAD_COMMIT_PUSHED_DATE", prefix, &p.DoNotLoadCommitPushedDate)
+	setBoolFromEnv("DO_NOT_LOAD_COMMIT_PUSHED_DATE", prefix, &p.DoNotLoadCommitPushedDate)
 	p.fillDefaults()
 }
 
