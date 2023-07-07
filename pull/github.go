@@ -121,6 +121,8 @@ type GitHubContext struct {
 	client   *github.Client
 	v4client *githubv4.Client
 
+	doNotLoadCommitPushedDate bool
+
 	owner  string
 	repo   string
 	number int
@@ -145,7 +147,7 @@ type GitHubContext struct {
 // obtain information. It caches responses for the lifetime of the context. The
 // pull request passed to the context must contain at least the base repository
 // and the number or the function panics.
-func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *github.Client, v4client *githubv4.Client, loc Locator) (Context, error) {
+func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *github.Client, v4client *githubv4.Client, loc Locator, doNotLoadCommitPushedDate bool) (Context, error) {
 	if loc.Owner == "" || loc.Repo == "" || loc.Number == 0 {
 		panic("pull request object does not contain full identifying information")
 	}
@@ -166,6 +168,8 @@ func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *git
 		repo:   loc.Repo,
 		number: loc.Number,
 		pr:     pr,
+
+		doNotLoadCommitPushedDate: doNotLoadCommitPushedDate,
 	}, nil
 }
 
@@ -814,6 +818,9 @@ func (ghc *GitHubContext) loadCommits() ([]*Commit, error) {
 		if err != nil {
 			return nil, err
 		}
+		if ghc.doNotLoadCommitPushedDate {
+			return commits, nil
+		}
 		if head.PushedAt != nil {
 			return commits, nil
 		}
@@ -862,7 +869,7 @@ func (ghc *GitHubContext) loadCommitsOnce() (head *Commit, commits []*Commit, er
 	// In the second case, retrying after a delay can fix things, but the delay
 	// can be 15+ seconds in practice, so using the alternate API should
 	// improve latency at the cost of more API requests.
-	if head.PushedAt == nil {
+	if head.PushedAt == nil && !ghc.doNotLoadCommitPushedDate {
 		log.Debug().
 			Bool("fork", ghc.pr.IsCrossRepository).
 			Msgf("failed to load pushed date via pull request, falling back to commit APIs")

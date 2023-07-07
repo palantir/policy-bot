@@ -45,6 +45,11 @@ type PullEvaluationOptions struct {
 	//
 	// TODO(bkeyes): remove in version 2.0
 	Deprecated_AppName string `yaml:"app_name"`
+
+	// As of 2023-07-01 the commit.pushedDate graphql field is removed from GitHub.
+	// !Warning!
+	// Setting this option effectively breaks all usage of the invalidate_on_push approval rule
+	DoNotLoadCommitPushedDate bool `yaml:"do_not_load_commit_pushed_date"`
 }
 
 func (p *PullEvaluationOptions) fillDefaults() {
@@ -57,7 +62,6 @@ func (p *PullEvaluationOptions) fillDefaults() {
 	if p.SharedPolicyPath == "" {
 		p.SharedPolicyPath = DefaultSharedPolicyPath
 	}
-
 	if p.StatusCheckContext == "" {
 		p.StatusCheckContext = DefaultStatusCheckContext
 	}
