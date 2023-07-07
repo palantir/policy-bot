@@ -736,7 +736,7 @@ whether a commit was pushed after the approval was granted.
 
 A server option (`do_not_load_commit_pushed_date`) is provided to toggle loading the push
 date for commits. If enabled, policy-bot will not be able to determine whether a commit
-was pushed after an approval wast granted.
+was pushed after an approval was granted.
 
 [2023-07-01 breaking changes]: https://docs.github.com/en/graphql/overview/breaking-changes#changes-scheduled-for-2023-07-01
 
