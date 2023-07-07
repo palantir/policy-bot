@@ -738,6 +738,8 @@ A server option (`do_not_load_commit_pushed_date`) is provided to toggle loading
 date for commits. If enabled, policy-bot will not be able to determine whether a commit
 was pushed after an approval was granted.
 
+Can also be configured by using the following env variable `POLICYBOT_OPTIONS_DO_NOT_LOAD_COMMIT_PUSHED_DATE`.
+
 [2023-07-01 breaking changes]: https://docs.github.com/en/graphql/overview/breaking-changes#changes-scheduled-for-2023-07-01
 
 ## Deployment
