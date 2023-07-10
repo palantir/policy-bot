@@ -313,7 +313,7 @@ func (r *Rule) filterInvalidCandidates(ctx context.Context, prctx pull.Context, 
 		return candidates, nil, nil
 	}
 
-	last := findLastPushed(commits)
+	last := findEvaluationCutoff(commits)
 	if last == nil {
 		return nil, nil, errors.New("no commit contained a push date")
 	}
@@ -430,14 +430,41 @@ func isIgnoredCommit(ctx context.Context, prctx pull.Context, actors *common.Act
 	return len(c.Users()) > 0, nil
 }
 
-func findLastPushed(commits []*pull.Commit) *pull.Commit {
-	var last *pull.Commit
+func findEvaluationCutoff(commits []*pull.Commit, now time.Time) *time.Time {
+	var statuses int
+	var times [2]*time.Time
 	for _, c := range commits {
-		if c.PushedAt != nil && (last == nil || c.PushedAt.After(*last.PushedAt)) {
-			last = c
+		if c.LastEvaluatedAt == nil {
+			continue
+		}
+
+		statuses++
+		switch {
+		case times[0] == nil || c.LastEvaluatedAt.After(*times[0]):
+			times[0], times[1] = c.LastEvaluatedAt, times[0]
+
+		case times[1] == nil || c.LastEvaluatedAt.After(*times[1]):
+			times[1] = c.LastEvaluatedAt
 		}
 	}
-	return last
+
+	switch statuses {
+	case 0:
+		// No existing statuses means it's the first evaluation or a force push
+		// replaced all the commits. Cutoff at the current time.
+		return &now
+
+	case len(commits):
+		// All commits have statuses, so we're re-evaluating a PR with no new
+		// pushes. Cutoff at the second-to-last evalution time (which might be
+		// nil), since that is the last push.
+		return times[1]
+
+	default:
+		// At least one commit did not have status, so this is a new push to an
+		// existing PR. Cutoff at the last evaluation time.
+		return times[0]
+	}
 }
 
 func numberOfApprovals(count int) string {
