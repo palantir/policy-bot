@@ -147,9 +147,9 @@ type Commit struct {
 	// committer is not a real user.
 	Committer string
 
-	// PushedAt is the timestamp when the commit was pushed. It is nil if that
-	// information is not available for this commit.
-	PushedAt *time.Time
+	// LastEvaluatedAt is the time stamp of the last policy-bot evaluation for
+	// this commit. It is nil if the commit has not been evaluated yet.
+	LastEvaluatedAt *time.Time
 
 	// Signature is the signature and details that was extracted from the commit.
 	// It is nil if the commit has no signature
