@@ -112,22 +112,22 @@ func TestIsApproved(t *testing.T) {
 			},
 			CommitsValue: []*pull.Commit{
 				{
-					PushedAt:  newTime(now.Add(5 * time.Second)),
-					SHA:       "c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
-					Author:    "mhaypenny",
-					Committer: "mhaypenny",
+					LastEvaluatedAt: newTime(now.Add(5 * time.Second)),
+					SHA:             "c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
+					Author:          "mhaypenny",
+					Committer:       "mhaypenny",
 				},
 				{
-					PushedAt:  newTime(now.Add(15 * time.Second)),
-					SHA:       "674832587eaaf416371b30f5bc5a47e377f534ec",
-					Author:    "contributor-author",
-					Committer: "mhaypenny",
+					LastEvaluatedAt: newTime(now.Add(15 * time.Second)),
+					SHA:             "674832587eaaf416371b30f5bc5a47e377f534ec",
+					Author:          "contributor-author",
+					Committer:       "mhaypenny",
 				},
 				{
-					PushedAt:  newTime(now.Add(45 * time.Second)),
-					SHA:       "97d5ea26da319a987d80f6db0b7ef759f2f2e441",
-					Author:    "mhaypenny",
-					Committer: "contributor-committer",
+					LastEvaluatedAt: newTime(now.Add(45 * time.Second)),
+					SHA:             "97d5ea26da319a987d80f6db0b7ef759f2f2e441",
+					Author:          "mhaypenny",
+					Committer:       "contributor-committer",
 				},
 			},
 			OrgMemberships: map[string][]string{
@@ -361,10 +361,16 @@ func TestIsApproved(t *testing.T) {
 		prctx := basePullContext()
 		prctx.CommitsValue = []*pull.Commit{
 			{
-				PushedAt:  newTime(now.Add(25 * time.Second)),
-				SHA:       "c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
-				Author:    "mhaypenny",
-				Committer: "mhaypenny",
+				LastEvaluatedAt: newTime(now.Add(25 * time.Second)),
+				SHA:             "c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
+				Author:          "mhaypenny",
+				Committer:       "mhaypenny",
+			},
+			{
+				LastEvaluatedAt: nil,
+				SHA:             "18cc4a28ea62bd308a9e6d07470e8e1426f95e7f",
+				Author:          "mhaypenny",
+				Committer:       "mhaypenny",
 			},
 		}
 
@@ -386,10 +392,16 @@ func TestIsApproved(t *testing.T) {
 		prctx := basePullContext()
 		prctx.CommitsValue = []*pull.Commit{
 			{
-				PushedAt:  newTime(now.Add(85 * time.Second)),
-				SHA:       "c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
-				Author:    "mhaypenny",
-				Committer: "mhaypenny",
+				LastEvaluatedAt: newTime(now.Add(85 * time.Second)),
+				SHA:             "c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
+				Author:          "mhaypenny",
+				Committer:       "mhaypenny",
+			},
+			{
+				LastEvaluatedAt: nil,
+				SHA:             "18cc4a28ea62bd308a9e6d07470e8e1426f95e7f",
+				Author:          "mhaypenny",
+				Committer:       "mhaypenny",
 			},
 		}
 
@@ -409,16 +421,25 @@ func TestIsApproved(t *testing.T) {
 
 	t.Run("ignoreUpdateMergeAfterReview", func(t *testing.T) {
 		prctx := basePullContext()
-		prctx.CommitsValue = append(prctx.CommitsValue[:1], &pull.Commit{
-			PushedAt:        newTime(now.Add(25 * time.Second)),
-			SHA:             "647c5078288f0ea9de27b5c280f25edaf2089045",
-			CommittedViaWeb: true,
-			Parents: []string{
-				"c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
-				"2e1b0bb6ab144bf7a1b7a1df9d3bdcb0fe85a206",
+		prctx.CommitsValue = append(
+			prctx.CommitsValue[:1],
+			&pull.Commit{
+				LastEvaluatedAt: newTime(now.Add(25 * time.Second)),
+				SHA:             "647c5078288f0ea9de27b5c280f25edaf2089045",
+				CommittedViaWeb: true,
+				Parents: []string{
+					"c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
+					"2e1b0bb6ab144bf7a1b7a1df9d3bdcb0fe85a206",
+				},
+				Author: "merge-committer",
 			},
-			Author: "merge-committer",
-		})
+			&pull.Commit{
+				LastEvaluatedAt: nil,
+				SHA:             "18cc4a28ea62bd308a9e6d07470e8e1426f95e7f",
+				Author:          "mhaypenny",
+				Committer:       "mhaypenny",
+			},
+		)
 
 		r := &Rule{
 			Requires: common.Requires{
@@ -440,7 +461,7 @@ func TestIsApproved(t *testing.T) {
 	t.Run("ignoreUpdateMergeContributor", func(t *testing.T) {
 		prctx := basePullContext()
 		prctx.CommitsValue = append(prctx.CommitsValue[:1], &pull.Commit{
-			PushedAt:        newTime(now.Add(25 * time.Second)),
+			LastEvaluatedAt: newTime(now.Add(25 * time.Second)),
 			SHA:             "647c5078288f0ea9de27b5c280f25edaf2089045",
 			CommittedViaWeb: true,
 			Parents: []string{
@@ -516,10 +537,10 @@ func TestIsApproved(t *testing.T) {
 		prctx := basePullContext()
 		prctx.CommitsValue = []*pull.Commit{
 			{
-				PushedAt:  newTime(now.Add(25 * time.Second)),
-				SHA:       "c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
-				Author:    "mhaypenny",
-				Committer: "mhaypenny",
+				LastEvaluatedAt: newTime(now.Add(25 * time.Second)),
+				SHA:             "c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
+				Author:          "mhaypenny",
+				Committer:       "mhaypenny",
 			},
 		}
 

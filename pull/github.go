@@ -1008,7 +1008,7 @@ type v4Commit struct {
 	Status          struct {
 		Context *struct {
 			CreatedAt time.Time
-		} `graphql:"context(name: $context)`
+		} `graphql:"context(name: $context)"`
 	}
 	Parents struct {
 		Nodes []struct {
