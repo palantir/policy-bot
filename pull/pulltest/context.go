@@ -21,6 +21,8 @@ import (
 )
 
 type Context struct {
+	EvaluationTimestampValue time.Time
+
 	OwnerValue  string
 	RepoValue   string
 	NumberValue int
@@ -71,6 +73,10 @@ type Context struct {
 	LabelsError error
 
 	Draft bool
+}
+
+func (c *Context) EvaluationTimestamp() time.Time {
+	return c.EvaluationTimestampValue
 }
 
 func (c *Context) RepositoryOwner() string {

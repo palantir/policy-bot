@@ -301,10 +301,6 @@ func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, c
 func (r *Rule) filterInvalidCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, []*common.Dismissal, error) {
 	log := zerolog.Ctx(ctx)
 
-	if !r.Options.InvalidateOnPush {
-		return candidates, nil, nil
-	}
-
 	commits, err := r.filteredCommits(ctx, prctx)
 	if err != nil {
 		return nil, nil, err
@@ -313,28 +309,26 @@ func (r *Rule) filterInvalidCandidates(ctx context.Context, prctx pull.Context, 
 		return candidates, nil, nil
 	}
 
-	last := findEvaluationCutoff(commits)
-	if last == nil {
-		return nil, nil, errors.New("no commit contained a push date")
-	}
+	head := prctx.HeadSHA()
+	cutoff := findEvaluationCutoff(commits, prctx.EvaluationTimestamp())
 
 	var allowed []*common.Candidate
 	var dismissed []*common.Dismissal
 	for _, c := range candidates {
-		if c.CreatedAt.After(*last.PushedAt) {
+		if c.CreatedAt.After(cutoff) {
 			allowed = append(allowed, c)
 		} else {
 			dismissed = append(dismissed, &common.Dismissal{
 				Candidate: c,
-				Reason:    fmt.Sprintf("Invalidated by push of %.7s", last.SHA),
+				Reason:    fmt.Sprintf("Invalidated by push of %.7s", head),
 			})
 		}
 	}
 
-	log.Debug().Msgf("discarded %d candidates invalidated by push of %s at %s",
-		len(dismissed),
-		last.SHA,
-		last.PushedAt.Format(time.RFC3339))
+	log.Debug().Msgf(
+		"discarded %d candidates invalidated by push of %s on or after %s",
+		len(dismissed), head, cutoff,
+	)
 
 	return allowed, dismissed, nil
 }
@@ -430,9 +424,12 @@ func isIgnoredCommit(ctx context.Context, prctx pull.Context, actors *common.Act
 	return len(c.Users()) > 0, nil
 }
 
-func findEvaluationCutoff(commits []*pull.Commit, now time.Time) *time.Time {
+// findEvaluationCutoff returns the time after which candidates should be
+// considered for approval. It returns the zero time.Time if all candidates
+// should be considered.
+func findEvaluationCutoff(commits []*pull.Commit, now time.Time) time.Time {
 	var statuses int
-	var times [2]*time.Time
+	var times [2]time.Time
 	for _, c := range commits {
 		if c.LastEvaluatedAt == nil {
 			continue
@@ -440,11 +437,10 @@ func findEvaluationCutoff(commits []*pull.Commit, now time.Time) *time.Time {
 
 		statuses++
 		switch {
-		case times[0] == nil || c.LastEvaluatedAt.After(*times[0]):
-			times[0], times[1] = c.LastEvaluatedAt, times[0]
-
-		case times[1] == nil || c.LastEvaluatedAt.After(*times[1]):
-			times[1] = c.LastEvaluatedAt
+		case c.LastEvaluatedAt.After(times[0]):
+			times[0], times[1] = *c.LastEvaluatedAt, times[0]
+		case c.LastEvaluatedAt.After(times[1]):
+			times[1] = *c.LastEvaluatedAt
 		}
 	}
 
@@ -452,12 +448,12 @@ func findEvaluationCutoff(commits []*pull.Commit, now time.Time) *time.Time {
 	case 0:
 		// No existing statuses means it's the first evaluation or a force push
 		// replaced all the commits. Cutoff at the current time.
-		return &now
+		return now
 
 	case len(commits):
 		// All commits have statuses, so we're re-evaluating a PR with no new
 		// pushes. Cutoff at the second-to-last evalution time (which might be
-		// nil), since that is the last push.
+		// the zero time), since that is the last push.
 		return times[1]
 
 	default:

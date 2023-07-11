@@ -44,6 +44,11 @@ type MembershipContext interface {
 type Context interface {
 	MembershipContext
 
+	// EvaluationTimestamp returns the time at the start of the pull request
+	// evaluation, usually the creation time of the context. All calls on the
+	// same context should return the same value.
+	EvaluationTimestamp() time.Time
+
 	// RepositoryOwner returns the owner of the repo that the pull request targets.
 	RepositoryOwner() string
 

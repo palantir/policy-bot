@@ -69,7 +69,7 @@ func (b *Base) NewEvalContext(ctx context.Context, installationID int64, loc pul
 	}
 
 	mbrCtx := NewCrossOrgMembershipContext(ctx, client, loc.Owner, b.Installations, b.ClientCreator)
-	prctx, err := pull.NewGitHubContext(ctx, mbrCtx, client, v4client, loc, b.PullOpts.DoNotLoadCommitPushedDate)
+	prctx, err := pull.NewGitHubContext(ctx, mbrCtx, client, v4client, b.PullOpts.StatusCheckContext, loc)
 	if err != nil {
 		return nil, err
 	}

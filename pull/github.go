@@ -120,6 +120,7 @@ type GitHubContext struct {
 	v4client *githubv4.Client
 
 	statusContext string
+	evalTimestamp time.Time
 
 	owner  string
 	repo   string
@@ -163,12 +164,17 @@ func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *git
 		v4client: v4client,
 
 		statusContext: statusContext,
+		evalTimestamp: time.Now(),
 
 		owner:  loc.Owner,
 		repo:   loc.Repo,
 		number: loc.Number,
 		pr:     pr,
 	}, nil
+}
+
+func (ghc *GitHubContext) EvaluationTimestamp() time.Time {
+	return ghc.evalTimestamp
 }
 
 func (ghc *GitHubContext) RepositoryOwner() string {
@@ -835,6 +841,7 @@ func (ghc *GitHubContext) loadRawCommits() ([]*v4PullRequestCommit, error) {
 		} `graphql:"repository(owner: $owner, name: $name)"`
 	}
 	qvars := map[string]interface{}{
+		// TODO(bkeyes): add branch names into the status
 		"context": githubv4.String(ghc.statusContext),
 		"owner":   githubv4.String(ghc.owner),
 		"name":    githubv4.String(ghc.repo),
