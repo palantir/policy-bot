@@ -178,14 +178,13 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 	owner := ec.PullContext.RepositoryOwner()
 	repo := ec.PullContext.RepositoryName()
 	sha := ec.PullContext.HeadSHA()
-	base, _ := ec.PullContext.Branches()
 
 	publicURL := strings.TrimSuffix(ec.PublicURL, "/")
 	detailsURL := fmt.Sprintf("%s/details/%s/%s/%d", publicURL, owner, repo, ec.PullContext.Number())
 
 	status := github.RepoStatus{
 		State:       &state,
-		Context:     github.String(fmt.Sprintf("%s: %s", ec.Options.StatusCheckContext, base)),
+		Context:     github.String(ec.PullContext.StatusCheckContext()),
 		Description: &message,
 		TargetURL:   &detailsURL,
 	}

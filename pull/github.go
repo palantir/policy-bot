@@ -16,6 +16,7 @@ package pull
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -119,8 +120,8 @@ type GitHubContext struct {
 	client   *github.Client
 	v4client *githubv4.Client
 
-	statusContext string
-	evalTimestamp time.Time
+	statusCheckContext string
+	evalTimestamp      time.Time
 
 	owner  string
 	repo   string
@@ -146,7 +147,7 @@ type GitHubContext struct {
 // obtain information. It caches responses for the lifetime of the context. The
 // pull request passed to the context must contain at least the base repository
 // and the number or the function panics.
-func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *github.Client, v4client *githubv4.Client, statusContext string, loc Locator) (Context, error) {
+func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *github.Client, v4client *githubv4.Client, statusCheckContext string, loc Locator) (Context, error) {
 	if loc.Owner == "" || loc.Repo == "" || loc.Number == 0 {
 		panic("pull request object does not contain full identifying information")
 	}
@@ -163,8 +164,8 @@ func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *git
 		client:   client,
 		v4client: v4client,
 
-		statusContext: statusContext,
-		evalTimestamp: time.Now(),
+		statusCheckContext: statusCheckContext,
+		evalTimestamp:      time.Now(),
 
 		owner:  loc.Owner,
 		repo:   loc.Repo,
@@ -175,6 +176,11 @@ func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *git
 
 func (ghc *GitHubContext) EvaluationTimestamp() time.Time {
 	return ghc.evalTimestamp
+}
+
+func (ghc *GitHubContext) StatusCheckContext() string {
+	base, _ := ghc.Branches()
+	return fmt.Sprintf("%s: %s", ghc.statusCheckContext, base)
 }
 
 func (ghc *GitHubContext) RepositoryOwner() string {
@@ -828,7 +834,6 @@ func (ghc *GitHubContext) loadCommits() ([]*Commit, error) {
 	return commits, nil
 }
 
-// TODO(bkeyes): inline this?
 func (ghc *GitHubContext) loadRawCommits() ([]*v4PullRequestCommit, error) {
 	var q struct {
 		Repository struct {
@@ -841,8 +846,7 @@ func (ghc *GitHubContext) loadRawCommits() ([]*v4PullRequestCommit, error) {
 		} `graphql:"repository(owner: $owner, name: $name)"`
 	}
 	qvars := map[string]interface{}{
-		// TODO(bkeyes): add branch names into the status
-		"context": githubv4.String(ghc.statusContext),
+		"context": githubv4.String(ghc.StatusCheckContext()),
 		"owner":   githubv4.String(ghc.owner),
 		"name":    githubv4.String(ghc.repo),
 		"number":  githubv4.Int(ghc.number),

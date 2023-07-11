@@ -22,6 +22,7 @@ import (
 
 type Context struct {
 	EvaluationTimestampValue time.Time
+	StatusCheckContextValue  string
 
 	OwnerValue  string
 	RepoValue   string
@@ -77,6 +78,10 @@ type Context struct {
 
 func (c *Context) EvaluationTimestamp() time.Time {
 	return c.EvaluationTimestampValue
+}
+
+func (c *Context) StatusCheckContext() string {
+	return c.StatusCheckContextValue
 }
 
 func (c *Context) RepositoryOwner() string {

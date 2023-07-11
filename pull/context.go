@@ -49,6 +49,10 @@ type Context interface {
 	// same context should return the same value.
 	EvaluationTimestamp() time.Time
 
+	// StatusCheckContext returns the context (name) to use for the status
+	// checks posted on the commits in the pull request.
+	StatusCheckContext() string
+
 	// RepositoryOwner returns the owner of the repo that the pull request targets.
 	RepositoryOwner() string
 
