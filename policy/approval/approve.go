@@ -445,11 +445,6 @@ func findEvaluationCutoff(commits []*pull.Commit, now time.Time) time.Time {
 	}
 
 	switch statuses {
-	case 0:
-		// No existing statuses means it's the first evaluation or a force push
-		// replaced all the commits. Cutoff at the current time.
-		return now
-
 	case len(commits):
 		// All commits have statuses, so we're re-evaluating a PR with no new
 		// pushes. Cutoff at the second-to-last evalution time (which might be
@@ -457,9 +452,9 @@ func findEvaluationCutoff(commits []*pull.Commit, now time.Time) time.Time {
 		return times[1]
 
 	default:
-		// At least one commit did not have status, so this is a new push to an
-		// existing PR. Cutoff at the last evaluation time.
-		return times[0]
+		// At least one commit did not have status, so this is either the first
+		// evaluation or a new push to an existing PR. Cutoff at the current time.
+		return now
 	}
 }
 
