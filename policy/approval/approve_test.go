@@ -388,6 +388,63 @@ func TestIsApproved(t *testing.T) {
 		assertPending(t, prctx, r, "0/1 required approvals. Ignored 6 approvals from disqualified users")
 	})
 
+	t.Run("invalidateCommentOnForcePush", func(t *testing.T) {
+		prctx := basePullContext()
+		prctx.EvaluationTimestampValue = now.Add(25 * time.Second)
+		prctx.CommitsValue = []*pull.Commit{
+			{
+				LastEvaluatedAt: nil,
+				SHA:             "c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
+				Author:          "mhaypenny",
+				Committer:       "mhaypenny",
+			},
+		}
+
+		r := &Rule{
+			Requires: common.Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Users: []string{"comment-approver"},
+				},
+			},
+		}
+		assertApproved(t, prctx, r, "Approved by comment-approver")
+
+		r.Options.InvalidateOnPush = true
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 6 approvals from disqualified users")
+	})
+
+	t.Run("invalidateCommentOnPushReevaluation", func(t *testing.T) {
+		prctx := basePullContext()
+		prctx.CommitsValue = []*pull.Commit{
+			{
+				LastEvaluatedAt: newTime(now.Add(25 * time.Second)),
+				SHA:             "c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
+				Author:          "mhaypenny",
+				Committer:       "mhaypenny",
+			},
+			{
+				LastEvaluatedAt: newTime(now.Add(45 * time.Second)),
+				SHA:             "18cc4a28ea62bd308a9e6d07470e8e1426f95e7f",
+				Author:          "mhaypenny",
+				Committer:       "mhaypenny",
+			},
+		}
+
+		r := &Rule{
+			Requires: common.Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Users: []string{"comment-approver"},
+				},
+			},
+		}
+		assertApproved(t, prctx, r, "Approved by comment-approver")
+
+		r.Options.InvalidateOnPush = true
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 6 approvals from disqualified users")
+	})
+
 	t.Run("invalidateReviewOnPush", func(t *testing.T) {
 		prctx := basePullContext()
 		prctx.CommitsValue = []*pull.Commit{
