@@ -16,7 +16,6 @@ package pull
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -120,9 +119,6 @@ type GitHubContext struct {
 	client   *github.Client
 	v4client *githubv4.Client
 
-	statusCheckContext string
-	evalTimestamp      time.Time
-
 	owner  string
 	repo   string
 	number int
@@ -141,13 +137,14 @@ type GitHubContext struct {
 	membership    map[string]bool
 	statuses      map[string]string
 	labels        []string
+	lastPushedAt  *time.Time
 }
 
 // NewGitHubContext creates a new pull.Context that makes GitHub requests to
 // obtain information. It caches responses for the lifetime of the context. The
 // pull request passed to the context must contain at least the base repository
 // and the number or the function panics.
-func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *github.Client, v4client *githubv4.Client, statusCheckContext string, loc Locator) (Context, error) {
+func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *github.Client, v4client *githubv4.Client, loc Locator) (Context, error) {
 	if loc.Owner == "" || loc.Repo == "" || loc.Number == 0 {
 		panic("pull request object does not contain full identifying information")
 	}
@@ -164,23 +161,11 @@ func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *git
 		client:   client,
 		v4client: v4client,
 
-		statusCheckContext: statusCheckContext,
-		evalTimestamp:      time.Now(),
-
 		owner:  loc.Owner,
 		repo:   loc.Repo,
 		number: loc.Number,
 		pr:     pr,
 	}, nil
-}
-
-func (ghc *GitHubContext) EvaluationTimestamp() time.Time {
-	return ghc.evalTimestamp
-}
-
-func (ghc *GitHubContext) StatusCheckContext() string {
-	base, _ := ghc.Branches()
-	return fmt.Sprintf("%s: %s", ghc.statusCheckContext, base)
 }
 
 func (ghc *GitHubContext) RepositoryOwner() string {
@@ -327,13 +312,23 @@ func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 		if err != nil {
 			return nil, err
 		}
-		backfillLastEvaluatedAt(commits, ghc.pr.HeadRefOID)
 		ghc.commits = commits
 	}
 	if len(ghc.commits) >= MaxPullRequestCommits {
 		return nil, errors.Errorf("too many commits in pull request, maximum is %d", MaxPullRequestCommits)
 	}
 	return ghc.commits, nil
+}
+
+func (ghc *GitHubContext) LastPushedAt() (time.Time, error) {
+	if ghc.lastPushedAt == nil {
+		lastPushedAt, err := ghc.loadLastPushedAt()
+		if err != nil {
+			return time.Time{}, err
+		}
+		ghc.lastPushedAt = &lastPushedAt
+	}
+	return *ghc.lastPushedAt, nil
 }
 
 func (ghc *GitHubContext) Comments() ([]*Comment, error) {
@@ -846,11 +841,10 @@ func (ghc *GitHubContext) loadRawCommits() ([]*v4PullRequestCommit, error) {
 		} `graphql:"repository(owner: $owner, name: $name)"`
 	}
 	qvars := map[string]interface{}{
-		"context": githubv4.String(ghc.StatusCheckContext()),
-		"owner":   githubv4.String(ghc.owner),
-		"name":    githubv4.String(ghc.repo),
-		"number":  githubv4.Int(ghc.number),
-		"cursor":  (*githubv4.String)(nil),
+		"owner":  githubv4.String(ghc.owner),
+		"name":   githubv4.String(ghc.repo),
+		"number": githubv4.Int(ghc.number),
+		"cursor": (*githubv4.String)(nil),
 	}
 
 	commits := []*v4PullRequestCommit{}
@@ -866,31 +860,30 @@ func (ghc *GitHubContext) loadRawCommits() ([]*v4PullRequestCommit, error) {
 	return commits, nil
 }
 
-func backfillLastEvaluatedAt(commits []*Commit, headSHA string) {
-	commitsBySHA := make(map[string]*Commit, len(commits))
-	for _, c := range commits {
-		commitsBySHA[c.SHA] = c
+func (ghc *GitHubContext) loadLastPushedAt() (time.Time, error) {
+	opt := &github.ListOptions{
+		PerPage: 100,
 	}
 
-	root := headSHA
+	// ListStatuses returns statuses in reverse chronological order, so the
+	// last item on the last page is the oldest status, which must have been
+	// posted after someone pushed the commit.
 	for {
-		c, ok := commitsBySHA[root]
-		if !ok || len(c.Parents) == 0 {
-			break
+		statuses, resp, err := ghc.client.Repositories.ListStatuses(ghc.ctx, ghc.owner, ghc.repo, ghc.HeadSHA(), opt)
+		if err != nil {
+			return time.Time{}, errors.Wrapf(err, "failed to list statuses for page %d", opt.Page)
 		}
-
-		firstParent, ok := commitsBySHA[c.Parents[0]]
-		if !ok {
-			break
+		if resp.NextPage == 0 {
+			last := statuses[len(statuses)-1]
+			return last.GetCreatedAt().Time, nil
 		}
-
-		if firstParent.LastEvaluatedAt == nil {
-			firstParent.LastEvaluatedAt = c.LastEvaluatedAt
-		}
-
-		delete(commitsBySHA, root)
-		root = firstParent.SHA
+		opt.Page = resp.NextPage
 	}
+
+	// The head commit has no statuses, so this must be the first evaluation.
+	// Use the current time as the push time, since it must be after the actual
+	// push due to webhook delivery and processing time.
+	return time.Now(), nil
 }
 
 // if adding new fields to this struct, modify Locator#toV4() and Locator#IsComplete() as well
@@ -1009,12 +1002,7 @@ type v4Commit struct {
 	Author          v4GitActor
 	Committer       v4GitActor
 	CommittedViaWeb bool
-	Status          struct {
-		Context *struct {
-			CreatedAt time.Time
-		} `graphql:"context(name: $context)"`
-	}
-	Parents struct {
+	Parents         struct {
 		Nodes []struct {
 			OID string
 		}
@@ -1033,18 +1021,12 @@ func (c *v4Commit) ToCommit() *Commit {
 		signature = c.Signature.ToSignature()
 	}
 
-	var lastEvaluatedAt *time.Time
-	if c.Status.Context != nil {
-		lastEvaluatedAt = &c.Status.Context.CreatedAt
-	}
-
 	return &Commit{
 		SHA:             c.OID,
 		Parents:         parents,
 		CommittedViaWeb: c.CommittedViaWeb,
 		Author:          c.Author.User.GetV3Login(),
 		Committer:       c.Committer.User.GetV3Login(),
-		LastEvaluatedAt: lastEvaluatedAt,
 		Signature:       signature,
 	}
 }

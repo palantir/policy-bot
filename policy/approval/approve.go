@@ -310,12 +310,15 @@ func (r *Rule) filterInvalidCandidates(ctx context.Context, prctx pull.Context, 
 	}
 
 	head := prctx.HeadSHA()
-	cutoff := findEvaluationCutoff(commits, prctx.EvaluationTimestamp())
+	lastPushedAt, err := prctx.LastPushedAt()
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to get last push timestamp")
+	}
 
 	var allowed []*common.Candidate
 	var dismissed []*common.Dismissal
 	for _, c := range candidates {
-		if c.CreatedAt.After(cutoff) {
+		if c.CreatedAt.After(lastPushedAt) {
 			allowed = append(allowed, c)
 		} else {
 			dismissed = append(dismissed, &common.Dismissal{
@@ -326,8 +329,8 @@ func (r *Rule) filterInvalidCandidates(ctx context.Context, prctx pull.Context, 
 	}
 
 	log.Debug().Msgf(
-		"discarded %d candidates invalidated by push of %s on or after %s",
-		len(dismissed), head, cutoff,
+		"discarded %d candidates invalidated by push of %s on or before %s",
+		len(dismissed), head, lastPushedAt.Format(time.RFC3339),
 	)
 
 	return allowed, dismissed, nil
@@ -422,40 +425,6 @@ func isIgnoredCommit(ctx context.Context, prctx pull.Context, actors *common.Act
 	}
 	// either all users are ignored or the commit has no users; only ignore in the first case
 	return len(c.Users()) > 0, nil
-}
-
-// findEvaluationCutoff returns the time after which candidates should be
-// considered for approval. It returns the zero time.Time if all candidates
-// should be considered.
-func findEvaluationCutoff(commits []*pull.Commit, now time.Time) time.Time {
-	var statuses int
-	var times [2]time.Time
-	for _, c := range commits {
-		if c.LastEvaluatedAt == nil {
-			continue
-		}
-
-		statuses++
-		switch {
-		case c.LastEvaluatedAt.After(times[0]):
-			times[0], times[1] = *c.LastEvaluatedAt, times[0]
-		case c.LastEvaluatedAt.After(times[1]):
-			times[1] = *c.LastEvaluatedAt
-		}
-	}
-
-	switch statuses {
-	case len(commits):
-		// All commits have statuses, so we're re-evaluating a PR with no new
-		// pushes. Cutoff at the second-to-last evalution time (which might be
-		// the zero time), since that is the last push.
-		return times[1]
-
-	default:
-		// At least one commit did not have status, so this is either the first
-		// evaluation or a new push to an existing PR. Cutoff at the current time.
-		return now
-	}
 }
 
 func numberOfApprovals(count int) string {

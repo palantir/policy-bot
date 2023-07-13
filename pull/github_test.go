@@ -108,25 +108,19 @@ func TestCommits(t *testing.T) {
 	require.Len(t, commits, 3, "incorrect number of commits")
 	assert.Equal(t, 2, dataRule.Count, "incorrect number of http requests")
 
-	expectedTime, err := time.Parse(time.RFC3339, "2018-12-04T12:34:56Z")
-	assert.NoError(t, err)
-
 	assert.Equal(t, "a6f3f69b64eaafece5a0d854eb4af11c0d64394c", commits[0].SHA)
 	assert.Equal(t, "mhaypenny", commits[0].Author)
 	assert.Equal(t, "mhaypenny", commits[0].Committer)
-	assert.Equal(t, newTime(expectedTime), commits[0].LastEvaluatedAt)
 	assert.Nil(t, commits[0].Signature)
 
 	assert.Equal(t, "1fc89f1cedf8e3f3ce516ab75b5952295c8ea5e9", commits[1].SHA)
 	assert.Equal(t, "mhaypenny", commits[1].Author)
 	assert.Equal(t, "mhaypenny", commits[1].Committer)
-	assert.Equal(t, newTime(expectedTime), commits[1].LastEvaluatedAt)
 	assert.Nil(t, commits[1].Signature)
 
 	assert.Equal(t, "e05fcae367230ee709313dd2720da527d178ce43", commits[2].SHA)
 	assert.Equal(t, "ttest", commits[2].Author)
 	assert.Equal(t, "mhaypenny", commits[2].Committer)
-	assert.Equal(t, newTime(expectedTime.Add(48*time.Hour)), commits[2].LastEvaluatedAt)
 
 	// verify that the signature was handled correctly
 	assert.NotNil(t, commits[2].Signature)
@@ -553,7 +547,7 @@ func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest) Conte
 		pr = defaultTestPR()
 	}
 
-	prctx, err := NewGitHubContext(ctx, mbrCtx, client, v4client, "policy-bot", Locator{
+	prctx, err := NewGitHubContext(ctx, mbrCtx, client, v4client, Locator{
 		Owner:  pr.GetBase().GetRepo().GetOwner().GetLogin(),
 		Repo:   pr.GetBase().GetRepo().GetName(),
 		Number: pr.GetNumber(),

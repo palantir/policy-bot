@@ -30,9 +30,6 @@
                           "oid": "0492883704e64bb53834c7c5fbd5fc22d44dedda"
                         }
                       ]
-                    },
-                    "status": {
-                      "context": null
                     }
                   }
                 },
@@ -55,11 +52,6 @@
                           "oid": "a6f3f69b64eaafece5a0d854eb4af11c0d64394c"
                         }
                       ]
-                    },
-                    "status": {
-                      "context": {
-                        "createdAt": "2018-12-04T12:34:56Z"
-                      }
                     }
                   }
                 }
@@ -101,11 +93,6 @@
                           "oid": "1fc89f1cedf8e3f3ce516ab75b5952295c8ea5e9"
                         }
                       ]
-                    },
-                    "status": {
-                      "context": {
-                        "createdAt": "2018-12-06T12:34:56Z"
-                      }
                     },
                     "signature": {
                       "__typename": "GpgSignature",
