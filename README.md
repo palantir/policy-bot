@@ -31,7 +31,6 @@ UI to view the detailed approval status of any pull request.
     - [`or`, `and`, and `if` (Rule Predicates)](#or-and-and-if-rule-predicates)
     - [Cross-organization Membership Tests](#cross-organization-membership-tests)
     - [Update Merges](#update-merges)
-    - [Private Repositories](#private-repositories)
     - [Automatically Requesting Reviewers](#automatically-requesting-reviewers)
 * [Security](#security)
 * [Deployment](#deployment)
@@ -724,23 +723,6 @@ issue by using the `ignore_commits_by` option in combination with the
 [commit statuses]: https://developer.github.com/v3/repos/statuses/
 [requirement on a protected branch]: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/defining-the-mergeability-of-pull-requests/about-protected-branches#require-status-checks-before-merging
 [commit-current-user-check]: https://github.com/github/platform-samples/blob/master/pre-receive-hooks/commit-current-user-check.sh
-
-### Invalidate On Push
-
-`policy-bot` can be configured to invalidate approvals when a commit is pushed using
-the `invalidate_on_push` option. This option is disabled by default.
-
-However, in recent versions of GitHub after [2023-07-01 breaking changes][], policy-bot
-is unable to load pushedDate for commits. This means that it is unable to determine
-whether a commit was pushed after the approval was granted.
-
-A server option (`do_not_load_commit_pushed_date`) is provided to toggle loading the push
-date for commits. If enabled, policy-bot will not be able to determine whether a commit
-was pushed after an approval was granted.
-
-Can also be configured by using the following env variable `POLICYBOT_OPTIONS_DO_NOT_LOAD_COMMIT_PUSHED_DATE`.
-
-[2023-07-01 breaking changes]: https://docs.github.com/en/graphql/overview/breaking-changes#changes-scheduled-for-2023-07-01
 
 ## Deployment
 
