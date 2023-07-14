@@ -44,6 +44,11 @@ type MembershipContext interface {
 type Context interface {
 	MembershipContext
 
+	// EvaluationTimestamp returns the time at the start of the pull request
+	// evaluation, usually the creation time of the context. All calls on the
+	// same context should return the same value.
+	EvaluationTimestamp() time.Time
+
 	// RepositoryOwner returns the owner of the repo that the pull request targets.
 	RepositoryOwner() string
 
@@ -87,10 +92,10 @@ type Context interface {
 	// commit order is implementation dependent.
 	Commits() ([]*Commit, error)
 
-	// LastPushedAt returns the time of the last push of a commit to this pull
-	// request. The returned time may be after the actual push time, but must
-	// not be before.
-	LastPushedAt() (time.Time, error)
+	// PushedAt returns the time at which the commit with sha was pushed. The
+	// returned time may be after the actual push time, but must not be before.
+	// PushedAt returns the zero time if the push time for is unknown.
+	PushedAt(sha string) (time.Time, error)
 
 	// Comments lists all comments on a Pull Request. The comment order is
 	// implementation dependent.

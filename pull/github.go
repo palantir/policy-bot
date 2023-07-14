@@ -119,6 +119,8 @@ type GitHubContext struct {
 	client   *github.Client
 	v4client *githubv4.Client
 
+	evalTimestamp time.Time
+
 	owner  string
 	repo   string
 	number int
@@ -133,11 +135,10 @@ type GitHubContext struct {
 	collaborators []*Collaborator
 	permissions   map[string]Permission
 	teams         map[string]Permission
-	teamIDs       map[string]int64
 	membership    map[string]bool
 	statuses      map[string]string
 	labels        []string
-	lastPushedAt  *time.Time
+	pushedAt      map[string]time.Time
 }
 
 // NewGitHubContext creates a new pull.Context that makes GitHub requests to
@@ -161,11 +162,17 @@ func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *git
 		client:   client,
 		v4client: v4client,
 
+		evalTimestamp: time.Now(),
+
 		owner:  loc.Owner,
 		repo:   loc.Repo,
 		number: loc.Number,
 		pr:     pr,
 	}, nil
+}
+
+func (ghc *GitHubContext) EvaluationTimestamp() time.Time {
+	return ghc.evalTimestamp
 }
 
 func (ghc *GitHubContext) RepositoryOwner() string {
@@ -320,15 +327,21 @@ func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 	return ghc.commits, nil
 }
 
-func (ghc *GitHubContext) LastPushedAt() (time.Time, error) {
-	if ghc.lastPushedAt == nil {
-		lastPushedAt, err := ghc.loadLastPushedAt()
-		if err != nil {
-			return time.Time{}, err
-		}
-		ghc.lastPushedAt = &lastPushedAt
+func (ghc *GitHubContext) PushedAt(sha string) (time.Time, error) {
+	if t, ok := ghc.pushedAt[sha]; ok {
+		return t, nil
 	}
-	return *ghc.lastPushedAt, nil
+
+	pushedAt, err := ghc.loadPushedAt(sha)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	if ghc.pushedAt == nil {
+		ghc.pushedAt = make(map[string]time.Time)
+	}
+	ghc.pushedAt[sha] = pushedAt
+	return pushedAt, nil
 }
 
 func (ghc *GitHubContext) Comments() ([]*Comment, error) {
@@ -860,7 +873,7 @@ func (ghc *GitHubContext) loadRawCommits() ([]*v4PullRequestCommit, error) {
 	return commits, nil
 }
 
-func (ghc *GitHubContext) loadLastPushedAt() (time.Time, error) {
+func (ghc *GitHubContext) loadPushedAt(sha string) (time.Time, error) {
 	opt := &github.ListOptions{
 		PerPage: 100,
 	}
@@ -869,9 +882,12 @@ func (ghc *GitHubContext) loadLastPushedAt() (time.Time, error) {
 	// last item on the last page is the oldest status, which must have been
 	// posted after someone pushed the commit.
 	for {
-		statuses, resp, err := ghc.client.Repositories.ListStatuses(ghc.ctx, ghc.owner, ghc.repo, ghc.HeadSHA(), opt)
+		statuses, resp, err := ghc.client.Repositories.ListStatuses(ghc.ctx, ghc.owner, ghc.repo, sha, opt)
 		if err != nil {
 			return time.Time{}, errors.Wrapf(err, "failed to list statuses for page %d", opt.Page)
+		}
+		if len(statuses) == 0 {
+			return time.Time{}, nil
 		}
 		if resp.NextPage == 0 {
 			last := statuses[len(statuses)-1]
@@ -879,11 +895,6 @@ func (ghc *GitHubContext) loadLastPushedAt() (time.Time, error) {
 		}
 		opt.Page = resp.NextPage
 	}
-
-	// The head commit has no statuses, so this must be the first evaluation.
-	// Use the current time as the push time, since it must be after the actual
-	// push due to webhook delivery and processing time.
-	return time.Now(), nil
 }
 
 // if adding new fields to this struct, modify Locator#toV4() and Locator#IsComplete() as well

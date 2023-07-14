@@ -36,7 +36,8 @@ func TestIsApproved(t *testing.T) {
 	now := time.Now()
 	basePullContext := func() *pulltest.Context {
 		return &pulltest.Context{
-			AuthorValue: "mhaypenny",
+			EvaluationTimestampValue: now,
+			AuthorValue:              "mhaypenny",
 			BodyValue: &pull.Body{
 				Body:         "/no-platform",
 				CreatedAt:    now.Add(10 * time.Second),
@@ -110,6 +111,7 @@ func TestIsApproved(t *testing.T) {
 					Body:         "I LIKE THIS",
 				},
 			},
+			HeadSHAValue: "97d5ea26da319a987d80f6db0b7ef759f2f2e441",
 			CommitsValue: []*pull.Commit{
 				{
 					SHA:       "c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
@@ -120,11 +122,13 @@ func TestIsApproved(t *testing.T) {
 					SHA:       "674832587eaaf416371b30f5bc5a47e377f534ec",
 					Author:    "contributor-author",
 					Committer: "mhaypenny",
+					Parents:   []string{"c6ade256ecfc755d8bc877ef22cc9e01745d46bb"},
 				},
 				{
 					SHA:       "97d5ea26da319a987d80f6db0b7ef759f2f2e441",
 					Author:    "mhaypenny",
 					Committer: "contributor-committer",
+					Parents:   []string{"674832587eaaf416371b30f5bc5a47e377f534ec"},
 				},
 			},
 			OrgMemberships: map[string][]string{
@@ -356,7 +360,43 @@ func TestIsApproved(t *testing.T) {
 
 	t.Run("invalidateCommentOnPush", func(t *testing.T) {
 		prctx := basePullContext()
-		prctx.LastPushedAtValue = now.Add(25 * time.Second)
+		prctx.PushedAtValue = map[string]time.Time{
+			"c6ade256ecfc755d8bc877ef22cc9e01745d46bb": now.Add(25 * time.Second),
+		}
+		prctx.HeadSHAValue = "c6ade256ecfc755d8bc877ef22cc9e01745d46bb"
+		prctx.CommitsValue = []*pull.Commit{
+			{
+				SHA:       "c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
+				Author:    "mhaypenny",
+				Committer: "mhaypenny",
+			},
+		}
+
+		r := &Rule{
+			Requires: common.Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Users: []string{"comment-approver"},
+				},
+			},
+		}
+		assertApproved(t, prctx, r, "Approved by comment-approver")
+
+		r.Options.InvalidateOnPush = true
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 6 approvals from disqualified users")
+	})
+
+	t.Run("invalidateCommentOnPushFirstEvaluation", func(t *testing.T) {
+		prctx := basePullContext()
+		prctx.EvaluationTimestampValue = now.Add(25 * time.Second)
+		prctx.HeadSHAValue = "c6ade256ecfc755d8bc877ef22cc9e01745d46bb"
+		prctx.CommitsValue = []*pull.Commit{
+			{
+				SHA:       "c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
+				Author:    "mhaypenny",
+				Committer: "mhaypenny",
+			},
+		}
 
 		r := &Rule{
 			Requires: common.Requires{
@@ -374,7 +414,17 @@ func TestIsApproved(t *testing.T) {
 
 	t.Run("invalidateReviewOnPush", func(t *testing.T) {
 		prctx := basePullContext()
-		prctx.LastPushedAtValue = now.Add(85 * time.Second)
+		prctx.PushedAtValue = map[string]time.Time{
+			"c6ade256ecfc755d8bc877ef22cc9e01745d46bb": now.Add(85 * time.Second),
+		}
+		prctx.HeadSHAValue = "c6ade256ecfc755d8bc877ef22cc9e01745d46bb"
+		prctx.CommitsValue = []*pull.Commit{
+			{
+				SHA:       "c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
+				Author:    "mhaypenny",
+				Committer: "mhaypenny",
+			},
+		}
 
 		r := &Rule{
 			Requires: common.Requires{
@@ -392,7 +442,11 @@ func TestIsApproved(t *testing.T) {
 
 	t.Run("ignoreUpdateMergeAfterReview", func(t *testing.T) {
 		prctx := basePullContext()
-		prctx.LastPushedAtValue = now.Add(25 * time.Second)
+		prctx.EvaluationTimestampValue = now.Add(25 * time.Second)
+		prctx.PushedAtValue = map[string]time.Time{
+			"c6ade256ecfc755d8bc877ef22cc9e01745d46bb": now,
+		}
+		prctx.HeadSHAValue = "647c5078288f0ea9de27b5c280f25edaf2089045"
 		prctx.CommitsValue = append(prctx.CommitsValue[:1], &pull.Commit{
 			SHA:             "647c5078288f0ea9de27b5c280f25edaf2089045",
 			CommittedViaWeb: true,
@@ -422,7 +476,10 @@ func TestIsApproved(t *testing.T) {
 
 	t.Run("ignoreUpdateMergeContributor", func(t *testing.T) {
 		prctx := basePullContext()
-		prctx.LastPushedAtValue = now.Add(25 * time.Second)
+		prctx.PushedAtValue = map[string]time.Time{
+			"c6ade256ecfc755d8bc877ef22cc9e01745d46bb": now.Add(25 * time.Second),
+		}
+		prctx.HeadSHAValue = "647c5078288f0ea9de27b5c280f25edaf2089045"
 		prctx.CommitsValue = append(prctx.CommitsValue[:1], &pull.Commit{
 			SHA:             "647c5078288f0ea9de27b5c280f25edaf2089045",
 			CommittedViaWeb: true,
@@ -454,6 +511,7 @@ func TestIsApproved(t *testing.T) {
 
 	t.Run("ignoreCommits", func(t *testing.T) {
 		prctx := basePullContext()
+		prctx.HeadSHAValue = "ea9be5fcd016dc41d70dc457dfee2e64a8f951c1"
 		prctx.CommitsValue = append(prctx.CommitsValue, &pull.Commit{
 			SHA:       "ea9be5fcd016dc41d70dc457dfee2e64a8f951c1",
 			Author:    "comment-approver",
@@ -497,7 +555,17 @@ func TestIsApproved(t *testing.T) {
 
 	t.Run("ignoreCommitsInvalidateOnPush", func(t *testing.T) {
 		prctx := basePullContext()
-		prctx.LastPushedAtValue = now.Add(25 * time.Second)
+		prctx.PushedAtValue = map[string]time.Time{
+			"c6ade256ecfc755d8bc877ef22cc9e01745d46bb": now.Add(25 * time.Second),
+		}
+		prctx.HeadSHAValue = "c6ade256ecfc755d8bc877ef22cc9e01745d46bb"
+		prctx.CommitsValue = []*pull.Commit{
+			{
+				SHA:       "c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
+				Author:    "mhaypenny",
+				Committer: "mhaypenny",
+			},
+		}
 
 		r := &Rule{
 			Requires: common.Requires{

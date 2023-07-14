@@ -21,6 +21,8 @@ import (
 )
 
 type Context struct {
+	EvaluationTimestampValue time.Time
+
 	OwnerValue  string
 	RepoValue   string
 	NumberValue int
@@ -43,7 +45,7 @@ type Context struct {
 	CommitsValue []*pull.Commit
 	CommitsError error
 
-	LastPushedAtValue time.Time
+	PushedAtValue map[string]time.Time
 
 	CommentsValue []*pull.Comment
 	CommentsError error
@@ -73,6 +75,10 @@ type Context struct {
 	LabelsError error
 
 	Draft bool
+}
+
+func (c *Context) EvaluationTimestamp() time.Time {
+	return c.EvaluationTimestampValue
 }
 
 func (c *Context) RepositoryOwner() string {
@@ -140,8 +146,8 @@ func (c *Context) Commits() ([]*pull.Commit, error) {
 	return c.CommitsValue, c.CommitsError
 }
 
-func (c *Context) LastPushedAt() (time.Time, error) {
-	return c.LastPushedAtValue, nil
+func (c *Context) PushedAt(sha string) (time.Time, error) {
+	return c.PushedAtValue[sha], nil
 }
 
 func (c *Context) IsTeamMember(team, user string) (bool, error) {
