@@ -81,12 +81,17 @@ func ParseConfig(bytes []byte) (*Config, error) {
 		return nil, errors.Wrapf(err, "failed unmarshalling yaml")
 	}
 
-	c.Options.SetValuesFromEnv(DefaultEnvPrefix + "OPTIONS_")
-	c.Server.SetValuesFromEnv(DefaultEnvPrefix)
-	c.Logging.SetValuesFromEnv(DefaultEnvPrefix)
+	envPrefix := DefaultEnvPrefix
+	if v, ok := os.LookupEnv("POLICYBOT_ENV_PREFIX"); ok {
+		envPrefix = v
+	}
+
+	c.Options.SetValuesFromEnv(envPrefix + "OPTIONS_")
+	c.Server.SetValuesFromEnv(envPrefix)
+	c.Logging.SetValuesFromEnv(envPrefix)
 	c.Github.SetValuesFromEnv("")
 
-	if v, ok := os.LookupEnv(DefaultEnvPrefix + "SESSIONS_KEY"); ok {
+	if v, ok := os.LookupEnv(envPrefix + "SESSIONS_KEY"); ok {
 		c.Sessions.Key = v
 	}
 
