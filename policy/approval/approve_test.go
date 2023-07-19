@@ -747,6 +747,91 @@ func TestTrigger(t *testing.T) {
 	})
 }
 
+func TestSortCommits(t *testing.T) {
+	tests := map[string]struct {
+		Commits       []*pull.Commit
+		Head          string
+		ExpectedOrder []string
+	}{
+		"sorted": {
+			Commits: []*pull.Commit{
+				{SHA: "1", Parents: []string{"2"}},
+				{SHA: "2", Parents: []string{"3"}},
+				{SHA: "3", Parents: []string{"4"}},
+				{SHA: "4", Parents: []string{"5"}},
+				{SHA: "5"},
+			},
+			Head:          "1",
+			ExpectedOrder: []string{"1", "2", "3", "4", "5"},
+		},
+		"reverseSorted": {
+			Commits: []*pull.Commit{
+				{SHA: "5"},
+				{SHA: "4", Parents: []string{"5"}},
+				{SHA: "3", Parents: []string{"4"}},
+				{SHA: "2", Parents: []string{"3"}},
+				{SHA: "1", Parents: []string{"2"}},
+			},
+			Head:          "1",
+			ExpectedOrder: []string{"1", "2", "3", "4", "5"},
+		},
+		"unsorted": {
+			Commits: []*pull.Commit{
+				{SHA: "3", Parents: []string{"4"}},
+				{SHA: "4", Parents: []string{"5"}},
+				{SHA: "1", Parents: []string{"2"}},
+				{SHA: "5"},
+				{SHA: "2", Parents: []string{"3"}},
+			},
+			Head:          "1",
+			ExpectedOrder: []string{"1", "2", "3", "4", "5"},
+		},
+		"partialOrder": {
+			Commits: []*pull.Commit{
+				{SHA: "3", Parents: []string{"4"}},
+				{SHA: "4", Parents: []string{"5"}},
+				{SHA: "1", Parents: []string{"2"}},
+				{SHA: "5"},
+				{SHA: "2", Parents: []string{"3"}},
+			},
+			Head:          "3",
+			ExpectedOrder: []string{"3", "4", "5"},
+		},
+		"independentHistory": {
+			Commits: []*pull.Commit{
+				{SHA: "1", Parents: []string{"2"}},
+				{SHA: "2"},
+				{SHA: "3", Parents: []string{"4"}},
+				{SHA: "4", Parents: []string{"5"}},
+				{SHA: "5"},
+			},
+			Head:          "1",
+			ExpectedOrder: []string{"1", "2"},
+		},
+		"missingHead": {
+			Commits: []*pull.Commit{
+				{SHA: "1", Parents: []string{"2"}},
+				{SHA: "2", Parents: []string{"3"}},
+				{SHA: "3", Parents: []string{"4"}},
+				{SHA: "4", Parents: []string{"5"}},
+				{SHA: "5"},
+			},
+			Head:          "42",
+			ExpectedOrder: nil,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			var actual []string
+			for _, c := range sortCommits(test.Commits, test.Head) {
+				actual = append(actual, c.SHA)
+			}
+			assert.Equal(t, test.ExpectedOrder, actual, "incorrect commit order")
+		})
+	}
+}
+
 func newTime(t time.Time) *time.Time {
 	return &t
 }
