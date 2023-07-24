@@ -16,14 +16,12 @@ package pull
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/google/go-github/v53/github"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog"
 	"github.com/shurcooL/githubv4"
 )
 
@@ -121,7 +119,7 @@ type GitHubContext struct {
 	client   *github.Client
 	v4client *githubv4.Client
 
-	doNotLoadCommitPushedDate bool
+	evalTimestamp time.Time
 
 	owner  string
 	repo   string
@@ -137,17 +135,17 @@ type GitHubContext struct {
 	collaborators []*Collaborator
 	permissions   map[string]Permission
 	teams         map[string]Permission
-	teamIDs       map[string]int64
 	membership    map[string]bool
 	statuses      map[string]string
 	labels        []string
+	pushedAt      map[string]time.Time
 }
 
 // NewGitHubContext creates a new pull.Context that makes GitHub requests to
 // obtain information. It caches responses for the lifetime of the context. The
 // pull request passed to the context must contain at least the base repository
 // and the number or the function panics.
-func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *github.Client, v4client *githubv4.Client, loc Locator, doNotLoadCommitPushedDate bool) (Context, error) {
+func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *github.Client, v4client *githubv4.Client, loc Locator) (Context, error) {
 	if loc.Owner == "" || loc.Repo == "" || loc.Number == 0 {
 		panic("pull request object does not contain full identifying information")
 	}
@@ -164,13 +162,17 @@ func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *git
 		client:   client,
 		v4client: v4client,
 
+		evalTimestamp: time.Now(),
+
 		owner:  loc.Owner,
 		repo:   loc.Repo,
 		number: loc.Number,
 		pr:     pr,
-
-		doNotLoadCommitPushedDate: doNotLoadCommitPushedDate,
 	}, nil
+}
+
+func (ghc *GitHubContext) EvaluationTimestamp() time.Time {
+	return ghc.evalTimestamp
 }
 
 func (ghc *GitHubContext) RepositoryOwner() string {
@@ -317,13 +319,29 @@ func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 		if err != nil {
 			return nil, err
 		}
-		backfillPushedAt(commits, ghc.pr.HeadRefOID)
 		ghc.commits = commits
 	}
 	if len(ghc.commits) >= MaxPullRequestCommits {
 		return nil, errors.Errorf("too many commits in pull request, maximum is %d", MaxPullRequestCommits)
 	}
 	return ghc.commits, nil
+}
+
+func (ghc *GitHubContext) PushedAt(sha string) (time.Time, error) {
+	if t, ok := ghc.pushedAt[sha]; ok {
+		return t, nil
+	}
+
+	pushedAt, err := ghc.loadPushedAt(sha)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	if ghc.pushedAt == nil {
+		ghc.pushedAt = make(map[string]time.Time)
+	}
+	ghc.pushedAt[sha] = pushedAt
+	return pushedAt, nil
 }
 
 func (ghc *GitHubContext) Comments() ([]*Comment, error) {
@@ -800,86 +818,28 @@ func (ghc *GitHubContext) loadPagedData() error {
 }
 
 func (ghc *GitHubContext) loadCommits() ([]*Commit, error) {
-	log := zerolog.Ctx(ghc.ctx)
-
-	// GitHub's API is eventually consistent for commit pushed dates. We can
-	// sometimes get around this by using alternate APIs (see notes in
-	// loadCommitsOnce), but for some merge commits, that still fails. The only
-	// fix I know of in this case is to wait and try again.
-	//
-	// Retry with exponential backoff until it works or we hit the max total
-	// latency to avoid users thinking the bot got stuck or dropped an event.
-	const baseDelay = 1 * time.Second
-	const maxLatency = 35 * time.Second
-
-	start := time.Now()
-	for delay := baseDelay; true; delay *= 2 {
-		head, commits, err := ghc.loadCommitsOnce()
-		if err != nil {
-			return nil, err
-		}
-		if ghc.doNotLoadCommitPushedDate {
-			return commits, nil
-		}
-		if head.PushedAt != nil {
-			return commits, nil
-		}
-
-		if time.Since(start)+delay >= maxLatency {
-			break
-		}
-		log.Debug().Dur("delay", delay).Str("sha", ghc.pr.HeadRefOID).Msg("Head commit is missing pushed date, sleeping and trying again")
-		time.Sleep(delay)
-	}
-
-	return nil, &TemporaryError{
-		fmt.Sprintf("Commit %.10s does not have a pushed date. This is usually caused by delays in the GitHub API", ghc.pr.HeadRefOID),
-	}
-}
-
-func (ghc *GitHubContext) loadCommitsOnce() (head *Commit, commits []*Commit, err error) {
-	log := zerolog.Ctx(ghc.ctx)
-
 	rawCommits, err := ghc.loadRawCommits()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	commits = make([]*Commit, 0, len(rawCommits))
+	commits := make([]*Commit, 0, len(rawCommits))
+	foundHead := false
 
 	for _, r := range rawCommits {
 		c := r.Commit.ToCommit()
 		if c.SHA == ghc.pr.HeadRefOID {
-			head = c
+			foundHead = true
 		}
 		commits = append(commits, c)
 	}
 
 	// fail early if head is missing from the pull request
-	if head == nil {
-		return nil, nil, errors.Errorf("head commit %.10s is missing, probably due to a force-push", ghc.pr.HeadRefOID)
+	if !foundHead {
+		return nil, errors.Errorf("head commit %.10s is missing, probably due to a force-push", ghc.pr.HeadRefOID)
 	}
 
-	// As of 2020-02-05 (and still true as of 2022-11-04), the pushed data may
-	// be missing when loaded via the pull request APIs if:
-	//
-	//  - the commit comes from a fork (always missing in this case)
-	//  - the data has not propagated yet
-	//
-	// In the second case, retrying after a delay can fix things, but the delay
-	// can be 15+ seconds in practice, so using the alternate API should
-	// improve latency at the cost of more API requests.
-	if head.PushedAt == nil && !ghc.doNotLoadCommitPushedDate {
-		log.Debug().
-			Bool("fork", ghc.pr.IsCrossRepository).
-			Msgf("failed to load pushed date via pull request, falling back to commit APIs")
-
-		if err := ghc.loadPushedAt(commits); err != nil {
-			return nil, nil, err
-		}
-	}
-
-	return head, commits, nil
+	return commits, nil
 }
 
 func (ghc *GitHubContext) loadRawCommits() ([]*v4PullRequestCommit, error) {
@@ -913,104 +873,27 @@ func (ghc *GitHubContext) loadRawCommits() ([]*v4PullRequestCommit, error) {
 	return commits, nil
 }
 
-// loadPushedAt sets the PushedAt field of each commit by walking the history
-// of the pull request's branch. The commits must be present on the branch.
-func (ghc *GitHubContext) loadPushedAt(commits []*Commit) error {
-	commitsBySHA := make(map[string]*Commit, len(commits))
-	for _, c := range commits {
-		commitsBySHA[c.SHA] = c
+func (ghc *GitHubContext) loadPushedAt(sha string) (time.Time, error) {
+	opt := &github.ListOptions{
+		PerPage: 100,
 	}
 
-	var q struct {
-		Repository struct {
-			Object struct {
-				Commit struct {
-					History struct {
-						PageInfo v4PageInfo
-						Nodes    []struct {
-							OID        string
-							PushedDate *time.Time
-						}
-					} `graphql:"history(first: 100, after: $cursor)"`
-				} `graphql:"... on Commit"`
-			} `graphql:"object(oid: $oid)"`
-		} `graphql:"repository(owner: $owner, name: $name)"`
-	}
-	qvars := map[string]interface{}{
-		"owner":  githubv4.String(ghc.pr.HeadRepository.Owner.Login),
-		"name":   githubv4.String(ghc.pr.HeadRepository.Name),
-		"oid":    githubv4.GitObjectID(ghc.pr.HeadRefOID),
-		"cursor": (*githubv4.String)(nil),
-	}
-
+	// ListStatuses returns statuses in reverse chronological order, so the
+	// last item on the last page is the oldest status, which must have been
+	// posted after someone pushed the commit.
 	for {
-		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
-			return errors.Wrap(err, "failed to load commit pushed dates")
+		statuses, resp, err := ghc.client.Repositories.ListStatuses(ghc.ctx, ghc.owner, ghc.repo, sha, opt)
+		if err != nil {
+			return time.Time{}, errors.Wrapf(err, "failed to list statuses for page %d", opt.Page)
 		}
-		for _, n := range q.Repository.Object.Commit.History.Nodes {
-			if c, ok := commitsBySHA[n.OID]; ok {
-				c.PushedAt = n.PushedDate
-				delete(commitsBySHA, n.OID)
-			}
+		if len(statuses) == 0 {
+			return time.Time{}, nil
 		}
-
-		// We found all the input commits
-		if len(commitsBySHA) == 0 {
-			break
+		if resp.NextPage == 0 {
+			last := statuses[len(statuses)-1]
+			return last.GetCreatedAt().Time, nil
 		}
-
-		// We reached the end of the branch history
-		if !q.Repository.Object.Commit.History.PageInfo.UpdateCursor(qvars, "cursor") {
-			break
-		}
-	}
-
-	// If this is true, we ran out of history on the branch without finding the
-	// input commits. This is probably a bug in policy-bot, but a user retry
-	// will likely find the data via the pull request API instead, so report
-	// this as a temporary error
-	if len(commitsBySHA) > 0 {
-		missingSHAs := make([]string, 0, len(commitsBySHA))
-		for sha := range commitsBySHA {
-			missingSHAs = append(missingSHAs, sha)
-		}
-
-		return &TemporaryError{
-			fmt.Sprintf(
-				"%d commits were not found while loading pushed dates. Missing %s.",
-				len(commitsBySHA),
-				strings.Join(missingSHAs, ", "),
-			),
-		}
-	}
-
-	return nil
-}
-
-func backfillPushedAt(commits []*Commit, headSHA string) {
-	commitsBySHA := make(map[string]*Commit, len(commits))
-	for _, c := range commits {
-		commitsBySHA[c.SHA] = c
-	}
-
-	root := headSHA
-	for {
-		c, ok := commitsBySHA[root]
-		if !ok || len(c.Parents) == 0 {
-			break
-		}
-
-		firstParent, ok := commitsBySHA[c.Parents[0]]
-		if !ok {
-			break
-		}
-
-		if firstParent.PushedAt == nil {
-			firstParent.PushedAt = c.PushedAt
-		}
-
-		delete(commitsBySHA, root)
-		root = firstParent.SHA
+		opt.Page = resp.NextPage
 	}
 }
 
@@ -1130,7 +1013,6 @@ type v4Commit struct {
 	Author          v4GitActor
 	Committer       v4GitActor
 	CommittedViaWeb bool
-	PushedDate      *time.Time
 	Parents         struct {
 		Nodes []struct {
 			OID string
@@ -1156,7 +1038,6 @@ func (c *v4Commit) ToCommit() *Commit {
 		CommittedViaWeb: c.CommittedViaWeb,
 		Author:          c.Author.User.GetV3Login(),
 		Committer:       c.Committer.User.GetV3Login(),
-		PushedAt:        c.PushedDate,
 		Signature:       signature,
 	}
 }

@@ -108,25 +108,19 @@ func TestCommits(t *testing.T) {
 	require.Len(t, commits, 3, "incorrect number of commits")
 	assert.Equal(t, 2, dataRule.Count, "incorrect number of http requests")
 
-	expectedTime, err := time.Parse(time.RFC3339, "2018-12-04T12:34:56Z")
-	assert.NoError(t, err)
-
 	assert.Equal(t, "a6f3f69b64eaafece5a0d854eb4af11c0d64394c", commits[0].SHA)
 	assert.Equal(t, "mhaypenny", commits[0].Author)
 	assert.Equal(t, "mhaypenny", commits[0].Committer)
-	assert.Equal(t, newTime(expectedTime), commits[0].PushedAt)
 	assert.Nil(t, commits[0].Signature)
 
 	assert.Equal(t, "1fc89f1cedf8e3f3ce516ab75b5952295c8ea5e9", commits[1].SHA)
 	assert.Equal(t, "mhaypenny", commits[1].Author)
 	assert.Equal(t, "mhaypenny", commits[1].Committer)
-	assert.Equal(t, newTime(expectedTime), commits[1].PushedAt)
 	assert.Nil(t, commits[1].Signature)
 
 	assert.Equal(t, "e05fcae367230ee709313dd2720da527d178ce43", commits[2].SHA)
 	assert.Equal(t, "ttest", commits[2].Author)
 	assert.Equal(t, "mhaypenny", commits[2].Committer)
-	assert.Equal(t, newTime(expectedTime.Add(48*time.Hour)), commits[2].PushedAt)
 
 	// verify that the signature was handled correctly
 	assert.NotNil(t, commits[2].Signature)
@@ -140,45 +134,6 @@ func TestCommits(t *testing.T) {
 
 	require.Len(t, commits, 3, "incorrect number of commits")
 	assert.Equal(t, 2, dataRule.Count, "cached commits were not used")
-}
-
-func TestCommitsFallback(t *testing.T) {
-	rp := &ResponsePlayer{}
-	pullRule := rp.AddRule(
-		GraphQLNodePrefixMatcher("repository.pullRequest.commits"),
-		"testdata/responses/pull_commits_fallback.yml",
-	)
-	historyRule := rp.AddRule(
-		GraphQLNodePrefixMatcher("repository.object"),
-		"testdata/responses/pull_commits_history.yml",
-	)
-
-	ctx := makeContext(t, rp, nil)
-
-	commits, err := ctx.Commits()
-	require.NoError(t, err)
-
-	require.Len(t, commits, 3, "incorrect number of commits")
-	assert.Equal(t, 1, pullRule.Count, "incorrect number of pull request http requests")
-	assert.Equal(t, 1, historyRule.Count, "incorrect number of http requests")
-
-	expectedTime, err := time.Parse(time.RFC3339, "2018-12-04T12:34:56Z")
-	assert.NoError(t, err)
-
-	assert.Equal(t, "a6f3f69b64eaafece5a0d854eb4af11c0d64394c", commits[0].SHA)
-	assert.Equal(t, "mhaypenny", commits[0].Author)
-	assert.Equal(t, "mhaypenny", commits[0].Committer)
-	assert.Equal(t, newTime(expectedTime), commits[0].PushedAt)
-
-	assert.Equal(t, "1fc89f1cedf8e3f3ce516ab75b5952295c8ea5e9", commits[1].SHA)
-	assert.Equal(t, "mhaypenny", commits[1].Author)
-	assert.Equal(t, "mhaypenny", commits[1].Committer)
-	assert.Equal(t, newTime(expectedTime), commits[1].PushedAt)
-
-	assert.Equal(t, "e05fcae367230ee709313dd2720da527d178ce43", commits[2].SHA)
-	assert.Equal(t, "ttest", commits[2].Author)
-	assert.Equal(t, "mhaypenny", commits[2].Committer)
-	assert.Equal(t, newTime(expectedTime.Add(48*time.Hour)), commits[2].PushedAt)
 }
 
 func TestReviews(t *testing.T) {
@@ -597,7 +552,7 @@ func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest) Conte
 		Repo:   pr.GetBase().GetRepo().GetName(),
 		Number: pr.GetNumber(),
 		Value:  pr,
-	}, false)
+	})
 	require.NoError(t, err, "failed to create github context")
 
 	return prctx

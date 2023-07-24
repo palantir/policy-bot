@@ -14,7 +14,6 @@
                 {
                   "commit": {
                     "oid": "a6f3f69b64eaafece5a0d854eb4af11c0d64394c",
-                    "pushedDate": null,
                     "author": {
                       "user": {
                         "login": "mhaypenny"
@@ -37,7 +36,6 @@
                 {
                   "commit": {
                     "oid": "1fc89f1cedf8e3f3ce516ab75b5952295c8ea5e9",
-                    "pushedDate": "2018-12-04T12:34:56Z",
                     "author": {
                       "user": {
                         "login": "mhaypenny"
@@ -79,7 +77,6 @@
                 {
                   "commit": {
                     "oid": "e05fcae367230ee709313dd2720da527d178ce43",
-                    "pushedDate": "2018-12-06T12:34:56Z",
                     "author": {
                       "user": {
                         "login": "ttest"

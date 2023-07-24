@@ -301,10 +301,6 @@ func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, c
 func (r *Rule) filterInvalidCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, []*common.Dismissal, error) {
 	log := zerolog.Ctx(ctx)
 
-	if !r.Options.InvalidateOnPush {
-		return candidates, nil, nil
-	}
-
 	commits, err := r.filteredCommits(ctx, prctx)
 	if err != nil {
 		return nil, nil, err
@@ -313,37 +309,61 @@ func (r *Rule) filterInvalidCandidates(ctx context.Context, prctx pull.Context, 
 		return candidates, nil, nil
 	}
 
-	last := findLastPushed(commits)
-	if last == nil {
-		return nil, nil, errors.New("no commit contained a push date")
+	sha := commits[0].SHA
+	lastPushedAt, err := prctx.PushedAt(sha)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to get last push timestamp")
+	}
+
+	// The most recent filtered commit did not have a status. This can happen
+	// in two situations:
+	//
+	// The commit was pushed in a batch where the head commit is ignored...
+	if lastPushedAt.IsZero() && sha != prctx.HeadSHA() {
+		sha = prctx.HeadSHA()
+		lastPushedAt, err = prctx.PushedAt(sha)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "failed to get last push timestamp")
+		}
+	}
+	// ... or the commit (or the head commit) hasn't been evaluated yet
+	//
+	// In this case, we're the first evaluation for this commit, so set the
+	// push time to the curent time, which is guaranteed to be after the actual
+	// push due to webhook delivery and processing time.
+	if lastPushedAt.IsZero() {
+		lastPushedAt = prctx.EvaluationTimestamp()
 	}
 
 	var allowed []*common.Candidate
 	var dismissed []*common.Dismissal
 	for _, c := range candidates {
-		if c.CreatedAt.After(*last.PushedAt) {
+		if c.CreatedAt.After(lastPushedAt) {
 			allowed = append(allowed, c)
 		} else {
 			dismissed = append(dismissed, &common.Dismissal{
 				Candidate: c,
-				Reason:    fmt.Sprintf("Invalidated by push of %.7s", last.SHA),
+				Reason:    fmt.Sprintf("Invalidated by push of %.7s", sha),
 			})
 		}
 	}
 
-	log.Debug().Msgf("discarded %d candidates invalidated by push of %s at %s",
-		len(dismissed),
-		last.SHA,
-		last.PushedAt.Format(time.RFC3339))
+	log.Debug().Msgf(
+		"discarded %d candidates invalidated by push of %s on or before %s",
+		len(dismissed), sha, lastPushedAt.Format(time.RFC3339),
+	)
 
 	return allowed, dismissed, nil
 }
 
+// filteredCommits returns the relevant commits for the evaluation ordered in
+// history order, from most to least recent.
 func (r *Rule) filteredCommits(ctx context.Context, prctx pull.Context) ([]*pull.Commit, error) {
 	commits, err := prctx.Commits()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list commits")
 	}
+	commits = sortCommits(commits, prctx.HeadSHA())
 
 	ignoreUpdates := r.Options.IgnoreUpdateMerges
 	ignoreCommits := !r.Options.IgnoreCommitsBy.IsEmpty()
@@ -430,19 +450,32 @@ func isIgnoredCommit(ctx context.Context, prctx pull.Context, actors *common.Act
 	return len(c.Users()) > 0, nil
 }
 
-func findLastPushed(commits []*pull.Commit) *pull.Commit {
-	var last *pull.Commit
-	for _, c := range commits {
-		if c.PushedAt != nil && (last == nil || c.PushedAt.After(*last.PushedAt)) {
-			last = c
-		}
-	}
-	return last
-}
-
 func numberOfApprovals(count int) string {
 	if count == 1 {
 		return "1 approval"
 	}
 	return fmt.Sprintf("%d approvals", count)
+}
+
+// sortCommits orders commits in history order starting from head. It must be
+// called on the unfiltered set of commits.
+func sortCommits(commits []*pull.Commit, head string) []*pull.Commit {
+	commitsBySHA := make(map[string]*pull.Commit)
+	for _, c := range commits {
+		commitsBySHA[c.SHA] = c
+	}
+
+	ordered := make([]*pull.Commit, 0, len(commits))
+	for {
+		c, ok := commitsBySHA[head]
+		if !ok {
+			break
+		}
+		ordered = append(ordered, c)
+		if len(c.Parents) == 0 {
+			break
+		}
+		head = c.Parents[0]
+	}
+	return ordered
 }
