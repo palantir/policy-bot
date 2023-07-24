@@ -34,6 +34,7 @@ type Base struct {
 	githubapp.ClientCreator
 
 	Installations githubapp.InstallationsService
+	GlobalCache   pull.GlobalCache
 	ConfigFetcher *ConfigFetcher
 	BaseConfig    *baseapp.HTTPConfig
 	PullOpts      *PullEvaluationOptions
@@ -69,7 +70,7 @@ func (b *Base) NewEvalContext(ctx context.Context, installationID int64, loc pul
 	}
 
 	mbrCtx := NewCrossOrgMembershipContext(ctx, client, loc.Owner, b.Installations, b.ClientCreator)
-	prctx, err := pull.NewGitHubContext(ctx, mbrCtx, client, v4client, loc)
+	prctx, err := pull.NewGitHubContext(ctx, mbrCtx, b.GlobalCache, client, v4client, loc)
 	if err != nil {
 		return nil, err
 	}

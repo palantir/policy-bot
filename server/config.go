@@ -61,7 +61,14 @@ func (c *LoggingConfig) SetValuesFromEnv(prefix string) {
 }
 
 type CachingConfig struct {
+	// The maximum size of the the HTTP cache associated with each GitHub
+	// client. The total amount of memory used for caching is approximately
+	// this value multiplied by the total number of active GitHub clients.
 	MaxSize datasize.ByteSize `yaml:"max_size"`
+
+	// The size of the global cache for commit push times. Each entry uses
+	// roughly 100 bytes of memory.
+	PushedAtSize int `yaml:"pushed_at_size"`
 }
 
 type WorkerConfig struct {

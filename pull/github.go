@@ -106,6 +106,7 @@ func (loc Locator) toV4(ctx context.Context, client *githubv4.Client) (*v4PullRe
 	v4.HeadRepository.Name = loc.Value.GetHead().GetRepo().GetName()
 	v4.HeadRepository.Owner.Login = loc.Value.GetHead().GetRepo().GetOwner().GetLogin()
 	v4.BaseRefName = loc.Value.GetBase().GetRef()
+	v4.BaseRepository.DatabaseID = loc.Value.GetBase().GetRepo().GetID()
 	v4.IsDraft = loc.Value.GetDraft()
 	return &v4, nil
 }
@@ -115,9 +116,10 @@ func (loc Locator) toV4(ctx context.Context, client *githubv4.Client) (*v4PullRe
 type GitHubContext struct {
 	MembershipContext
 
-	ctx      context.Context
-	client   *github.Client
-	v4client *githubv4.Client
+	ctx         context.Context
+	client      *github.Client
+	v4client    *githubv4.Client
+	globalCache GlobalCache
 
 	evalTimestamp time.Time
 
@@ -145,7 +147,14 @@ type GitHubContext struct {
 // obtain information. It caches responses for the lifetime of the context. The
 // pull request passed to the context must contain at least the base repository
 // and the number or the function panics.
-func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *github.Client, v4client *githubv4.Client, loc Locator) (Context, error) {
+func NewGitHubContext(
+	ctx context.Context,
+	mbrCtx MembershipContext,
+	globalCache GlobalCache,
+	client *github.Client,
+	v4client *githubv4.Client,
+	loc Locator,
+) (Context, error) {
 	if loc.Owner == "" || loc.Repo == "" || loc.Number == 0 {
 		panic("pull request object does not contain full identifying information")
 	}
@@ -158,9 +167,10 @@ func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *git
 	return &GitHubContext{
 		MembershipContext: mbrCtx,
 
-		ctx:      ctx,
-		client:   client,
-		v4client: v4client,
+		ctx:         ctx,
+		client:      client,
+		v4client:    v4client,
+		globalCache: globalCache,
 
 		evalTimestamp: time.Now(),
 
@@ -328,8 +338,28 @@ func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 }
 
 func (ghc *GitHubContext) PushedAt(sha string) (time.Time, error) {
+	repoID := ghc.pr.BaseRepository.DatabaseID
+	if ghc.pushedAt == nil {
+		ghc.pushedAt = make(map[string]time.Time)
+	}
+
+	// When loading pushed dates, prefer the local cache in the context. This
+	// helps if we don't have a global cache and avoids the possibility that
+	// the entry in the global cache is evicted while we process a single
+	// request.
+	//
+	// If the local context cache does not have a value, try the global cache,
+	// if it exists. If that's also missing an entry, then we'll compute the
+	// value from the GitHub API.
+
 	if t, ok := ghc.pushedAt[sha]; ok {
 		return t, nil
+	}
+	if gc := ghc.globalCache; gc != nil {
+		if t, ok := gc.GetPushedAt(repoID, sha); ok {
+			ghc.pushedAt[sha] = t
+			return t, nil
+		}
 	}
 
 	pushedAt, err := ghc.loadPushedAt(sha)
@@ -337,10 +367,11 @@ func (ghc *GitHubContext) PushedAt(sha string) (time.Time, error) {
 		return time.Time{}, err
 	}
 
-	if ghc.pushedAt == nil {
-		ghc.pushedAt = make(map[string]time.Time)
-	}
 	ghc.pushedAt[sha] = pushedAt
+	if gc := ghc.globalCache; gc != nil {
+		gc.SetPushedAt(repoID, sha, pushedAt)
+	}
+
 	return pushedAt, nil
 }
 
@@ -916,7 +947,10 @@ type v4PullRequest struct {
 		Owner v4Actor
 	}
 
-	BaseRefName string
+	BaseRefName    string
+	BaseRepository struct {
+		DatabaseID int64
+	}
 }
 
 type v4PageInfo struct {

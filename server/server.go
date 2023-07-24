@@ -32,6 +32,7 @@ import (
 	"github.com/palantir/go-githubapp/appconfig"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/go-githubapp/oauth2"
+	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/server/handler"
 	"github.com/palantir/policy-bot/version"
 	"github.com/pkg/errors"
@@ -42,6 +43,13 @@ import (
 
 const (
 	DefaultSessionLifetime = 24 * time.Hour
+	DefaultGitHubTimeout   = 10 * time.Second
+
+	DefaultWebhookWorkers   = 10
+	DefaultWebhookQueueSize = 100
+
+	DefaultHTTPCacheSize     = 50 * datasize.MB
+	DefaultPushedAtCacheSize = 100_000
 )
 
 type Server struct {
@@ -85,14 +93,14 @@ func New(c *Config) (*Server, error) {
 		return nil, errors.Wrap(err, "failed to initialize base server")
 	}
 
-	maxSize := int64(50 * datasize.MB)
+	maxSize := int64(DefaultHTTPCacheSize)
 	if c.Cache.MaxSize != 0 {
 		maxSize = int64(c.Cache.MaxSize)
 	}
 
 	githubTimeout := c.Workers.GithubTimeout
 	if githubTimeout == 0 {
-		githubTimeout = 10 * time.Second
+		githubTimeout = DefaultGitHubTimeout
 	}
 
 	v4URL, err := url.Parse(c.Github.V4APIURL)
@@ -130,10 +138,21 @@ func New(c *Config) (*Server, error) {
 		return nil, errors.Wrap(err, "failed to get configured GitHub app")
 	}
 
+	pushedAtSize := c.Cache.PushedAtSize
+	if pushedAtSize == 0 {
+		pushedAtSize = DefaultPushedAtCacheSize
+	}
+
+	globalCache, err := pull.NewLRUGlobalCache(pushedAtSize)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to initialize global cache")
+	}
+
 	basePolicyHandler := handler.Base{
 		ClientCreator: cc,
 		BaseConfig:    &c.Server,
 		Installations: githubapp.NewInstallationsService(appClient),
+		GlobalCache:   globalCache,
 
 		PullOpts: &c.Options,
 		ConfigFetcher: &handler.ConfigFetcher{
@@ -150,12 +169,12 @@ func New(c *Config) (*Server, error) {
 
 	queueSize := c.Workers.QueueSize
 	if queueSize < 1 {
-		queueSize = 100
+		queueSize = DefaultWebhookQueueSize
 	}
 
 	workers := c.Workers.Workers
 	if workers < 1 {
-		workers = 10
+		workers = DefaultWebhookWorkers
 	}
 
 	dispatcher := githubapp.NewEventDispatcher(
