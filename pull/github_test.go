@@ -537,7 +537,19 @@ func TestRepositoryCollaborators(t *testing.T) {
 
 func TestPushedAt(t *testing.T) {
 	rp := &ResponsePlayer{}
-	rule := rp.AddRule(
+	commitsRule := rp.AddRule(
+		GraphQLNodePrefixMatcher("repository.pullRequest.commits"),
+		"testdata/responses/pull_commits.yml",
+	)
+	statusRuleA6F := rp.AddRule(
+		ExactPathMatcher("/repos/testorg/testrepo/commits/a6f3f69b64eaafece5a0d854eb4af11c0d64394c/statuses"),
+		"testdata/responses/repo_statuses_none.yml",
+	)
+	statusRule1FC := rp.AddRule(
+		ExactPathMatcher("/repos/testorg/testrepo/commits/1fc89f1cedf8e3f3ce516ab75b5952295c8ea5e9/statuses"),
+		"testdata/responses/repo_statuses_none.yml",
+	)
+	statusRuleE05 := rp.AddRule(
 		ExactPathMatcher("/repos/testorg/testrepo/commits/e05fcae367230ee709313dd2720da527d178ce43/statuses"),
 		"testdata/responses/repo_statuses_e05fcae367230ee709313dd2720da527d178ce43.yml",
 	)
@@ -547,27 +559,56 @@ func TestPushedAt(t *testing.T) {
 	gc := NewMockGlobalCache()
 	ctx := makeContext(t, rp, nil, gc)
 
-	pushedAt, err := ctx.PushedAt("e05fcae367230ee709313dd2720da527d178ce43")
-	require.NoError(t, err)
-	assert.Equal(t, expectedTime, pushedAt, "incorrect pushed at for commit (api)")
-	assert.Equal(t, 3, rule.Count, "incorrect http request count")
+	t.Run("fromStatus", func(t *testing.T) {
+		pushedAt, err := ctx.PushedAt("e05fcae367230ee709313dd2720da527d178ce43")
+		require.NoError(t, err)
 
-	cachedPushedAt := gc.PushedAt["1234:e05fcae367230ee709313dd2720da527d178ce43"]
-	assert.Equal(t, pushedAt, cachedPushedAt, "incorrect value in global cache")
+		assert.Equal(t, expectedTime, pushedAt, "incorrect pushed at for commit")
+		assert.Equal(t, 3, statusRuleE05.Count, "incorrect http request count")
+	})
 
-	// Test that a second request uses the local cache
-	pushedAt, err = ctx.PushedAt("e05fcae367230ee709313dd2720da527d178ce43")
-	require.NoError(t, err)
-	assert.Equal(t, expectedTime, pushedAt, "incorrect pushed at for commit (local cache)")
-	assert.Equal(t, 3, rule.Count, "incorrect http request count")
+	t.Run("fromCache", func(t *testing.T) {
+		pushedAt, err := ctx.PushedAt("e05fcae367230ee709313dd2720da527d178ce43")
+		require.NoError(t, err)
 
-	// Test that a new context will use the global cache
-	ctx = makeContext(t, rp, nil, gc)
+		assert.Equal(t, expectedTime, pushedAt, "incorrect pushed at for commit")
+		assert.Equal(t, 3, statusRuleE05.Count, "incorrect http request count")
 
-	pushedAt, err = ctx.PushedAt("e05fcae367230ee709313dd2720da527d178ce43")
-	require.NoError(t, err)
-	assert.Equal(t, cachedPushedAt, pushedAt, "incorrect pushed at for commit (global cache)")
-	assert.Equal(t, 3, rule.Count, "incorrect http request count")
+		cachedPushedAt := gc.PushedAt["1234:e05fcae367230ee709313dd2720da527d178ce43"]
+		assert.Equal(t, expectedTime, cachedPushedAt, "incorrect value in global cache")
+	})
+
+	t.Run("fromBatch", func(t *testing.T) {
+		pushedAt, err := ctx.PushedAt("a6f3f69b64eaafece5a0d854eb4af11c0d64394c")
+		require.NoError(t, err)
+
+		assert.Equal(t, expectedTime, pushedAt, "incorrect pushed at for commit")
+		assert.Equal(t, 2, commitsRule.Count, "incorrect http request count")
+		assert.Equal(t, 1, statusRuleA6F.Count, "incorrect http request count")
+		assert.Equal(t, 1, statusRule1FC.Count, "incorrect http request count")
+		assert.Equal(t, 3, statusRuleE05.Count, "incorrect http request count")
+	})
+
+	t.Run("fromBatchCache", func(t *testing.T) {
+		pushedAt, err := ctx.PushedAt("a6f3f69b64eaafece5a0d854eb4af11c0d64394c")
+		require.NoError(t, err)
+
+		assert.Equal(t, expectedTime, pushedAt, "incorrect pushed at for commit")
+		assert.Equal(t, 2, commitsRule.Count, "incorrect http request count")
+		assert.Equal(t, 1, statusRuleA6F.Count, "incorrect http request count")
+		assert.Equal(t, 1, statusRule1FC.Count, "incorrect http request count")
+		assert.Equal(t, 3, statusRuleE05.Count, "incorrect http request count")
+	})
+
+	t.Run("fromGlobalCache", func(t *testing.T) {
+		ctx := makeContext(t, rp, nil, gc)
+
+		pushedAt, err := ctx.PushedAt("e05fcae367230ee709313dd2720da527d178ce43")
+		require.NoError(t, err)
+
+		assert.Equal(t, expectedTime, pushedAt, "incorrect pushed at for commit")
+		assert.Equal(t, 3, statusRuleE05.Count, "incorrect http request count")
+	})
 }
 
 func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest, gc GlobalCache) Context {

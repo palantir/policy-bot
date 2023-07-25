@@ -343,15 +343,66 @@ func (ghc *GitHubContext) PushedAt(sha string) (time.Time, error) {
 		ghc.pushedAt = make(map[string]time.Time)
 	}
 
-	// When loading pushed dates, prefer the local cache in the context. This
-	// helps if we don't have a global cache and avoids the possibility that
-	// the entry in the global cache is evicted while we process a single
-	// request.
-	//
-	// If the local context cache does not have a value, try the global cache,
-	// if it exists. If that's also missing an entry, then we'll compute the
-	// value from the GitHub API.
+	// This list contains the commits that may contain the push time. When
+	// commits are pushed in a batch, only the head commit of the batch has a
+	// recorded time in GitHub, but all commits in the batch share the same
+	// timestamp. This list lets us cache the times for all of the commits in
+	// the batch that we considered while looking for the head of the batch.
+	candidateSHAs := []string{sha}
 
+	var pushedAt time.Time
+	var err error
+	for {
+		// Starting from the most recent SHA, search towards the head of the
+		// pull request until we find a commit that's either already in the
+		// cache or that has status checks. This commit is the head of the
+		// batch containing the initial commit.
+		sha := candidateSHAs[len(candidateSHAs)-1]
+
+		pushedAt, err = ghc.tryPushedAt(repoID, sha)
+		if err != nil {
+			return time.Time{}, err
+		}
+		if !pushedAt.IsZero() {
+			break
+		}
+
+		c, err := ghc.nextChildCommit(sha)
+		if err != nil {
+			return time.Time{}, err
+		}
+		if c == nil {
+			break
+		}
+		candidateSHAs = append(candidateSHAs, c.SHA)
+	}
+
+	// After looking at all relevant commits, if we found no push time, default
+	// to the evaluation timestamp (i.e. now)
+	if pushedAt.IsZero() {
+		pushedAt = ghc.EvaluationTimestamp()
+	}
+
+	for _, sha := range candidateSHAs {
+		ghc.pushedAt[sha] = pushedAt
+		if gc := ghc.globalCache; gc != nil {
+			gc.SetPushedAt(repoID, sha, pushedAt)
+		}
+	}
+
+	return pushedAt, nil
+}
+
+// tryPushedAt attempts to get the push time for a commit from the local cache,
+// the global cache, or the GitHub API. It returns the zero time if it could
+// not find a push time in any source.
+//
+// We prefer the local cache to the global cache because it helps when there is
+// no global cache and avoids the possibility that the global cache evicts
+// entries during the lifetime of the context.
+//
+// The local cache must be initialized before calling tryPushedAt.
+func (ghc *GitHubContext) tryPushedAt(repoID int64, sha string) (time.Time, error) {
 	if t, ok := ghc.pushedAt[sha]; ok {
 		return t, nil
 	}
@@ -361,18 +412,31 @@ func (ghc *GitHubContext) PushedAt(sha string) (time.Time, error) {
 			return t, nil
 		}
 	}
+	return ghc.loadPushedAt(sha)
+}
 
-	pushedAt, err := ghc.loadPushedAt(sha)
+// nextChildCommit returns the child commit for the given SHA or nil if the SHA
+// is the head of the pull request. A child commit is a commit that has SHA as
+// a parent.
+func (ghc *GitHubContext) nextChildCommit(sha string) (*Commit, error) {
+	if sha == ghc.HeadSHA() {
+		// Optimization: exit early if asked about the head SHA
+		return nil, nil
+	}
+
+	commits, err := ghc.Commits()
 	if err != nil {
-		return time.Time{}, err
+		return nil, err
 	}
 
-	ghc.pushedAt[sha] = pushedAt
-	if gc := ghc.globalCache; gc != nil {
-		gc.SetPushedAt(repoID, sha, pushedAt)
+	for _, c := range commits {
+		for _, parentSHA := range c.Parents {
+			if sha == parentSHA {
+				return c, nil
+			}
+		}
 	}
-
-	return pushedAt, nil
+	return nil, nil
 }
 
 func (ghc *GitHubContext) Comments() ([]*Comment, error) {

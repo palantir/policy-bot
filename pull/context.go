@@ -94,7 +94,6 @@ type Context interface {
 
 	// PushedAt returns the time at which the commit with sha was pushed. The
 	// returned time may be after the actual push time, but must not be before.
-	// PushedAt returns the zero time if the push time for is unknown.
 	PushedAt(sha string) (time.Time, error)
 
 	// Comments lists all comments on a Pull Request. The comment order is
