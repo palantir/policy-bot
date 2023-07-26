@@ -315,26 +315,6 @@ func (r *Rule) filterInvalidCandidates(ctx context.Context, prctx pull.Context, 
 		return nil, nil, errors.Wrap(err, "failed to get last push timestamp")
 	}
 
-	// The most recent filtered commit did not have a status. This can happen
-	// in two situations:
-	//
-	// The commit was pushed in a batch where the head commit is ignored...
-	if lastPushedAt.IsZero() && sha != prctx.HeadSHA() {
-		sha = prctx.HeadSHA()
-		lastPushedAt, err = prctx.PushedAt(sha)
-		if err != nil {
-			return nil, nil, errors.Wrap(err, "failed to get last push timestamp")
-		}
-	}
-	// ... or the commit (or the head commit) hasn't been evaluated yet
-	//
-	// In this case, we're the first evaluation for this commit, so set the
-	// push time to the curent time, which is guaranteed to be after the actual
-	// push due to webhook delivery and processing time.
-	if lastPushedAt.IsZero() {
-		lastPushedAt = prctx.EvaluationTimestamp()
-	}
-
 	var allowed []*common.Candidate
 	var dismissed []*common.Dismissal
 	for _, c := range candidates {

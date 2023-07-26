@@ -106,6 +106,7 @@ func (loc Locator) toV4(ctx context.Context, client *githubv4.Client) (*v4PullRe
 	v4.HeadRepository.Name = loc.Value.GetHead().GetRepo().GetName()
 	v4.HeadRepository.Owner.Login = loc.Value.GetHead().GetRepo().GetOwner().GetLogin()
 	v4.BaseRefName = loc.Value.GetBase().GetRef()
+	v4.BaseRepository.DatabaseID = loc.Value.GetBase().GetRepo().GetID()
 	v4.IsDraft = loc.Value.GetDraft()
 	return &v4, nil
 }
@@ -115,9 +116,10 @@ func (loc Locator) toV4(ctx context.Context, client *githubv4.Client) (*v4PullRe
 type GitHubContext struct {
 	MembershipContext
 
-	ctx      context.Context
-	client   *github.Client
-	v4client *githubv4.Client
+	ctx         context.Context
+	client      *github.Client
+	v4client    *githubv4.Client
+	globalCache GlobalCache
 
 	evalTimestamp time.Time
 
@@ -145,7 +147,14 @@ type GitHubContext struct {
 // obtain information. It caches responses for the lifetime of the context. The
 // pull request passed to the context must contain at least the base repository
 // and the number or the function panics.
-func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *github.Client, v4client *githubv4.Client, loc Locator) (Context, error) {
+func NewGitHubContext(
+	ctx context.Context,
+	mbrCtx MembershipContext,
+	globalCache GlobalCache,
+	client *github.Client,
+	v4client *githubv4.Client,
+	loc Locator,
+) (Context, error) {
 	if loc.Owner == "" || loc.Repo == "" || loc.Number == 0 {
 		panic("pull request object does not contain full identifying information")
 	}
@@ -158,9 +167,10 @@ func NewGitHubContext(ctx context.Context, mbrCtx MembershipContext, client *git
 	return &GitHubContext{
 		MembershipContext: mbrCtx,
 
-		ctx:      ctx,
-		client:   client,
-		v4client: v4client,
+		ctx:         ctx,
+		client:      client,
+		v4client:    v4client,
+		globalCache: globalCache,
 
 		evalTimestamp: time.Now(),
 
@@ -328,20 +338,105 @@ func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 }
 
 func (ghc *GitHubContext) PushedAt(sha string) (time.Time, error) {
-	if t, ok := ghc.pushedAt[sha]; ok {
-		return t, nil
-	}
-
-	pushedAt, err := ghc.loadPushedAt(sha)
-	if err != nil {
-		return time.Time{}, err
-	}
-
+	repoID := ghc.pr.BaseRepository.DatabaseID
 	if ghc.pushedAt == nil {
 		ghc.pushedAt = make(map[string]time.Time)
 	}
-	ghc.pushedAt[sha] = pushedAt
+
+	// This list contains the commits that may contain the push time. When
+	// commits are pushed in a batch, only the head commit of the batch has a
+	// recorded time in GitHub, but all commits in the batch share the same
+	// timestamp. This list lets us cache the times for all of the commits in
+	// the batch that we considered while looking for the head of the batch.
+	candidateSHAs := []string{sha}
+
+	var pushedAt time.Time
+	var err error
+	for {
+		// Starting from the most recent SHA, search towards the head of the
+		// pull request until we find a commit that's either already in the
+		// cache or that has status checks. This commit is the head of the
+		// batch containing the initial commit.
+		sha := candidateSHAs[len(candidateSHAs)-1]
+
+		pushedAt, err = ghc.tryPushedAt(repoID, sha)
+		if err != nil {
+			return time.Time{}, err
+		}
+		if !pushedAt.IsZero() {
+			break
+		}
+
+		c, err := ghc.nextChildCommit(sha)
+		if err != nil {
+			return time.Time{}, err
+		}
+		if c == nil {
+			break
+		}
+		candidateSHAs = append(candidateSHAs, c.SHA)
+	}
+
+	// After looking at all relevant commits, if we found no push time, default
+	// to the evaluation timestamp (i.e. now)
+	if pushedAt.IsZero() {
+		pushedAt = ghc.EvaluationTimestamp()
+	}
+
+	for _, sha := range candidateSHAs {
+		ghc.pushedAt[sha] = pushedAt
+		if gc := ghc.globalCache; gc != nil {
+			gc.SetPushedAt(repoID, sha, pushedAt)
+		}
+	}
+
 	return pushedAt, nil
+}
+
+// tryPushedAt attempts to get the push time for a commit from the local cache,
+// the global cache, or the GitHub API. It returns the zero time if it could
+// not find a push time in any source.
+//
+// We prefer the local cache to the global cache because it helps when there is
+// no global cache and avoids the possibility that the global cache evicts
+// entries during the lifetime of the context.
+//
+// The local cache must be initialized before calling tryPushedAt.
+func (ghc *GitHubContext) tryPushedAt(repoID int64, sha string) (time.Time, error) {
+	if t, ok := ghc.pushedAt[sha]; ok {
+		return t, nil
+	}
+	if gc := ghc.globalCache; gc != nil {
+		if t, ok := gc.GetPushedAt(repoID, sha); ok {
+			ghc.pushedAt[sha] = t
+			return t, nil
+		}
+	}
+	return ghc.loadPushedAt(sha)
+}
+
+// nextChildCommit returns the child commit for the given SHA or nil if the SHA
+// is the head of the pull request. A child commit is a commit that has SHA as
+// a parent.
+func (ghc *GitHubContext) nextChildCommit(sha string) (*Commit, error) {
+	if sha == ghc.HeadSHA() {
+		// Optimization: exit early if asked about the head SHA
+		return nil, nil
+	}
+
+	commits, err := ghc.Commits()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, c := range commits {
+		for _, parentSHA := range c.Parents {
+			if sha == parentSHA {
+				return c, nil
+			}
+		}
+	}
+	return nil, nil
 }
 
 func (ghc *GitHubContext) Comments() ([]*Comment, error) {
@@ -916,7 +1011,10 @@ type v4PullRequest struct {
 		Owner v4Actor
 	}
 
-	BaseRefName string
+	BaseRefName    string
+	BaseRepository struct {
+		DatabaseID int64
+	}
 }
 
 type v4PageInfo struct {

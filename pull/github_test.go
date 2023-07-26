@@ -16,6 +16,7 @@ package pull
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"sort"
@@ -35,7 +36,7 @@ func TestChangedFiles(t *testing.T) {
 		"testdata/responses/pull_files.yml",
 	)
 
-	ctx := makeContext(t, rp, nil)
+	ctx := makeContext(t, rp, nil, nil)
 
 	files, err := ctx.ChangedFiles()
 	require.NoError(t, err)
@@ -77,7 +78,7 @@ func TestChangedFilesNoFiles(t *testing.T) {
 		"testdata/responses/pull_no_files.yml",
 	)
 
-	ctx := makeContext(t, rp, nil)
+	ctx := makeContext(t, rp, nil, nil)
 
 	files, err := ctx.ChangedFiles()
 	require.NoError(t, err)
@@ -100,7 +101,7 @@ func TestCommits(t *testing.T) {
 		"testdata/responses/pull_commits.yml",
 	)
 
-	ctx := makeContext(t, rp, nil)
+	ctx := makeContext(t, rp, nil, nil)
 
 	commits, err := ctx.Commits()
 	require.NoError(t, err)
@@ -143,7 +144,7 @@ func TestReviews(t *testing.T) {
 		"testdata/responses/pull_reviews.yml",
 	)
 
-	ctx := makeContext(t, rp, nil)
+	ctx := makeContext(t, rp, nil, nil)
 
 	reviews, err := ctx.Reviews()
 	require.NoError(t, err)
@@ -187,7 +188,7 @@ func TestNoReviews(t *testing.T) {
 		"testdata/responses/pull_no_reviews.yml",
 	)
 
-	ctx := makeContext(t, rp, nil)
+	ctx := makeContext(t, rp, nil, nil)
 
 	reviews, err := ctx.Reviews()
 	require.NoError(t, err)
@@ -208,7 +209,7 @@ func TestBody(t *testing.T) {
 		"testdata/responses/pull_body.yml",
 	)
 
-	ctx := makeContext(t, rp, nil)
+	ctx := makeContext(t, rp, nil, nil)
 
 	prBody, err := ctx.Body()
 	require.NoError(t, err)
@@ -229,7 +230,7 @@ func TestComments(t *testing.T) {
 		"testdata/responses/pull_comments.yml",
 	)
 
-	ctx := makeContext(t, rp, nil)
+	ctx := makeContext(t, rp, nil, nil)
 
 	comments, err := ctx.Comments()
 	require.NoError(t, err)
@@ -270,7 +271,7 @@ func TestNoComments(t *testing.T) {
 		"testdata/responses/pull_no_comments.yml",
 	)
 
-	ctx := makeContext(t, rp, nil)
+	ctx := makeContext(t, rp, nil, nil)
 
 	comments, err := ctx.Comments()
 	require.NoError(t, err)
@@ -303,7 +304,7 @@ func TestIsTeamMember(t *testing.T) {
 		"testdata/responses/membership_team456_ttest.yml",
 	)
 
-	ctx := makeContext(t, rp, nil)
+	ctx := makeContext(t, rp, nil, nil)
 
 	isMember, err := ctx.IsTeamMember("testorg/yes-team", "mhaypenny")
 	require.NoError(t, err)
@@ -350,7 +351,7 @@ func TestMixedReviewCommentPaging(t *testing.T) {
 		"testdata/responses/pull_reviews_comments.yml",
 	)
 
-	ctx := makeContext(t, rp, nil)
+	ctx := makeContext(t, rp, nil, nil)
 
 	comments, err := ctx.Comments()
 	require.NoError(t, err)
@@ -374,7 +375,7 @@ func TestIsOrgMember(t *testing.T) {
 		"testdata/responses/membership_testorg_ttest.yml",
 	)
 
-	ctx := makeContext(t, rp, nil)
+	ctx := makeContext(t, rp, nil, nil)
 
 	isMember, err := ctx.IsOrgMember("testorg", "mhaypenny")
 	require.NoError(t, err)
@@ -398,7 +399,7 @@ func TestIsOrgMember(t *testing.T) {
 
 func TestBranches(t *testing.T) {
 	rp := &ResponsePlayer{}
-	ctx := makeContext(t, rp, nil)
+	ctx := makeContext(t, rp, nil, nil)
 
 	base, head := ctx.Branches()
 	assert.Equal(t, "develop", base, "base branch was not correctly set")
@@ -418,7 +419,7 @@ func TestCrossRepoBranches(t *testing.T) {
 		Name: github.String("testrepofork"),
 	}
 
-	ctx := makeContext(t, rp, crossRepoPr)
+	ctx := makeContext(t, rp, crossRepoPr, nil)
 
 	base, head := ctx.Branches()
 	assert.Equal(t, "develop", base, "cross-repo base branch was not correctly set")
@@ -432,7 +433,7 @@ func TestCollaboratorPermission(t *testing.T) {
 		"testdata/responses/repo_collaborator_permission.yml",
 	)
 
-	ctx := makeContext(t, rp, nil)
+	ctx := makeContext(t, rp, nil, nil)
 
 	p, err := ctx.CollaboratorPermission("direct-admin")
 	require.NoError(t, err)
@@ -475,7 +476,7 @@ func TestRepositoryCollaborators(t *testing.T) {
 		"testdata/responses/repo_collaborators.yml",
 	)
 
-	ctx := makeContext(t, rp, nil)
+	ctx := makeContext(t, rp, nil, nil)
 
 	collaborators, err := ctx.RepositoryCollaborators()
 	require.NoError(t, err)
@@ -534,7 +535,83 @@ func TestRepositoryCollaborators(t *testing.T) {
 	}, c7.Permissions)
 }
 
-func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest) Context {
+func TestPushedAt(t *testing.T) {
+	rp := &ResponsePlayer{}
+	commitsRule := rp.AddRule(
+		GraphQLNodePrefixMatcher("repository.pullRequest.commits"),
+		"testdata/responses/pull_commits.yml",
+	)
+	statusRuleA6F := rp.AddRule(
+		ExactPathMatcher("/repos/testorg/testrepo/commits/a6f3f69b64eaafece5a0d854eb4af11c0d64394c/statuses"),
+		"testdata/responses/repo_statuses_none.yml",
+	)
+	statusRule1FC := rp.AddRule(
+		ExactPathMatcher("/repos/testorg/testrepo/commits/1fc89f1cedf8e3f3ce516ab75b5952295c8ea5e9/statuses"),
+		"testdata/responses/repo_statuses_none.yml",
+	)
+	statusRuleE05 := rp.AddRule(
+		ExactPathMatcher("/repos/testorg/testrepo/commits/e05fcae367230ee709313dd2720da527d178ce43/statuses"),
+		"testdata/responses/repo_statuses_e05fcae367230ee709313dd2720da527d178ce43.yml",
+	)
+
+	expectedTime := time.Date(2020, 9, 30, 17, 30, 0, 0, time.UTC)
+
+	gc := NewMockGlobalCache()
+	ctx := makeContext(t, rp, nil, gc)
+
+	t.Run("fromStatus", func(t *testing.T) {
+		pushedAt, err := ctx.PushedAt("e05fcae367230ee709313dd2720da527d178ce43")
+		require.NoError(t, err)
+
+		assert.Equal(t, expectedTime, pushedAt, "incorrect pushed at for commit")
+		assert.Equal(t, 3, statusRuleE05.Count, "incorrect http request count")
+	})
+
+	t.Run("fromCache", func(t *testing.T) {
+		pushedAt, err := ctx.PushedAt("e05fcae367230ee709313dd2720da527d178ce43")
+		require.NoError(t, err)
+
+		assert.Equal(t, expectedTime, pushedAt, "incorrect pushed at for commit")
+		assert.Equal(t, 3, statusRuleE05.Count, "incorrect http request count")
+
+		cachedPushedAt := gc.PushedAt["1234:e05fcae367230ee709313dd2720da527d178ce43"]
+		assert.Equal(t, expectedTime, cachedPushedAt, "incorrect value in global cache")
+	})
+
+	t.Run("fromBatch", func(t *testing.T) {
+		pushedAt, err := ctx.PushedAt("a6f3f69b64eaafece5a0d854eb4af11c0d64394c")
+		require.NoError(t, err)
+
+		assert.Equal(t, expectedTime, pushedAt, "incorrect pushed at for commit")
+		assert.Equal(t, 2, commitsRule.Count, "incorrect http request count")
+		assert.Equal(t, 1, statusRuleA6F.Count, "incorrect http request count")
+		assert.Equal(t, 1, statusRule1FC.Count, "incorrect http request count")
+		assert.Equal(t, 3, statusRuleE05.Count, "incorrect http request count")
+	})
+
+	t.Run("fromBatchCache", func(t *testing.T) {
+		pushedAt, err := ctx.PushedAt("a6f3f69b64eaafece5a0d854eb4af11c0d64394c")
+		require.NoError(t, err)
+
+		assert.Equal(t, expectedTime, pushedAt, "incorrect pushed at for commit")
+		assert.Equal(t, 2, commitsRule.Count, "incorrect http request count")
+		assert.Equal(t, 1, statusRuleA6F.Count, "incorrect http request count")
+		assert.Equal(t, 1, statusRule1FC.Count, "incorrect http request count")
+		assert.Equal(t, 3, statusRuleE05.Count, "incorrect http request count")
+	})
+
+	t.Run("fromGlobalCache", func(t *testing.T) {
+		ctx := makeContext(t, rp, nil, gc)
+
+		pushedAt, err := ctx.PushedAt("e05fcae367230ee709313dd2720da527d178ce43")
+		require.NoError(t, err)
+
+		assert.Equal(t, expectedTime, pushedAt, "incorrect pushed at for commit")
+		assert.Equal(t, 3, statusRuleE05.Count, "incorrect http request count")
+	})
+}
+
+func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest, gc GlobalCache) Context {
 	ctx := context.Background()
 	client := github.NewClient(&http.Client{Transport: rp})
 	v4client := githubv4.NewClient(&http.Client{Transport: rp})
@@ -547,7 +624,7 @@ func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest) Conte
 		pr = defaultTestPR()
 	}
 
-	prctx, err := NewGitHubContext(ctx, mbrCtx, client, v4client, Locator{
+	prctx, err := NewGitHubContext(ctx, mbrCtx, gc, client, v4client, Locator{
 		Owner:  pr.GetBase().GetRepo().GetOwner().GetLogin(),
 		Repo:   pr.GetBase().GetRepo().GetName(),
 		Number: pr.GetNumber(),
@@ -594,4 +671,23 @@ func defaultTestPR() *github.PullRequest {
 
 func newTime(t time.Time) *time.Time {
 	return &t
+}
+
+type MockGlobalCache struct {
+	PushedAt map[string]time.Time
+}
+
+func NewMockGlobalCache() *MockGlobalCache {
+	return &MockGlobalCache{
+		PushedAt: make(map[string]time.Time),
+	}
+}
+
+func (c *MockGlobalCache) GetPushedAt(repoID int64, sha string) (time.Time, bool) {
+	t, ok := c.PushedAt[fmt.Sprintf("%d:%s", repoID, sha)]
+	return t, ok
+}
+
+func (c *MockGlobalCache) SetPushedAt(repoID int64, sha string, t time.Time) {
+	c.PushedAt[fmt.Sprintf("%d:%s", repoID, sha)] = t
 }

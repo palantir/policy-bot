@@ -36,8 +36,7 @@ func TestIsApproved(t *testing.T) {
 	now := time.Now()
 	basePullContext := func() *pulltest.Context {
 		return &pulltest.Context{
-			EvaluationTimestampValue: now,
-			AuthorValue:              "mhaypenny",
+			AuthorValue: "mhaypenny",
 			BodyValue: &pull.Body{
 				Body:         "/no-platform",
 				CreatedAt:    now.Add(10 * time.Second),
@@ -386,32 +385,6 @@ func TestIsApproved(t *testing.T) {
 		assertPending(t, prctx, r, "0/1 required approvals. Ignored 6 approvals from disqualified users")
 	})
 
-	t.Run("invalidateCommentOnPushFirstEvaluation", func(t *testing.T) {
-		prctx := basePullContext()
-		prctx.EvaluationTimestampValue = now.Add(25 * time.Second)
-		prctx.HeadSHAValue = "c6ade256ecfc755d8bc877ef22cc9e01745d46bb"
-		prctx.CommitsValue = []*pull.Commit{
-			{
-				SHA:       "c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
-				Author:    "mhaypenny",
-				Committer: "mhaypenny",
-			},
-		}
-
-		r := &Rule{
-			Requires: common.Requires{
-				Count: 1,
-				Actors: common.Actors{
-					Users: []string{"comment-approver"},
-				},
-			},
-		}
-		assertApproved(t, prctx, r, "Approved by comment-approver")
-
-		r.Options.InvalidateOnPush = true
-		assertPending(t, prctx, r, "0/1 required approvals. Ignored 6 approvals from disqualified users")
-	})
-
 	t.Run("invalidateReviewOnPush", func(t *testing.T) {
 		prctx := basePullContext()
 		prctx.PushedAtValue = map[string]time.Time{
@@ -442,9 +415,9 @@ func TestIsApproved(t *testing.T) {
 
 	t.Run("ignoreUpdateMergeAfterReview", func(t *testing.T) {
 		prctx := basePullContext()
-		prctx.EvaluationTimestampValue = now.Add(25 * time.Second)
 		prctx.PushedAtValue = map[string]time.Time{
 			"c6ade256ecfc755d8bc877ef22cc9e01745d46bb": now,
+			"647c5078288f0ea9de27b5c280f25edaf2089045": now.Add(25 * time.Second),
 		}
 		prctx.HeadSHAValue = "647c5078288f0ea9de27b5c280f25edaf2089045"
 		prctx.CommitsValue = append(prctx.CommitsValue[:1], &pull.Commit{
@@ -476,9 +449,6 @@ func TestIsApproved(t *testing.T) {
 
 	t.Run("ignoreUpdateMergeContributor", func(t *testing.T) {
 		prctx := basePullContext()
-		prctx.PushedAtValue = map[string]time.Time{
-			"c6ade256ecfc755d8bc877ef22cc9e01745d46bb": now.Add(25 * time.Second),
-		}
 		prctx.HeadSHAValue = "647c5078288f0ea9de27b5c280f25edaf2089045"
 		prctx.CommitsValue = append(prctx.CommitsValue[:1], &pull.Commit{
 			SHA:             "647c5078288f0ea9de27b5c280f25edaf2089045",
@@ -578,6 +548,52 @@ func TestIsApproved(t *testing.T) {
 		assertApproved(t, prctx, r, "Approved by comment-approver")
 
 		r.Options.InvalidateOnPush = true
+		r.Options.IgnoreCommitsBy = common.Actors{
+			Users: []string{"mhaypenny"},
+		}
+		assertApproved(t, prctx, r, "Approved by comment-approver")
+	})
+
+	t.Run("ignoreCommitsInvalidateOnPushBatches", func(t *testing.T) {
+		prctx := basePullContext()
+		prctx.PushedAtValue = map[string]time.Time{
+			"584b9232835ae85a2d8216fb55fd9cad8389092c": now.Add(25 * time.Second),
+			"7f4cd9d3999061605ce4cf261234e431b52e61ee": now,
+		}
+		prctx.HeadSHAValue = "584b9232835ae85a2d8216fb55fd9cad8389092c"
+		prctx.CommitsValue = []*pull.Commit{
+			{
+				SHA:       "584b9232835ae85a2d8216fb55fd9cad8389092c",
+				Author:    "mhaypenny",
+				Committer: "mhaypenny",
+				Parents:   []string{"7f4cd9d3999061605ce4cf261234e431b52e61ee"},
+			},
+			{
+				SHA:       "7f4cd9d3999061605ce4cf261234e431b52e61ee",
+				Author:    "mhaypenny",
+				Committer: "mhaypenny",
+				Parents:   []string{"b2b73abd18bbad3ee3c6d0055697177cf476bf67"},
+			},
+			{
+				SHA:       "b2b73abd18bbad3ee3c6d0055697177cf476bf67",
+				Author:    "nstrawnickel",
+				Committer: "nstrawnickel",
+			},
+		}
+
+		r := &Rule{
+			Requires: common.Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Users: []string{"comment-approver"},
+				},
+			},
+		}
+		assertApproved(t, prctx, r, "Approved by comment-approver")
+
+		r.Options.InvalidateOnPush = true
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 6 approvals from disqualified users")
+
 		r.Options.IgnoreCommitsBy = common.Actors{
 			Users: []string{"mhaypenny"},
 		}
