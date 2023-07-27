@@ -246,7 +246,7 @@ if:
   has_labels:
     - "label-1"
     - "label-2"
-      
+
   # "repository" is satisfied if the pull request repository matches any one of the
   # patterns within the "matches" list or does not match all of the patterns
   # within the "not_matches" list.
@@ -263,7 +263,7 @@ if:
   # patterns within the "matches" list or does not match all of the patterns
   # within the "not_matches" list.
   # e.g. this predicate triggers for titles including "BREAKING CHANGE" or titles
-  # that are not marked as docs/style/chore changes (using conventional commits 
+  # that are not marked as docs/style/chore changes (using conventional commits
   # formatting)
   #
   # Note: Double-quote strings must escape backslashes while single/plain do not.
@@ -280,7 +280,7 @@ if:
 
   # "has_valid_signatures_by" is satisfied if the commits in the pull request
   # all have git commit signatures that have been verified by GitHub, and
-  # the authenticated signatures are attributed to a user in the users list 
+  # the authenticated signatures are attributed to a user in the users list
   # or belong to a user in any of the listed organizations or teams.
   has_valid_signatures_by:
     users: ["user1", "user2", ...]
@@ -350,7 +350,7 @@ options:
 
     # mode modifies how reviewers are selected. `all-users` will request all users
     # who are able to approve the pending rule. `random-users` selects a small
-    # set of random users based on the required count of approvals. `teams` will 
+    # set of random users based on the required count of approvals. `teams` will
     # request teams to review. Teams must have explicit access defined under
     # https://github.com/<org>/<repo>/settings/access in order to be tagged,
     # at least until https://github.com/palantir/policy-bot/issues/165 is fixed.
@@ -471,18 +471,18 @@ Disapproval allows users to explicitly block pull requests if certain changes
 must be made. Any member of in the set of allowed users can disapprove a change
 or revoke another user's disapproval.
 
-Unlike approval, all disapproval predicates and options are specified as part 
-of the policy. Effectively, there is a single disapproval rule. The `disapproval` 
+Unlike approval, all disapproval predicates and options are specified as part
+of the policy. Effectively, there is a single disapproval rule. The `disapproval`
 policy has the following specification:
 
 ```yaml
 # "disapproval" is the top-level key in the policy block.
 disapproval:
-  # "if" specifies a set of predicates which will cause disapproval if any are 
+  # "if" specifies a set of predicates which will cause disapproval if any are
   # true
-  #  
-  # This block, and every condition within it are optional. If the block does 
-  # not exist, a pull request is only disapproved if a user takes a disapproval 
+  #
+  # This block, and every condition within it are optional. If the block does
+  # not exist, a pull request is only disapproved if a user takes a disapproval
   # action.
   if:
     # All predicates from the approval rules section are valid here
@@ -492,7 +492,7 @@ disapproval:
         - "^BREAKING CHANGE: (\\w| )+$"
       matches:
         - "^BLOCKED"
-        
+
   # "options" sets behavior related to disapproval. If it does not exist, the
   # defaults shown below are used.
   options:
@@ -555,16 +555,15 @@ changes have no effect on the `policy-bot` status.
 
 #### Interactions with GitHub Reviews
 
-GitHub Reviews allow a user to dismiss the last review they left, causing it 
-to no longer count towards rule evaluations. When this happens 
-`policy-bot` will use a previous, non-dismissed review, if it exists, when evaluating
-rules. 
+GitHub Reviews allow a user to dismiss the last review they left, causing it to
+no longer count towards rule evaluations. When this happens `policy-bot` will
+use a previous, non-dismissed review, if it exists, when evaluating rules.
 
-For example, if a user leaves an "approval" review and follows up with a 
-"request changes" review, `policy-bot` will use the "request changes" review when 
-evaluating rules. However, if the user then dimisses their "request changes" 
-review, `policy-bot` will instead use the initial "approval" review in evaluating 
-any rules 
+For example, if a user leaves an "approval" review and follows up with a
+"request changes" review, `policy-bot` will use the "request changes" review
+when evaluating rules. However, if the user then dimisses their "request
+changes" review, `policy-bot` will instead use the initial "approval" review in
+evaluating any rules.
 
 #### `or`, `and`, and `if` (Rule Predicates)
 
@@ -633,7 +632,7 @@ repository `admin` permissions as organization owners are not selected.
 
 The `teams` mode needs the team visibility to be set to `visibile` to enable this functionality for a given team.
 
-#### Automatically Requesting Reviewers Example
+##### Example
 
 Given the following example requirement rule,
 
@@ -654,6 +653,34 @@ set of users of in
 
 Where the Pull Request Author and any non direct collaborators have been removed
 from the set.
+
+#### Invalidating Approval on Push
+
+By default, `policy-bot` does not invalidate exisitng approvals when users add
+new commits to a pull request. You can control this behavior for each rule in a
+policy using the `invalidate_on_push` option.
+
+To invalidate approvals, `policy-bot` compares an estimate of the push time of
+each commit with the time of each approval comment or review. The push time
+estimate uses the time of the oldest status check, or the current time during
+evaluation if there are no status checks. This is guaranteed to be after the
+actual push time, but the delay may be arbitrarily large based on GitHub
+webhook delivery behavior and processing time in `policy-bot`.
+
+In practice, this means that adding an approval immediately after (within a few
+seconds of) a push may not approve the pull request. If this happens, leave a
+second approval comment or review after `policy-bot` adds the "pending" status
+check.
+
+`policy-bot` caches push times in memory to improve performance and reduce API
+requests.
+
+Older versions of `policy-bot` (before 1.31.0) used the `pushedDate` field in
+GitHub's GraphQL API to estimate commit push times. GitHub removed this field
+in mid-2023 because computing it was unreliable and inaccurate (see issue
+[#598][] for more details.)
+
+[#598]: https://github.com/palantir/policy-bot/issues/598
 
 ## Security
 
