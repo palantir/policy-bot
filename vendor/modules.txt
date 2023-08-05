@@ -168,12 +168,12 @@ golang.org/x/crypto/internal/poly1305
 golang.org/x/crypto/nacl/secretbox
 golang.org/x/crypto/salsa20/salsa
 golang.org/x/crypto/sha3
-# golang.org/x/net v0.13.0
+# golang.org/x/net v0.14.0
 ## explicit; go 1.17
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
-# golang.org/x/oauth2 v0.10.0
-## explicit; go 1.17
+# golang.org/x/oauth2 v0.11.0
+## explicit; go 1.18
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
 # golang.org/x/sys v0.11.0
