@@ -63,8 +63,8 @@ github.com/mattn/go-colorable v0.1.12 h1:jF+Du6AlPIjs2BiUiQlKOX0rt3SujHxPnksPKZb
 github.com/mattn/go-colorable v0.1.12/go.mod h1:u5H1YNBxpqRaxsYJYSkiCWKzEfiAb1Gb520KVy5xxl4=
 github.com/mattn/go-isatty v0.0.14 h1:yVuAays6BHfxijgZPzw+3Zlu5yQgKGP2/hcQbHb7S9Y=
 github.com/mattn/go-isatty v0.0.14/go.mod h1:7GGIvUiUoEMVVmxf/4nioHXj79iQHKdU27kJ6hsGG94=
-github.com/palantir/go-baseapp v0.5.1 h1:kd92VK3XKygpC0ltQEOQ0O1vobNd+E3NHx0vf4UknyU=
-github.com/palantir/go-baseapp v0.5.1/go.mod h1:Tvoz+GhYyrfduiHO2rvdfOXWsoaiwBeHtRVDe8XCIvs=
+github.com/palantir/go-baseapp v0.5.2 h1:b1ukx7AXo2/E4NkUvTFlW+185uwCcifzd2XzLrG4oS8=
+github.com/palantir/go-baseapp v0.5.2/go.mod h1:uijQMPfmgV69oiMu2jkskum/4HiYuEP/gzrnphD+/Co=
 github.com/palantir/go-githubapp v0.18.0 h1:t/OEIplGa5BpeUlu3e4S8i1uw3PBrCjV4U6bD5frrL0=
 github.com/palantir/go-githubapp v0.18.0/go.mod h1:7NmYdBB0t2fHjmXmI1DyQ2j/mNIemQpp6yvcL12cgSA=
 github.com/patrickmn/go-cache v2.1.0+incompatible h1:HRMgzkcYKYpi3C8ajMPV8OFXaaRUnok+kx1WdO15EQc=
