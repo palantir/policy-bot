@@ -94,7 +94,7 @@ approval_rules:
     if:
       only_changed_files:
         paths:
-          - "staging/.*"
+          - "^staging/.*$"
     requires:
       count: 0
 ```
@@ -164,10 +164,10 @@ if:
   # See the Notes on YAML Syntax section of this README for more information.
   changed_files:
     paths:
-      - "config/.*"
-      - "server/views/.*\\.tmpl"
+      - "^config/.*$"
+      - "^server/views/.*\\.tmpl$"
     ignore:
-      - "config/special\\.file"
+      - "^config/special\\.file$"
 
   # "only_changed_files" is satisfied if all files changed by the pull request
   # match at least one regular expression in the list.
@@ -176,7 +176,7 @@ if:
   # See the Notes on YAML Syntax section of this README for more information.
   only_changed_files:
     paths:
-      - "config/.*"
+      - "^config/.*$"
 
   # "has_author_in" is satisfied if the user who opened the pull request is in
   # the users list or belongs to any of the listed organizations or teams. The
@@ -255,9 +255,9 @@ if:
   # See the Notes on YAML Syntax section of this README for more information.
   repository:
     matches:
-      - "palantir/policy.*"
+      - "^palantir/policy.*$"
     not_matches:
-      - "palantir/.*docs"
+      - "^palantir/.*docs$"
 
   # "title" is satisfied if the pull request title matches any one of the
   # patterns within the "matches" list or does not match all of the patterns
