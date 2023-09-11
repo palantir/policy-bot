@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/go-github/v53/github"
+	"github.com/google/go-github/v55/github"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
@@ -120,8 +120,8 @@ func (h *Status) processOthers(ctx context.Context, event github.StatusEvent) er
 		ownerName,
 		repoName,
 		commitSHA,
-		&github.PullRequestListOptions{
-			ListOptions: github.ListOptions{PerPage: 100},
+		&github.ListOptions{
+			PerPage: 100,
 		})
 	if err != nil {
 		return errors.Wrapf(err, "failed to list pull requests for SHA %s", commitSHA)

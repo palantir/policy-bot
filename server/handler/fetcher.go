@@ -17,7 +17,7 @@ package handler
 import (
 	"context"
 
-	"github.com/google/go-github/v53/github"
+	"github.com/google/go-github/v55/github"
 	"github.com/palantir/go-githubapp/appconfig"
 	"github.com/palantir/policy-bot/policy"
 	"gopkg.in/yaml.v2"
