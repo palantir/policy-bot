@@ -356,6 +356,12 @@ options:
     # at least until https://github.com/palantir/policy-bot/issues/165 is fixed.
     # Defaults to 'random-users'.
     mode: all-users|random-users|teams
+    
+    # count sets the number of users requested to review the pull request when
+    # using the `random-users` mode. If count is not set or set to 0, request the
+    # number of users set by requires.count. Setting this is useful when you want
+    # to request more reviewers than the required count. Defaults to 0.
+    count: 0
 
   # "methods" defines how users may express approval.
   methods:

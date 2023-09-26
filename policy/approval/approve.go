@@ -54,6 +54,7 @@ type Options struct {
 type RequestReview struct {
 	Enabled bool               `yaml:"enabled"`
 	Mode    common.RequestMode `yaml:"mode"`
+	Count   int                `yaml:"count"`
 }
 
 func (opts *Options) GetMethods() *common.Methods {
@@ -168,13 +169,19 @@ func (r *Rule) getReviewRequestRule() *common.ReviewRequestRule {
 		mode = common.RequestModeRandomUsers
 	}
 
+	requestedCount := r.Options.RequestReview.Count
+	if requestedCount == 0 {
+		requestedCount = r.Requires.Count
+	}
+
 	return &common.ReviewRequestRule{
-		Users:         r.Requires.Actors.Users,
-		Teams:         r.Requires.Actors.Teams,
-		Organizations: r.Requires.Actors.Organizations,
-		Permissions:   r.Requires.Actors.GetPermissions(),
-		RequiredCount: r.Requires.Count,
-		Mode:          mode,
+		Users:          r.Requires.Actors.Users,
+		Teams:          r.Requires.Actors.Teams,
+		Organizations:  r.Requires.Actors.Organizations,
+		Permissions:    r.Requires.Actors.GetPermissions(),
+		RequiredCount:  r.Requires.Count,
+		RequestedCount: requestedCount,
+		Mode:           mode,
 	}
 }
 

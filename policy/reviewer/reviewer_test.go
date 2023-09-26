@@ -192,18 +192,20 @@ func TestSelectReviewers(t *testing.T) {
 			Name:   "users",
 			Status: common.StatusPending,
 			ReviewRequestRule: &common.ReviewRequestRule{
-				Users:         []string{"mhaypenny", "review-approver", "contributor-committer"},
-				RequiredCount: 2,
-				Mode:          common.RequestModeRandomUsers,
+				Users:          []string{"mhaypenny", "review-approver", "contributor-committer"},
+				RequiredCount:  2,
+				RequestedCount: 2,
+				Mode:           common.RequestModeRandomUsers,
 			},
 		},
 		{
 			Name:   "admin-users",
 			Status: common.StatusPending,
 			ReviewRequestRule: &common.ReviewRequestRule{
-				Permissions:   []pull.Permission{pull.PermissionAdmin},
-				RequiredCount: 1,
-				Mode:          common.RequestModeRandomUsers,
+				Permissions:    []pull.Permission{pull.PermissionAdmin},
+				RequiredCount:  1,
+				RequestedCount: 1,
+				Mode:           common.RequestModeRandomUsers,
 			},
 		},
 	}
@@ -219,6 +221,32 @@ func TestSelectReviewers(t *testing.T) {
 	require.NotContains(t, selection.Users, "org-owner", "org-owner should not be requested")
 }
 
+func TestSelectRequestedReviewers(t *testing.T) {
+	r := rand.New(rand.NewSource(42))
+	results := []*common.Result{
+		{
+			Name:   "users",
+			Status: common.StatusPending,
+			ReviewRequestRule: &common.ReviewRequestRule{
+				Users:          []string{"mhaypenny", "review-approver", "contributor-committer"},
+				RequiredCount:  1,
+				RequestedCount: 2,
+				Mode:           common.RequestModeRandomUsers,
+			},
+		},
+	}
+
+	prctx := makeContext()
+
+	selection, err := SelectReviewers(context.Background(), prctx, results, r)
+	require.NoError(t, err)
+	require.Len(t, selection.Users, 2, "policy should request two people")
+	require.Contains(t, selection.Users, "review-approver", "at least review-approver must be selected")
+	require.NotContains(t, selection.Users, "mhaypenny", "the author cannot be requested")
+	require.NotContains(t, selection.Users, "not-a-collaborator", "a non collaborator cannot be requested")
+	require.NotContains(t, selection.Users, "org-owner", "org-owner should not be requested")
+}
+
 func TestSelectReviewers_UserPermission(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
 	results := []*common.Result{
@@ -226,9 +254,10 @@ func TestSelectReviewers_UserPermission(t *testing.T) {
 			Name:   "user-permissions",
 			Status: common.StatusPending,
 			ReviewRequestRule: &common.ReviewRequestRule{
-				Permissions:   []pull.Permission{pull.PermissionTriage, pull.PermissionMaintain},
-				RequiredCount: 2,
-				Mode:          common.RequestModeAllUsers,
+				Permissions:    []pull.Permission{pull.PermissionTriage, pull.PermissionMaintain},
+				RequiredCount:  2,
+				RequestedCount: 2,
+				Mode:           common.RequestModeAllUsers,
 			},
 		},
 	}
@@ -278,9 +307,10 @@ func TestSelectReviewers_TeamMembers(t *testing.T) {
 			Name:   "team-users",
 			Status: common.StatusPending,
 			ReviewRequestRule: &common.ReviewRequestRule{
-				Teams:         []string{"everyone/team-write"},
-				RequiredCount: 1,
-				Mode:          common.RequestModeRandomUsers,
+				Teams:          []string{"everyone/team-write"},
+				RequiredCount:  1,
+				RequestedCount: 1,
+				Mode:           common.RequestModeRandomUsers,
 			},
 		},
 	}
@@ -345,9 +375,10 @@ func TestSelectReviewers_Org(t *testing.T) {
 			Name:   "org",
 			Status: common.StatusPending,
 			ReviewRequestRule: &common.ReviewRequestRule{
-				Organizations: []string{"everyone"},
-				RequiredCount: 1,
-				Mode:          common.RequestModeRandomUsers,
+				Organizations:  []string{"everyone"},
+				RequiredCount:  1,
+				RequestedCount: 1,
+				Mode:           common.RequestModeRandomUsers,
 			},
 		},
 	}
