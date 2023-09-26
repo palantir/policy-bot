@@ -269,7 +269,7 @@ func selectUserReviewers(ctx context.Context, prctx pull.Context, selection *Sel
 		selection.Users = append(selection.Users, possibleReviewers...)
 
 	case common.RequestModeRandomUsers:
-		count := result.ReviewRequestRule.RequiredCount
+		count := result.ReviewRequestRule.RequestedCount
 		selectedUsers := selectRandomUsers(count, possibleReviewers, r)
 
 		logger.Debug().Msgf("Found %d eligible reviewers; randomly selecting %d", len(possibleReviewers), count)

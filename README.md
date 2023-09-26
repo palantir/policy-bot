@@ -356,6 +356,13 @@ options:
     # at least until https://github.com/palantir/policy-bot/issues/165 is fixed.
     # Defaults to 'random-users'.
     mode: all-users|random-users|teams
+    
+    # requested_count modifies how many users are requested to review the pr. If 
+    # requested_count is not set or set to 0 it will use requires.count
+    # Settings this is usefull when you want to request more reviewers than the 
+    # required count if you are using mode: random-users. 
+    # Defaults to '0'
+    requested_count: 0
 
   # "methods" defines how users may express approval.
   methods:
