@@ -92,7 +92,7 @@ func (h *Installation) postRepoInstallationStatus(ctx context.Context, client *g
 	}
 
 	defaultBranch := repository.GetDefaultBranch()
-	branch, _, err := client.Repositories.GetBranch(ctx, owner, repo, defaultBranch, false)
+	branch, _, err := client.Repositories.GetBranch(ctx, owner, repo, defaultBranch, 0)
 	if err != nil {
 		return
 	}
