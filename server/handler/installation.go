@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/go-github/v55/github"
+	"github.com/google/go-github/v56/github"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -92,7 +92,7 @@ func (h *Installation) postRepoInstallationStatus(ctx context.Context, client *g
 	}
 
 	defaultBranch := repository.GetDefaultBranch()
-	branch, _, err := client.Repositories.GetBranch(ctx, owner, repo, defaultBranch, false)
+	branch, _, err := client.Repositories.GetBranch(ctx, owner, repo, defaultBranch, 0)
 	if err != nil {
 		return
 	}
