@@ -185,6 +185,29 @@ details summary > * {
   @apply text-center;
 }
 
+.spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  vertical-align: middle;
+  aspect-ratio: 1;
+}
+
+.spinner path {
+  fill-opacity: 0;
+}
+
+.spinner .spinner-track {
+  stroke: rgba(95,107,124,.2);
+}
+
+.spinner .spinner-head {
+  stroke: rgba(95,107,124,.8);
+  stroke-linecap: round;
+  transform-origin: center;
+}
+
 /* end custom components */
 
 @tailwind utilities;

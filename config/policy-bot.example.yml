@@ -97,6 +97,12 @@ sessions:
 #   # The context prefix for status checks created by the bot. Can also be set by the
 #   # POLICYBOT_OPTIONS_STATUS_CHECK_CONTEXT environment variable.
 #   status_check_context: policy-bot
+#
+#   # If true, expand teams, organizations, and permissions in the detils UI to
+#   # a list of users. This option has security implications; see the README.
+#   # Can also be set by the POLICYBOT_OPTIONS_EXPAND_REQUIRED_REVIEWERS
+#   # environment variable.
+#   expand_required_reviewers: false
 
 # Options for locating the frontend files. By default, the server uses appropriate
 # paths for the binary distribution and Docker container. For local development,

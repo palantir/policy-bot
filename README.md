@@ -688,6 +688,27 @@ in mid-2023 because computing it was unreliable and inaccurate (see issue
 
 [#598]: https://github.com/palantir/policy-bot/issues/598
 
+#### Expanding Required Reviewers
+
+The details view for a pull request shows the users, organizations, teams, and
+permission levels that are reqired to approve each rule. When the
+`options.expand_required_reviewers` server option is set, `policy-bot` expands
+these to show the list of users whose approval will satify each rule. This can
+make it easier for developer to figure out who they should ask for approval.
+
+Like review requests, when expanding permission levels, only users with
+collaborator permissions on the repository, either directly or via teams, are
+included in the expanded list.
+
+Enabling this option can expose otherwise private information about teams,
+organizations, and permissions to any user with read permission on a pull
+request. This includes teams in organizations other than the one that contains
+the pull request.
+
+As a result, only enable this feature if all users with access to `policy-bot`
+are allowed to view the members and permissions of any organization that uses
+`policy-bot`.
+
 ## Security
 
 While `policy-bot` can be used to implement security controls on GitHub

@@ -16,6 +16,7 @@ package handler
 
 import (
 	"os"
+	"strconv"
 )
 
 const (
@@ -34,6 +35,12 @@ type PullEvaluationOptions struct {
 	// StatusCheckContext will be used to create the status context. It will be used in the following
 	// pattern: <StatusCheckContext>: <Base Branch Name>
 	StatusCheckContext string `yaml:"status_check_context"`
+
+	// ExpandRequiredReviewers enables a UI feature where the details page
+	// shows a list of the users who can approve each rule. Enabling this
+	// feature can leak information about team membership and permissions that
+	// is otherwise private. See the README for details.
+	ExpandRequiredReviewers bool `yaml:"expand_required_reviewers"`
 
 	// PostInsecureStatusChecks enables the sending of a second status using just StatusCheckContext as the context,
 	// no templating. This is turned off by default. This is to support legacy workflows that depend on the original
@@ -73,6 +80,8 @@ func (p *PullEvaluationOptions) SetValuesFromEnv(prefix string) {
 	setStringFromEnv("SHARED_REPOSITORY", prefix, &p.SharedRepository)
 	setStringFromEnv("SHARED_POLICY_PATH", prefix, &p.SharedPolicyPath)
 	setStringFromEnv("STATUS_CHECK_CONTEXT", prefix, &p.StatusCheckContext)
+	setBoolFromEnv("EXPAND_REQUIRED_REVIEWERS", prefix, &p.ExpandRequiredReviewers)
+	setBoolFromEnv("POST_INSECURE_STATUS_CHECKS", prefix, &p.PostInsecureStatusChecks)
 	p.fillDefaults()
 }
 
@@ -80,6 +89,16 @@ func setStringFromEnv(key, prefix string, value *string) bool {
 	if v, ok := os.LookupEnv(prefix + key); ok {
 		*value = v
 		return true
+	}
+	return false
+}
+
+func setBoolFromEnv(key, prefix string, value *bool) bool {
+	if v, ok := os.LookupEnv(prefix + key); ok {
+		if b, err := strconv.ParseBool(v); err == nil {
+			*value = b
+			return true
+		}
 	}
 	return false
 }
