@@ -16,6 +16,7 @@ package handler
 
 import (
 	"fmt"
+	"html/template"
 	"net/http"
 	"net/url"
 	"path"
@@ -35,7 +36,7 @@ import (
 type Details struct {
 	Base
 	Sessions  *scs.Manager
-	Templates templatetree.HTMLTree
+	Templates templatetree.Tree[*template.Template]
 }
 
 func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
