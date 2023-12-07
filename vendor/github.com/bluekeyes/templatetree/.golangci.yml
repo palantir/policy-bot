@@ -1,0 +1,23 @@
+run:
+  tests: false
+
+linters:
+  disable-all: true
+  enable:
+    - deadcode
+    - errcheck
+    - gofmt
+    - goimports
+    - golint
+    - govet
+    - ineffassign
+    - typecheck
+    - unconvert
+    - varcheck
+
+issues:
+  exclude-use-default: false
+
+linter-settings:
+  goimports:
+    local-prefixes: github.com/bluekeyes/templatetree

@@ -41,49 +41,49 @@ type Membership struct {
 	Link string
 }
 
-func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatetree.HTMLTree, error) {
+func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatetree.Tree[*template.Template], error) {
 	if basePath == "" {
 		basePath = "/"
 	}
-
-	root := template.New("root").Funcs(template.FuncMap{
-		"resource": func(r string) string {
-			return path.Join(basePath, "static", r)
-		},
-		"titlecase": strings.Title,
-		"sortByStatus": func(results []*common.Result) []*common.Result {
-			r := make([]*common.Result, len(results))
-			copy(r, results)
-
-			sort.SliceStable(r, func(i, j int) bool {
-				return r[i].Status > r[j].Status
-			})
-
-			return r
-		},
-		"hasActors": func(requires *common.Requires) bool {
-			return len(requires.Actors.Users) > 0 || len(requires.Actors.Teams) > 0 || len(requires.Actors.Organizations) > 0
-		},
-		"getMethods": func(results *common.Result) map[string][]string {
-			return getMethods(results)
-		},
-		"getActors": func(results *common.Result) map[string][]Membership {
-			return getActors(results, strings.TrimSuffix(githubURL, "/"))
-		},
-		"hasActorsPermissions": func(requires *common.Requires) bool {
-			return len(requires.Actors.GetPermissions()) > 0
-		},
-		"getPermissions": func(results *common.Result) []string {
-			return getPermissions(results)
-		},
-	})
 
 	dir := c.Templates
 	if dir == "" {
 		dir = DefaultTemplatesDir
 	}
 
-	return templatetree.LoadHTML(dir, "*.html.tmpl", root)
+	return templatetree.Parse(dir, "*.html.tmpl", func(name string) templatetree.Template[*template.Template] {
+		return template.New(name).Funcs(template.FuncMap{
+			"resource": func(r string) string {
+				return path.Join(basePath, "static", r)
+			},
+			"titlecase": strings.Title,
+			"sortByStatus": func(results []*common.Result) []*common.Result {
+				r := make([]*common.Result, len(results))
+				copy(r, results)
+
+				sort.SliceStable(r, func(i, j int) bool {
+					return r[i].Status > r[j].Status
+				})
+
+				return r
+			},
+			"hasActors": func(requires *common.Requires) bool {
+				return len(requires.Actors.Users) > 0 || len(requires.Actors.Teams) > 0 || len(requires.Actors.Organizations) > 0
+			},
+			"getMethods": func(results *common.Result) map[string][]string {
+				return getMethods(results)
+			},
+			"getActors": func(results *common.Result) map[string][]Membership {
+				return getActors(results, strings.TrimSuffix(githubURL, "/"))
+			},
+			"hasActorsPermissions": func(requires *common.Requires) bool {
+				return len(requires.Actors.GetPermissions()) > 0
+			},
+			"getPermissions": func(results *common.Result) []string {
+				return getPermissions(results)
+			},
+		})
+	})
 }
 
 func Static(prefix string, c *FilesConfig) http.Handler {

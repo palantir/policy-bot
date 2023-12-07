@@ -15,6 +15,7 @@
 package handler
 
 import (
+	"html/template"
 	"net/http"
 
 	"github.com/bluekeyes/templatetree"
@@ -26,7 +27,7 @@ type Index struct {
 	Base
 
 	GithubConfig *githubapp.Config
-	Templates    templatetree.HTMLTree
+	Templates    templatetree.Tree[*template.Template]
 }
 
 func (h *Index) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
