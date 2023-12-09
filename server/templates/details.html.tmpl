@@ -44,16 +44,23 @@
       </div>
     </div>
     <div class="pl-8 overflow-auto flex-grow">
-      <ul class="tree px-4 pb-4">
-          {{range .Result.Children | sortByStatus}}{{template "result" .}}{{end}}
+      <ul class="tree px-4 pb-4" data-hide-status="skipped">
+        {{template "results" .Result}}
       </ul>
     </div>
   {{end}}
 {{end}}
 
+{{define "results"}}
+{{ $results := .Children | sortByStatus }}
+{{range $i, $r := $results}}{{template "result" (args $r (nextStatus $i $results))}}{{end}}
+{{end}}
+
 {{define "result"}}
+{{ $nextStatus := index . 1}}
+{{with index . 0}}
 {{ $s := (or (and .Error "error") (.Status | print)) }}
-<li data-status="{{$s}}">
+<li class="node" data-status="{{$s}}" {{if not (eq $s $nextStatus)}}data-next-status="{{$nextStatus}}"{{end}}>
   <div class="bg-white p-2 shadow-sm max-w-lg status-stripe {{$s}}">
     {{template "result-details" .}}
     {{if (or (.PredicateResults) (hasActors .Requires) (hasActorsPermissions .Requires))}}
@@ -85,10 +92,11 @@
   </div>
   {{if .Children}}
   <ul class="tree">
-    {{range .Children | sortByStatus}}{{template "result" .}}{{end}}
+    {{template "results" .}}
   </ul>
   {{end}}
 </li>
+{{end}}
 {{end}}
 
 {{define "result-details"}}

@@ -53,6 +53,9 @@ func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatet
 
 	return templatetree.Parse(dir, "*.html.tmpl", func(name string) templatetree.Template[*template.Template] {
 		return template.New(name).Funcs(template.FuncMap{
+			"args": func(args ...any) []any {
+				return args
+			},
 			"resource": func(r string) string {
 				return path.Join(basePath, "static", r)
 			},
@@ -81,6 +84,12 @@ func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatet
 			},
 			"getPermissions": func(results *common.Result) []string {
 				return getPermissions(results)
+			},
+			"nextStatus": func(i int, results []*common.Result) string {
+				if i < len(results)-1 {
+					return results[i+1].Status.String()
+				}
+				return ""
 			},
 		})
 	})
