@@ -18,6 +18,7 @@ approval_rules:
   - name: one admin has approved (PR contributors not allowed)
     options:
       allow_contributor: false
+      invalidate_on_push: true
     requires:
       count: 1
       permissions: ["admin", "maintain"]
@@ -25,6 +26,7 @@ approval_rules:
   - name: two admins have approved
     options:
       allow_contributor: true
+      invalidate_on_push: true
     requires:
       count: 2
       permissions: ["admin", "maintain"]
