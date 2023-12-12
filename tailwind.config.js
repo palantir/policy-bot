@@ -118,7 +118,7 @@ module.exports = {
   corePlugins: {
     container: false,
     keyframes: false,
-    animation: false,
+    animation: true,
   },
   purge: false,
   future: {

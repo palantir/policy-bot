@@ -15,6 +15,7 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -24,12 +25,14 @@ import (
 	"strings"
 
 	"github.com/alexedwards/scs"
+	"github.com/bluekeyes/hatpear"
 	"github.com/bluekeyes/templatetree"
 	"github.com/google/go-github/v56/github"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 	"goji.io/pat"
 )
 
@@ -39,86 +42,45 @@ type Details struct {
 	Templates templatetree.Tree[*template.Template]
 }
 
+// DetailsState combines fields that the Details handler and related
+// sub-handlers need to process requests
+type DetailsState struct {
+	Ctx         context.Context
+	Logger      zerolog.Logger
+	EvalContext *EvalContext
+
+	Username    string
+	PullRequest *github.PullRequest
+}
+
 func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
-	ctx := r.Context()
-
-	owner := pat.Param(r, "owner")
-	repo := pat.Param(r, "repo")
-
-	number, err := strconv.Atoi(pat.Param(r, "number"))
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid pull request number: %v", err), http.StatusBadRequest)
+	state := h.getStateIfAllowed(w, r)
+	if state == nil {
 		return nil
 	}
 
-	installation, err := h.Installations.GetByOwner(ctx, owner)
-	if err != nil {
-		if _, notFound := err.(githubapp.InstallationNotFound); notFound {
-			h.render404(w, owner, repo, number)
-			return nil
-		}
-		return err
-	}
-
-	client, err := h.ClientCreator.NewInstallationClient(installation.ID)
-	if err != nil {
-		return errors.Wrap(err, "failed to create github client")
-	}
-
-	sess := h.Sessions.Load(r)
-	user, err := sess.GetString(SessionKeyUsername)
-	if err != nil {
-		return errors.Wrap(err, "failed to read sessions")
-	}
-
-	level, _, err := client.Repositories.GetPermissionLevel(ctx, owner, repo, user)
-	if err != nil {
-		if isNotFound(err) {
-			h.render404(w, owner, repo, number)
-			return nil
-		}
-		return errors.Wrap(err, "failed to get user permission level")
-	}
-
-	// if the user does not have permission, pretend the repo/PR doesn't exist
-	if level.GetPermission() == "none" {
-		h.render404(w, owner, repo, number)
-		return nil
-	}
-
-	pr, _, err := client.PullRequests.Get(ctx, owner, repo, number)
-	if err != nil {
-		if isNotFound(err) {
-			h.render404(w, owner, repo, number)
-			return nil
-		}
-		return errors.Wrap(err, "failed to get pull request")
-	}
-
-	ctx, _ = h.PreparePRContext(ctx, installation.ID, pr)
-
-	evalCtx, err := h.NewEvalContext(ctx, installation.ID, pull.Locator{
-		Owner:  owner,
-		Repo:   repo,
-		Number: number,
-		Value:  pr,
-	})
-	if err != nil {
-		return err
-	}
+	ctx := state.Ctx
+	evalCtx := state.EvalContext
 
 	var data struct {
+		BasePath  string
+		User      string
+		PolicyURL string
+
+		ExpandRequiredReviewers bool
+
 		Error            error
 		IsTemporaryError bool
-		Result           *common.Result
-		PullRequest      *github.PullRequest
-		User             string
-		PolicyURL        string
+
+		PullRequest *github.PullRequest
+		Result      *common.Result
 	}
 
-	data.PullRequest = pr
-	data.User = user
-	data.PolicyURL = getPolicyURL(pr, evalCtx.Config)
+	data.BasePath = getBasePath(h.BaseConfig.PublicURL)
+	data.User = state.Username
+	data.PolicyURL = getPolicyURL(state.PullRequest, evalCtx.Config)
+	data.ExpandRequiredReviewers = h.PullOpts.ExpandRequiredReviewers
+	data.PullRequest = state.PullRequest
 
 	evaluator, err := evalCtx.ParseConfig(ctx, common.TriggerAll)
 	if err != nil {
@@ -148,6 +110,78 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	return h.render(w, data)
 }
 
+// getStateIfAllowed creates a new DetailsState if the request is for a valid
+// pull request and the user has permissions.
+//
+// If the state is nil, there was an error or the request is not allowed. In
+// this case, getStateIfAllowed writes a response or stores and error in the
+// request, so callers can return without doing additional work.
+func (h *Details) getStateIfAllowed(w http.ResponseWriter, r *http.Request) *DetailsState {
+	ctx := r.Context()
+
+	owner, repo, number, ok := parsePullParams(r)
+	if !ok {
+		http.Error(w, "Invalid pull request", http.StatusBadRequest)
+		return nil
+	}
+
+	installation, err := h.Installations.GetByOwner(ctx, owner)
+	if err != nil {
+		if _, notFound := err.(githubapp.InstallationNotFound); notFound {
+			h.render404(w, owner, repo, number)
+		} else {
+			hatpear.Store(r, err)
+		}
+		return nil
+	}
+
+	client, err := h.ClientCreator.NewInstallationClient(installation.ID)
+	if err != nil {
+		hatpear.Store(r, errors.Wrap(err, "failed to create github client"))
+		return nil
+	}
+
+	user, hasPermission, err := checkUserPermissions(h.Sessions, r, client, owner, repo)
+	if err != nil {
+		hatpear.Store(r, err)
+		return nil
+	}
+	if !hasPermission {
+		h.render404(w, owner, repo, number)
+		return nil
+	}
+
+	pr, _, err := client.PullRequests.Get(ctx, owner, repo, number)
+	if err != nil {
+		if isNotFound(err) {
+			h.render404(w, owner, repo, number)
+		} else {
+			hatpear.Store(r, errors.Wrap(err, "failed to get pull request"))
+		}
+		return nil
+	}
+
+	ctx, logger := h.PreparePRContext(ctx, installation.ID, pr)
+	evalCtx, err := h.NewEvalContext(ctx, installation.ID, pull.Locator{
+		Owner:  owner,
+		Repo:   repo,
+		Number: number,
+		Value:  pr,
+	})
+	if err != nil {
+		hatpear.Store(r, err)
+		return nil
+	}
+
+	return &DetailsState{
+		Ctx:         ctx,
+		Logger:      logger,
+		EvalContext: evalCtx,
+		PullRequest: pr,
+		Username:    user,
+	}
+}
+
 func (h *Details) render(w http.ResponseWriter, data interface{}) error {
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
@@ -175,7 +209,42 @@ func getPolicyURL(pr *github.PullRequest, config FetchedConfig) string {
 	return base
 }
 
+func getBasePath(publicURL string) string {
+	if u, _ := url.Parse(publicURL); u != nil {
+		return strings.TrimSuffix(u.Path, "/")
+	}
+	return ""
+}
+
 func isNotFound(err error) bool {
 	rerr, ok := err.(*github.ErrorResponse)
 	return ok && rerr.Response.StatusCode == http.StatusNotFound
+}
+
+// parsePullParams extracts the pull request paramters from the URL. The final
+// boolean parameter is false if any of the parameters are missing or invalid.
+func parsePullParams(r *http.Request) (owner, repo string, number int, ok bool) {
+	owner = pat.Param(r, "owner")
+	repo = pat.Param(r, "repo")
+
+	if n, err := strconv.Atoi(pat.Param(r, "number")); err == nil {
+		return owner, repo, n, true
+	}
+	return owner, repo, 0, false
+}
+
+func checkUserPermissions(sessions *scs.Manager, r *http.Request, client *github.Client, owner, repo string) (string, bool, error) {
+	username, err := sessions.Load(r).GetString(SessionKeyUsername)
+	if err != nil {
+		return "", false, errors.Wrap(err, "failed to read sessions")
+	}
+
+	level, _, err := client.Repositories.GetPermissionLevel(r.Context(), owner, repo, username)
+	if err != nil {
+		if isNotFound(err) {
+			return username, false, nil
+		}
+		return "", false, errors.Wrap(err, "failed to get user permission level")
+	}
+	return username, level.GetPermission() != "none", nil
 }

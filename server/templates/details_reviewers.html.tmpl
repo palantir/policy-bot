@@ -1,0 +1,12 @@
+{{/* templatetree:extends page.html.tmpl */}}
+{{define "title"}}{{.PullRequest.GetBase.GetRepo.GetFullName}}#{{.PullRequest.GetNumber}} - Reviewers | PolicyBot{{end}}
+{{define "body"}}
+<ul>
+  {{- range .Reviewers}}
+  <li><a href="{{ githubURL . }}">{{.}}</a></li>
+  {{- else}}
+  <li>No reviewers found</li>
+  {{- end}}
+</ul>
+{{if .Incomplete}}<p class="mt-2 px-2 py-1 italic text-xs text-red3 text-center border border-red3 rounded">Due to an error, the reviewer list may be incomplete</p>{{end}}
+{{end}}
