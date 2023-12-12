@@ -235,12 +235,17 @@ func New(c *Config) (*Server, error) {
 		Templates:    templates,
 	}))
 
-	details := goji.SubMux()
-	details.Use(handler.RequireLogin(sessions, basePath))
-	details.Handle(pat.Get("/:owner/:repo/:number"), hatpear.Try(&handler.Details{
+	detailsHandler := handler.Details{
 		Base:      basePolicyHandler,
 		Sessions:  sessions,
 		Templates: templates,
+	}
+
+	details := goji.SubMux()
+	details.Use(handler.RequireLogin(sessions, basePath))
+	details.Handle(pat.Get("/:owner/:repo/:number"), hatpear.Try(&detailsHandler))
+	details.Handle(pat.Get("/:owner/:repo/:number/reviewers"), hatpear.Try(&handler.DetailsReviewers{
+		Details: detailsHandler,
 	}))
 	mux.Handle(pat.New("/details/*"), details)
 

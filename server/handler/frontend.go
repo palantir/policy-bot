@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"path"
 	"sort"
 	"strings"
@@ -51,10 +52,21 @@ func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatet
 		dir = DefaultTemplatesDir
 	}
 
+	githubURL = strings.TrimSuffix(githubURL, "/")
+
 	return templatetree.Parse(dir, "*.html.tmpl", func(name string) templatetree.Template[*template.Template] {
 		return template.New(name).Funcs(template.FuncMap{
 			"args": func(args ...any) []any {
 				return args
+			},
+			"urlencode": func(val string) string {
+				return url.QueryEscape(val)
+			},
+			"githubURL": func(parts ...string) string {
+				if len(parts) == 0 {
+					return githubURL
+				}
+				return githubURL + "/" + path.Join(parts...)
 			},
 			"resource": func(r string) string {
 				return path.Join(basePath, "static", r)
