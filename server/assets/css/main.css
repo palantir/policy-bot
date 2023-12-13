@@ -30,12 +30,12 @@ details summary > * {
   @apply pl-4;
 }
 
-.tree > li {
+.tree .node {
   @apply relative;
   @apply pl-8 pt-4 border-l border-gray5;
 }
 
-.tree > li::before {
+.tree .node::before {
   content: "";
   @apply block;
   @apply absolute left-0 top-0;
@@ -47,12 +47,18 @@ details summary > * {
   @apply border-b border-gray5;
 }
 
-.tree > li:last-child {
+.tree .node[data-next-status=""],
+.tree[data-hide-status~="skipped"] .node[data-next-status="skipped"] {
   border-left-color: transparent;
 }
 
-.tree > li:last-child:before {
+.tree .node[data-next-status=""]::before,
+.tree[data-hide-status~="skipped"] .node[data-next-status="skipped"]::before {
   @apply border-l;
+}
+
+.tree[data-hide-status~="skipped"] .node[data-status="skipped"] {
+  display: none;
 }
 
 .tripart {

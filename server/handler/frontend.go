@@ -97,6 +97,12 @@ func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatet
 			"getPermissions": func(results *common.Result) []string {
 				return getPermissions(results)
 			},
+			"nextStatus": func(i int, results []*common.Result) string {
+				if i < len(results)-1 {
+					return results[i+1].Status.String()
+				}
+				return ""
+			},
 		})
 	})
 }
