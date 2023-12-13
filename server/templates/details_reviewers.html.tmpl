@@ -1,7 +1,7 @@
 {{/* templatetree:extends page.html.tmpl */}}
 {{define "title"}}{{.PullRequest.GetBase.GetRepo.GetFullName}}#{{.PullRequest.GetNumber}} - Reviewers | PolicyBot{{end}}
 {{define "body"}}
-<ul>
+<ul class="list-disc list-outside pl-6">
   {{- range .Reviewers}}
   <li><a href="{{ githubURL . }}">{{.}}</a></li>
   {{- else}}
