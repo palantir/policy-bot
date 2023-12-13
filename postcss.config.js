@@ -15,9 +15,11 @@ module.exports = {
         defaultExtractor: content => {
           return content.match(/[\w-./]*\w/g) || [];
         },
-        // status classes are dynamically generated
         safelist: [
+          // status classes are dynamically generated
           "approved", "disapproved", "pending", "skipped", "error",
+          // keep all selectors that relate to hidden statuses
+          "data-next-status", "data-hide-status",
         ],
       }),
       cssnano({
