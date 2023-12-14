@@ -149,19 +149,17 @@ func Static(prefix string, c *FilesConfig) http.Handler {
 		dir = DefaultStaticDir
 	}
 
-	hasManifest := false
-	if _, err := os.Stat(filepath.Join(dir, ManifestFile)); err == nil {
-		hasManifest = true
-	}
+	manifest, _ := loadManifest(dir)
 
 	h := http.StripPrefix(prefix, http.FileServer(http.Dir(dir)))
+	if manifest == nil {
+		return h
+	}
+
+	// If a manifest exists, it implies we're using hashed assets. In this
+	// case, instruct browsers to cache them for 1yr to improve load time
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if hasManifest {
-			// If a manifest exists, it implies we're using hashed assets. In
-			// this case, instruct browsers to cache them for 1yr to improve
-			// page load performance
-			w.Header().Add("Cache-Control", "public, max-age=31536000")
-		}
+		w.Header().Add("Cache-Control", "public, max-age=31536000")
 		h.ServeHTTP(w, r)
 	})
 }
