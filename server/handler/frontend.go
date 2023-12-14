@@ -15,21 +15,28 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/bluekeyes/templatetree"
 	"github.com/palantir/policy-bot/policy/common"
+	"github.com/pkg/errors"
 )
 
 const (
 	DefaultTemplatesDir = "templates"
 	DefaultStaticDir    = "static"
+
+	ManifestFile = "manifest.json"
 )
 
 type FilesConfig struct {
@@ -47,14 +54,24 @@ func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatet
 		basePath = "/"
 	}
 
-	dir := c.Templates
-	if dir == "" {
-		dir = DefaultTemplatesDir
+	tmplDir := c.Templates
+	if tmplDir == "" {
+		tmplDir = DefaultTemplatesDir
+	}
+
+	staticDir := c.Static
+	if staticDir == "" {
+		staticDir = DefaultStaticDir
 	}
 
 	githubURL = strings.TrimSuffix(githubURL, "/")
 
-	return templatetree.Parse(dir, "*.html.tmpl", func(name string) templatetree.Template[*template.Template] {
+	manifest, err := loadManifest(staticDir)
+	if err != nil {
+		return nil, err
+	}
+
+	return templatetree.Parse(tmplDir, "*.html.tmpl", func(name string) templatetree.Template[*template.Template] {
 		return template.New(name).Funcs(template.FuncMap{
 			"args": func(args ...any) []any {
 				return args
@@ -69,6 +86,9 @@ func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatet
 				return githubURL + "/" + path.Join(parts...)
 			},
 			"resource": func(r string) string {
+				if hashed, ok := manifest[r]; ok {
+					r = hashed
+				}
 				return path.Join(basePath, "static", r)
 			},
 			"titlecase": strings.Title,
@@ -107,13 +127,43 @@ func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatet
 	})
 }
 
+func loadManifest(dir string) (map[string]string, error) {
+	b, err := os.ReadFile(filepath.Join(dir, ManifestFile))
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, errors.Wrap(err, "failed to read manifest file")
+	}
+
+	var manifest map[string]string
+	if err := json.Unmarshal(b, &manifest); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal manifest")
+	}
+	return manifest, nil
+}
+
 func Static(prefix string, c *FilesConfig) http.Handler {
 	dir := c.Static
 	if dir == "" {
 		dir = DefaultStaticDir
 	}
 
-	return http.StripPrefix(prefix, http.FileServer(http.Dir(dir)))
+	hasManifest := false
+	if _, err := os.Stat(filepath.Join(dir, ManifestFile)); err == nil {
+		hasManifest = true
+	}
+
+	h := http.StripPrefix(prefix, http.FileServer(http.Dir(dir)))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if hasManifest {
+			// If a manifest exists, it implies we're using hashed assets. In
+			// this case, instruct browsers to cache them for 1yr to improve
+			// page load performance
+			w.Header().Add("Cache-Control", "public, max-age=31536000")
+		}
+		h.ServeHTTP(w, r)
+	})
 }
 
 func getMethods(result *common.Result) map[string][]string {
