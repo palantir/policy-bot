@@ -19,7 +19,7 @@ jobs:
       GOPATH: /home/runner/go
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
@@ -30,12 +30,12 @@ jobs:
         echo "::set-output name=version::${GO_VERSION}"
 
     - name: Set up Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v5
       with:
         go-version: ${{ steps.go_version.outputs.version }}
 
     - name: Cache Godel assets
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: ~/.godel
         key: ${{ runner.os }}-godel-${{ hashFiles('godelw', 'godel/config/godel.yml') }}
@@ -56,7 +56,7 @@ jobs:
       GOPATH: /home/runner/go
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
@@ -67,12 +67,12 @@ jobs:
         echo "::set-output name=version::${GO_VERSION}"
 
     - name: Set up Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v5
       with:
         go-version: ${{ steps.go_version.outputs.version }}
 
     - name: Cache Godel assets
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: ~/.godel
         key: ${{ runner.os }}-godel-${{ hashFiles('godelw', 'godel/config/godel.yml') }}
@@ -80,12 +80,12 @@ jobs:
           ${{ runner.os }}-godel-
 
     - name: Set up Node
-      uses: actions/setup-node@v2
+      uses: actions/setup-node@v4
       with:
         node-version: 12
 
     - name: Cache node_modules
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: node_modules
         key: ${{ runner.os }}-node-modules-${{ hashFiles('yarn.lock') }}
@@ -105,7 +105,7 @@ jobs:
       run: ./godelw docker build --verbose
 
     - name: Archive distribution
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: dist
         path: |
