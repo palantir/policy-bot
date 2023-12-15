@@ -82,7 +82,7 @@ jobs:
     - name: Set up Node
       uses: actions/setup-node@v4
       with:
-        node-version: 12
+        node-version: 20
 
     - name: Cache node_modules
       uses: actions/cache@v3

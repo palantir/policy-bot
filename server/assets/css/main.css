@@ -167,7 +167,7 @@ details summary > * {
 }
 
 .logo {
-  background-image: url("/static/img/logo.svg");
+  background-image: url("../img/logo.svg");
   @apply w-24 h-24;
 }
 
