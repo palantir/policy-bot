@@ -19,7 +19,7 @@ require (
 	github.com/shurcooL/githubv4 v0.0.0-20231126234147-1cffa1f02456
 	github.com/spf13/cobra v1.8.0
 	github.com/stretchr/testify v1.8.4
-	github.com/vektah/gqlparser v1.0.0
+	github.com/vektah/gqlparser v1.3.1
 	goji.io v2.0.2+incompatible
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -27,7 +27,6 @@ require (
 require (
 	github.com/DataDog/datadog-go/v5 v5.0.2 // indirect
 	github.com/Microsoft/go-winio v0.5.0 // indirect
-	github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883 // indirect
 	github.com/bradleyfalzon/ghinstallation/v2 v2.8.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
