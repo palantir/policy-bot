@@ -10,7 +10,7 @@
   },
   "devDependencies": {
     "@fullhuman/postcss-purgecss": "^4.0",
-    "autoprefixer": "^10.4.4",
+    "autoprefixer": "^10.4.16",
     "css-loader": "^6.8.1",
     "cssnano": "^5.0",
     "mini-css-extract-plugin": "^2.7.6",
