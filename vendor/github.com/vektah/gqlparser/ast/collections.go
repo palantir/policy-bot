@@ -33,6 +33,16 @@ func (l DirectiveList) ForName(name string) *Directive {
 	return nil
 }
 
+func (l DirectiveList) ForNames(name string) []*Directive {
+	resp := []*Directive{}
+	for _, it := range l {
+		if it.Name == name {
+			resp = append(resp, it)
+		}
+	}
+	return resp
+}
+
 type OperationList []*OperationDefinition
 
 func (l OperationList) ForName(name string) *OperationDefinition {
