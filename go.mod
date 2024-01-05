@@ -13,7 +13,7 @@ require (
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 	github.com/hashicorp/golang-lru v1.0.2
 	github.com/palantir/go-baseapp v0.5.2
-	github.com/palantir/go-githubapp v0.20.1
+	github.com/palantir/go-githubapp v0.21.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.31.0
 	github.com/shurcooL/githubv4 v0.0.0-20231126234147-1cffa1f02456
@@ -27,10 +27,11 @@ require (
 require (
 	github.com/DataDog/datadog-go/v5 v5.0.2 // indirect
 	github.com/Microsoft/go-winio v0.5.0 // indirect
-	github.com/bradleyfalzon/ghinstallation/v2 v2.8.0 // indirect
+	github.com/bradleyfalzon/ghinstallation/v2 v2.9.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/google/go-github/v57 v57.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
