@@ -13,7 +13,7 @@
     "autoprefixer": "^10.4.16",
     "css-loader": "^6.8.1",
     "cssnano": "^6.0",
-    "mini-css-extract-plugin": "^2.7.6",
+    "mini-css-extract-plugin": "^2.7.7",
     "postcss": "^8.4",
     "postcss-loader": "^7.3.4",
     "tailwindcss": "^1.0",
