@@ -35,7 +35,7 @@ jobs:
       id: go_version
       run: |
         GO_VERSION=$(cat .palantir/go-version | sed 's/^go//' )
-        echo "::set-output name=version::${GO_VERSION}"
+        echo "version=${GO_VERSION}" >> $GITHUB_OUTPUT
 
     - name: Set up Go
       uses: actions/setup-go@v5
