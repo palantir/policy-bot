@@ -37,6 +37,11 @@ type RemoteConfig struct {
 type Config struct {
 	Policy        Policy           `yaml:"policy"`
 	ApprovalRules []*approval.Rule `yaml:"approval_rules"`
+	Settings      Settings         `yaml:"settings"`
+}
+
+type Settings struct {
+	OnlyPostSuccessStatus bool `yaml:"only_post_success_status"`
 }
 
 type Policy struct {

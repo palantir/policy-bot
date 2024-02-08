@@ -195,6 +195,11 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 		return
 	}
 
+	if state != "success" && ec.Config.Config.Settings.OnlyPostSuccessStatus {
+		logger.Info().Msg("Skipping status update as it is not success and the setting is enabled to only post status updates on success")
+		return
+	}
+
 	if !ec.PullContext.IsOpen() {
 		logger.Info().Msg("Skipping status update because PR state is not open")
 		return

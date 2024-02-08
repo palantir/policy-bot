@@ -97,6 +97,11 @@ approval_rules:
           - "^staging/.*$"
     requires:
       count: 0
+
+# Settings which affect how policy-bot acts
+settings:
+  # Set the below to true if you only want policy-bot statuses on PRs where the policy has evaluated to true
+  only_post_success_status: false
 ```
 
 #### Notes on YAML Syntax
