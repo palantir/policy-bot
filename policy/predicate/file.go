@@ -153,6 +153,7 @@ const (
 	OpNone CompareOp = iota
 	OpLessThan
 	OpGreaterThan
+	OpEquals
 )
 
 type ComparisonExpr struct {
@@ -170,6 +171,8 @@ func (exp ComparisonExpr) Evaluate(n int64) bool {
 		return n < exp.Value
 	case OpGreaterThan:
 		return n > exp.Value
+	case OpEquals:
+		return n == exp.Value
 	}
 	return false
 }
@@ -185,6 +188,8 @@ func (exp ComparisonExpr) MarshalText() ([]byte, error) {
 		op = "<"
 	case OpGreaterThan:
 		op = ">"
+	case OpEquals:
+		op = "="
 	default:
 		return nil, errors.Errorf("unknown operation: %d", exp.Op)
 	}
@@ -213,6 +218,8 @@ func (exp *ComparisonExpr) UnmarshalText(text []byte) error {
 		op = OpLessThan
 	case '>':
 		op = OpGreaterThan
+	case '=':
+		op = OpEquals
 	default:
 		return errors.Errorf("invalid comparison operator: %c", text[i])
 	}

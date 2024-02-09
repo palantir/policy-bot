@@ -1,4 +1,4 @@
-# policy-bot
+# policy-bot <!-- omit in toc -->
 
 [![Docker Pulls](https://img.shields.io/docker/pulls/palantirtechnologies/policy-bot.svg)](https://hub.docker.com/r/palantirtechnologies/policy-bot/)
 
@@ -20,23 +20,24 @@ UI to view the detailed approval status of any pull request.
 [required status check]: https://help.github.com/articles/enabling-required-status-checks/
 [required reviews]: https://help.github.com/articles/about-required-reviews-for-pull-requests/
 
-* [Configuration](#configuration)
-  + [policy.yml Specification](#policyyml-specification)
-  + [Approval Rules](#approval-rules)
-  + [Approval Policies](#approval-policies)
-  + [Disapproval Policy](#disapproval-policy)
-  + [Caveats and Notes](#caveats-and-notes)
+- [Configuration](#configuration)
+  - [policy.yml Specification](#policyyml-specification)
+  - [Approval Rules](#approval-rules)
+  - [Approval Policies](#approval-policies)
+  - [Disapproval Policy](#disapproval-policy)
+  - [Testing and Debugging Policies](#testing-and-debugging-policies)
+  - [Caveats and Notes](#caveats-and-notes)
     - [Disapproval is Disabled by Default](#disapproval-is-disabled-by-default)
     - [Interactions with GitHub Reviews](#interactions-with-github-reviews)
     - [`or`, `and`, and `if` (Rule Predicates)](#or-and-and-if-rule-predicates)
     - [Cross-organization Membership Tests](#cross-organization-membership-tests)
     - [Update Merges](#update-merges)
     - [Automatically Requesting Reviewers](#automatically-requesting-reviewers)
-* [Security](#security)
-* [Deployment](#deployment)
-* [Development](#development)
-* [Contributing](#contributing)
-* [License](#license)
+- [Security](#security)
+- [Deployment](#deployment)
+- [Development](#development)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Configuration
 
@@ -99,7 +100,7 @@ approval_rules:
       count: 0
 ```
 
-#### Notes on YAML Syntax
+#### Notes on YAML Syntax <!-- omit in toc -->
 
 The YAML language specification supports flow scalars (basic values like strings
 and numbers) in three formats:
@@ -117,7 +118,7 @@ escape characters, which can cause confusion when used for regex strings
 - Plain: There are no escape characters. Backslash characters do not need to be escaped.
   e.g. `^BREAKING CHANGE: (\w| )+$`
 
-#### Remote Policy Configuration
+#### Remote Policy Configuration <!-- omit in toc -->
 
 You can also define a remote policy by specifying a repository, path, and ref
 (only repository is required). Instead of defining a `policy` key, you would
@@ -228,7 +229,7 @@ if:
 
   # "modified_lines" is satisfied if the number of lines added or deleted by
   # the pull request matches any of the listed conditions. Each expression is
-  # an operator (one of '<' or '>'), an optional space, and a number.
+  # an operator (one of '<', '>' or '='), an optional space, and a number.
   modified_lines:
     additions: "> 100"
     deletions: "> 100"
@@ -638,7 +639,7 @@ repository `admin` permissions as organization owners are not selected.
 
 The `teams` mode needs the team visibility to be set to `visibile` to enable this functionality for a given team.
 
-##### Example
+##### Example <!-- omit in toc -->
 
 Given the following example requirement rule,
 
@@ -660,7 +661,7 @@ set of users of in
 Where the Pull Request Author and any non direct collaborators have been removed
 from the set.
 
-#### Invalidating Approval on Push
+#### Invalidating Approval on Push <!-- omit in toc -->
 
 By default, `policy-bot` does not invalidate exisitng approvals when users add
 new commits to a pull request. You can control this behavior for each rule in a
@@ -688,7 +689,7 @@ in mid-2023 because computing it was unreliable and inaccurate (see issue
 
 [#598]: https://github.com/palantir/policy-bot/issues/598
 
-#### Expanding Required Reviewers
+#### Expanding Required Reviewers <!-- omit in toc -->
 
 The details view for a pull request shows the users, organizations, teams, and
 permission levels that are reqired to approve each rule. When the
@@ -715,7 +716,7 @@ While `policy-bot` can be used to implement security controls on GitHub
 repositories, there are important limitations to be aware of before adopting
 this approach.
 
-### Status Checks
+### Status Checks <!-- omit in toc -->
 
 `policy-bot` reports approval status to GitHub using [commit statuses][]. While
 statuses cannot be deleted, they can be set or overwritten by any user with
@@ -732,7 +733,7 @@ approve and merge a pull request before `policy-bot` can detect the problem.
 Organizations concerned about this case should monitor and alert on the
 relevant audit logs or minimize write access to repositories.
 
-### Comment Edits
+### Comment Edits <!-- omit in toc -->
 
 GitHub users with sufficient permissions can edit the comments of other users,
 possibly changing an unrelated comment into one that enables approval.
@@ -745,7 +746,7 @@ logs.
 This issue can also be minimized by only using GitHub reviews for approval, at
 the expense of removing the ability to self-approve pull requests.
 
-### Commit Users
+### Commit Users <!-- omit in toc -->
 
 GitHub associates commits with users by mapping the email address in a commit
 to email addresses associated with GitHub user accounts. `policy-bot` then uses
@@ -762,7 +763,7 @@ failure modes in this process:
 If using GitHub Enterprise, both of these issues are avoidable by using the
 [commit-current-user-check][] pre-receive hook.
 
-### Update Merge Conflicts
+### Update Merge Conflicts <!-- omit in toc -->
 
 When using the `ignore_update_merges` option, `policy-bot` cannot tell the
 difference between clean merges and merges that contain conflict resolution.
@@ -796,7 +797,7 @@ variables for server values are prefixed with `POLICYBOT_` (e.g.
 `POLICYBOT_PORT`). This prefix can be overridden by setting the
 `POLICYBOT_ENV_PREFIX` environment variable.
 
-### GitHub App Configuration
+### GitHub App Configuration <!-- omit in toc -->
 
 To configure `policy-bot` as a GitHub App, set these options in GitHub:
 
@@ -843,7 +844,7 @@ generated values:
 - Client secret (`github.oauth.client_secret`)
 - Private key (`github.app.private_key`)
 
-### Operations
+### Operations <!-- omit in toc -->
 
 `policy-bot` uses [go-baseapp](https://github.com/palantir/go-baseapp) and
 [go-githubapp](https://github.com/palantir/go-githubapp), both of which emit
@@ -904,7 +905,7 @@ and [Yarn](https://yarnpkg.com/).
   modified config file `policy-bot.yml`
 - The server is available at `http://localhost:8080/`
 
-### Example Policy Files
+### Example Policy Files <!-- omit in toc -->
 
 Example policy files can be found in [`config/policy-examples`](https://github.com/palantir/policy-bot/tree/develop/config/policy-examples)
 

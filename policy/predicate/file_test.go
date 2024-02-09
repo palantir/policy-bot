@@ -297,6 +297,70 @@ func TestModifiedLines(t *testing.T) {
 			},
 		},
 	})
+
+	p = &ModifiedLines{
+		Total: ComparisonExpr{Op: OpEquals, Value: 100},
+	}
+
+	runFileTests(t, p, []FileTestCase{
+		{
+			"total",
+			[]*pull.File{
+				{Additions: 20, Deletions: 20},
+				{Additions: 20},
+				{Additions: 20, Deletions: 20},
+			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"total 100"},
+				ConditionValues: []string{"total modifications = 100"},
+			},
+		},
+	})
+
+	p = &ModifiedLines{
+		Additions: ComparisonExpr{Op: OpEquals, Value: 100},
+		Deletions: ComparisonExpr{Op: OpEquals, Value: 25},
+	}
+
+	runFileTests(t, p, []FileTestCase{
+		{
+			"empty",
+			[]*pull.File{},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"+0", "-0"},
+				ConditionValues: []string{"added lines = 100", "deleted lines = 25"},
+			},
+		},
+		{
+			"additions",
+			[]*pull.File{
+				{Additions: 55},
+				{Additions: 45},
+			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"+100"},
+				ConditionValues: []string{"added lines = 100"},
+			},
+		},
+		{
+			"deletions",
+			[]*pull.File{
+				{Additions: 5, Deletions: 5},
+				{Deletions: 10},
+				{Additions: 5},
+				{Deletions: 10},
+			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"-25"},
+				ConditionValues: []string{"deleted lines = 25"},
+			},
+		},
+	})
+
 }
 
 func TestComparisonExpr(t *testing.T) {
@@ -352,6 +416,10 @@ func TestComparisonExpr(t *testing.T) {
 			Input:  ">100",
 			Output: ComparisonExpr{Op: OpGreaterThan, Value: 100},
 		},
+		"equals": {
+			Input:  "=100",
+			Output: ComparisonExpr{Op: OpEquals, Value: 100},
+		},
 		"innerSpaces": {
 			Input:  "<   35",
 			Output: ComparisonExpr{Op: OpLessThan, Value: 35},
@@ -365,7 +433,7 @@ func TestComparisonExpr(t *testing.T) {
 			Output: ComparisonExpr{Op: OpLessThan, Value: 35},
 		},
 		"invalidOp": {
-			Input: "=10",
+			Input: "~10",
 			Err:   true,
 		},
 		"invalidValue": {
