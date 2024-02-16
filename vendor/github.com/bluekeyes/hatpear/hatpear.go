@@ -99,11 +99,18 @@ var (
 
 // Recover creates middleware that can recover from a panic in a handler,
 // storing a PanicError for future handling.
+//
+// If the panic value is http.ErrAbortHandler, Recover() re-panics with the
+// same value instead of storing a PanicError.
 func Recover() Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
-				if v := recover(); v != nil {
+				switch v := recover(); v {
+				case nil:
+				case http.ErrAbortHandler:
+					panic(v)
+				default:
 					Store(r, PanicError{
 						value: v,
 						stack: stack(1),
@@ -150,12 +157,12 @@ func (e PanicError) StackTrace() []runtime.Frame {
 
 // Format formats the error optionally including the stack trace.
 //
-//   %s    the error message
-//   %v    the error message and the source file and line number for each stack frame
+//	%s    the error message
+//	%v    the error message and the source file and line number for each stack frame
 //
 // Format accepts the following flags:
 //
-//   %+v   the error message, and the function, file, and line for each stack frame
+//	%+v   the error message, and the function, file, and line for each stack frame
 func (e PanicError) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 's':
