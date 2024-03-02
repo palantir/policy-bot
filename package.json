@@ -15,7 +15,7 @@
     "cssnano": "^6.0",
     "mini-css-extract-plugin": "^2.8.1",
     "postcss": "^8.4",
-    "postcss-loader": "^8.1.0",
+    "postcss-loader": "^8.1.1",
     "tailwindcss": "^1.0",
     "webpack": "^5.90.1",
     "webpack-cli": "^5.1.4",
