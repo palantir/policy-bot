@@ -18,7 +18,7 @@ require (
 	github.com/rs/zerolog v1.32.0
 	github.com/shurcooL/githubv4 v0.0.0-20240120211514-18a1ae0e79dc
 	github.com/spf13/cobra v1.8.0
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 	github.com/vektah/gqlparser v1.3.1
 	goji.io v2.0.2+incompatible
 	gopkg.in/yaml.v2 v2.4.0
