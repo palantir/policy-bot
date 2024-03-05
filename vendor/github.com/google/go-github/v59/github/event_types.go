@@ -394,6 +394,7 @@ type EditChange struct {
 	Repo          *EditRepo          `json:"repository,omitempty"`
 	Owner         *EditOwner         `json:"owner,omitempty"`
 	DefaultBranch *EditDefaultBranch `json:"default_branch,omitempty"`
+	Topics        *EditTopics        `json:"topics,omitempty"`
 }
 
 // EditTitle represents a pull-request title change.
@@ -436,6 +437,11 @@ type OwnerInfo struct {
 // RepoName represents a change of repository name.
 type RepoName struct {
 	From *string `json:"from,omitempty"`
+}
+
+// EditTopics represents a change of repository topics.
+type EditTopics struct {
+	From []string `json:"from,omitempty"`
 }
 
 // EditSHA represents a sha change of a pull-request.
@@ -1321,43 +1327,44 @@ func (h HeadCommit) String() string {
 
 // PushEventRepository represents the repo object in a PushEvent payload.
 type PushEventRepository struct {
-	ID              *int64     `json:"id,omitempty"`
-	NodeID          *string    `json:"node_id,omitempty"`
-	Name            *string    `json:"name,omitempty"`
-	FullName        *string    `json:"full_name,omitempty"`
-	Owner           *User      `json:"owner,omitempty"`
-	Private         *bool      `json:"private,omitempty"`
-	Description     *string    `json:"description,omitempty"`
-	Fork            *bool      `json:"fork,omitempty"`
-	CreatedAt       *Timestamp `json:"created_at,omitempty"`
-	PushedAt        *Timestamp `json:"pushed_at,omitempty"`
-	UpdatedAt       *Timestamp `json:"updated_at,omitempty"`
-	Homepage        *string    `json:"homepage,omitempty"`
-	PullsURL        *string    `json:"pulls_url,omitempty"`
-	Size            *int       `json:"size,omitempty"`
-	StargazersCount *int       `json:"stargazers_count,omitempty"`
-	WatchersCount   *int       `json:"watchers_count,omitempty"`
-	Language        *string    `json:"language,omitempty"`
-	HasIssues       *bool      `json:"has_issues,omitempty"`
-	HasDownloads    *bool      `json:"has_downloads,omitempty"`
-	HasWiki         *bool      `json:"has_wiki,omitempty"`
-	HasPages        *bool      `json:"has_pages,omitempty"`
-	ForksCount      *int       `json:"forks_count,omitempty"`
-	Archived        *bool      `json:"archived,omitempty"`
-	Disabled        *bool      `json:"disabled,omitempty"`
-	OpenIssuesCount *int       `json:"open_issues_count,omitempty"`
-	DefaultBranch   *string    `json:"default_branch,omitempty"`
-	MasterBranch    *string    `json:"master_branch,omitempty"`
-	Organization    *string    `json:"organization,omitempty"`
-	URL             *string    `json:"url,omitempty"`
-	ArchiveURL      *string    `json:"archive_url,omitempty"`
-	HTMLURL         *string    `json:"html_url,omitempty"`
-	StatusesURL     *string    `json:"statuses_url,omitempty"`
-	GitURL          *string    `json:"git_url,omitempty"`
-	SSHURL          *string    `json:"ssh_url,omitempty"`
-	CloneURL        *string    `json:"clone_url,omitempty"`
-	SVNURL          *string    `json:"svn_url,omitempty"`
-	Topics          []string   `json:"topics,omitempty"`
+	ID               *int64            `json:"id,omitempty"`
+	NodeID           *string           `json:"node_id,omitempty"`
+	Name             *string           `json:"name,omitempty"`
+	FullName         *string           `json:"full_name,omitempty"`
+	Owner            *User             `json:"owner,omitempty"`
+	Private          *bool             `json:"private,omitempty"`
+	Description      *string           `json:"description,omitempty"`
+	Fork             *bool             `json:"fork,omitempty"`
+	CreatedAt        *Timestamp        `json:"created_at,omitempty"`
+	PushedAt         *Timestamp        `json:"pushed_at,omitempty"`
+	UpdatedAt        *Timestamp        `json:"updated_at,omitempty"`
+	Homepage         *string           `json:"homepage,omitempty"`
+	PullsURL         *string           `json:"pulls_url,omitempty"`
+	Size             *int              `json:"size,omitempty"`
+	StargazersCount  *int              `json:"stargazers_count,omitempty"`
+	WatchersCount    *int              `json:"watchers_count,omitempty"`
+	Language         *string           `json:"language,omitempty"`
+	HasIssues        *bool             `json:"has_issues,omitempty"`
+	HasDownloads     *bool             `json:"has_downloads,omitempty"`
+	HasWiki          *bool             `json:"has_wiki,omitempty"`
+	HasPages         *bool             `json:"has_pages,omitempty"`
+	ForksCount       *int              `json:"forks_count,omitempty"`
+	Archived         *bool             `json:"archived,omitempty"`
+	Disabled         *bool             `json:"disabled,omitempty"`
+	OpenIssuesCount  *int              `json:"open_issues_count,omitempty"`
+	DefaultBranch    *string           `json:"default_branch,omitempty"`
+	MasterBranch     *string           `json:"master_branch,omitempty"`
+	Organization     *string           `json:"organization,omitempty"`
+	URL              *string           `json:"url,omitempty"`
+	ArchiveURL       *string           `json:"archive_url,omitempty"`
+	HTMLURL          *string           `json:"html_url,omitempty"`
+	StatusesURL      *string           `json:"statuses_url,omitempty"`
+	GitURL           *string           `json:"git_url,omitempty"`
+	SSHURL           *string           `json:"ssh_url,omitempty"`
+	CloneURL         *string           `json:"clone_url,omitempty"`
+	SVNURL           *string           `json:"svn_url,omitempty"`
+	Topics           []string          `json:"topics,omitempty"`
+	CustomProperties map[string]string `json:"custom_properties,omitempty"`
 }
 
 // PushEventRepoOwner is a basic representation of user/org in a PushEvent payload.
@@ -1389,7 +1396,7 @@ type ReleaseEvent struct {
 
 // RepositoryEvent is triggered when a repository is created, archived, unarchived,
 // renamed, edited, transferred, made public, or made private. Organization hooks are
-// also trigerred when a repository is deleted.
+// also triggered when a repository is deleted.
 // The Webhook event name is "repository".
 //
 // Events of this type are not visible in timelines, they are only used to

@@ -4478,6 +4478,22 @@ func (c *CreateUserProjectOptions) GetBody() string {
 	return *c.Body
 }
 
+// GetEmail returns the Email field if it's non-nil, zero value otherwise.
+func (c *CreateUserRequest) GetEmail() string {
+	if c == nil || c.Email == nil {
+		return ""
+	}
+	return *c.Email
+}
+
+// GetSuspended returns the Suspended field if it's non-nil, zero value otherwise.
+func (c *CreateUserRequest) GetSuspended() bool {
+	if c == nil || c.Suspended == nil {
+		return false
+	}
+	return *c.Suspended
+}
+
 // GetCreated returns the Created field if it's non-nil, zero value otherwise.
 func (c *CreationInfo) GetCreated() Timestamp {
 	if c == nil || c.Created == nil {
@@ -4590,6 +4606,78 @@ func (c *Credit) GetUser() *User {
 	return c.User
 }
 
+// GetApp returns the App field.
+func (c *CustomDeploymentProtectionRule) GetApp() *CustomDeploymentProtectionRuleApp {
+	if c == nil {
+		return nil
+	}
+	return c.App
+}
+
+// GetEnabled returns the Enabled field if it's non-nil, zero value otherwise.
+func (c *CustomDeploymentProtectionRule) GetEnabled() bool {
+	if c == nil || c.Enabled == nil {
+		return false
+	}
+	return *c.Enabled
+}
+
+// GetID returns the ID field if it's non-nil, zero value otherwise.
+func (c *CustomDeploymentProtectionRule) GetID() int64 {
+	if c == nil || c.ID == nil {
+		return 0
+	}
+	return *c.ID
+}
+
+// GetNodeID returns the NodeID field if it's non-nil, zero value otherwise.
+func (c *CustomDeploymentProtectionRule) GetNodeID() string {
+	if c == nil || c.NodeID == nil {
+		return ""
+	}
+	return *c.NodeID
+}
+
+// GetID returns the ID field if it's non-nil, zero value otherwise.
+func (c *CustomDeploymentProtectionRuleApp) GetID() int64 {
+	if c == nil || c.ID == nil {
+		return 0
+	}
+	return *c.ID
+}
+
+// GetIntegrationURL returns the IntegrationURL field if it's non-nil, zero value otherwise.
+func (c *CustomDeploymentProtectionRuleApp) GetIntegrationURL() string {
+	if c == nil || c.IntegrationURL == nil {
+		return ""
+	}
+	return *c.IntegrationURL
+}
+
+// GetNodeID returns the NodeID field if it's non-nil, zero value otherwise.
+func (c *CustomDeploymentProtectionRuleApp) GetNodeID() string {
+	if c == nil || c.NodeID == nil {
+		return ""
+	}
+	return *c.NodeID
+}
+
+// GetSlug returns the Slug field if it's non-nil, zero value otherwise.
+func (c *CustomDeploymentProtectionRuleApp) GetSlug() string {
+	if c == nil || c.Slug == nil {
+		return ""
+	}
+	return *c.Slug
+}
+
+// GetIntegrationID returns the IntegrationID field if it's non-nil, zero value otherwise.
+func (c *CustomDeploymentProtectionRuleRequest) GetIntegrationID() int64 {
+	if c == nil || c.IntegrationID == nil {
+		return 0
+	}
+	return *c.IntegrationID
+}
+
 // GetDefaultValue returns the DefaultValue field if it's non-nil, zero value otherwise.
 func (c *CustomProperty) GetDefaultValue() string {
 	if c == nil || c.DefaultValue == nil {
@@ -4684,6 +4772,54 @@ func (d *DefaultSetupConfiguration) GetUpdatedAt() Timestamp {
 		return Timestamp{}
 	}
 	return *d.UpdatedAt
+}
+
+// GetCanApprovePullRequestReviews returns the CanApprovePullRequestReviews field if it's non-nil, zero value otherwise.
+func (d *DefaultWorkflowPermissionEnterprise) GetCanApprovePullRequestReviews() bool {
+	if d == nil || d.CanApprovePullRequestReviews == nil {
+		return false
+	}
+	return *d.CanApprovePullRequestReviews
+}
+
+// GetDefaultWorkflowPermissions returns the DefaultWorkflowPermissions field if it's non-nil, zero value otherwise.
+func (d *DefaultWorkflowPermissionEnterprise) GetDefaultWorkflowPermissions() string {
+	if d == nil || d.DefaultWorkflowPermissions == nil {
+		return ""
+	}
+	return *d.DefaultWorkflowPermissions
+}
+
+// GetCanApprovePullRequestReviews returns the CanApprovePullRequestReviews field if it's non-nil, zero value otherwise.
+func (d *DefaultWorkflowPermissionOrganization) GetCanApprovePullRequestReviews() bool {
+	if d == nil || d.CanApprovePullRequestReviews == nil {
+		return false
+	}
+	return *d.CanApprovePullRequestReviews
+}
+
+// GetDefaultWorkflowPermissions returns the DefaultWorkflowPermissions field if it's non-nil, zero value otherwise.
+func (d *DefaultWorkflowPermissionOrganization) GetDefaultWorkflowPermissions() string {
+	if d == nil || d.DefaultWorkflowPermissions == nil {
+		return ""
+	}
+	return *d.DefaultWorkflowPermissions
+}
+
+// GetCanApprovePullRequestReviews returns the CanApprovePullRequestReviews field if it's non-nil, zero value otherwise.
+func (d *DefaultWorkflowPermissionRepository) GetCanApprovePullRequestReviews() bool {
+	if d == nil || d.CanApprovePullRequestReviews == nil {
+		return false
+	}
+	return *d.CanApprovePullRequestReviews
+}
+
+// GetDefaultWorkflowPermissions returns the DefaultWorkflowPermissions field if it's non-nil, zero value otherwise.
+func (d *DefaultWorkflowPermissionRepository) GetDefaultWorkflowPermissions() string {
+	if d == nil || d.DefaultWorkflowPermissions == nil {
+		return ""
+	}
+	return *d.DefaultWorkflowPermissions
 }
 
 // GetConfirmDeleteURL returns the ConfirmDeleteURL field if it's non-nil, zero value otherwise.
@@ -6308,6 +6444,14 @@ func (e *EditChange) GetTitle() *EditTitle {
 		return nil
 	}
 	return e.Title
+}
+
+// GetTopics returns the Topics field.
+func (e *EditChange) GetTopics() *EditTopics {
+	if e == nil {
+		return nil
+	}
+	return e.Topics
 }
 
 // GetFrom returns the From field if it's non-nil, zero value otherwise.
@@ -10468,6 +10612,22 @@ func (l *ListCollaboratorOptions) GetAffiliation() string {
 		return ""
 	}
 	return *l.Affiliation
+}
+
+// GetTotalCount returns the TotalCount field if it's non-nil, zero value otherwise.
+func (l *ListCustomDeploymentRuleIntegrationsResponse) GetTotalCount() int {
+	if l == nil || l.TotalCount == nil {
+		return 0
+	}
+	return *l.TotalCount
+}
+
+// GetTotalCount returns the TotalCount field if it's non-nil, zero value otherwise.
+func (l *ListDeploymentProtectionRuleResponse) GetTotalCount() int {
+	if l == nil || l.TotalCount == nil {
+		return 0
+	}
+	return *l.TotalCount
 }
 
 // GetDisplayName returns the DisplayName field if it's non-nil, zero value otherwise.
@@ -16262,6 +16422,14 @@ func (p *PullRequestLinks) GetHTMLURL() string {
 	return *p.HTMLURL
 }
 
+// GetMergedAt returns the MergedAt field if it's non-nil, zero value otherwise.
+func (p *PullRequestLinks) GetMergedAt() Timestamp {
+	if p == nil || p.MergedAt == nil {
+		return Timestamp{}
+	}
+	return *p.MergedAt
+}
+
 // GetPatchURL returns the PatchURL field if it's non-nil, zero value otherwise.
 func (p *PullRequestLinks) GetPatchURL() string {
 	if p == nil || p.PatchURL == nil {
@@ -17084,6 +17252,14 @@ func (p *PushEventRepository) GetCreatedAt() Timestamp {
 		return Timestamp{}
 	}
 	return *p.CreatedAt
+}
+
+// GetCustomProperties returns the CustomProperties map if it's non-nil, an empty map otherwise.
+func (p *PushEventRepository) GetCustomProperties() map[string]string {
+	if p == nil || p.CustomProperties == nil {
+		return map[string]string{}
+	}
+	return p.CustomProperties
 }
 
 // GetDefaultBranch returns the DefaultBranch field if it's non-nil, zero value otherwise.
@@ -18220,6 +18396,14 @@ func (r *Repository) GetCreatedAt() Timestamp {
 		return Timestamp{}
 	}
 	return *r.CreatedAt
+}
+
+// GetCustomProperties returns the CustomProperties map if it's non-nil, an empty map otherwise.
+func (r *Repository) GetCustomProperties() map[string]string {
+	if r == nil || r.CustomProperties == nil {
+		return map[string]string{}
+	}
+	return r.CustomProperties
 }
 
 // GetDefaultBranch returns the DefaultBranch field if it's non-nil, zero value otherwise.

@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	Version = "v58.0.0"
+	Version = "v59.0.0"
 
 	defaultAPIVersion = "2022-11-28"
 	defaultBaseURL    = "https://api.github.com/"
@@ -450,15 +450,18 @@ func (c *Client) copy() *Client {
 	c.clientMu.Lock()
 	// can't use *c here because that would copy mutexes by value.
 	clone := Client{
-		client:                  c.client,
+		client:                  &http.Client{},
 		UserAgent:               c.UserAgent,
 		BaseURL:                 c.BaseURL,
 		UploadURL:               c.UploadURL,
 		secondaryRateLimitReset: c.secondaryRateLimitReset,
 	}
 	c.clientMu.Unlock()
-	if clone.client == nil {
-		clone.client = &http.Client{}
+	if c.client != nil {
+		clone.client.Transport = c.client.Transport
+		clone.client.CheckRedirect = c.client.CheckRedirect
+		clone.client.Jar = c.client.Jar
+		clone.client.Timeout = c.client.Timeout
 	}
 	c.rateMu.Lock()
 	copy(clone.rateLimits[:], c.rateLimits[:])
@@ -901,7 +904,7 @@ func (c *Client) BareDo(ctx context.Context, req *http.Request) (*Response, erro
 // JSON decoded and stored in the value pointed to by v, or returned as an
 // error if an API error has occurred. If v implements the io.Writer interface,
 // the raw response body will be written to v, without attempting to first
-// decode it. If v is nil, and no error hapens, the response is returned as is.
+// decode it. If v is nil, and no error happens, the response is returned as is.
 // If rate limit is exceeded and reset time is in the future, Do returns
 // *RateLimitError immediately without making a network API call.
 //
