@@ -34,6 +34,7 @@ import (
 	"github.com/palantir/go-githubapp/oauth2"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/server/handler"
+	"github.com/palantir/policy-bot/server/middleware"
 	"github.com/palantir/policy-bot/version"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -248,6 +249,16 @@ func New(c *Config) (*Server, error) {
 		Details: detailsHandler,
 	}))
 	mux.Handle(pat.New("/details/*"), details)
+
+	simulateHandler := handler.Simulate{Base: basePolicyHandler}
+	simulateAPI := goji.SubMux()
+	simulateAPI.Use(middleware.RepoAuth(&middleware.GitHubTokenValidator{ClientCreator: cc}))
+	simulateAPI.Handle(pat.Get("/status"), &handler.SimulateStatus{
+		Simulate: simulateHandler,
+	})
+
+	// all routes on the simulateAPI need to include the 'owner' and 'repo' params
+	mux.Handle(pat.New("/api/simulate/:owner/:repo/:number/*"), simulateAPI)
 
 	return &Server{
 		config: c,
