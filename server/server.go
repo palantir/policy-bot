@@ -215,6 +215,12 @@ func New(c *Config) (*Server, error) {
 	// webhook route
 	mux.Handle(pat.Post(githubapp.DefaultWebhookRoute), dispatcher)
 
+	// simulate API requires a GitHub token with read access to the simulated pr
+	simulateAPI := goji.SubMux()
+	simulateAPI.Use(middleware.PullRequestAuth(cc))
+	simulateAPI.Handle(pat.Post("/simulate"), hatpear.Try(&handler.Simulate{Base: basePolicyHandler}))
+	mux.Handle(pat.New("/api/:owner/:repo/:number/*"), simulateAPI)
+
 	// additional API routes
 	mux.Handle(pat.Get("/api/health"), handler.Health())
 	mux.Handle(pat.Put("/api/validate"), handler.Validate())
@@ -249,16 +255,6 @@ func New(c *Config) (*Server, error) {
 		Details: detailsHandler,
 	}))
 	mux.Handle(pat.New("/details/*"), details)
-
-	simulateHandler := handler.Simulate{Base: basePolicyHandler}
-	simulateAPI := goji.SubMux()
-	simulateAPI.Use(middleware.RepoAuth(&middleware.GitHubTokenValidator{ClientCreator: cc}))
-	simulateAPI.Handle(pat.Get("/status"), &handler.SimulateStatus{
-		Simulate: simulateHandler,
-	})
-
-	// all routes on the simulateAPI need to include the 'owner' and 'repo' params
-	mux.Handle(pat.New("/api/simulate/:owner/:repo/:number/*"), simulateAPI)
 
 	return &Server{
 		config: c,

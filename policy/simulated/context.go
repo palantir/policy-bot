@@ -15,15 +15,18 @@
 package simulated
 
 import (
+	"context"
+
 	"github.com/palantir/policy-bot/pull"
 )
 
 type Context struct {
 	pull.Context
+	ctx     context.Context
 	options Options
 }
 
-func NewContext(pullContext pull.Context, options Options) *Context {
+func NewContext(ctx context.Context, pullContext pull.Context, options Options) *Context {
 	return &Context{Context: pullContext, options: options}
 }
 
@@ -33,14 +36,12 @@ func (c *Context) Comments() ([]*pull.Comment, error) {
 		return nil, err
 	}
 
-	if c.options.Ignore != "" {
-		comments = c.options.filterIgnoredComments(comments)
+	comments, err = c.options.filterIgnoredComments(c.ctx, c.Context, comments)
+	if err != nil {
+		return nil, err
 	}
 
-	if c.options.AddApprovalComment != "" {
-		comments = c.options.addApprovalComment(comments)
-	}
-
+	comments = c.options.addApprovalComment(comments)
 	return comments, nil
 }
 
@@ -50,22 +51,15 @@ func (c *Context) Reviews() ([]*pull.Review, error) {
 		return nil, err
 	}
 
-	if c.options.Ignore != "" {
-		reviews = c.options.filterIgnoredReviews(reviews)
+	reviews, err = c.options.filterIgnoredReviews(c.ctx, c.Context, reviews)
+	if err != nil {
+		return nil, err
 	}
 
-	if c.options.AddApprovalReview != "" {
-		reviews = c.options.addApprovalReview(reviews)
-	}
-
+	reviews = c.options.addApprovalReview(reviews)
 	return reviews, nil
 }
 
 func (c *Context) Branches() (string, string) {
-	base, head := c.Context.Branches()
-	if c.options.BaseBranch != "" {
-		return c.options.BaseBranch, head
-	}
-
-	return base, head
+	return c.options.branches(c.Context.Branches())
 }

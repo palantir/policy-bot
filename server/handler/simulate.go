@@ -18,19 +18,15 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/palantir/go-baseapp/baseapp"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/common"
+	"github.com/palantir/policy-bot/policy/simulated"
 	"github.com/palantir/policy-bot/pull"
-	"github.com/palantir/policy-bot/pull/simulated"
+	"github.com/palantir/policy-bot/server/apierror"
 	"github.com/pkg/errors"
-)
-
-const (
-	ignoreParam  = "ignore"
-	commentParam = "comment"
-	reviewParam  = "review"
-	branchParam  = "branch"
+	"github.com/rs/zerolog"
 )
 
 // Simulate provides a baseline for handlers to perform simulated pull request evaluations and
@@ -39,86 +35,130 @@ type Simulate struct {
 	Base
 }
 
-func (h *Simulate) getSimulatedResult(ctx context.Context, installation githubapp.Installation, loc pull.Locator, options simulated.Options) (*common.Result, error) {
-	evalCtx, err := h.newSimulatedEvalContext(ctx, installation.ID, loc, options)
+// SimulatedResult is the result returned from Simulate, this is a trimmed down version of common.Result with json
+// tags. This struct and the newSimulatedResult constructor can be extended to include extra content from common.Result.
+type SimulatedResult struct {
+	Name              string `json:"name"`
+	Description       string `json:"description:"`
+	StatusDescription string `json:"status_description"`
+	Status            string `json:"status"`
+	Error             string `json:"error"`
+}
+
+func (h *Simulate) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+	logger := *zerolog.Ctx(ctx)
+
+	owner, repo, number, ok := parsePullParams(r)
+	if !ok {
+		logger.Error().Msg("failed to parse pull request parameters from request")
+		return apierror.WriteAPIError(w, http.StatusBadRequest, "failed to parse pull request parameters from request")
+	}
+
+	installation, err := h.Installations.GetByOwner(ctx, owner)
+	if err != nil {
+		return errors.Wrap(err, "failed to get installation for org")
+	}
+
+	client, err := h.ClientCreator.NewInstallationClient(installation.ID)
+	if err != nil {
+		return errors.Wrap(err, "failed to create github client")
+	}
+
+	pr, _, err := client.PullRequests.Get(ctx, owner, repo, number)
+	if err != nil {
+		if isNotFound(err) {
+			logger.Error().Err(err).Msg("could not find pull request")
+			return apierror.WriteAPIError(w, http.StatusNotFound, "failed to find pull request")
+		}
+
+		return errors.Wrap(err, "failed to get pr")
+	}
+
+	ctx, logger = h.PreparePRContext(ctx, installation.ID, pr)
+	options, err := simulated.NewOptionsFromRequest(r)
+	if err != nil {
+		logger.Error().Msg("failed to get options from request")
+		return apierror.WriteAPIError(w, http.StatusBadRequest, "failed to parse options from request")
+	}
+
+	result, err := h.getSimulatedResult(ctx, installation, pull.Locator{
+		Owner:  owner,
+		Repo:   repo,
+		Number: number,
+		Value:  pr,
+	}, options)
+
+	if err != nil {
+		return errors.Wrap(err, "failed to get approval result for pull request")
+	}
+
+	baseapp.WriteJSON(w, http.StatusOK, result)
+	return nil
+}
+
+func (h *Simulate) getSimulatedResult(ctx context.Context, installation githubapp.Installation, loc pull.Locator, options simulated.Options) (*SimulatedResult, error) {
+	simulatedCtx, config, err := h.newSimulatedContext(ctx, installation.ID, loc, options)
 	switch {
 	case err != nil:
 		return nil, errors.Wrap(err, "failed to generate eval context")
-	case evalCtx.Config.LoadError != nil:
-		return nil, errors.Wrap(evalCtx.Config.LoadError, "failed to load policy file")
-	case evalCtx.Config.ParseError != nil:
-		return nil, errors.Wrap(evalCtx.Config.ParseError, "failed to parse policy")
-	case evalCtx.Config.Config == nil:
+	case config.LoadError != nil:
+		return nil, errors.Wrap(config.LoadError, "failed to load policy file")
+	case config.ParseError != nil:
+		return nil, errors.Wrap(config.ParseError, "failed to parse policy")
+	case config.Config == nil:
 		return nil, errors.New("no policy file found in repo")
 	}
 
-	evaluator, err := policy.ParsePolicy(evalCtx.Config.Config)
+	evaluator, err := policy.ParsePolicy(config.Config)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get policy evaluator")
 	}
 
-	result := evaluator.Evaluate(ctx, evalCtx.PullContext)
+	result := evaluator.Evaluate(ctx, simulatedCtx)
 	if result.Error != nil {
-		return nil, errors.Wrapf(err, "error evaluating policy in %s: %s", evalCtx.Config.Source, evalCtx.Config.Path)
+		return nil, errors.Wrapf(err, "error evaluating policy in %s: %s", config.Source, config.Path)
 	}
 
-	return &result, nil
+	return newSimulatedResult(result), nil
 }
 
-func (h *Simulate) newSimulatedEvalContext(ctx context.Context, installationID int64, loc pull.Locator, options simulated.Options) (*EvalContext, error) {
+func (h *Simulate) newSimulatedContext(ctx context.Context, installationID int64, loc pull.Locator, options simulated.Options) (*simulated.Context, *FetchedConfig, error) {
 	client, err := h.NewInstallationClient(installationID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	v4client, err := h.NewInstallationV4Client(installationID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	mbrCtx := NewCrossOrgMembershipContext(ctx, client, loc.Owner, h.Installations, h.ClientCreator)
 	prctx, err := pull.NewGitHubContext(ctx, mbrCtx, h.GlobalCache, client, v4client, loc)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	simulatedPRCtx := simulated.NewContext(prctx, options)
-
+	simulatedPRCtx := simulated.NewContext(ctx, prctx, options)
 	baseBranch, _ := simulatedPRCtx.Branches()
 	owner := simulatedPRCtx.RepositoryOwner()
 	repository := simulatedPRCtx.RepositoryName()
-
 	fetchedConfig := h.ConfigFetcher.ConfigForRepositoryBranch(ctx, client, owner, repository, baseBranch)
-
-	return &EvalContext{
-		Client:   client,
-		V4Client: v4client,
-
-		Options:   h.PullOpts,
-		PublicURL: h.BaseConfig.PublicURL,
-
-		PullContext: simulatedPRCtx,
-		Config:      fetchedConfig,
-	}, nil
+	return simulatedPRCtx, &fetchedConfig, nil
 }
 
-func getSimulatedOptions(r *http.Request) simulated.Options {
-	var options simulated.Options
-	if r.URL.Query().Has(ignoreParam) {
-		options.Ignore = r.URL.Query().Get(ignoreParam)
+func newSimulatedResult(result common.Result) *SimulatedResult {
+	var errString string
+	if result.Error != nil {
+		errString = result.Error.Error()
 	}
 
-	if r.URL.Query().Has(commentParam) {
-		options.AddApprovalComment = r.URL.Query().Get(commentParam)
+	return &SimulatedResult{
+		Name:              result.Name,
+		Description:       result.Description,
+		StatusDescription: result.StatusDescription,
+		Status:            result.Status.String(),
+		Error:             errString,
 	}
-
-	if r.URL.Query().Has(reviewParam) {
-		options.AddApprovalReview = r.URL.Query().Get(reviewParam)
-	}
-
-	if r.URL.Query().Has(branchParam) {
-		options.BaseBranch = r.URL.Query().Get(branchParam)
-	}
-
-	return options
 }
