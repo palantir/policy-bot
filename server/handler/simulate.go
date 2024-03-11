@@ -17,6 +17,7 @@ package handler
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/palantir/go-baseapp/baseapp"
 	"github.com/palantir/go-githubapp/githubapp"
@@ -49,20 +50,21 @@ func (h *Simulate) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 	logger := *zerolog.Ctx(ctx)
 
+	token := getToken(r)
+	if token == "" {
+		return apierror.WriteAPIError(w, http.StatusUnauthorized, "missing token")
+	}
+
+	client, err := h.NewTokenClient(token)
+	if err != nil {
+		logger.Error().Msg("failed to create token client")
+		return apierror.WriteAPIError(w, http.StatusUnauthorized, "token invalid")
+	}
+
 	owner, repo, number, ok := parsePullParams(r)
 	if !ok {
 		logger.Error().Msg("failed to parse pull request parameters from request")
 		return apierror.WriteAPIError(w, http.StatusBadRequest, "failed to parse pull request parameters from request")
-	}
-
-	installation, err := h.Installations.GetByOwner(ctx, owner)
-	if err != nil {
-		return errors.Wrap(err, "failed to get installation for org")
-	}
-
-	client, err := h.ClientCreator.NewInstallationClient(installation.ID)
-	if err != nil {
-		return errors.Wrap(err, "failed to create github client")
 	}
 
 	pr, _, err := client.PullRequests.Get(ctx, owner, repo, number)
@@ -73,6 +75,12 @@ func (h *Simulate) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 		}
 
 		return errors.Wrap(err, "failed to get pr")
+	}
+
+	installation, err := h.Installations.GetByOwner(ctx, owner)
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to get installation for org")
+		return apierror.WriteAPIError(w, http.StatusNotFound, "not installed in org")
 	}
 
 	ctx, logger = h.PreparePRContext(ctx, installation.ID, pr)
@@ -96,6 +104,15 @@ func (h *Simulate) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	response := newSimulationResponse(result)
 	baseapp.WriteJSON(w, http.StatusOK, response)
 	return nil
+}
+
+func getToken(r *http.Request) string {
+	auth := r.Header.Get("Authorization")
+	if token, ok := strings.CutPrefix(auth, "Bearer "); ok {
+		return token
+	}
+
+	return ""
 }
 
 func (h *Simulate) getSimulatedResult(ctx context.Context, installation githubapp.Installation, loc pull.Locator, options simulated.Options) (*common.Result, error) {

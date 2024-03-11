@@ -34,7 +34,6 @@ import (
 	"github.com/palantir/go-githubapp/oauth2"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/server/handler"
-	"github.com/palantir/policy-bot/server/middleware"
 	"github.com/palantir/policy-bot/version"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -219,15 +218,10 @@ func New(c *Config) (*Server, error) {
 		Base: basePolicyHandler,
 	}
 
-	// simulate API requires a GitHub token with read access to the simulated pr
-	simulateAPI := goji.SubMux()
-	simulateAPI.Use(middleware.PullRequestAuth(cc))
-	simulateAPI.Handle(pat.Post("/:owner/:repo/:number"), hatpear.Try(simulateHandler))
-	mux.Handle(pat.New("/api/simulate/*"), simulateAPI)
-
 	// additional API routes
 	mux.Handle(pat.Get("/api/health"), handler.Health())
 	mux.Handle(pat.Put("/api/validate"), handler.Validate())
+	mux.Handle(pat.Post("/api/simulate/:owner/:repo/:number"), hatpear.Try(simulateHandler))
 	mux.Handle(pat.Get(oauth2.DefaultRoute), oauth2.NewHandler(
 		oauth2.GetConfig(c.Github, nil),
 		oauth2.ForceTLS(forceTLS),
