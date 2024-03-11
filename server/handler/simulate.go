@@ -35,9 +35,9 @@ type Simulate struct {
 	Base
 }
 
-// SimulatedResult is the result returned from Simulate, this is a trimmed down version of common.Result with json
-// tags. This struct and the newSimulatedResult constructor can be extended to include extra content from common.Result.
-type SimulatedResult struct {
+// SimulationResponse is the response returned from Simulate, this is a trimmed down version of common.Result with json
+// tags. This struct and the newSimulationResponse constructor can be extended to include extra content from common.Result.
+type SimulationResponse struct {
 	Name              string `json:"name"`
 	Description       string `json:"description:"`
 	StatusDescription string `json:"status_description"`
@@ -93,11 +93,12 @@ func (h *Simulate) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to get approval result for pull request")
 	}
 
-	baseapp.WriteJSON(w, http.StatusOK, result)
+	response := newSimulationResponse(result)
+	baseapp.WriteJSON(w, http.StatusOK, response)
 	return nil
 }
 
-func (h *Simulate) getSimulatedResult(ctx context.Context, installation githubapp.Installation, loc pull.Locator, options simulated.Options) (*SimulatedResult, error) {
+func (h *Simulate) getSimulatedResult(ctx context.Context, installation githubapp.Installation, loc pull.Locator, options simulated.Options) (*common.Result, error) {
 	simulatedCtx, config, err := h.newSimulatedContext(ctx, installation.ID, loc, options)
 	switch {
 	case err != nil:
@@ -120,7 +121,7 @@ func (h *Simulate) getSimulatedResult(ctx context.Context, installation githubap
 		return nil, errors.Wrapf(err, "error evaluating policy in %s: %s", config.Source, config.Path)
 	}
 
-	return newSimulatedResult(result), nil
+	return &result, nil
 }
 
 func (h *Simulate) newSimulatedContext(ctx context.Context, installationID int64, loc pull.Locator, options simulated.Options) (*simulated.Context, *FetchedConfig, error) {
@@ -148,13 +149,13 @@ func (h *Simulate) newSimulatedContext(ctx context.Context, installationID int64
 	return simulatedPRCtx, &fetchedConfig, nil
 }
 
-func newSimulatedResult(result common.Result) *SimulatedResult {
+func newSimulationResponse(result *common.Result) *SimulationResponse {
 	var errString string
 	if result.Error != nil {
 		errString = result.Error.Error()
 	}
 
-	return &SimulatedResult{
+	return &SimulationResponse{
 		Name:              result.Name,
 		Description:       result.Description,
 		StatusDescription: result.StatusDescription,
