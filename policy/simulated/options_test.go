@@ -17,6 +17,7 @@ package simulated
 import (
 	"bytes"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/palantir/policy-bot/pull"
@@ -48,10 +49,7 @@ func TestOptionsFromRequest(t *testing.T) {
 		"base_branch":"test-base"
 	}`
 
-	req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(body)))
-	assert.NoError(t, err)
-
-	opt, err := NewOptionsFromRequest(req)
+	opt, err := NewOptionsFromRequest(httptest.NewRequest(http.MethodPost, "http:", bytes.NewBuffer([]byte(body))))
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"iignore"}, opt.IgnoreComments.Users)
