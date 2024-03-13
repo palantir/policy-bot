@@ -52,13 +52,8 @@ func (c *Context) filterIgnoredComments(prCtx pull.Context, comments []*pull.Com
 	}
 
 	var filteredComments []*pull.Comment
-	actors, err := c.options.IgnoreComments.toCommonActors()
-	if err != nil {
-		return nil, err
-	}
-
 	for _, comment := range comments {
-		isActor, err := actors.IsActor(c.ctx, prCtx, comment.Author)
+		isActor, err := c.options.IgnoreComments.IsActor(c.ctx, prCtx, comment.Author)
 		if err != nil {
 			return nil, err
 		}
@@ -76,7 +71,7 @@ func (c *Context) filterIgnoredComments(prCtx pull.Context, comments []*pull.Com
 func (c *Context) addApprovalComment(comments []*pull.Comment) []*pull.Comment {
 	var commentsToAdd []*pull.Comment
 	for _, comment := range c.options.AddComments {
-		commentsToAdd = append(commentsToAdd, comment.toPullComment())
+		commentsToAdd = append(commentsToAdd, &comment)
 	}
 
 	return append(comments, commentsToAdd...)
@@ -103,13 +98,8 @@ func (c *Context) filterIgnoredReviews(prCtx pull.Context, reviews []*pull.Revie
 	}
 
 	var filteredReviews []*pull.Review
-	actors, err := c.options.IgnoreReviews.toCommonActors()
-	if err != nil {
-		return nil, err
-	}
-
 	for _, review := range reviews {
-		isActor, err := actors.IsActor(c.ctx, prCtx, review.Author)
+		isActor, err := c.options.IgnoreReviews.IsActor(c.ctx, prCtx, review.Author)
 		if err != nil {
 			return nil, err
 		}
@@ -127,10 +117,9 @@ func (c *Context) filterIgnoredReviews(prCtx pull.Context, reviews []*pull.Revie
 func (c *Context) addApprovalReview(reviews []*pull.Review) []*pull.Review {
 	var reviewsToAdd []*pull.Review
 	for i, review := range c.options.AddReviews {
-		reviewID := fmt.Sprintf("simulated-reviewID-%d", i)
-		reviewSHA := fmt.Sprintf("simulated-reviewSHA-%d", i)
-
-		reviewsToAdd = append(reviewsToAdd, review.toPullReview(reviewID, reviewSHA))
+		review.ID = fmt.Sprintf("simulated-reviewID-%d", i)
+		review.SHA = fmt.Sprintf("simulated-reviewSHA-%d", i)
+		reviewsToAdd = append(reviewsToAdd, &review)
 	}
 
 	return append(reviews, reviewsToAdd...)

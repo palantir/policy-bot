@@ -18,6 +18,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/pull/pulltest"
 	"github.com/stretchr/testify/assert"
@@ -41,7 +42,7 @@ func TestComments(t *testing.T) {
 			},
 			ExpectedCommentAuthors: []string{"rrandom"},
 			Options: Options{
-				IgnoreComments: &Actors{
+				IgnoreComments: &common.Actors{
 					Users: []string{"iignore"},
 				},
 			},
@@ -52,7 +53,7 @@ func TestComments(t *testing.T) {
 				{Author: "iignore"},
 			},
 			Options: Options{
-				IgnoreComments: &Actors{
+				IgnoreComments: &common.Actors{
 					Teams: []string{"test-team-1"},
 				},
 			},
@@ -67,7 +68,7 @@ func TestComments(t *testing.T) {
 				{Author: "iignore"},
 			},
 			Options: Options{
-				IgnoreComments: &Actors{
+				IgnoreComments: &common.Actors{
 					Organizations: []string{"test-org-1"},
 				},
 			},
@@ -82,8 +83,8 @@ func TestComments(t *testing.T) {
 				{Author: "iignore"},
 			},
 			Options: Options{
-				IgnoreComments: &Actors{
-					Permissions: []string{"read"},
+				IgnoreComments: &common.Actors{
+					Permissions: []pull.Permission{pull.PermissionRead},
 				},
 			},
 			Collaborators: []*pull.Collaborator{
@@ -92,23 +93,6 @@ func TestComments(t *testing.T) {
 				}},
 			},
 			ExpectedCommentAuthors: []string{"rrandom"},
-		},
-		"return error when invalid permission used": {
-			Comments: []*pull.Comment{
-				{Author: "rrandom"},
-				{Author: "iignore"},
-			},
-			Options: Options{
-				IgnoreComments: &Actors{
-					Permissions: []string{"bread"},
-				},
-			},
-			Collaborators: []*pull.Collaborator{
-				{Name: "iignore", Permissions: []pull.CollaboratorPermission{
-					{Permission: pull.PermissionRead},
-				}},
-			},
-			ExpectedError: true,
 		},
 		"do not ignore any comments": {
 			Comments: []*pull.Comment{
@@ -123,7 +107,7 @@ func TestComments(t *testing.T) {
 				{Author: "iignore"},
 			},
 			Options: Options{
-				AddComments: []Comment{
+				AddComments: []pull.Comment{
 					{Author: "sperson", Body: ":+1:"},
 				},
 			},
@@ -135,10 +119,10 @@ func TestComments(t *testing.T) {
 				{Author: "iignore"},
 			},
 			Options: Options{
-				AddComments: []Comment{
+				AddComments: []pull.Comment{
 					{Author: "sperson", Body: ":+1:"},
 				},
-				IgnoreComments: &Actors{
+				IgnoreComments: &common.Actors{
 					Users: []string{"iignore"},
 				},
 			},
@@ -197,7 +181,7 @@ func TestReviews(t *testing.T) {
 			},
 			ExpectedReviewAuthors: []string{"rrandom"},
 			Options: Options{
-				IgnoreReviews: &Actors{
+				IgnoreReviews: &common.Actors{
 					Users: []string{"iignore"},
 				},
 			},
@@ -208,7 +192,7 @@ func TestReviews(t *testing.T) {
 				{Author: "iignore"},
 			},
 			Options: Options{
-				IgnoreReviews: &Actors{
+				IgnoreReviews: &common.Actors{
 					Teams: []string{"test-team-1"},
 				},
 			},
@@ -223,7 +207,7 @@ func TestReviews(t *testing.T) {
 				{Author: "iignore"},
 			},
 			Options: Options{
-				IgnoreReviews: &Actors{
+				IgnoreReviews: &common.Actors{
 					Organizations: []string{"test-org-1"},
 				},
 			},
@@ -238,8 +222,8 @@ func TestReviews(t *testing.T) {
 				{Author: "iignore"},
 			},
 			Options: Options{
-				IgnoreReviews: &Actors{
-					Permissions: []string{"read"},
+				IgnoreReviews: &common.Actors{
+					Permissions: []pull.Permission{pull.PermissionRead},
 				},
 			},
 			Collaborators: []*pull.Collaborator{
@@ -248,23 +232,6 @@ func TestReviews(t *testing.T) {
 				}},
 			},
 			ExpectedReviewAuthors: []string{"rrandom"},
-		},
-		"return error when invalid permission used": {
-			Reviews: []*pull.Review{
-				{Author: "rrandom"},
-				{Author: "iignore"},
-			},
-			Options: Options{
-				IgnoreReviews: &Actors{
-					Permissions: []string{"bread"},
-				},
-			},
-			Collaborators: []*pull.Collaborator{
-				{Name: "iignore", Permissions: []pull.CollaboratorPermission{
-					{Permission: pull.PermissionRead},
-				}},
-			},
-			ExpectedError: true,
 		},
 		"do not ignore any reviews": {
 			Reviews: []*pull.Review{
@@ -279,7 +246,7 @@ func TestReviews(t *testing.T) {
 				{Author: "iignore"},
 			},
 			Options: Options{
-				AddReviews: []Review{
+				AddReviews: []pull.Review{
 					{Author: "sperson", State: "approved"},
 				},
 			},
@@ -291,10 +258,10 @@ func TestReviews(t *testing.T) {
 				{Author: "iignore"},
 			},
 			Options: Options{
-				AddReviews: []Review{
+				AddReviews: []pull.Review{
 					{Author: "sperson", State: "approved"},
 				},
-				IgnoreReviews: &Actors{
+				IgnoreReviews: &common.Actors{
 					Users: []string{"iignore"},
 				},
 			},

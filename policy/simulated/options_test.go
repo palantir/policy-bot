@@ -31,13 +31,13 @@ func TestOptionsFromRequest(t *testing.T) {
 			"users":["iignore"],
 			"teams":[""],
 			"organizations":[""],
-			"permissions":[""]
+			"permissions":["read"]
 		},
 		"ignore_reviews":{
 			"users":["iignore"],
 			"teams":[""],
 			"organizations":[""],
-			"permissions":[""]
+			"permissions":["read"]
 		},
 		"add_comments":[
 			{"author":"iignore", "body":":+1:"}
@@ -55,7 +55,9 @@ func TestOptionsFromRequest(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"iignore"}, opt.IgnoreComments.Users)
+	assert.Equal(t, pull.PermissionRead, opt.IgnoreComments.Permissions[0])
 	assert.Equal(t, []string{"iignore"}, opt.IgnoreReviews.Users)
+	assert.Equal(t, pull.PermissionRead, opt.IgnoreReviews.Permissions[0])
 
 	assert.Equal(t, "iignore", opt.AddComments[0].Author)
 	assert.Equal(t, ":+1:", opt.AddComments[0].Body)
@@ -63,17 +65,17 @@ func TestOptionsFromRequest(t *testing.T) {
 	assert.Equal(t, "iignore", opt.AddReviews[0].Author)
 	assert.Equal(t, ":+1:", opt.AddReviews[0].Body)
 
-	assert.Equal(t, pull.ReviewApproved, opt.AddReviews[0].toPullReview("test-id", "test-sha").State)
+	assert.Equal(t, pull.ReviewApproved, opt.AddReviews[0].State)
 	assert.Equal(t, "test-base", opt.BaseBranch)
 }
 
 func TestOptionDefaults(t *testing.T) {
 	options := Options{
-		AddComments: []Comment{
+		AddComments: []pull.Comment{
 			{Author: "aperson", Body: ":+1:"},
 			{Author: "otherperson", Body: ":+1:"},
 		},
-		AddReviews: []Review{
+		AddReviews: []pull.Review{
 			{Author: "aperson", Body: ":+1:"},
 			{Author: "otherperson", Body: ":+1:"},
 		},
