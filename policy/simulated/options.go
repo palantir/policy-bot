@@ -16,6 +16,7 @@ package simulated
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -60,6 +61,8 @@ func (o *Options) setDefaults() {
 			review.LastEditedAt = now
 		}
 
+		review.ID = fmt.Sprintf("simulated-reviewID-%d", i)
+		review.SHA = fmt.Sprintf("simulated-reviewSHA-%d", i)
 		o.AddReviews[i] = review
 	}
 

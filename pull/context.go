@@ -208,13 +208,13 @@ const (
 )
 
 type Review struct {
-	ID           string
+	ID           string      `json:"id"`
 	CreatedAt    time.Time   `json:"created_at"`
 	LastEditedAt time.Time   `json:"last_edited_at"`
 	Author       string      `json:"author"`
 	State        ReviewState `json:"state"`
 	Body         string      `json:"body"`
-	SHA          string
+	SHA          string      `json:"sha"`
 
 	Teams []string `json:"teams"`
 }
