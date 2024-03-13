@@ -75,37 +75,3 @@ func (o *Options) setDefaults() {
 		o.AddComments[i] = comment
 	}
 }
-
-type Review struct {
-	CreatedAt    *time.Time `json:"created_at"`
-	LastEditedAt *time.Time `json:"last_edited_at"`
-	Author       string     `json:"author"`
-	Body         string     `json:"body"`
-	State        string     `json:"state"`
-	Teams        []string   `json:"teams"`
-}
-
-// setDefaults sets the createdAt and lastEdtedAt values to time.Now() if they are otherwise unset
-func (r *Review) setDefaults() {
-	now := time.Now()
-	if r.CreatedAt == nil {
-		r.CreatedAt = &now
-	}
-
-	if r.LastEditedAt == nil {
-		r.LastEditedAt = &now
-	}
-}
-
-func (r *Review) toPullReview(id, sha string) *pull.Review {
-	return &pull.Review{
-		ID:           id,
-		SHA:          sha,
-		CreatedAt:    *r.CreatedAt,
-		LastEditedAt: *r.LastEditedAt,
-		Author:       r.Author,
-		State:        pull.ReviewState(r.State),
-		Body:         r.Body,
-		Teams:        r.Teams,
-	}
-}
