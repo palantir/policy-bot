@@ -25,9 +25,7 @@ import (
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/policy/simulated"
 	"github.com/palantir/policy-bot/pull"
-	"github.com/palantir/policy-bot/server/apierror"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog"
 )
 
 // Simulate provides a baseline for handlers to perform simulated pull request evaluations and
@@ -46,48 +44,45 @@ type SimulationResponse struct {
 	Error             string `json:"error"`
 }
 
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
 func (h *Simulate) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
-	logger := *zerolog.Ctx(ctx)
-
 	token := getToken(r)
 	if token == "" {
-		return apierror.WriteAPIError(w, http.StatusUnauthorized, "missing token")
+		return writeAPIError(w, http.StatusUnauthorized, "missing token")
 	}
 
 	client, err := h.NewTokenClient(token)
 	if err != nil {
-		logger.Error().Msg("failed to create token client")
-		return apierror.WriteAPIError(w, http.StatusUnauthorized, "token invalid")
+		return errors.Wrap(err, "failed to create token client")
 	}
 
 	owner, repo, number, ok := parsePullParams(r)
 	if !ok {
-		logger.Error().Msg("failed to parse pull request parameters from request")
-		return apierror.WriteAPIError(w, http.StatusBadRequest, "failed to parse pull request parameters from request")
+		return writeAPIError(w, http.StatusBadRequest, "failed to parse pull request parameters from request")
 	}
 
 	pr, _, err := client.PullRequests.Get(ctx, owner, repo, number)
 	if err != nil {
 		if isNotFound(err) {
-			logger.Error().Err(err).Msg("could not find pull request")
-			return apierror.WriteAPIError(w, http.StatusNotFound, "failed to find pull request")
+			return writeAPIError(w, http.StatusNotFound, "failed to find pull request")
 		}
 
-		return errors.Wrap(err, "failed to get pr")
+		return errors.Wrap(err, "failed to get pull request")
 	}
 
 	installation, err := h.Installations.GetByOwner(ctx, owner)
 	if err != nil {
-		logger.Error().Err(err).Msg("failed to get installation for org")
-		return apierror.WriteAPIError(w, http.StatusNotFound, "not installed in org")
+		return writeAPIError(w, http.StatusNotFound, "not installed in org")
 	}
 
-	ctx, logger = h.PreparePRContext(ctx, installation.ID, pr)
+	ctx, _ = h.PreparePRContext(ctx, installation.ID, pr)
 	options, err := simulated.NewOptionsFromRequest(r)
 	if err != nil {
-		logger.Error().Msg("failed to get options from request")
-		return apierror.WriteAPIError(w, http.StatusBadRequest, "failed to parse options from request")
+		return writeAPIError(w, http.StatusBadRequest, "failed to parse options from request")
 	}
 
 	result, err := h.getSimulatedResult(ctx, installation, pull.Locator{
@@ -125,7 +120,8 @@ func (h *Simulate) getSimulatedResult(ctx context.Context, installation githubap
 	case config.ParseError != nil:
 		return nil, errors.Wrap(config.ParseError, "failed to parse policy")
 	case config.Config == nil:
-		return nil, errors.New("no policy file found in repo")
+		// no policy file found on base branch
+		return nil, nil
 	}
 
 	evaluator, err := policy.ParsePolicy(config.Config)
@@ -134,10 +130,6 @@ func (h *Simulate) getSimulatedResult(ctx context.Context, installation githubap
 	}
 
 	result := evaluator.Evaluate(ctx, simulatedCtx)
-	if result.Error != nil {
-		return nil, errors.Wrapf(err, "error evaluating policy in %s: %s", config.Source, config.Path)
-	}
-
 	return &result, nil
 }
 
@@ -167,16 +159,22 @@ func (h *Simulate) newSimulatedContext(ctx context.Context, installationID int64
 }
 
 func newSimulationResponse(result *common.Result) *SimulationResponse {
-	var errString string
-	if result.Error != nil {
-		errString = result.Error.Error()
+	var response SimulationResponse
+	if result != nil {
+		if result.Error != nil {
+			response.Error = result.Error.Error()
+		}
+
+		response.Name = result.Name
+		response.Description = result.Description
+		response.StatusDescription = result.StatusDescription
+		response.Status = result.Status.String()
 	}
 
-	return &SimulationResponse{
-		Name:              result.Name,
-		Description:       result.Description,
-		StatusDescription: result.StatusDescription,
-		Status:            result.Status.String(),
-		Error:             errString,
-	}
+	return &response
+}
+
+func writeAPIError(w http.ResponseWriter, code int, message string) error {
+	baseapp.WriteJSON(w, code, ErrorResponse{Error: message})
+	return nil
 }

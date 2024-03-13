@@ -15,9 +15,7 @@
 package simulated
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -61,89 +59,6 @@ func (o *Options) setDefaults() {
 		comment.setDefaults()
 		o.AddComments[i] = comment
 	}
-}
-
-func (o *Options) filterIgnoredComments(ctx context.Context, prCtx pull.Context, comments []*pull.Comment) ([]*pull.Comment, error) {
-	if o.IgnoreComments == nil {
-		return comments, nil
-	}
-
-	var filteredComments []*pull.Comment
-	actors, err := o.IgnoreComments.toCommonActors()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, comment := range comments {
-		isActor, err := actors.IsActor(ctx, prCtx, comment.Author)
-		if err != nil {
-			return nil, err
-		}
-
-		if isActor {
-			continue
-		}
-
-		filteredComments = append(filteredComments, comment)
-	}
-
-	return filteredComments, nil
-}
-
-func (o *Options) filterIgnoredReviews(ctx context.Context, prCtx pull.Context, reviews []*pull.Review) ([]*pull.Review, error) {
-	if o.IgnoreReviews == nil {
-		return reviews, nil
-	}
-
-	var filteredReviews []*pull.Review
-	actors, err := o.IgnoreReviews.toCommonActors()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, review := range reviews {
-		isActor, err := actors.IsActor(ctx, prCtx, review.Author)
-		if err != nil {
-			return nil, err
-		}
-
-		if isActor {
-			continue
-		}
-
-		filteredReviews = append(filteredReviews, review)
-	}
-
-	return filteredReviews, nil
-}
-
-func (o *Options) addApprovalComment(comments []*pull.Comment) []*pull.Comment {
-	var commentsToAdd []*pull.Comment
-	for _, comment := range o.AddComments {
-		commentsToAdd = append(commentsToAdd, comment.toPullComment())
-	}
-
-	return append(comments, commentsToAdd...)
-}
-
-func (o *Options) addApprovalReview(reviews []*pull.Review) []*pull.Review {
-	var reviewsToAdd []*pull.Review
-	for i, review := range o.AddReviews {
-		reviewID := fmt.Sprintf("simulated-reviewID-%d", i)
-		reviewSHA := fmt.Sprintf("simulated-reviewSHA-%d", i)
-
-		reviewsToAdd = append(reviewsToAdd, review.toPullReview(reviewID, reviewSHA))
-	}
-
-	return append(reviews, reviewsToAdd...)
-}
-
-func (o *Options) branches(base, head string) (string, string) {
-	if o.BaseBranch != "" {
-		base = o.BaseBranch
-	}
-
-	return base, head
 }
 
 type Actors struct {

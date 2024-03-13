@@ -16,6 +16,7 @@ package simulated
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/palantir/policy-bot/pull"
 )
@@ -36,13 +37,49 @@ func (c *Context) Comments() ([]*pull.Comment, error) {
 		return nil, err
 	}
 
-	comments, err = c.options.filterIgnoredComments(c.ctx, c.Context, comments)
+	comments, err = c.filterIgnoredComments(c.Context, comments)
 	if err != nil {
 		return nil, err
 	}
 
-	comments = c.options.addApprovalComment(comments)
+	comments = c.addApprovalComment(comments)
 	return comments, nil
+}
+
+func (c *Context) filterIgnoredComments(prCtx pull.Context, comments []*pull.Comment) ([]*pull.Comment, error) {
+	if c.options.IgnoreComments == nil {
+		return comments, nil
+	}
+
+	var filteredComments []*pull.Comment
+	actors, err := c.options.IgnoreComments.toCommonActors()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, comment := range comments {
+		isActor, err := actors.IsActor(c.ctx, prCtx, comment.Author)
+		if err != nil {
+			return nil, err
+		}
+
+		if isActor {
+			continue
+		}
+
+		filteredComments = append(filteredComments, comment)
+	}
+
+	return filteredComments, nil
+}
+
+func (c *Context) addApprovalComment(comments []*pull.Comment) []*pull.Comment {
+	var commentsToAdd []*pull.Comment
+	for _, comment := range c.options.AddComments {
+		commentsToAdd = append(commentsToAdd, comment.toPullComment())
+	}
+
+	return append(comments, commentsToAdd...)
 }
 
 func (c *Context) Reviews() ([]*pull.Review, error) {
@@ -51,15 +88,59 @@ func (c *Context) Reviews() ([]*pull.Review, error) {
 		return nil, err
 	}
 
-	reviews, err = c.options.filterIgnoredReviews(c.ctx, c.Context, reviews)
+	reviews, err = c.filterIgnoredReviews(c.Context, reviews)
 	if err != nil {
 		return nil, err
 	}
 
-	reviews = c.options.addApprovalReview(reviews)
+	reviews = c.addApprovalReview(reviews)
 	return reviews, nil
 }
 
+func (c *Context) filterIgnoredReviews(prCtx pull.Context, reviews []*pull.Review) ([]*pull.Review, error) {
+	if c.options.IgnoreReviews == nil {
+		return reviews, nil
+	}
+
+	var filteredReviews []*pull.Review
+	actors, err := c.options.IgnoreReviews.toCommonActors()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, review := range reviews {
+		isActor, err := actors.IsActor(c.ctx, prCtx, review.Author)
+		if err != nil {
+			return nil, err
+		}
+
+		if isActor {
+			continue
+		}
+
+		filteredReviews = append(filteredReviews, review)
+	}
+
+	return filteredReviews, nil
+}
+
+func (c *Context) addApprovalReview(reviews []*pull.Review) []*pull.Review {
+	var reviewsToAdd []*pull.Review
+	for i, review := range c.options.AddReviews {
+		reviewID := fmt.Sprintf("simulated-reviewID-%d", i)
+		reviewSHA := fmt.Sprintf("simulated-reviewSHA-%d", i)
+
+		reviewsToAdd = append(reviewsToAdd, review.toPullReview(reviewID, reviewSHA))
+	}
+
+	return append(reviews, reviewsToAdd...)
+}
+
 func (c *Context) Branches() (string, string) {
-	return c.options.branches(c.Context.Branches())
+	base, head := c.Context.Branches()
+	if c.options.BaseBranch != "" {
+		return c.options.BaseBranch, head
+	}
+
+	return base, head
 }

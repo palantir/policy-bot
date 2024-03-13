@@ -15,31 +15,31 @@
 package simulated
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/pull/pulltest"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestComments(t *testing.T) {
 	tests := map[string]struct {
-		Comments         []*pull.Comment
-		Options          Options
-		ExpectedComments []*pull.Comment
-		TeamMembership   map[string][]string
-		OrgMembership    map[string][]string
-		Collaborators    []*pull.Collaborator
-		ExpectedError    bool
+		Comments               []*pull.Comment
+		Options                Options
+		ExpectedCommentAuthors []string
+		TeamMembership         map[string][]string
+		OrgMembership          map[string][]string
+		Collaborators          []*pull.Collaborator
+		ExpectedError          bool
 	}{
 		"ignore comments by user": {
 			Comments: []*pull.Comment{
 				{Author: "rrandom"},
 				{Author: "iignore"},
 			},
-			ExpectedComments: []*pull.Comment{
-				{Author: "rrandom"},
-			},
+			ExpectedCommentAuthors: []string{"rrandom"},
 			Options: Options{
 				IgnoreComments: &Actors{
 					Users: []string{"iignore"},
@@ -59,9 +59,7 @@ func TestComments(t *testing.T) {
 			TeamMembership: map[string][]string{
 				"iignore": {"test-team-1"},
 			},
-			ExpectedComments: []*pull.Comment{
-				{Author: "rrandom"},
-			},
+			ExpectedCommentAuthors: []string{"rrandom"},
 		},
 		"ignore comments by org membership": {
 			Comments: []*pull.Comment{
@@ -76,9 +74,7 @@ func TestComments(t *testing.T) {
 			OrgMembership: map[string][]string{
 				"iignore": {"test-org-1"},
 			},
-			ExpectedComments: []*pull.Comment{
-				{Author: "rrandom"},
-			},
+			ExpectedCommentAuthors: []string{"rrandom"},
 		},
 		"ignore comments by permission": {
 			Comments: []*pull.Comment{
@@ -95,9 +91,7 @@ func TestComments(t *testing.T) {
 					{Permission: pull.PermissionRead},
 				}},
 			},
-			ExpectedComments: []*pull.Comment{
-				{Author: "rrandom"},
-			},
+			ExpectedCommentAuthors: []string{"rrandom"},
 		},
 		"return error when invalid permission used": {
 			Comments: []*pull.Comment{
@@ -121,10 +115,7 @@ func TestComments(t *testing.T) {
 				{Author: "rrandom"},
 				{Author: "iignore"},
 			},
-			ExpectedComments: []*pull.Comment{
-				{Author: "rrandom"},
-				{Author: "iignore"},
-			},
+			ExpectedCommentAuthors: []string{"rrandom", "iignore"},
 		},
 		"add new comment by sperson": {
 			Comments: []*pull.Comment{
@@ -136,11 +127,7 @@ func TestComments(t *testing.T) {
 					{Author: "sperson", Body: ":+1:"},
 				},
 			},
-			ExpectedComments: []*pull.Comment{
-				{Author: "rrandom"},
-				{Author: "iignore"},
-				{Author: "sperson"},
-			},
+			ExpectedCommentAuthors: []string{"rrandom", "iignore", "sperson"},
 		},
 		"add new comment by sperson and ignore one from iignore": {
 			Comments: []*pull.Comment{
@@ -155,10 +142,7 @@ func TestComments(t *testing.T) {
 					Users: []string{"iignore"},
 				},
 			},
-			ExpectedComments: []*pull.Comment{
-				{Author: "rrandom"},
-				{Author: "sperson"},
-			},
+			ExpectedCommentAuthors: []string{"rrandom", "sperson"},
 		},
 	}
 
@@ -174,12 +158,14 @@ func TestComments(t *testing.T) {
 			options: test.Options,
 		}
 
+		sort.Strings(test.ExpectedCommentAuthors)
+
 		comments, err := context.Comments()
 		if test.ExpectedError {
 			assert.Error(t, err, message)
 		} else {
-			assert.NoError(t, err, test, message)
-			assert.Equal(t, getCommentAuthors(test.ExpectedComments), getCommentAuthors(comments), message)
+			require.NoError(t, err, message)
+			assert.Equal(t, test.ExpectedCommentAuthors, getCommentAuthors(comments), message)
 		}
 	}
 }
@@ -190,27 +176,26 @@ func getCommentAuthors(comments []*pull.Comment) []string {
 		authors = append(authors, c.Author)
 	}
 
+	sort.Strings(authors)
 	return authors
 }
 
 func TestReviews(t *testing.T) {
 	tests := map[string]struct {
-		Reviews         []*pull.Review
-		Options         Options
-		ExpectedReviews []*pull.Review
-		ExpectedError   bool
-		TeamMembership  map[string][]string
-		OrgMembership   map[string][]string
-		Collaborators   []*pull.Collaborator
+		Reviews               []*pull.Review
+		Options               Options
+		ExpectedReviewAuthors []string
+		ExpectedError         bool
+		TeamMembership        map[string][]string
+		OrgMembership         map[string][]string
+		Collaborators         []*pull.Collaborator
 	}{
 		"ignore reviews by iignore": {
 			Reviews: []*pull.Review{
 				{Author: "rrandom"},
 				{Author: "iignore"},
 			},
-			ExpectedReviews: []*pull.Review{
-				{Author: "rrandom"},
-			},
+			ExpectedReviewAuthors: []string{"rrandom"},
 			Options: Options{
 				IgnoreReviews: &Actors{
 					Users: []string{"iignore"},
@@ -230,9 +215,7 @@ func TestReviews(t *testing.T) {
 			TeamMembership: map[string][]string{
 				"iignore": {"test-team-1"},
 			},
-			ExpectedReviews: []*pull.Review{
-				{Author: "rrandom"},
-			},
+			ExpectedReviewAuthors: []string{"rrandom"},
 		},
 		"ignore reviews by org membership": {
 			Reviews: []*pull.Review{
@@ -247,9 +230,7 @@ func TestReviews(t *testing.T) {
 			OrgMembership: map[string][]string{
 				"iignore": {"test-org-1"},
 			},
-			ExpectedReviews: []*pull.Review{
-				{Author: "rrandom"},
-			},
+			ExpectedReviewAuthors: []string{"rrandom"},
 		},
 		"ignore reviews by permission": {
 			Reviews: []*pull.Review{
@@ -266,9 +247,7 @@ func TestReviews(t *testing.T) {
 					{Permission: pull.PermissionRead},
 				}},
 			},
-			ExpectedReviews: []*pull.Review{
-				{Author: "rrandom"},
-			},
+			ExpectedReviewAuthors: []string{"rrandom"},
 		},
 		"return error when invalid permission used": {
 			Reviews: []*pull.Review{
@@ -292,10 +271,7 @@ func TestReviews(t *testing.T) {
 				{Author: "rrandom"},
 				{Author: "iignore"},
 			},
-			ExpectedReviews: []*pull.Review{
-				{Author: "rrandom"},
-				{Author: "iignore"},
-			},
+			ExpectedReviewAuthors: []string{"rrandom", "iignore"},
 		},
 		"add new review by sperson": {
 			Reviews: []*pull.Review{
@@ -307,11 +283,7 @@ func TestReviews(t *testing.T) {
 					{Author: "sperson", State: "approved"},
 				},
 			},
-			ExpectedReviews: []*pull.Review{
-				{Author: "rrandom"},
-				{Author: "iignore"},
-				{Author: "sperson"},
-			},
+			ExpectedReviewAuthors: []string{"rrandom", "iignore", "sperson"},
 		},
 		"add new review by sperson and ignore one from iignore": {
 			Reviews: []*pull.Review{
@@ -326,10 +298,7 @@ func TestReviews(t *testing.T) {
 					Users: []string{"iignore"},
 				},
 			},
-			ExpectedReviews: []*pull.Review{
-				{Author: "rrandom"},
-				{Author: "sperson"},
-			},
+			ExpectedReviewAuthors: []string{"rrandom", "sperson"},
 		},
 	}
 
@@ -345,12 +314,14 @@ func TestReviews(t *testing.T) {
 			options: test.Options,
 		}
 
+		sort.Strings(test.ExpectedReviewAuthors)
+
 		reviews, err := context.Reviews()
 		if test.ExpectedError {
 			assert.Error(t, err, message)
 		} else {
-			assert.NoError(t, err, test, message)
-			assert.Equal(t, getReviewAuthors(test.ExpectedReviews), getReviewAuthors(reviews), message)
+			require.NoError(t, err, message)
+			assert.Equal(t, test.ExpectedReviewAuthors, getReviewAuthors(reviews), message)
 		}
 	}
 }
@@ -361,6 +332,7 @@ func getReviewAuthors(reviews []*pull.Review) []string {
 		authors = append(authors, c.Author)
 	}
 
+	sort.Strings(authors)
 	return authors
 }
 

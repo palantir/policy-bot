@@ -21,6 +21,7 @@ import (
 
 	"github.com/palantir/policy-bot/pull"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestOptionsFromRequest(t *testing.T) {
@@ -51,7 +52,7 @@ func TestOptionsFromRequest(t *testing.T) {
 	assert.NoError(t, err)
 
 	opt, err := NewOptionsFromRequest(req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	assert.Equal(t, []string{"iignore"}, opt.IgnoreComments.Users)
 	assert.Equal(t, []string{"iignore"}, opt.IgnoreReviews.Users)
