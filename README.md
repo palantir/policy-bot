@@ -26,6 +26,7 @@ UI to view the detailed approval status of any pull request.
   - [Approval Policies](#approval-policies)
   - [Disapproval Policy](#disapproval-policy)
   - [Testing and Debugging Policies](#testing-and-debugging-policies)
+    - [Simulation API](#simulation-api)
   - [Caveats and Notes](#caveats-and-notes)
     - [Disapproval is Disabled by Default](#disapproval-is-disabled-by-default)
     - [Interactions with GitHub Reviews](#interactions-with-github-reviews)
