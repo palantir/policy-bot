@@ -214,9 +214,14 @@ func New(c *Config) (*Server, error) {
 	// webhook route
 	mux.Handle(pat.Post(githubapp.DefaultWebhookRoute), dispatcher)
 
+	simulateHandler := &handler.Simulate{
+		Base: basePolicyHandler,
+	}
+
 	// additional API routes
 	mux.Handle(pat.Get("/api/health"), handler.Health())
 	mux.Handle(pat.Put("/api/validate"), handler.Validate())
+	mux.Handle(pat.Post("/api/simulate/:owner/:repo/:number"), hatpear.Try(simulateHandler))
 	mux.Handle(pat.Get(oauth2.DefaultRoute), oauth2.NewHandler(
 		oauth2.GetConfig(c.Github, nil),
 		oauth2.ForceTLS(forceTLS),

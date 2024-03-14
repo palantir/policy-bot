@@ -26,6 +26,7 @@ UI to view the detailed approval status of any pull request.
   - [Approval Policies](#approval-policies)
   - [Disapproval Policy](#disapproval-policy)
   - [Testing and Debugging Policies](#testing-and-debugging-policies)
+    - [Simulation API](#simulation-api)
   - [Caveats and Notes](#caveats-and-notes)
     - [Disapproval is Disabled by Default](#disapproval-is-disabled-by-default)
     - [Interactions with GitHub Reviews](#interactions-with-github-reviews)
@@ -548,6 +549,84 @@ You can examine the HTTP response code to automatically detect failures
 $ rcode=$(curl https://policybot.domain/api/validate -XPUT -T path/to/policy.yml -s -w "%{http_code}" -o /tmp/response)
 $ if [[ "${rcode}" -gt 299 ]]; then cat /tmp/response && exit 1; fi
 ```
+
+#### Simulation API
+
+It can be useful to simulate how Policy Bot would evaluate a pull request if certain conditions were changed. For example: adding a review from a specific user or group, or adjusting the base branch.
+
+An API endpoint exists at `api/simulate/:org/:repo/:prNumber` to simiulate the result of a pull request. Simulations using this endpoint will NOT write the result back to the pull request status check and will instead return the result.
+
+This API requires a GitHub token be passed as a bearer token. The token must have the ability to read the pull request the simulation is being run against.
+
+The API can be used as such:
+
+```sh
+$ curl https://policybot.domain/api/simulate/:org/:repo/:number -H 'authorization: Bearer <token>' -H 'content-type: application/json' -X POST -d '<data>'
+```
+
+Currently the data payload can be configured with a few options:
+
+Ignore any comments from specific users, team members, org members or with specific permissions
+```json
+{
+  "ignore_comments":{
+    "users":["ignored-user"],
+    "teams":["ignored-team"],
+    "organizations":["ignored-org"],
+    "permissions":["admin"]
+  }
+}
+```
+
+Ignore any reviews from specific users, team members, org members or with specific permissions
+```json
+{
+  "ignore_reviews":{
+    "users":["ignored-user"],
+    "teams":["ignored-team"],
+    "organizations":["ignored-org"],
+    "permissions":["admin"]
+  }
+}
+```
+
+Simulate the pull request as if the following comments from the following users had also been added
+```json
+{
+  "add_comments":[
+    {
+      "author":"not-ignored-user",
+      "body":":+1:",
+      "created_at": "2020-11-30T14:20:28.000+07:00",
+      "last_edited_at": "2020-11-30T14:20:28.000+07:00"
+    }
+  ]
+}
+```
+
+Simulate the pull request as if the following reviews from the following users had also been added
+```json
+{
+  "add_reviews":[
+    {
+      "author":"not-ignored-user",
+      "state": "approved",
+      "body": "test approved review",
+      "created_at": "2020-11-30T14:20:28.000+07:00",
+      "last_edited_at": "2020-11-30T14:20:28.000+07:00"
+    }
+  ]
+}
+```
+
+Choose a different base branch when simulating the pull request evaluation
+```json
+{
+  "base_branch": "test-branch"
+}
+```
+
+The above can be combined to form more complex simulations. If a Simulation is run without any data being passed, the pull request is evaluated as is.
 
 ### Caveats and Notes
 

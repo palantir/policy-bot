@@ -26,17 +26,17 @@ import (
 // team and organization memberships. The set of allowed actors is the union of
 // all conditions in this structure.
 type Actors struct {
-	Users         []string `yaml:"users"`
-	Teams         []string `yaml:"teams"`
-	Organizations []string `yaml:"organizations"`
+	Users         []string `yaml:"users" json:"users"`
+	Teams         []string `yaml:"teams" json:"teams"`
+	Organizations []string `yaml:"organizations" json:"organizations"`
 
 	// Deprecated: use Permissions with "admin" or "write"
-	Admins             bool `yaml:"admins"`
-	WriteCollaborators bool `yaml:"write_collaborators"`
+	Admins             bool `yaml:"admins" json:"-"`
+	WriteCollaborators bool `yaml:"write_collaborators" json:"-"`
 
 	// A list of GitHub collaborator permissions that are allowed. Values may
 	// be any of "admin", "maintain", "write", "triage", and "read".
-	Permissions []pull.Permission
+	Permissions []pull.Permission `yaml:"permissions" json:"permissions"`
 }
 
 // IsEmpty returns true if no conditions for actors are defined.
