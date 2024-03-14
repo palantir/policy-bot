@@ -31,12 +31,12 @@ type Actors struct {
 	Organizations []string `yaml:"organizations" json:"organizations"`
 
 	// Deprecated: use Permissions with "admin" or "write"
-	Admins             bool `yaml:"admins"`
-	WriteCollaborators bool `yaml:"write_collaborators"`
+	Admins             bool `yaml:"admins" json:"-"`
+	WriteCollaborators bool `yaml:"write_collaborators" json:"-"`
 
 	// A list of GitHub collaborator permissions that are allowed. Values may
 	// be any of "admin", "maintain", "write", "triage", and "read".
-	Permissions []pull.Permission `json:"permissions"`
+	Permissions []pull.Permission `yaml:"permissions" json:"permissions"`
 }
 
 // IsEmpty returns true if no conditions for actors are defined.
