@@ -565,42 +565,67 @@ $ curl https://policybot.domain/api/simulate/:org/:repo/:number -H 'authorizatio
 
 Currently the data payload can be configured with a few options:
 
+Ignore any comments from specific users, team members, org members or with specific permissions
 ```json
 {
-  // ignore any comments from specific users, team members, org members or with specific permissions
   "ignore_comments":{
     "users":["ignored-user"],
     "teams":["ignored-team"],
     "organizations":["ignored-org"],
     "permissions":["admin"]
-  },
-  // ignore any reviews from specific users, team members, org members or with specific permissions
+  }
+}
+```
+
+Ignore any reviews from specific users, team members, org members or with specific permissions
+```json
+{
   "ignore_reviews":{
     "users":["ignored-user"],
     "teams":["ignored-team"],
     "organizations":["ignored-org"],
     "permissions":["admin"]
-  },
-  // simulate the pull request as if the following comments from the following users had also been added
+  }
+}
+```
+
+Simulate the pull request as if the following comments from the following users had also been added
+```json
+{
   "add_comments":[
     {
       "author":"not-ignored-user",
-      "body":":+1:"
+      "body":":+1:",
+      "created_at": "2020-11-30T14:20:28.000+07:00",
+      "last_edited_at": "2020-11-30T14:20:28.000+07:00"
     }
-  ],
-  // simulate the pull request as if the following reviews from the following users had also been added
+  ]
+}
+```
+
+Simulate the pull request as if the following reviews from the following users had also been added
+```json
+{
   "add_reviews":[
     {
       "author":"not-ignored-user",
-      "state": "approved"
+      "state": "approved",
+      "body": "test approved review",
+      "created_at": "2020-11-30T14:20:28.000+07:00",
+      "last_edited_at": "2020-11-30T14:20:28.000+07:00"
     }
-  ],
-  // choose a different base branch when simulating the pull request evaluation
+  ]
+}
+```
+
+Choose a different base branch when simulating the pull request evaluation
+```json
+{
   "base_branch": "test-branch"
 }
 ```
 
-If a Simulation is run without any data being passed, the pull request is evaluated as is.
+The above can be combined to form more complex simulations. If a Simulation is run without any data being passed, the pull request is evaluated as is.
 
 ### Caveats and Notes
 
