@@ -63,17 +63,17 @@ func TestOptionsFromRequest(t *testing.T) {
 	assert.Equal(t, "iignore", opt.AddReviews[0].Author)
 	assert.Equal(t, ":+1:", opt.AddReviews[0].Body)
 
-	assert.Equal(t, pull.ReviewApproved, opt.AddReviews[0].State)
+	assert.Equal(t, "approved", opt.AddReviews[0].State)
 	assert.Equal(t, "test-base", opt.BaseBranch)
 }
 
 func TestOptionDefaults(t *testing.T) {
 	options := Options{
-		AddComments: []pull.Comment{
+		AddComments: []Comment{
 			{Author: "aperson", Body: ":+1:"},
 			{Author: "otherperson", Body: ":+1:"},
 		},
-		AddReviews: []pull.Review{
+		AddReviews: []Review{
 			{Author: "aperson", Body: ":+1:"},
 			{Author: "otherperson", Body: ":+1:"},
 		},

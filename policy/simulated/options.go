@@ -29,8 +29,8 @@ import (
 type Options struct {
 	IgnoreComments *common.Actors `json:"ignore_comments"`
 	IgnoreReviews  *common.Actors `json:"ignore_reviews"`
-	AddComments    []pull.Comment `json:"add_comments"`
-	AddReviews     []pull.Review  `json:"add_reviews"`
+	AddComments    []Comment      `json:"add_comments"`
+	AddReviews     []Review       `json:"add_reviews"`
 	BaseBranch     string         `json:"base_branch"`
 }
 
@@ -51,30 +51,83 @@ func NewOptionsFromRequest(r *http.Request) (Options, error) {
 // setDefaults sets any values for the options that were not intentionally set in the request body but which should have
 // consistent values for the length of the simulation, such as the created time for a comment or review.
 func (o *Options) setDefaults() {
-	now := time.Now()
 	for i, review := range o.AddReviews {
-		if review.CreatedAt.IsZero() {
-			review.CreatedAt = now
-		}
+		id := fmt.Sprintf("simulated-reviewID-%d", i)
+		sha := fmt.Sprintf("simulated-reviewSHA-%d", i)
 
-		if review.LastEditedAt.IsZero() {
-			review.LastEditedAt = now
-		}
-
-		review.ID = fmt.Sprintf("simulated-reviewID-%d", i)
-		review.SHA = fmt.Sprintf("simulated-reviewSHA-%d", i)
+		review.setDefaults(id, sha)
 		o.AddReviews[i] = review
 	}
 
 	for i, comment := range o.AddComments {
-		if comment.CreatedAt.IsZero() {
-			comment.CreatedAt = now
-		}
-
-		if comment.LastEditedAt.IsZero() {
-			comment.LastEditedAt = now
-		}
-
+		comment.setDefaults()
 		o.AddComments[i] = comment
+	}
+}
+
+type Comment struct {
+	CreatedAt    *time.Time `json:"created_at"`
+	LastEditedAt *time.Time `json:"last_edited_at"`
+	Author       string     `json:"author"`
+	Body         string     `json:"body"`
+}
+
+// setDefaults sets the createdAt and lastEdtedAt values to time.Now() if they are otherwise unset
+func (c *Comment) setDefaults() {
+	now := time.Now()
+	if c.CreatedAt == nil {
+		c.CreatedAt = &now
+	}
+
+	if c.LastEditedAt == nil {
+		c.LastEditedAt = &now
+	}
+}
+
+func (c *Comment) toPullComment() *pull.Comment {
+	return &pull.Comment{
+		CreatedAt:    *c.CreatedAt,
+		LastEditedAt: *c.LastEditedAt,
+		Author:       c.Author,
+		Body:         c.Body,
+	}
+}
+
+type Review struct {
+	ID           string
+	SHA          string
+	CreatedAt    *time.Time `json:"created_at"`
+	LastEditedAt *time.Time `json:"last_edited_at"`
+	Author       string     `json:"author"`
+	Body         string     `json:"body"`
+	State        string     `json:"state"`
+	Teams        []string   `json:"teams"`
+}
+
+// setDefaults sets the createdAt and lastEdtedAt values to time.Now() if they are otherwise unset
+func (r *Review) setDefaults(id, sha string) {
+	now := time.Now()
+	if r.CreatedAt == nil {
+		r.CreatedAt = &now
+	}
+
+	if r.LastEditedAt == nil {
+		r.LastEditedAt = &now
+	}
+
+	r.ID = id
+	r.SHA = sha
+}
+
+func (r *Review) toPullReview() *pull.Review {
+	return &pull.Review{
+		ID:           r.ID,
+		SHA:          r.SHA,
+		CreatedAt:    *r.CreatedAt,
+		LastEditedAt: *r.LastEditedAt,
+		Author:       r.Author,
+		State:        pull.ReviewState(r.State),
+		Body:         r.Body,
+		Teams:        r.Teams,
 	}
 }

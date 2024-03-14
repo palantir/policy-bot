@@ -16,7 +16,6 @@ package simulated
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/palantir/policy-bot/pull"
 )
@@ -71,7 +70,7 @@ func (c *Context) filterIgnoredComments(prCtx pull.Context, comments []*pull.Com
 func (c *Context) addApprovalComment(comments []*pull.Comment) []*pull.Comment {
 	var commentsToAdd []*pull.Comment
 	for _, comment := range c.options.AddComments {
-		commentsToAdd = append(commentsToAdd, &comment)
+		commentsToAdd = append(commentsToAdd, comment.toPullComment())
 	}
 
 	return append(comments, commentsToAdd...)
@@ -116,10 +115,8 @@ func (c *Context) filterIgnoredReviews(prCtx pull.Context, reviews []*pull.Revie
 
 func (c *Context) addApprovalReview(reviews []*pull.Review) []*pull.Review {
 	var reviewsToAdd []*pull.Review
-	for i, review := range c.options.AddReviews {
-		review.ID = fmt.Sprintf("simulated-reviewID-%d", i)
-		review.SHA = fmt.Sprintf("simulated-reviewSHA-%d", i)
-		reviewsToAdd = append(reviewsToAdd, &review)
+	for _, review := range c.options.AddReviews {
+		reviewsToAdd = append(reviewsToAdd, review.toPullReview())
 	}
 
 	return append(reviews, reviewsToAdd...)

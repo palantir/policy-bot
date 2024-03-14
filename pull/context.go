@@ -191,10 +191,10 @@ type Signature struct {
 }
 
 type Comment struct {
-	CreatedAt    time.Time `json:"created_at"`
-	LastEditedAt time.Time `json:"last_edited_at"`
-	Author       string    `json:"author"`
-	Body         string    `json:"body"`
+	CreatedAt    time.Time
+	LastEditedAt time.Time
+	Author       string
+	Body         string
 }
 
 type ReviewState string
@@ -208,15 +208,15 @@ const (
 )
 
 type Review struct {
-	ID           string      `json:"id"`
-	CreatedAt    time.Time   `json:"created_at"`
-	LastEditedAt time.Time   `json:"last_edited_at"`
-	Author       string      `json:"author"`
-	State        ReviewState `json:"state"`
-	Body         string      `json:"body"`
-	SHA          string      `json:"sha"`
+	ID           string
+	CreatedAt    time.Time
+	LastEditedAt time.Time
+	Author       string
+	State        ReviewState
+	Body         string
+	SHA          string
 
-	Teams []string `json:"teams"`
+	Teams []string
 }
 
 type ReviewerType string

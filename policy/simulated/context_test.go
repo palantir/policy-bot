@@ -107,7 +107,7 @@ func TestComments(t *testing.T) {
 				{Author: "iignore"},
 			},
 			Options: Options{
-				AddComments: []pull.Comment{
+				AddComments: []Comment{
 					{Author: "sperson", Body: ":+1:"},
 				},
 			},
@@ -119,7 +119,7 @@ func TestComments(t *testing.T) {
 				{Author: "iignore"},
 			},
 			Options: Options{
-				AddComments: []pull.Comment{
+				AddComments: []Comment{
 					{Author: "sperson", Body: ":+1:"},
 				},
 				IgnoreComments: &common.Actors{
@@ -246,7 +246,7 @@ func TestReviews(t *testing.T) {
 				{Author: "iignore"},
 			},
 			Options: Options{
-				AddReviews: []pull.Review{
+				AddReviews: []Review{
 					{Author: "sperson", State: "approved"},
 				},
 			},
@@ -258,7 +258,7 @@ func TestReviews(t *testing.T) {
 				{Author: "iignore"},
 			},
 			Options: Options{
-				AddReviews: []pull.Review{
+				AddReviews: []Review{
 					{Author: "sperson", State: "approved"},
 				},
 				IgnoreReviews: &common.Actors{
