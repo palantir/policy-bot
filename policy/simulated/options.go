@@ -94,14 +94,14 @@ func (c *Comment) toPullComment() *pull.Comment {
 }
 
 type Review struct {
-	ID           string
-	SHA          string
+	ID           string     `json:"-"`
+	SHA          string     `json:"-"`
 	CreatedAt    *time.Time `json:"created_at"`
 	LastEditedAt *time.Time `json:"last_edited_at"`
 	Author       string     `json:"author"`
 	Body         string     `json:"body"`
 	State        string     `json:"state"`
-	Teams        []string   `json:"teams"`
+	Teams        []string   `json:"-"`
 }
 
 // setDefaults sets the createdAt and lastEdtedAt values to time.Now() if they are otherwise unset
