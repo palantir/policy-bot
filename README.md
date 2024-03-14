@@ -549,6 +549,59 @@ $ rcode=$(curl https://policybot.domain/api/validate -XPUT -T path/to/policy.yml
 $ if [[ "${rcode}" -gt 299 ]]; then cat /tmp/response && exit 1; fi
 ```
 
+#### Simulation API
+
+It can be useful to simulate how Policy Bot would evaluate a pull request if certain conditions were changed. For example: adding a review from a specific user or group, or adjusting the base branch.
+
+An API endpoint exists at `api/simulate/:org/:repo/:prNumber` to simiulate the result of a pull request. Simulations using this endpoint will NOT write the result back to the pull request status check and will instead return the result.
+
+This API requires a GitHub token be passed as a bearer token. The token must have the ability to read the pull request the simulation is being run against.
+
+The API can be used as such:
+
+```sh
+$ curl https://policybot.domain/api/simulate/:org/:repo/:number -H 'authorization: Bearer <token>' -H 'content-type: application/json' -X POST -d '<data>'
+```
+
+Currently the data payload can be configured with a few options:
+
+```json
+{
+  // ignore any comments from specific users, team members, org members or with specific permissions
+  "ignore_comments":{
+    "users":["ignored-user"],
+    "teams":["ignored-team"],
+    "organizations":["ignored-org"],
+    "permissions":["admin"]
+  },
+  // ignore any reviews from specific users, team members, org members or with specific permissions
+  "ignore_reviews":{
+    "users":["ignored-user"],
+    "teams":["ignored-team"],
+    "organizations":["ignored-org"],
+    "permissions":["admin"]
+  },
+  // simulate the pull request as if the following comments from the following users had also been added
+  "add_comments":[
+    {
+      "author":"not-ignored-user",
+      "body":":+1:"
+    }
+  ],
+  // simulate the pull request as if the following reviews from the following users had also been added
+  "add_reviews":[
+    {
+      "author":"not-ignored-user",
+      "state": "approved"
+    }
+  ],
+  // choose a different base branch when simulating the pull request evaluation
+  "base_branch": "test-branch"
+}
+```
+
+If a Simulation is run without any data being passed, the pull request is evaluated as is.
+
 ### Caveats and Notes
 
 There are several additional behaviors that follow from the rules above that
