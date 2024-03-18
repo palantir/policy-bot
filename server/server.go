@@ -224,11 +224,13 @@ func New(c *Config) (*Server, error) {
 	mux.Handle(pat.Post("/api/simulate/:owner/:repo/:number"), hatpear.Try(simulateHandler))
 	mux.Handle(pat.Get(oauth2.DefaultRoute), oauth2.NewHandler(
 		oauth2.GetConfig(c.Github, nil),
-		oauth2.ForceTLS(forceTLS),
 		oauth2.WithStore(&oauth2.SessionStateStore{
 			Sessions: sessions,
 		}),
 		oauth2.OnLogin(handler.Login(c.Github, basePath, sessions)),
+		oauth2.WithRedirectURL(publicURL.ResolveReference(&url.URL{
+			Path: oauth2.DefaultRoute,
+		}).String()),
 	))
 
 	// additional client routes
