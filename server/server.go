@@ -218,29 +218,19 @@ func New(c *Config) (*Server, error) {
 		Base: basePolicyHandler,
 	}
 
-	oauth2Params := []oauth2.Param{
-		oauth2.ForceTLS(forceTLS),
-		oauth2.WithStore(&oauth2.SessionStateStore{
-			Sessions: sessions,
-		}),
-		oauth2.OnLogin(handler.Login(c.Github, basePath, sessions)),
-	}
-	if c.Server.PublicURL != "" {
-		u, err := url.Parse(c.Server.PublicURL)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse public_url")
-		}
-		u.Path = oauth2.DefaultRoute
-		oauth2Params = append(oauth2Params, oauth2.WithRedirectURL(u.String()))
-	}
-
 	// additional API routes
 	mux.Handle(pat.Get("/api/health"), handler.Health())
 	mux.Handle(pat.Put("/api/validate"), handler.Validate())
 	mux.Handle(pat.Post("/api/simulate/:owner/:repo/:number"), hatpear.Try(simulateHandler))
 	mux.Handle(pat.Get(oauth2.DefaultRoute), oauth2.NewHandler(
 		oauth2.GetConfig(c.Github, nil),
-		oauth2Params...,
+		oauth2.WithStore(&oauth2.SessionStateStore{
+			Sessions: sessions,
+		}),
+		oauth2.OnLogin(handler.Login(c.Github, basePath, sessions)),
+		oauth2.WithRedirectURL(publicURL.ResolveReference(&url.URL{
+			Path: oauth2.DefaultRoute,
+		}).String()),
 	))
 
 	// additional client routes
