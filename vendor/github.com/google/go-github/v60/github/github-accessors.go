@@ -7894,6 +7894,14 @@ func (h *Hook) GetActive() bool {
 	return *h.Active
 }
 
+// GetConfig returns the Config field.
+func (h *Hook) GetConfig() *HookConfig {
+	if h == nil {
+		return nil
+	}
+	return h.Config
+}
+
 // GetCreatedAt returns the CreatedAt field if it's non-nil, zero value otherwise.
 func (h *Hook) GetCreatedAt() Timestamp {
 	if h == nil || h.CreatedAt == nil {
@@ -20244,6 +20252,22 @@ func (r *RequiredStatusCheck) GetAppID() int64 {
 		return 0
 	}
 	return *r.AppID
+}
+
+// GetChecks returns the Checks field if it's non-nil, zero value otherwise.
+func (r *RequiredStatusChecks) GetChecks() []*RequiredStatusCheck {
+	if r == nil || r.Checks == nil {
+		return nil
+	}
+	return *r.Checks
+}
+
+// GetContexts returns the Contexts field if it's non-nil, zero value otherwise.
+func (r *RequiredStatusChecks) GetContexts() []string {
+	if r == nil || r.Contexts == nil {
+		return nil
+	}
+	return *r.Contexts
 }
 
 // GetContextsURL returns the ContextsURL field if it's non-nil, zero value otherwise.
