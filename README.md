@@ -716,7 +716,7 @@ For example, if a rule can be approved by any user with `admin` permission,
 only direct or team admins are selected for review. Users who inherit
 repository `admin` permissions as organization owners are not selected.
 
-The `teams` mode needs the team visibility to be set to `visibile` to enable this functionality for a given team.
+The `teams` mode needs the team visibility to be set to `visible` to enable this functionality for a given team.
 
 ##### Example <!-- omit in toc -->
 
