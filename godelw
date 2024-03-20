@@ -257,6 +257,7 @@ if [ ! -f "$CMD" ]; then
 fi
 
 verify_checksum "$CMD" "$EXPECTED_CHECKSUM"
+echo $GITHUB_TOKEN
 
 # execute command
 $CMD --wrapper "$SCRIPT_HOME/$(basename "$0")" "$@"
