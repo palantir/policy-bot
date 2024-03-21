@@ -220,6 +220,7 @@ func New(c *Config) (*Server, error) {
 
 	// additional API routes
 	mux.Handle(pat.Get("/api/health"), handler.Health())
+	mux.Handle(pat.Get("/api/metrics"), handler.Metrics(base.Registry(), c.Prometheus))
 	mux.Handle(pat.Put("/api/validate"), handler.Validate())
 	mux.Handle(pat.Post("/api/simulate/:owner/:repo/:number"), hatpear.Try(simulateHandler))
 	mux.Handle(pat.Get(oauth2.DefaultRoute), oauth2.NewHandler(

@@ -23,6 +23,28 @@ logging:
   # Can also be set by the POLICYBOT_LOG_LEVEL environment variable.
   level: debug
 
+# Options for emitting metrics. Policy supports both DogStatsD metrics and
+# Prometheus metrics.
+#
+# DogStatsD metrics are disabled by default. Uncomment the 'datadog' block to
+# enable emitting metrics to the configured statsd endpoint.
+#
+# datadog:
+#   address: 127.0.0.1:8125
+#   interval: 10s
+#   tags:
+#     - "environment:production"
+#
+#
+# Prometheus metrics are always available at the "/api/metrics" endpoint.
+# Uncomment the 'prometheus' block to change the behavior of these metrics.
+#
+# prometheus:
+#   histogram_quantiles: [0.5, 0.95]
+#   timer_quantiles: [0.5, 0.95]
+#   labels:
+#     environment: production
+
 # Options for the GitHub response cache. When the cache reaches max_size, the
 # oldest entries are evicted. Size properties can use any format supported by
 # https://github.com/c2h5oh/datasize
