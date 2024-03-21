@@ -20,8 +20,9 @@ import (
 	"time"
 
 	"github.com/c2h5oh/datasize"
+	"github.com/palantir/go-baseapp/appmetrics/emitter/datadog"
+	"github.com/palantir/go-baseapp/appmetrics/emitter/prometheus"
 	"github.com/palantir/go-baseapp/baseapp"
-	"github.com/palantir/go-baseapp/baseapp/datadog"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/policy-bot/server/handler"
 	"github.com/pkg/errors"
@@ -33,15 +34,16 @@ const (
 )
 
 type Config struct {
-	Server   baseapp.HTTPConfig            `yaml:"server"`
-	Logging  LoggingConfig                 `yaml:"logging"`
-	Cache    CachingConfig                 `yaml:"cache"`
-	Github   githubapp.Config              `yaml:"github"`
-	Sessions SessionsConfig                `yaml:"sessions"`
-	Options  handler.PullEvaluationOptions `yaml:"options"`
-	Files    handler.FilesConfig           `yaml:"files"`
-	Datadog  datadog.Config                `yaml:"datadog"`
-	Workers  WorkerConfig                  `yaml:"workers"`
+	Server     baseapp.HTTPConfig            `yaml:"server"`
+	Logging    LoggingConfig                 `yaml:"logging"`
+	Cache      CachingConfig                 `yaml:"cache"`
+	Github     githubapp.Config              `yaml:"github"`
+	Sessions   SessionsConfig                `yaml:"sessions"`
+	Options    handler.PullEvaluationOptions `yaml:"options"`
+	Files      handler.FilesConfig           `yaml:"files"`
+	Datadog    datadog.Config                `yaml:"datadog"`
+	Prometheus prometheus.Config             `yaml:"prometheus"`
+	Workers    WorkerConfig                  `yaml:"workers"`
 }
 
 type LoggingConfig struct {
