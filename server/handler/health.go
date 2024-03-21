@@ -28,6 +28,7 @@ type HealthCheck struct {
 
 func Health() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		baseapp.IgnoreAll(r)
 		baseapp.WriteJSON(w, http.StatusOK, &HealthCheck{Status: "ok", Version: version.GetVersion()})
 	})
 }
