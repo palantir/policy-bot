@@ -66,8 +66,8 @@ github.com/matttproud/golang_protobuf_extensions v1.0.4 h1:mmDVorXM7PCGKw94cs5zk
 github.com/matttproud/golang_protobuf_extensions v1.0.4/go.mod h1:BSXmuO+STAnVfrANrmjBb36TMTDstsz7MSK+HVaYKv4=
 github.com/palantir/go-baseapp v0.5.2 h1:b1ukx7AXo2/E4NkUvTFlW+185uwCcifzd2XzLrG4oS8=
 github.com/palantir/go-baseapp v0.5.2/go.mod h1:uijQMPfmgV69oiMu2jkskum/4HiYuEP/gzrnphD+/Co=
-github.com/palantir/go-githubapp v0.24.0 h1:Ozw1N871kwVglu9LyBcBClBi9lr3EKexQjBqngexZ6U=
-github.com/palantir/go-githubapp v0.24.0/go.mod h1:V036bkbb+x9KG+3Gq7lV7RsCD6FlFOIMzV1UzKDgQTk=
+github.com/palantir/go-githubapp v0.24.1 h1:LiqaDq587M0Sq0EqwSsme/HTkQTh4wcTd2pgWiBMBf8=
+github.com/palantir/go-githubapp v0.24.1/go.mod h1:x3vs+HLKMnRj3/Ut4vq8Q8idHqPforP2OsZrdGiCltM=
 github.com/patrickmn/go-cache v2.1.0+incompatible h1:HRMgzkcYKYpi3C8ajMPV8OFXaaRUnok+kx1WdO15EQc=
 github.com/patrickmn/go-cache v2.1.0+incompatible/go.mod h1:3Qf8kWWT7OJRJbdiICTKqZju1ZixQ/KpMGzzAfe6+WQ=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
