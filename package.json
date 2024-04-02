@@ -9,7 +9,7 @@
     "build:production": "NODE_ENV=production webpack build"
   },
   "devDependencies": {
-    "@fullhuman/postcss-purgecss": "^5.0",
+    "@fullhuman/postcss-purgecss": "^6.0",
     "autoprefixer": "^10.4.19",
     "css-loader": "^6.10.0",
     "cssnano": "^6.0",
