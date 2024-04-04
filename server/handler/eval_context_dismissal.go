@@ -69,7 +69,7 @@ func findAllDismissals(result *common.Result) []*common.Dismissal {
 func findAllApprovers(result *common.Result) map[string]bool {
 	approvers := make(map[string]bool)
 
-	if len(result.Children) == 0 && result.Error == nil {
+	if len(result.Children) == 0 && result.Error == nil && result.Approvers != nil {
 		for _, a := range result.Approvers.Actors {
 			approvers[a.User] = true
 		}
