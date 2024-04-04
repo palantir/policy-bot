@@ -68,7 +68,7 @@
 <li class="node" data-status="{{$s}}" {{if not (eq $s $nextStatus)}}data-next-status="{{$nextStatus}}"{{end}}>
   <div class="bg-white p-2 shadow-sm max-w-lg status-stripe {{$s}}">
     {{template "result-details" .}}
-    {{if (or (.PredicateResults) (hasActors .Requires) (hasActorsPermissions .Requires))}}
+    {{if (or (.PredicateResults) (hasActors .Requires) (hasActorsPermissions .Requires) (gt (len .Requires.Statuses) 0))}}
     <details
       class="bg-light-gray5 p-2 mt-2 text-sm"
       {{if $showReviewers}}
