@@ -420,15 +420,14 @@ requires:
   # requests for details.
   permissions: ["write"]
 
-  # Deprecated: use 'permissions: ["admin"]'
+  # "statuses" is a list of status checks that must be successful for the rule
+  # to count as approved. If set, statuses are an additional requirement beyond
+  # the approvals required by "count".
   #
-  # Allows approval by admins of the org or repository
-  # admins: true
-
-  # Deprecated: use 'permissions: ["write"]'
-  #
-  # Allows approval by users who have write on the repository
-  # write_collaborators: true
+  # For example, if "count" is 1 and "statuses" contains the "build" and "test"
+  # status checks, the rule is only approved once both the "build" and "test"
+  # status checks pass and one authorized reviewer leaves a review.
+  statuses: ["build"]
 ```
 
 ### Approval Policies

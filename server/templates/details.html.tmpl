@@ -85,7 +85,14 @@
           </div>
         {{end}}
         {{if ne $s "skipped"}}{{/* only show approval details for active rules */}}
-          {{if gt .Requires.Count 0 }}{{/* only show approval details if they're required */}}
+          {{- $hasStatuses := gt (len .Requires.Statuses) 0 -}}
+          {{- $hasActors := gt .Requires.Count 0 -}}
+          {{if $hasStatuses }}
+            <div class="pt-2">
+            {{template "result-statuses-details" .}}
+            </div>
+          {{end}}
+          {{if $hasActors }}
             <div class="pt-2">
             {{template "result-approver-details" .}}
             </div>
@@ -99,7 +106,8 @@
               <div class="reviewers">{{template "spinner"}}</div>
             </div>
             {{end}}
-          {{else}}
+          {{end}}
+          {{if and (not $hasActors) (not $hasStatuses)}}
             <div class="pt-2">
               <b class="font-bold text-sm">This rule is automatically approved and requires no reviews</b>
             </div>
@@ -212,6 +220,11 @@
 {{end}}
 
 {{define "result-reviews-count"}}This rule requires at least {{.Count}} approval{{if gt .Count 1}}s{{end}}{{end}}
+
+{{define "result-statuses-details"}}
+  <b class="font-bold text-sm">This rule requires the passing status checks:</b>
+  <ul class="list-disc list-outside pl-6 py-2">{{range .Requires.Statuses}}<li class="font-mono text-sm-mono">{{.}}</li>{{end}}</ul>
+{{end}}
 
 {{define "spinner"}}
 <div class="spinner w-6 my-2" aria-label="Loading..." aria-valuemax="100" aria-valuemin="0" aria-valuenow="0" role="progressbar">

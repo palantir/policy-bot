@@ -137,6 +137,11 @@ func TestIsApproved(t *testing.T) {
 				"comment-approver":      {"everyone", "cool-org"},
 				"review-approver":       {"everyone", "even-cooler-org"},
 			},
+			LatestStatusesValue: map[string]string{
+				"build":  "success",
+				"deploy": "pending",
+				"scan":   "success",
+			},
 		}
 	}
 
@@ -664,6 +669,81 @@ func TestIsApproved(t *testing.T) {
 
 		assertPending(t, prctx, r, "0/1 required approvals. Ignored 5 approvals from disqualified users")
 	})
+
+	t.Run("statusRequiredMissing", func(t *testing.T) {
+		prctx := basePullContext()
+		r := &Rule{
+			Requires: common.Requires{
+				Statuses: []string{"changelog"},
+			},
+		}
+		assertPending(t, prctx, r, "0/1 successful statuses")
+	})
+
+	t.Run("statusRequiredPending", func(t *testing.T) {
+		prctx := basePullContext()
+		r := &Rule{
+			Requires: common.Requires{
+				Statuses: []string{"deploy"},
+			},
+		}
+		assertPending(t, prctx, r, "0/1 successful statuses")
+	})
+
+	t.Run("statusRequiredSuccess", func(t *testing.T) {
+		prctx := basePullContext()
+		r := &Rule{
+			Requires: common.Requires{
+				Statuses: []string{"build"},
+			},
+		}
+		assertApproved(t, prctx, r, "Approved by successful statuses")
+	})
+
+	t.Run("statusRequiredMixed", func(t *testing.T) {
+		prctx := basePullContext()
+		r := &Rule{
+			Requires: common.Requires{
+				Statuses: []string{"build", "deploy"},
+			},
+		}
+		assertPending(t, prctx, r, "1/2 successful statuses")
+	})
+
+	t.Run("statusRequiredMultipleSuccess", func(t *testing.T) {
+		prctx := basePullContext()
+		r := &Rule{
+			Requires: common.Requires{
+				Statuses: []string{"build", "scan"},
+			},
+		}
+		assertApproved(t, prctx, r, "Approved by successful statuses")
+	})
+
+	t.Run("statusAndSingleApprovalRequired", func(t *testing.T) {
+		prctx := basePullContext()
+		r := &Rule{
+			Requires: common.Requires{
+				Count:    1,
+				Statuses: []string{"build"},
+			},
+		}
+		assertPending(t, prctx, r, "0/1 required approvals and 1/1 successful statuses. Ignored 7 approvals from disqualified users")
+	})
+
+	t.Run("statusAndApprovalFromOrg", func(t *testing.T) {
+		prctx := basePullContext()
+		r := &Rule{
+			Requires: common.Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Organizations: []string{"everyone"},
+				},
+				Statuses: []string{"build"},
+			},
+		}
+		assertApproved(t, prctx, r, "Approved by comment-approver, review-approver and successful statuses")
+	})
 }
 
 func TestTrigger(t *testing.T) {
@@ -760,6 +840,16 @@ func TestTrigger(t *testing.T) {
 		}
 
 		assert.True(t, r.Trigger().Matches(common.TriggerPullRequest), "expected %s to match %s", r.Trigger(), common.TriggerPullRequest)
+	})
+
+	t.Run("triggerStatusesForStatuses", func(t *testing.T) {
+		r := &Rule{
+			Requires: common.Requires{
+				Statuses: []string{"build"},
+			},
+		}
+
+		assert.True(t, r.Trigger().Matches(common.TriggerStatus), "expected %s to match %s", r.Trigger(), common.TriggerStatus)
 	})
 }
 

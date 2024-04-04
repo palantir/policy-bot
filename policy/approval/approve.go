@@ -92,6 +92,9 @@ func (r *Rule) Trigger() common.Trigger {
 			t |= common.TriggerReview
 		}
 	}
+	if len(r.Requires.Statuses) > 0 {
+		t |= common.TriggerStatus
+	}
 
 	for _, p := range r.Predicates.Predicates() {
 		t |= p.Trigger()
@@ -185,7 +188,25 @@ func (r *Rule) getReviewRequestRule() *common.ReviewRequestRule {
 	}
 }
 
-func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) (bool, []*common.Candidate, error) {
+func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) (bool, *common.Approvers, error) {
+	approvedByActors, actors, err := r.isApprovedByActors(ctx, prctx, candidates)
+	if err != nil {
+		return false, nil, err
+	}
+
+	approvedByStatus, statuses, err := r.isApprovedByStatus(ctx, prctx)
+	if err != nil {
+		return false, nil, err
+	}
+
+	approvers := &common.Approvers{
+		Actors:   actors,
+		Statuses: statuses,
+	}
+	return approvedByActors && approvedByStatus, approvers, nil
+}
+
+func (r *Rule) isApprovedByActors(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) (bool, []*common.Candidate, error) {
 	log := zerolog.Ctx(ctx)
 
 	if r.Requires.Count <= 0 {
@@ -246,10 +267,33 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context, candidates []
 	return len(approvers) >= r.Requires.Count, approvers, nil
 }
 
+func (r *Rule) isApprovedByStatus(ctx context.Context, prctx pull.Context) (bool, []string, error) {
+	log := zerolog.Ctx(ctx)
+
+	if len(r.Requires.Statuses) == 0 {
+		log.Debug().Msg("rule requires no statuses")
+		return true, nil, nil
+	}
+
+	statuses, err := prctx.LatestStatuses()
+	if err != nil {
+		return false, nil, errors.Wrap(err, "failed to get statuses")
+	}
+
+	var successes []string
+	for _, s := range r.Requires.Statuses {
+		if statuses[s] == "success" {
+			successes = append(successes, s)
+		}
+	}
+
+	log.Debug().Msgf("found %d/%d required statuses", len(successes), len(r.Requires.Statuses))
+	return len(successes) == len(r.Requires.Statuses), successes, nil
+}
+
 // FilteredCandidates returns the potential approval candidates and any
 // candidates that should be dimissed due to rule options.
 func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*common.Candidate, []*common.Dismissal, error) {
-
 	candidates, err := r.Options.GetMethods().Candidates(ctx, prctx)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to get approval candidates")
@@ -382,24 +426,49 @@ func (r *Rule) filteredCommits(ctx context.Context, prctx pull.Context) ([]*pull
 	return filtered, nil
 }
 
-func (r *Rule) statusDescription(approved bool, approvers, candidates []*common.Candidate) string {
+func (r *Rule) statusDescription(approved bool, approvers *common.Approvers, candidates []*common.Candidate) string {
+	hasActors := r.Requires.Count > 0
+	hasStatuses := len(r.Requires.Statuses) > 0
+
 	if approved {
-		if len(approvers) == 0 {
+		if !hasActors && !hasStatuses {
 			return "No approval required"
 		}
 
-		var names []string
-		for _, c := range approvers {
-			names = append(names, c.User)
+		var desc strings.Builder
+		desc.WriteString("Approved by ")
+
+		for i, c := range approvers.Actors {
+			if i > 0 {
+				desc.WriteString(", ")
+			}
+			desc.WriteString(c.User)
 		}
-		return fmt.Sprintf("Approved by %s", strings.Join(names, ", "))
+
+		if hasStatuses {
+			if hasActors {
+				desc.WriteString(" and ")
+			}
+			desc.WriteString("successful statuses")
+		}
+
+		return desc.String()
 	}
 
-	desc := fmt.Sprintf("%d/%d required approvals", len(approvers), r.Requires.Count)
-	if disqualified := len(candidates) - len(approvers); disqualified > 0 {
-		desc += fmt.Sprintf(". Ignored %s from disqualified users", numberOfApprovals(disqualified))
+	var desc strings.Builder
+	if hasActors {
+		fmt.Fprintf(&desc, "%d/%d required approvals", len(approvers.Actors), r.Requires.Count)
 	}
-	return desc
+	if hasStatuses {
+		if hasActors {
+			desc.WriteString(" and ")
+		}
+		fmt.Fprintf(&desc, "%d/%d successful statuses", len(approvers.Statuses), len(r.Requires.Statuses))
+	}
+	if disqualified := len(candidates) - len(approvers.Actors); hasActors && disqualified > 0 {
+		fmt.Fprintf(&desc, ". Ignored %s from disqualified users", numberOfApprovals(disqualified))
+	}
+	return desc.String()
 }
 
 func isUpdateMerge(commits []*pull.Commit, c *pull.Commit) bool {

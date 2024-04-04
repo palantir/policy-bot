@@ -60,9 +60,12 @@ type ReviewRequestRule struct {
 	Mode RequestMode
 }
 
+// Requires contains the union of requirements for approval and disapproval
+// rules. Some fields may only be used by one rule type.
 type Requires struct {
-	Count  int    `yaml:"count"`
-	Actors Actors `yaml:",inline"`
+	Count    int      `yaml:"count"`
+	Actors   Actors   `yaml:",inline"`
+	Statuses []string `yaml:"statuses"`
 }
 
 type Result struct {
@@ -76,7 +79,7 @@ type Result struct {
 	Methods           *Methods
 
 	// Approvers contains the candidates that satisfied the rule.
-	Approvers []*Candidate
+	Approvers *Approvers
 
 	// Dismissals contains candidates that should be discarded because they
 	// cannot satisfy any future evaluations.
@@ -85,6 +88,11 @@ type Result struct {
 	ReviewRequestRule *ReviewRequestRule
 
 	Children []*Result
+}
+
+type Approvers struct {
+	Actors   []*Candidate
+	Statuses []string
 }
 
 type Dismissal struct {

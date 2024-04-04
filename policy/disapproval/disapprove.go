@@ -76,7 +76,7 @@ func (opts *Options) GetRevokeMethods() *common.Methods {
 }
 
 // Requires is redefined instead of using common.Requires because disapproval
-// does not currently support required counts.
+// does not currently support required counts or statuses.
 type Requires struct {
 	common.Actors `yaml:",inline"`
 }
