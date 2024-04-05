@@ -33,7 +33,7 @@ type Rule struct {
 	Description string               `yaml:"description"`
 	Predicates  predicate.Predicates `yaml:"if"`
 	Options     Options              `yaml:"options"`
-	Requires    common.Requires      `yaml:"requires"`
+	Requires    Requires             `yaml:"requires"`
 }
 
 type Options struct {
@@ -77,6 +77,12 @@ func (opts *Options) GetMethods() *common.Methods {
 	return methods
 }
 
+type Requires struct {
+	Count      int                  `yaml:"count"`
+	Actors     common.Actors        `yaml:",inline"`
+	Conditions predicate.Predicates `yaml:"conditions"`
+}
+
 func (r *Rule) Trigger() common.Trigger {
 	t := common.TriggerCommit
 
@@ -93,6 +99,9 @@ func (r *Rule) Trigger() common.Trigger {
 		}
 	}
 
+	for _, c := range r.Requires.Conditions.Predicates() {
+		t |= c.Trigger()
+	}
 	for _, p := range r.Predicates.Predicates() {
 		t |= p.Trigger()
 	}
@@ -106,7 +115,6 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 	res.Name = r.Name
 	res.Description = r.Description
 	res.Status = common.StatusSkipped
-	res.Requires = r.Requires
 	res.Methods = r.Options.GetMethods()
 
 	var predicateResults []*common.PredicateResult
@@ -139,15 +147,15 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 		return
 	}
 
-	approved, approvers, err := r.IsApproved(ctx, prctx, candidates)
+	approved, result, err := r.IsApproved(ctx, prctx, candidates)
 	if err != nil {
 		res.Error = errors.Wrap(err, "failed to compute approval status")
 		return
 	}
 
-	res.Approvers = approvers
+	res.Requires = result
 	res.Dismissals = dismissals
-	res.StatusDescription = r.statusDescription(approved, approvers, candidates)
+	res.StatusDescription = statusDescription(approved, result, candidates)
 
 	if approved {
 		res.Status = common.StatusApproved
@@ -185,7 +193,27 @@ func (r *Rule) getReviewRequestRule() *common.ReviewRequestRule {
 	}
 }
 
-func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) (bool, []*common.Candidate, error) {
+func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) (bool, common.RequiresResult, error) {
+	approvedByActors, approvers, err := r.isApprovedByActors(ctx, prctx, candidates)
+	if err != nil {
+		return false, common.RequiresResult{}, err
+	}
+
+	approvedByConditions, conditions, err := r.isApprovedByConditions(ctx, prctx)
+	if err != nil {
+		return false, common.RequiresResult{}, err
+	}
+
+	result := common.RequiresResult{
+		Count:      r.Requires.Count,
+		Actors:     r.Requires.Actors,
+		Approvers:  approvers,
+		Conditions: conditions,
+	}
+	return approvedByActors && approvedByConditions, result, nil
+}
+
+func (r *Rule) isApprovedByActors(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) (bool, []*common.Candidate, error) {
 	log := zerolog.Ctx(ctx)
 
 	if r.Requires.Count <= 0 {
@@ -246,10 +274,36 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context, candidates []
 	return len(approvers) >= r.Requires.Count, approvers, nil
 }
 
+func (r *Rule) isApprovedByConditions(ctx context.Context, prctx pull.Context) (bool, []*common.PredicateResult, error) {
+	log := zerolog.Ctx(ctx)
+
+	conditions := r.Requires.Conditions.Predicates()
+	if len(conditions) == 0 {
+		log.Debug().Msg("rule requires no conditions")
+		return true, nil, nil
+	}
+
+	var results []*common.PredicateResult
+	var approved int
+
+	for _, c := range conditions {
+		result, err := c.Evaluate(ctx, prctx)
+		if err != nil {
+			return false, nil, errors.Wrap(err, "failed to evaluate condition")
+		}
+		if result.Satisfied {
+			approved++
+		}
+		results = append(results, result)
+	}
+
+	log.Debug().Msgf("found %d/%d required conditions", approved, len(conditions))
+	return approved == len(conditions), results, nil
+}
+
 // FilteredCandidates returns the potential approval candidates and any
 // candidates that should be dimissed due to rule options.
 func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*common.Candidate, []*common.Dismissal, error) {
-
 	candidates, err := r.Options.GetMethods().Candidates(ctx, prctx)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to get approval candidates")
@@ -382,24 +436,55 @@ func (r *Rule) filteredCommits(ctx context.Context, prctx pull.Context) ([]*pull
 	return filtered, nil
 }
 
-func (r *Rule) statusDescription(approved bool, approvers, candidates []*common.Candidate) string {
+func statusDescription(approved bool, result common.RequiresResult, candidates []*common.Candidate) string {
+	hasActors := result.Count > 0
+	hasConditions := len(result.Conditions) > 0
+
 	if approved {
-		if len(approvers) == 0 {
+		if !hasActors && !hasConditions {
 			return "No approval required"
 		}
 
-		var names []string
-		for _, c := range approvers {
-			names = append(names, c.User)
+		var desc strings.Builder
+		desc.WriteString("Approved by ")
+
+		for i, c := range result.Approvers {
+			if i > 0 {
+				desc.WriteString(", ")
+			}
+			desc.WriteString(c.User)
 		}
-		return fmt.Sprintf("Approved by %s", strings.Join(names, ", "))
+		if hasConditions {
+			if hasActors {
+				desc.WriteString(" and ")
+			}
+			desc.WriteString("required conditions")
+		}
+
+		return desc.String()
 	}
 
-	desc := fmt.Sprintf("%d/%d required approvals", len(approvers), r.Requires.Count)
-	if disqualified := len(candidates) - len(approvers); disqualified > 0 {
-		desc += fmt.Sprintf(". Ignored %s from disqualified users", numberOfApprovals(disqualified))
+	var desc strings.Builder
+	if hasActors {
+		fmt.Fprintf(&desc, "%d/%d required approvals", len(result.Approvers), result.Count)
 	}
-	return desc
+	if hasConditions {
+		if hasActors {
+			desc.WriteString(" and ")
+		}
+
+		successful := 0
+		for _, c := range result.Conditions {
+			if c.Satisfied {
+				successful++
+			}
+		}
+		fmt.Fprintf(&desc, "%d/%d required conditions", successful, len(result.Conditions))
+	}
+	if disqualified := len(candidates) - len(result.Approvers); hasActors && disqualified > 0 {
+		fmt.Fprintf(&desc, ". Ignored %s from disqualified users", numberOfApprovals(disqualified))
+	}
+	return desc.String()
 }
 
 func isUpdateMerge(commits []*pull.Commit, c *pull.Commit) bool {

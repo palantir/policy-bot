@@ -60,11 +60,6 @@ type ReviewRequestRule struct {
 	Mode RequestMode
 }
 
-type Requires struct {
-	Count  int    `yaml:"count"`
-	Actors Actors `yaml:",inline"`
-}
-
 type Result struct {
 	Name              string
 	Description       string
@@ -72,11 +67,11 @@ type Result struct {
 	Status            EvaluationStatus
 	Error             error
 	PredicateResults  []*PredicateResult
-	Requires          Requires
 	Methods           *Methods
 
-	// Approvers contains the candidates that satisfied the rule.
-	Approvers []*Candidate
+	// Requires contains the result of evaluating the rule's
+	// requirements.
+	Requires RequiresResult
 
 	// Dismissals contains candidates that should be discarded because they
 	// cannot satisfy any future evaluations.
@@ -85,6 +80,18 @@ type Result struct {
 	ReviewRequestRule *ReviewRequestRule
 
 	Children []*Result
+}
+
+type RequiresResult struct {
+	// Count is the number of required approvals from Actors
+	// Actors is the set of actors allowed to approve
+	// Approvers contains the actual approvers found during evalutaion
+	Count     int
+	Actors    Actors
+	Approvers []*Candidate
+
+	// Conditions contains the results of all required conditions
+	Conditions []*PredicateResult
 }
 
 type Dismissal struct {

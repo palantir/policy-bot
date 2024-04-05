@@ -68,7 +68,7 @@
 <li class="node" data-status="{{$s}}" {{if not (eq $s $nextStatus)}}data-next-status="{{$nextStatus}}"{{end}}>
   <div class="bg-white p-2 shadow-sm max-w-lg status-stripe {{$s}}">
     {{template "result-details" .}}
-    {{if (or (.PredicateResults) (hasActors .Requires) (hasActorsPermissions .Requires))}}
+    {{if (or (.PredicateResults) (hasActors .Requires) (hasActorsPermissions .Requires) (gt (len .Requires.Conditions) 0))}}
     <details
       class="bg-light-gray5 p-2 mt-2 text-sm"
       {{if $showReviewers}}
@@ -85,7 +85,14 @@
           </div>
         {{end}}
         {{if ne $s "skipped"}}{{/* only show approval details for active rules */}}
-          {{if gt .Requires.Count 0 }}{{/* only show approval details if they're required */}}
+          {{- $hasConditions := gt (len .Requires.Conditions) 0 -}}
+          {{- $hasActors := gt .Requires.Count 0 -}}
+          {{if $hasConditions }}
+            <div class="pt-2">
+            {{template "result-conditions-details" .}}
+            </div>
+          {{end}}
+          {{if $hasActors }}
             <div class="pt-2">
             {{template "result-approver-details" .}}
             </div>
@@ -99,7 +106,8 @@
               <div class="reviewers">{{template "spinner"}}</div>
             </div>
             {{end}}
-          {{else}}
+          {{end}}
+          {{if and (not $hasActors) (not $hasConditions)}}
             <div class="pt-2">
               <b class="font-bold text-sm">This rule is automatically approved and requires no reviews</b>
             </div>
@@ -212,6 +220,11 @@
 {{end}}
 
 {{define "result-reviews-count"}}This rule requires at least {{.Count}} approval{{if gt .Count 1}}s{{end}}{{end}}
+
+{{define "result-conditions-details"}}
+  {{/* TODO(bkeyes): this is a placeholder until I can refactor predicate rendering */}}
+  <b class="font-bold text-sm">This rule requires that {{len .Requires.Conditions}} condition{{if gt (len .Requires.Conditions) 1}}s are{{else}} is{{end}} met</b>
+{{end}}
 
 {{define "spinner"}}
 <div class="spinner w-6 my-2" aria-label="Loading..." aria-valuemax="100" aria-valuemin="0" aria-valuenow="0" role="progressbar">

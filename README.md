@@ -20,6 +20,7 @@ UI to view the detailed approval status of any pull request.
 [required status check]: https://help.github.com/articles/enabling-required-status-checks/
 [required reviews]: https://help.github.com/articles/about-required-reviews-for-pull-requests/
 
+- [Designing Policies](#designing-policies)
 - [Configuration](#configuration)
   - [policy.yml Specification](#policyyml-specification)
   - [Approval Rules](#approval-rules)
@@ -40,11 +41,83 @@ UI to view the detailed approval status of any pull request.
 - [Contributing](#contributing)
 - [License](#license)
 
+## Designing Policies
+
+An approval **policy** is a set of **rules** that combine to determine when a
+pull request is approved. Policy Bot reports approval as a successful status
+check on the head commit of the pull request. The most common form of approval
+is code review from other developers, but Policy Bot supports many other types
+of approval.
+
+Rules combine using the logical operators `and` and `or`. With no operators, a
+policy requires that all of its rules are approved to approve the pull request.
+
+### Rules
+
+Rules define the specific circumstances in which a pull request is approved.
+Each rule has four components:
+
+1. **Name**. This is an arbitrary string that you use to refer to the rule in
+   a policy. It also appears in the details view for a pull request. Try to
+   pick names that make sense to humans and explain the purpose of the rule. A
+   good name can complete the sentence "This pull request is approved if ..."
+
+2. **Predicates**. A rule is only active when all of its predicates
+   are true. If any predicate is false, the rule is skipped and does not
+   influence the policy. Predicates allow you to create rules that are
+   conditional on the state of the pull request, like requiring approval from a
+   special team when specific important files change.
+
+3. **Options**. Options control the behavior of the rule. This includes things
+   like the approval methods, if pushing new changes invalidates previous
+   approvals, and if the rule should request reviews from users or teams.
+
+4. **Requirements**. These are the things that must be true for the rule to be
+   approved. Requirements can be approvals from users with the right properties
+   or can be conditions about the pull request, similar to predicates. If a
+   rule has no requirements, it is always approved.
+
+Only a name is required, but most rules need to include either predicates or
+requirements to be useful.
+
+After evaluation, a rule can be in one of four states:
+
+* `approved` - all of the predicates and requirements are true
+* `pending` - all of the predicates are true but one or more requirements is not true
+* `skipped` - one or more predicates are not true
+* `error` - something went wrong while evaluating the rule
+
+For the purposes of the `and` and `or` operators:
+
+* `approved` is equivalent to `true`
+* `pending` and `error` are equivalent to `false`
+* `skipped` completely removes the rule from the condition
+
+### Predicates vs Conditions
+
+When writing a rule, you can react to the state of pull request by using either
+predicates or required conditions. When would you use one over the other?
+
+* Use **predicates** to enable a rule when a pull request is in a specific
+  state (or to skip the rule when a pull request is _not_ in that state.)
+  Predicates are useful when you want special approval requirements like
+  requiring extra approval for files that involve security or automatically
+  approving dependency updates.
+
+* Use **conditions** when the pull request state itself is important for
+  approval. For example, conditions are useful if you want to require that a
+  pull request has certain status checks or specific labels.
+
+Sometimes you can achieve a desired outcome using either approach. In this
+case, we prefer predicates. Policies that use predicates may define more rules,
+but tend to be flatter and use fewer logical operators. With well-chosen rule
+names, we find this style of policy easier to read and reason about.
+
 ## Configuration
 
-Policies are defined by a `.policy.yml` file at the root of the repository.
-You can change this path and file name when running your own instance of the
-server.
+By default, policies are defined in a `.policy.yml` file at the root of the
+repository.  You can change this path and file name when running your own
+instance of the server.
 
 - The file is read from the most recent commit on the _target_ branch of each
   pull request.
@@ -70,7 +143,7 @@ The overall policy is expressed by:
 - A set of policies that combine the rules or define additional options
 
 Consider the following example, which allows changes to certain paths without
-review, but all other changes require review from the `palantir/devtools`.
+review, but all other changes require review from the `palantir/devtools` team.
 Any member of the `palantir` organization can also disapprove changes.
 
 ```yaml
@@ -358,7 +431,7 @@ options:
     # at least until https://github.com/palantir/policy-bot/issues/165 is fixed.
     # Defaults to 'random-users'.
     mode: all-users|random-users|teams
-    
+
     # count sets the number of users requested to review the pull request when
     # using the `random-users` mode. If count is not set or set to 0, request the
     # number of users set by requires.count. Setting this is useful when you want
@@ -420,15 +493,20 @@ requires:
   # requests for details.
   permissions: ["write"]
 
-  # Deprecated: use 'permissions: ["admin"]'
+  # "conditions" is the set of conditions that must be true for the rule to
+  # count as approved. If present, conditions are an additional requirement
+  # beyond the approvals required by "count".
   #
-  # Allows approval by admins of the org or repository
-  # admins: true
-
-  # Deprecated: use 'permissions: ["write"]'
-  #
-  # Allows approval by users who have write on the repository
-  # write_collaborators: true
+  # For example, if "count" is 1 and "conditions" contains the "has_successful_status"
+  # condition with the "build" status, the rule is only approved once the
+  # "build" status check passes and one authorized reviewer leaves a review.
+  conditions:
+    # The "conditions" block accepts all of the keys documented as part
+    # of the "if" block for predicates. The "has_successful_status" key is
+    # shown here as an example of one type of condition.
+    has_successful_status:
+      - "build"
+      - "vulnerability scan"
 ```
 
 ### Approval Policies

@@ -107,7 +107,7 @@ func TestRules(t *testing.T) {
 					GithubReview: &defaultGithubReview,
 				},
 			},
-			Requires: common.Requires{
+			Requires: Requires{
 				Count: 5,
 				Actors: common.Actors{
 					Users:         []string{"user4"},
