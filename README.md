@@ -52,7 +52,7 @@ of approval.
 Rules combine using the logical operators `and` and `or`. With no operators, a
 policy requires that all of its rules are approved to approve the pull request.
 
-### Rules
+### Rules <!-- omit in toc -->
 
 Rules define the specific circumstances in which a pull request is approved.
 Each rule has four components:
@@ -83,7 +83,7 @@ requirements to be useful.
 After evaluation, a rule can be in one of four states:
 
 * `approved` - all of the predicates and requirements are true
-* `pending` - all of the predicates are true but one or more requirements is not true
+* `pending` - all of the predicates are true but one or more requirements are not true
 * `skipped` - one or more predicates are not true
 * `error` - something went wrong while evaluating the rule
 
@@ -93,7 +93,7 @@ For the purposes of the `and` and `or` operators:
 * `pending` and `error` are equivalent to `false`
 * `skipped` completely removes the rule from the condition
 
-### Predicates vs Conditions
+### Predicates vs Required Conditions <!-- omit in toc -->
 
 When writing a rule, you can react to the state of pull request by using either
 predicates or required conditions. When would you use one over the other?
@@ -104,9 +104,9 @@ predicates or required conditions. When would you use one over the other?
   requiring extra approval for files that involve security or automatically
   approving dependency updates.
 
-* Use **conditions** when the pull request state itself is important for
-  approval. For example, conditions are useful if you want to require that a
-  pull request has certain status checks or specific labels.
+* Use **required conditions** when the pull request state itself is important
+  for approval. For example, conditions are useful if you want to require that
+  a pull request has certain status checks or specific labels.
 
 Sometimes you can achieve a desired outcome using either approach. In this
 case, we prefer predicates. Policies that use predicates may define more rules,
