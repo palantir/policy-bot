@@ -70,7 +70,7 @@ func findAllApprovers(result *common.Result) map[string]bool {
 	approvers := make(map[string]bool)
 
 	if len(result.Children) == 0 && result.Error == nil {
-		for _, a := range result.Approvers {
+		for _, a := range result.Requires.Approvers {
 			approvers[a.User] = true
 		}
 	}

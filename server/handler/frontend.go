@@ -102,7 +102,7 @@ func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatet
 
 				return r
 			},
-			"hasActors": func(requires *common.Requires) bool {
+			"hasActors": func(requires common.RequiresResult) bool {
 				return len(requires.Actors.Users) > 0 || len(requires.Actors.Teams) > 0 || len(requires.Actors.Organizations) > 0
 			},
 			"getMethods": func(results *common.Result) map[string][]string {
@@ -111,7 +111,7 @@ func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatet
 			"getActors": func(results *common.Result) map[string][]Membership {
 				return getActors(results, strings.TrimSuffix(githubURL, "/"))
 			},
-			"hasActorsPermissions": func(requires *common.Requires) bool {
+			"hasActorsPermissions": func(requires common.RequiresResult) bool {
 				return len(requires.Actors.GetPermissions()) > 0
 			},
 			"getPermissions": func(results *common.Result) []string {

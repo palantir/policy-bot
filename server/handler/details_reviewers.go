@@ -19,7 +19,7 @@ import (
 	"slices"
 
 	"github.com/palantir/policy-bot/policy"
-	"github.com/palantir/policy-bot/policy/common"
+	"github.com/palantir/policy-bot/policy/approval"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
 )
@@ -152,7 +152,7 @@ func userHasReviewerPermission(user *pull.Collaborator, perms []pull.Permission)
 	return false
 }
 
-func findRuleRequires(config *policy.Config, ruleName string) *common.Requires {
+func findRuleRequires(config *policy.Config, ruleName string) *approval.Requires {
 	for _, rule := range config.ApprovalRules {
 		if rule.Name == ruleName {
 			return &rule.Requires
