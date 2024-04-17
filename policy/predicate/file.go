@@ -141,6 +141,49 @@ func (pred *OnlyChangedFiles) Trigger() common.Trigger {
 	return common.TriggerCommit
 }
 
+type NoChangedFiles struct {
+	Paths       []common.Regexp `yaml:"paths"`
+	IgnorePaths []common.Regexp `yaml:"ignore"`
+}
+
+var _ Predicate = &NoChangedFiles{}
+
+func (pred *NoChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
+	changedFiles := ChangedFiles{
+		Paths:       pred.Paths,
+		IgnorePaths: pred.IgnorePaths,
+	}
+
+	changedFilesPredicateResult, err := changedFiles.Evaluate(ctx, prctx)
+
+	if err != nil {
+		return nil, err
+	}
+
+	predicateResult := common.PredicateResult{
+		Values:          changedFilesPredicateResult.Values,
+		Satisfied:       !changedFilesPredicateResult.Satisfied,
+		ValuePhrase:     "excluded changed files",
+		ConditionPhrase: "match",
+		ConditionsMap: map[string][]string{
+			"path patterns":  changedFilesPredicateResult.ConditionsMap["path patterns"],
+			"while ignoring": changedFilesPredicateResult.ConditionsMap["while ignoring"],
+		},
+	}
+
+	if changedFilesPredicateResult.Satisfied {
+		predicateResult.Description = "No changed files match the excluded patterns"
+	} else {
+		predicateResult.Description = changedFilesPredicateResult.Description
+	}
+
+	return &predicateResult, nil
+}
+
+func (pred *NoChangedFiles) Trigger() common.Trigger {
+	return common.TriggerCommit
+}
+
 type ModifiedLines struct {
 	Additions ComparisonExpr `yaml:"additions"`
 	Deletions ComparisonExpr `yaml:"deletions"`
