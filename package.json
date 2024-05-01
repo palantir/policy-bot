@@ -12,7 +12,7 @@
     "@fullhuman/postcss-purgecss": "^6.0",
     "autoprefixer": "^10.4.19",
     "css-loader": "^7.1.1",
-    "cssnano": "^6.0",
+    "cssnano": "^7.0",
     "mini-css-extract-plugin": "^2.9.0",
     "postcss": "^8.4",
     "postcss-loader": "^8.1.1",
