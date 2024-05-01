@@ -1027,10 +1027,10 @@ html-tags@^3.1.0:
   resolved "https://registry.npmjs.org/html-tags/-/html-tags-3.2.0.tgz#dbb3518d20b726524e4dd43de397eb0a95726961"
   integrity sha512-vy7ClnArOZwCnqZgvv+ddgHgJiAFXe3Ge9ML5/mBctVJoUoYPCdxVucOywjDARn6CVoh3dRSFdPHy2sX80L0Wg==
 
-htmx.org@^1.9.11:
-  version "1.9.11"
-  resolved "https://registry.yarnpkg.com/htmx.org/-/htmx.org-1.9.11.tgz#00192041ee682d6ca7146d0fbd901169ffe72d87"
-  integrity sha512-WlVuICn8dfNOOgYmdYzYG8zSnP3++AdHkMHooQAzGZObWpVXYathpz/I37ycF4zikR6YduzfCvEcxk20JkIUsw==
+htmx.org@^1.9.12:
+  version "1.9.12"
+  resolved "https://registry.yarnpkg.com/htmx.org/-/htmx.org-1.9.12.tgz#1c5bc7fb4d3eb4e8c0d72323dc774a6b9b66addc"
+  integrity sha512-VZAohXyF7xPGS52IM8d1T1283y+X4D+Owf3qY1NZ9RuBypyu9l8cGsxUMAG5fEAb/DhT7rDoJ9Hpu5/HxFD3cw==
 
 icss-utils@^5.0.0, icss-utils@^5.1.0:
   version "5.1.0"
