@@ -17,7 +17,7 @@ package handler
 import (
 	"context"
 
-	"github.com/google/go-github/v60/github"
+	"github.com/google/go-github/v61/github"
 	"github.com/palantir/go-baseapp/baseapp"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/policy-bot/policy/common"
