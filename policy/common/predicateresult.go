@@ -23,6 +23,9 @@ type PredicateResult struct {
 	ValuePhrase string
 	Values      []string
 
+	// The negation used when skipping the predicate, used as "the $ValuePhrase $SkipPhrase $ConditionPhrase"
+	SkipPhrase string
+
 	// Describes the condition, used as "$ConditionPhrase" or "does not $ConditionPhrase"
 	ConditionPhrase string
 	// If non-empty, use the map, otherwise, use the regular list

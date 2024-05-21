@@ -45,6 +45,7 @@ func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (*co
 
 	predicateResult := common.PredicateResult{
 		ValuePhrase:     "changed files",
+		SkipPhrase:      "do not",
 		ConditionPhrase: "match",
 		ConditionsMap: map[string][]string{
 			"path patterns":  paths,
@@ -100,6 +101,7 @@ func (pred *OnlyChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) 
 
 	predicateResult := common.PredicateResult{
 		ValuePhrase:     "changed files",
+		SkipPhrase:      "do not",
 		ConditionPhrase: "all match patterns",
 		ConditionValues: paths,
 	}
@@ -160,16 +162,19 @@ func (pred *NoChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (*
 	}
 
 	predicateResult := common.PredicateResult{
-		Values:          changedFilesPredicateResult.Values,
-		Description:     changedFilesPredicateResult.Description,
-		Satisfied:       !changedFilesPredicateResult.Satisfied,
-		ValuePhrase:     "changed files",
-		ConditionPhrase: "cannot match",
-		ConditionsMap:   changedFilesPredicateResult.ConditionsMap,
+		ValuePhrase:   "changed files",
+		SkipPhrase:    "",
+		Satisfied:     !changedFilesPredicateResult.Satisfied,
+		Values:        changedFilesPredicateResult.Values,
+		ConditionsMap: changedFilesPredicateResult.ConditionsMap,
 	}
 
-	if changedFilesPredicateResult.Satisfied {
-		predicateResult.Description = "No changed files match the excluded patterns"
+	if predicateResult.Satisfied {
+		predicateResult.ConditionPhrase = "do not match"
+		predicateResult.Description = "No changed files match the specified patterns"
+	} else {
+		predicateResult.ConditionPhrase = "should not match"
+		predicateResult.Description = changedFilesPredicateResult.Description
 	}
 
 	return &predicateResult, nil
@@ -281,6 +286,7 @@ func (pred *ModifiedLines) Evaluate(ctx context.Context, prctx pull.Context) (*c
 
 	predicateResult := common.PredicateResult{
 		ValuePhrase:     "file modifications",
+		SkipPhrase:      "do not",
 		ConditionPhrase: "meet the modification conditions",
 	}
 

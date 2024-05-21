@@ -158,7 +158,7 @@
         <ul class="list-disc list-outside pl-6 py-2">
           {{range .Values}}<li class="font-mono text-sm-mono">{{.}}</li>{{end}}
         </ul>
-        {{if eq $s "skipped"}}do not {{end}}{{.ConditionPhrase}}
+        {{if eq $s "skipped"}}{{.SkipPhrase}} {{end}}{{.ConditionPhrase}}
         {{if .ConditionsMap}}
         <dl class="pt-2 pl-4">
         {{range $k, $v := .ConditionsMap}}
