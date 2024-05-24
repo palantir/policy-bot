@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-github/v61/github"
+	"github.com/google/go-github/v62/github"
 	"github.com/shurcooL/githubv4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
