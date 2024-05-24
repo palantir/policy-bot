@@ -23,8 +23,10 @@ type PredicateResult struct {
 	ValuePhrase string
 	Values      []string
 
-	// The negation used when skipping the predicate, used as "the $ValuePhrase $SkipPhrase $ConditionPhrase"
-	SkipPhrase string
+	// Reverse when to display the "do not" phrase.
+	// Satisfied: $ConditionPhrase do not $ValuesPhrase
+	// Not satisfied: $ConditionPhrase $ValuesPhrase
+	ReverseSkipPhrase bool
 
 	// Describes the condition, used as "$ConditionPhrase" or "does not $ConditionPhrase"
 	ConditionPhrase string
