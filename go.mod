@@ -8,12 +8,12 @@ require (
 	github.com/bluekeyes/templatetree v0.5.0
 	github.com/c2h5oh/datasize v0.0.0-20171227191756-4eba002a5eae
 	github.com/die-net/lrucache v0.0.0-20181227122439-19a39ef22a11
-	github.com/google/go-github/v61 v61.0.0
+	github.com/google/go-github/v62 v62.0.0
 	github.com/google/go-querystring v1.1.0
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 	github.com/hashicorp/golang-lru v1.0.2
 	github.com/palantir/go-baseapp v0.5.2
-	github.com/palantir/go-githubapp v0.25.0
+	github.com/palantir/go-githubapp v0.26.0
 	github.com/pkg/errors v0.9.1
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475
 	github.com/rs/zerolog v1.33.0
