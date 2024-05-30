@@ -13,8 +13,8 @@ github.com/bluekeyes/hatpear v0.1.2 h1:D5dz9W/W5YxKlmqn7hRJi218+yVkXylhs/R6Ns/jj
 github.com/bluekeyes/hatpear v0.1.2/go.mod h1:2bh+rl4wLhqzzL0hT7Q4SVGXIivrE8oKgH2WYM3ubt0=
 github.com/bluekeyes/templatetree v0.5.0 h1:bJ5W/D/SzB9GWzUG0G+Js8duOAwasE1vEWndxxQRoO0=
 github.com/bluekeyes/templatetree v0.5.0/go.mod h1:doLcw8f06r6e1+9R30QkqYeq6/dDwxeQAF0FHjiOrIs=
-github.com/bradleyfalzon/ghinstallation/v2 v2.10.0 h1:XWuWBRFEpqVrHepQob9yPS3Xg4K3Wr9QCx4fu8HbUNg=
-github.com/bradleyfalzon/ghinstallation/v2 v2.10.0/go.mod h1:qoGA4DxWPaYTgVCrmEspVSjlTu4WYAiSxMIhorMRXXc=
+github.com/bradleyfalzon/ghinstallation/v2 v2.11.0 h1:R9d0v+iobRHSaE4wKUnXFiZp53AL4ED5MzgEMwGTZag=
+github.com/bradleyfalzon/ghinstallation/v2 v2.11.0/go.mod h1:0LWKQwOHewXO/1acI6TtyE0Xc4ObDb2rFN7eHBAG71M=
 github.com/c2h5oh/datasize v0.0.0-20171227191756-4eba002a5eae h1:2Zmk+8cNvAGuY8AyvZuWpUdpQUAXwfom4ReVMe/CTIo=
 github.com/c2h5oh/datasize v0.0.0-20171227191756-4eba002a5eae/go.mod h1:S/7n9copUssQ56c7aAgHqftWO4LTf4xY6CGWt8Bc+3M=
 github.com/cespare/xxhash/v2 v2.2.0 h1:DC2CZ1Ep5Y4k3ZQ899DldepgrayRUGE6BBZ/cd9Cj44=
@@ -39,8 +39,6 @@ github.com/google/go-cmp v0.5.2/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/
 github.com/google/go-cmp v0.5.5/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
 github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
 github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
-github.com/google/go-github/v60 v60.0.0 h1:oLG98PsLauFvvu4D/YPxq374jhSxFYdzQGNCyONLfn8=
-github.com/google/go-github/v60 v60.0.0/go.mod h1:ByhX2dP9XT9o/ll2yXAu2VD8l5eNVg8hD4Cr0S/LmQk=
 github.com/google/go-github/v62 v62.0.0 h1:/6mGCaRywZz9MuHyw9gD1CwsbmBX8GWsbFkwMmHdhl4=
 github.com/google/go-github/v62 v62.0.0/go.mod h1:EMxeUqGJq2xRu9DYBMwel/mr7kZrzUOfQmmpYrZn2a4=
 github.com/google/go-querystring v1.1.0 h1:AnCroh3fv4ZBgVIf1Iwtovgjaw/GiKJo8M8yD/fhyJ8=
