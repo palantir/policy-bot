@@ -36,8 +36,10 @@ func TestRules(t *testing.T) {
   if:
     changed_files:
       paths: ["path1"]
-    only_changed_files:
+    no_changed_files:
       paths: ["path2"]
+    only_changed_files:
+      paths: ["path3"]
     has_author_in:
       teams: ["team1"]
       users: ["user1", "user2"]
@@ -78,9 +80,14 @@ func TestRules(t *testing.T) {
 						common.NewCompiledRegexp(regexp.MustCompile("path1")),
 					},
 				},
-				OnlyChangedFiles: &predicate.OnlyChangedFiles{
+				NoChangedFiles: &predicate.NoChangedFiles{
 					Paths: []common.Regexp{
 						common.NewCompiledRegexp(regexp.MustCompile("path2")),
+					},
+				},
+				OnlyChangedFiles: &predicate.OnlyChangedFiles{
+					Paths: []common.Regexp{
+						common.NewCompiledRegexp(regexp.MustCompile("path3")),
 					},
 				},
 				HasAuthorIn: &predicate.HasAuthorIn{

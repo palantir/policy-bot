@@ -23,6 +23,11 @@ type PredicateResult struct {
 	ValuePhrase string
 	Values      []string
 
+	// Reverse when to display the "do not" phrase.
+	// Satisfied: $ConditionPhrase do not $ValuesPhrase
+	// Not satisfied: $ConditionPhrase $ValuesPhrase
+	ReverseSkipPhrase bool
+
 	// Describes the condition, used as "$ConditionPhrase" or "does not $ConditionPhrase"
 	ConditionPhrase string
 	// If non-empty, use the map, otherwise, use the regular list

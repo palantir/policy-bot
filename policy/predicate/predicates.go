@@ -16,6 +16,7 @@ package predicate
 
 type Predicates struct {
 	ChangedFiles     *ChangedFiles     `yaml:"changed_files"`
+	NoChangedFiles   *NoChangedFiles   `yaml:"no_changed_files"`
 	OnlyChangedFiles *OnlyChangedFiles `yaml:"only_changed_files"`
 
 	HasAuthorIn             *HasAuthorIn             `yaml:"has_author_in"`
@@ -45,6 +46,9 @@ func (p *Predicates) Predicates() []Predicate {
 
 	if p.ChangedFiles != nil {
 		ps = append(ps, Predicate(p.ChangedFiles))
+	}
+	if p.NoChangedFiles != nil {
+		ps = append(ps, Predicate(p.NoChangedFiles))
 	}
 	if p.OnlyChangedFiles != nil {
 		ps = append(ps, Predicate(p.OnlyChangedFiles))

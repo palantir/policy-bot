@@ -157,6 +157,138 @@ func TestChangedFiles(t *testing.T) {
 	})
 }
 
+func TestNoChangedFiles(t *testing.T) {
+	p := &NoChangedFiles{
+		Paths: []common.Regexp{
+			common.NewCompiledRegexp(regexp.MustCompile("app/.*\\.go")),
+			common.NewCompiledRegexp(regexp.MustCompile("server/.*\\.go")),
+		},
+		IgnorePaths: []common.Regexp{
+			common.NewCompiledRegexp(regexp.MustCompile(".*/special\\.go")),
+		},
+	}
+
+	runFileTests(t, p, []FileTestCase{
+		{
+			"empty",
+			[]*pull.File{},
+			&common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{},
+				ConditionsMap: map[string][]string{
+					"path patterns":  {"app/.*\\.go", "server/.*\\.go"},
+					"while ignoring": {".*/special\\.go"},
+				},
+			},
+		},
+		{
+			"onlyMatches",
+			[]*pull.File{
+				{
+					Filename: "app/client.go",
+					Status:   pull.FileAdded,
+				},
+				{
+					Filename: "server/server.go",
+					Status:   pull.FileModified,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"app/client.go"},
+				ConditionsMap: map[string][]string{
+					"path patterns":  {"app/.*\\.go", "server/.*\\.go"},
+					"while ignoring": {".*/special\\.go"},
+				},
+			},
+		},
+		{
+			"someMatches",
+			[]*pull.File{
+				{
+					Filename: "app/client.go",
+					Status:   pull.FileAdded,
+				},
+				{
+					Filename: "model/user.go",
+					Status:   pull.FileModified,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"app/client.go"},
+				ConditionsMap: map[string][]string{
+					"path patterns":  {"app/.*\\.go", "server/.*\\.go"},
+					"while ignoring": {".*/special\\.go"},
+				},
+			},
+		},
+		{
+			"noMatches",
+			[]*pull.File{
+				{
+					Filename: "model/order.go",
+					Status:   pull.FileDeleted,
+				},
+				{
+					Filename: "model/user.go",
+					Status:   pull.FileModified,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{"model/order.go", "model/user.go"},
+				ConditionsMap: map[string][]string{
+					"path patterns":  {"app/.*\\.go", "server/.*\\.go"},
+					"while ignoring": {".*/special\\.go"},
+				},
+			},
+		},
+		{
+			"ignoreAll",
+			[]*pull.File{
+				{
+					Filename: "app/special.go",
+					Status:   pull.FileDeleted,
+				},
+				{
+					Filename: "server/special.go",
+					Status:   pull.FileModified,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{"app/special.go", "server/special.go"},
+				ConditionsMap: map[string][]string{
+					"path patterns":  {"app/.*\\.go", "server/.*\\.go"},
+					"while ignoring": {".*/special\\.go"},
+				},
+			},
+		},
+		{
+			"ignoreSome",
+			[]*pull.File{
+				{
+					Filename: "app/normal.go",
+					Status:   pull.FileDeleted,
+				},
+				{
+					Filename: "server/special.go",
+					Status:   pull.FileModified,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"app/normal.go"},
+				ConditionsMap: map[string][]string{
+					"path patterns":  {"app/.*\\.go", "server/.*\\.go"},
+					"while ignoring": {".*/special\\.go"},
+				},
+			},
+		},
+	})
+}
+
 func TestOnlyChangedFiles(t *testing.T) {
 	p := &OnlyChangedFiles{
 		Paths: []common.Regexp{

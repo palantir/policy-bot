@@ -243,6 +243,19 @@ if:
       - "^server/views/.*\\.tmpl$"
     ignore:
       - "^config/special\\.file$"
+  
+  # "no_changed_files" is the negation of "changed_files". This predicate is
+  # satisfied if no file in the pull request matches any regular expression
+  # in the "paths" list. If the "ignore" list is present, files in the pull
+  # request matching these regular expressions are ignored by this rule.
+  #
+  # Note: Double-quote strings must escape backslashes while single/plain do not.
+  # See the Notes on YAML Syntax section of this README for more information.
+  no_changed_files:
+    paths:
+      - "^other-config/.*$"
+    ignore:
+      - "^other-config/special\\.file$"
 
   # "only_changed_files" is satisfied if all files changed by the pull request
   # match at least one regular expression in the list.
