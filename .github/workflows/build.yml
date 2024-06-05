@@ -11,7 +11,7 @@ on:
   release:
     types: [published]
 
-jobs:  
+jobs:
   Verify:
     runs-on: ubuntu-latest
 
