@@ -48,6 +48,8 @@ type Options struct {
 
 	RequestReview RequestReview `yaml:"request_review"`
 
+	CountSkippedStatusAsPassed bool `yaml:"count_skipped_status_as_passed"`
+
 	Methods *common.Methods `yaml:"methods"`
 }
 

@@ -329,6 +329,18 @@ if:
     - "status-name-2"
     - "status-name-3"
 
+  # "has_successful_status" can be configured to count "skipped" statuses as
+  # successful. This can be useful in combination with path filters where
+  # workflows only run on parts of the tree. They are required to succeed only
+  # if they run.
+  # has_successful_status:
+  #  options:
+  #    skipped_is_success: true
+  #  statuses:
+  #    - "status-name-1"
+  #    - "status-name-2"
+  #    - "status-name-3"
+
   # "has_labels" is satisfied if the pull request has the specified labels
   # applied
   has_labels:

@@ -23,30 +23,67 @@ import (
 	"github.com/pkg/errors"
 )
 
-type HasSuccessfulStatus []string
+type hasSuccessfulStatusOptions struct {
+	SkippedIsSuccess bool `yaml:"skipped_is_success"`
+}
 
-var _ Predicate = HasSuccessfulStatus([]string{})
+type HasSuccessfulStatus struct {
+	Options hasSuccessfulStatusOptions
+	Statuses []string `yaml:"statuses"`
+}
+
+func NewHasSuccessfulStatus(statuses []string) *HasSuccessfulStatus {
+	return &HasSuccessfulStatus{
+		Statuses: statuses,
+	}
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface for HasSuccessfulStatus.
+// This allows the predicate to be specified as either a list of strings or with options.
+func (pred *HasSuccessfulStatus) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	// Try to unmarshal as a list of strings first
+	statuses := []string{}
+	if err := unmarshal(&statuses); err == nil {
+		pred.Statuses = statuses
+
+		return nil
+	}
+
+	// If that fails, try to unmarshal as the full structure
+	type rawHasSuccessfulStatus HasSuccessfulStatus
+	return unmarshal((*rawHasSuccessfulStatus)(pred))
+}
+
+var _ Predicate = HasSuccessfulStatus{}
 
 func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
 	statuses, err := prctx.LatestStatuses()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list commit statuses")
+	}
+
+	allowedStatusConclusions := map[string]struct{}{
+		"success": {},
+	}
 
 	predicateResult := common.PredicateResult{
 		ValuePhrase:     "status checks",
 		ConditionPhrase: "exist and pass",
 	}
 
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to list commit statuses")
+	if pred.Options.SkippedIsSuccess {
+		predicateResult.ConditionPhrase += " or are skipped"
+		allowedStatusConclusions["skipped"] = struct{}{}
 	}
 
 	var missingResults []string
 	var failingStatuses []string
-	for _, status := range pred {
+	for _, status := range pred.Statuses {
 		result, ok := statuses[status]
 		if !ok {
 			missingResults = append(missingResults, status)
 		}
-		if result != "success" {
+		if _, allowed := allowedStatusConclusions[result]; !allowed {
 			failingStatuses = append(failingStatuses, status)
 		}
 	}
@@ -65,7 +102,7 @@ func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context
 		return &predicateResult, nil
 	}
 
-	predicateResult.Values = pred
+	predicateResult.Values = pred.Statuses
 	predicateResult.Satisfied = true
 	return &predicateResult, nil
 }
