@@ -322,24 +322,15 @@ if:
     deletions: "> 100"
     total: "> 200"
 
-  # "has_successful_status" is satisfied if the status checks that are specified
-  # are marked successful on the head commit of the pull request.
-  has_successful_status:
-    - "status-name-1"
-    - "status-name-2"
-    - "status-name-3"
-
-  # "has_successful_status" can be configured to count "skipped" statuses as
-  # successful. This can be useful in combination with path filters where
-  # workflows only run on parts of the tree. They are required to succeed only
-  # if they run.
-  # has_successful_status:
-  #  options:
-  #    skipped_is_success: true
-  #  statuses:
-  #    - "status-name-1"
-  #    - "status-name-2"
-  #    - "status-name-3"
+  # "has_status" is satisfied if the status checks that are specified are
+  # finished and concluded with one of the conclusions specified.
+  # "conclusions" is optional and defaults to ["success"].
+  has_status:
+    conclusions: ["success", "skipped"]
+    statuses:
+      - "status-name-1"
+      - "status-name-2"
+      - "status-name-3"
 
   # "has_labels" is satisfied if the pull request has the specified labels
   # applied
@@ -522,16 +513,17 @@ requires:
   # count as approved. If present, conditions are an additional requirement
   # beyond the approvals required by "count".
   #
-  # For example, if "count" is 1 and "conditions" contains the "has_successful_status"
+  # For example, if "count" is 1 and "conditions" contains the "has_status"
   # condition with the "build" status, the rule is only approved once the
   # "build" status check passes and one authorized reviewer leaves a review.
   conditions:
-    # The "conditions" block accepts all of the keys documented as part
-    # of the "if" block for predicates. The "has_successful_status" key is
-    # shown here as an example of one type of condition.
-    has_successful_status:
-      - "build"
-      - "vulnerability scan"
+    # The "conditions" block accepts all of the keys documented as part of the
+    # "if" block for predicates. The "has_status" key is shown here as an
+    # example of one type of condition.
+    has_status:
+      statuses:
+        - "build"
+        - "vulnerability scan"
 ```
 
 ### Approval Policies

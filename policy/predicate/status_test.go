@@ -37,7 +37,7 @@ func keysSorted[V any](m map[string]V) []string {
 }
 
 func TestHasSuccessfulStatus(t *testing.T) {
-	p := HasSuccessfulStatus{Statuses: []string{"status-name", "status-name-2"}}
+	p := HasStatus{Statuses: []string{"status-name", "status-name-2"}}
 
 	commonTestCases := []StatusTestCase{
 		{
@@ -146,7 +146,7 @@ func TestHasSuccessfulStatus(t *testing.T) {
 	runStatusTestCase(t, p, okOnlyIfSkippedAllowed)
 
 	// Run tests with skipped statuses counting as successes
-	p.Options.SkippedIsSuccess = true
+	p.Conclusions = allowedConclusions{"success": {}, "skipped": {}}
 
 	for i := 0; i < len(commonTestCases); i++ {
 		commonTestCases[i].name += ", but skipped statuses are allowed"

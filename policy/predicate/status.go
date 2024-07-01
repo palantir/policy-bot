@@ -16,6 +16,7 @@ package predicate
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/palantir/policy-bot/policy/common"
@@ -23,24 +24,29 @@ import (
 	"github.com/pkg/errors"
 )
 
-type hasSuccessfulStatusOptions struct {
-	SkippedIsSuccess bool `yaml:"skipped_is_success"`
+type HasStatus struct {
+	Conclusions allowedConclusions `yaml:"conclusions"`
+	Statuses    []string           `yaml:"statuses"`
 }
 
-type HasSuccessfulStatus struct {
-	Options hasSuccessfulStatusOptions
-	Statuses []string `yaml:"statuses"`
-}
-
-func NewHasSuccessfulStatus(statuses []string) *HasSuccessfulStatus {
-	return &HasSuccessfulStatus{
-		Statuses: statuses,
+func NewHasStatus(statuses []string, conclusions []string) *HasStatus {
+	conclusionsSet := make(allowedConclusions, len(conclusions))
+	for _, conclusion := range conclusions {
+		conclusionsSet[conclusion] = unit{}
+	}
+	return &HasStatus{
+		Conclusions: conclusionsSet,
+		Statuses:    statuses,
 	}
 }
 
-// UnmarshalYAML implements the yaml.Unmarshaler interface for HasSuccessfulStatus.
-// This allows the predicate to be specified as either a list of strings or with options.
-func (pred *HasSuccessfulStatus) UnmarshalYAML(unmarshal func(interface{}) error) error {
+// UnmarshalYAML implements the yaml.Unmarshaler interface for HasStatus.
+// This supports unmarshalling the predicate in two forms:
+//  1. A list of strings, which are the statuses to check for. This is the
+//     deprecated `has_successful_status` format.
+//  2. A full structure with `statuses` and `conclusions` fields as in
+//     `has_status`.
+func (pred *HasStatus) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	// Try to unmarshal as a list of strings first
 	statuses := []string{}
 	if err := unmarshal(&statuses); err == nil {
@@ -50,30 +56,26 @@ func (pred *HasSuccessfulStatus) UnmarshalYAML(unmarshal func(interface{}) error
 	}
 
 	// If that fails, try to unmarshal as the full structure
-	type rawHasSuccessfulStatus HasSuccessfulStatus
+	type rawHasSuccessfulStatus HasStatus
 	return unmarshal((*rawHasSuccessfulStatus)(pred))
 }
 
-var _ Predicate = HasSuccessfulStatus{}
+var _ Predicate = HasStatus{}
 
-func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
+func (pred HasStatus) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
 	statuses, err := prctx.LatestStatuses()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list commit statuses")
 	}
 
-	allowedStatusConclusions := map[string]struct{}{
-		"success": {},
+	conclusions := pred.Conclusions
+	if len(conclusions) == 0 {
+		conclusions = defaultConclusions
 	}
 
 	predicateResult := common.PredicateResult{
 		ValuePhrase:     "status checks",
-		ConditionPhrase: "exist and pass",
-	}
-
-	if pred.Options.SkippedIsSuccess {
-		predicateResult.ConditionPhrase += " or are skipped"
-		allowedStatusConclusions["skipped"] = struct{}{}
+		ConditionPhrase: fmt.Sprintf("exist and have conclusion %s", conclusions.joinWithOr()),
 	}
 
 	var missingResults []string
@@ -83,7 +85,7 @@ func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context
 		if !ok {
 			missingResults = append(missingResults, status)
 		}
-		if _, allowed := allowedStatusConclusions[result]; !allowed {
+		if _, allowed := conclusions[result]; !allowed {
 			failingStatuses = append(failingStatuses, status)
 		}
 	}
@@ -97,7 +99,7 @@ func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context
 
 	if len(failingStatuses) > 0 {
 		predicateResult.Values = failingStatuses
-		predicateResult.Description = "One or more statuses has not passed: " + strings.Join(failingStatuses, ",")
+		predicateResult.Description = fmt.Sprintf("One or more statuses has not concluded with %s: %s", pred.Conclusions.joinWithOr(), strings.Join(failingStatuses, ","))
 		predicateResult.Satisfied = false
 		return &predicateResult, nil
 	}
@@ -107,6 +109,6 @@ func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context
 	return &predicateResult, nil
 }
 
-func (pred HasSuccessfulStatus) Trigger() common.Trigger {
+func (pred HasStatus) Trigger() common.Trigger {
 	return common.TriggerStatus
 }

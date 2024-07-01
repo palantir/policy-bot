@@ -76,10 +76,9 @@ func TestParsePolicy(t *testing.T) {
       - status1
 - name: rule9
   if:
-    has_successful_status:
+    has_status:
+      conclusions: ["success", "skipped"]
       statuses: [status2, status3]
-      options:
-        skipped_is_success: true
 `
 
 	var policy Policy
