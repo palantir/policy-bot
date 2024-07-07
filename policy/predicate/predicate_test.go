@@ -19,6 +19,7 @@ import (
 
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v2"
 )
 
 func assertPredicateResult(t *testing.T, expected, actual *common.PredicateResult) {
@@ -26,4 +27,90 @@ func assertPredicateResult(t *testing.T, expected, actual *common.PredicateResul
 	assert.Equal(t, expected.Values, actual.Values, "values were not correct")
 	assert.Equal(t, expected.ConditionsMap, actual.ConditionsMap, "conditions were not correct")
 	assert.Equal(t, expected.ConditionValues, actual.ConditionValues, "conditions were not correct")
+}
+
+func TestUnmarshalAllowedConclusions(t *testing.T) {
+	testCases := []struct {
+		name        string
+		input       string
+		expected    allowedConclusions
+		expectedErr bool
+	}{
+		{
+			name:     "empty",
+			input:    "",
+			expected: nil,
+		},
+		{
+			name:     "single",
+			input:    `["success"]`,
+			expected: allowedConclusions{"success": unit{}},
+		},
+		{
+			name:     "multiple",
+			input:    `["success", "failure"]`,
+			expected: allowedConclusions{"success": unit{}, "failure": unit{}},
+		},
+		{
+			name:     "repeat",
+			input:    `["success", "success"]`,
+			expected: allowedConclusions{"success": unit{}},
+		},
+		{
+			name:        "invalid",
+			input:       `notyaml`,
+			expectedErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var actual allowedConclusions
+			err := yaml.UnmarshalStrict([]byte(tc.input), &actual)
+
+			if tc.expectedErr {
+				assert.Error(t, err, "UnmarshalStrict should have failed")
+				return
+			}
+
+			assert.NoError(t, err, "UnmarshalStrict failed")
+			assert.Equal(t, tc.expected, actual, "values were not correct")
+		})
+	}
+}
+
+func TestJoinWithOr(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    allowedConclusions
+		expected string
+	}{
+		{
+			name:     "empty",
+			input:    nil,
+			expected: "",
+		},
+		{
+			name:     "one conclusion",
+			input:    allowedConclusions{"success": unit{}},
+			expected: "success",
+		},
+		{
+			name:     "two conclusions",
+			input:    allowedConclusions{"success": unit{}, "failure": unit{}},
+			expected: "failure or success",
+		},
+		{
+			name:     "three conclusions",
+			input:    allowedConclusions{"success": unit{}, "failure": unit{}, "cancelled": unit{}},
+			expected: "cancelled, failure, or success",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := tc.input.joinWithOr()
+			assert.Equal(t, tc.expected, actual, "values were not correct")
+		})
+	}
 }
