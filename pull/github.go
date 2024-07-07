@@ -141,6 +141,7 @@ type GitHubContext struct {
 	statuses      map[string]string
 	labels        []string
 	pushedAt      map[string]time.Time
+	workflowRuns  map[string][]string
 }
 
 // NewGitHubContext creates a new pull.Context that makes GitHub requests to
@@ -827,6 +828,92 @@ func (ghc *GitHubContext) getCheckStatuses() (map[string]string, error) {
 		opt.Page = resp.NextPage
 	}
 	return statuses, nil
+}
+
+func (ghc *GitHubContext) LatestWorkflowRuns() (map[string][]string, error) {
+	if ghc.workflowRuns != nil {
+		return ghc.workflowRuns, nil
+	}
+
+	opt := &github.ListWorkflowRunsOptions{
+		ExcludePullRequests: true,
+		HeadSHA:             ghc.HeadSHA(),
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+			Page:    0,
+		},
+	}
+
+	// The same workflow file can be triggered multiple times. For example:
+	//
+	// on:
+	//  pull_request:
+	//    types:
+	//      - opened
+	//      - synchronize
+	//      - edited
+	//  push:
+	//
+	// Within a single event type, we will take the latest result. For example,
+	// for a `pull_request` event:
+	//
+	// If the workflow passes for the `opened` event, yet fails for `edited`
+	// then we would consider the workflow passed initially, and then failed if
+	// the user makes an edit to the PR that causes the workflow to run and fail.
+	// This is because the failure came later and it's what GitHub will show on
+	// the UI as the result of this workflow.
+	//
+	// If a workflow is triggered by multiple event types (`pull_request` and
+	// `push` in the above example), we will apply the same logic to each event
+	// type separately. Effectively this means that each one of the types, if
+	// triggered, will have to match the policy separately. Assuming allowed
+	// conclusions of `success`, here this would mean that both the
+	// `pull_request` and `push` events would have to pass, if triggered, for
+	// the workflow to be considered successful.
+	runsWithDate := make(map[string]map[string]*github.WorkflowRun)
+	for {
+		runs, resp, err := ghc.client.Actions.ListRepositoryWorkflowRuns(ghc.ctx, ghc.owner, ghc.repo, opt)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get workflow runs for page %d", opt.Page)
+		}
+
+		for _, run := range runs.WorkflowRuns {
+			if run.GetStatus() != "completed" {
+				continue
+			}
+
+			eventName := run.GetEvent()
+
+			previousRuns := runsWithDate[*run.Path]
+			if previousRuns == nil {
+				previousRuns = make(map[string]*github.WorkflowRun)
+				runsWithDate[*run.Path] = previousRuns
+			}
+
+			previousRun := previousRuns[eventName]
+
+			// This is an older run than one we've already saw, so ignore it.
+			if previousRun != nil && run.GetUpdatedAt().Before(previousRun.GetUpdatedAt().Time) {
+				continue
+			}
+
+			previousRuns[eventName] = run
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+		opt.Page = resp.NextPage
+	}
+	workflowRuns := make(map[string][]string, len(runsWithDate))
+
+	for path, eventRuns := range runsWithDate {
+		for _, run := range eventRuns {
+			workflowRuns[path] = append(workflowRuns[path], run.GetConclusion())
+		}
+	}
+
+	return workflowRuns, nil
 }
 
 func (ghc *GitHubContext) Labels() ([]string, error) {

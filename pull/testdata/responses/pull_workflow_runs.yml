@@ -1,0 +1,91 @@
+- status: 200
+  headers:
+    Link: |
+      <http://github.localhost/repos/testorg/testrepo/actions/runs?page=2>; rel="next",
+      <http://github.localhost/repos/testorg/testrepo/actions/runspage=2>; rel="last"
+  body: |
+    {
+      "total_count": 7,
+      "workflow_runs": [
+        {
+          "comment": "This one fails in id: 6, but that timestamp is earlier than this one, so is ignored",
+          "id": 1,
+          "path": ".github/workflows/a.yml",
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "success",
+          "updated_at": "2021-01-01T00:00:00Z",
+          "html_url": "http://github.localhost/repos/testorg/testrepo/actions/runs/1",
+          "pull_requests": []
+        },
+        {
+          "comment": "This one fails in id: 5, and that timestamp is later than this one, so is taken as the resutl of the workflow",
+          "id": 2,
+          "path": ".github/workflows/b.yml",
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "success",
+          "updated_at": "2021-01-01T00:00:00Z",
+          "pull_requests": []
+        }
+      ]
+    }
+
+- status: 200
+  headers:
+    Link: |
+      <http://github.localhost/repos/testorg/testrepo/actions/runs?page=1>; rel="prev",
+      <http://github.localhost/repos/testorg/testrepo/actions/runs?page=1>; rel="first"
+  body: |
+    {
+      "total_count": 7,
+      "workflow_runs": [
+        {
+          "id": 3,
+          "path": ".github/workflows/c.yml",
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "cancelled",
+          "updated_at": "2021-01-01T00:00:00Z",
+          "pull_requests": []
+        },
+        {
+          "id": 4,
+          "path": ".github/workflows/d.yml",
+          "event": "pull_request",
+          "status": "in_progress",
+          "conclusion": null,
+          "updated_at": "2021-01-01T00:00:00Z",
+          "pull_requests": []
+        },
+        {
+          "id": 5,
+          "path": ".github/workflows/b.yml",
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "failure",
+          "updated_at": "2022-01-01T00:00:00Z",
+          "pull_requests": []
+        },
+        {
+          "id": 6,
+          "path": ".github/workflows/a.yml",
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "failure",
+          "updated_at": "2020-01-01T00:00:00Z",
+          "html_url": "http://github.localhost/repos/testorg/testrepo/actions/runs/1",
+          "pull_requests": []
+        },
+        {
+          "id": 7,
+          "path": ".github/workflows/a.yml",
+          "event": "push",
+          "status": "completed",
+          "conclusion": "skipped",
+          "updated_at": "2020-01-01T00:00:00Z",
+          "html_url": "http://github.localhost/repos/testorg/testrepo/actions/runs/1",
+          "pull_requests": []
+        }
+      ]
+    }

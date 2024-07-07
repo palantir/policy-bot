@@ -186,6 +186,7 @@ func New(c *Config) (*Server, error) {
 			&handler.IssueComment{Base: basePolicyHandler},
 			&handler.Status{Base: basePolicyHandler},
 			&handler.CheckRun{Base: basePolicyHandler},
+			&handler.WorkflowRun{Base: basePolicyHandler},
 		},
 		c.Github.App.WebhookSecret,
 		githubapp.WithErrorCallback(githubapp.MetricsErrorCallback(base.Registry())),
