@@ -25,6 +25,14 @@ type Regexp struct {
 	r *regexp.Regexp
 }
 
+func (r Regexp) MarshalYAML() (interface{}, error) {
+	return r.String(), nil
+}
+
+func (r Regexp) IsZero() bool {
+	return r.r == nil
+}
+
 func NewRegexp(pattern string) (Regexp, error) {
 	r, err := regexp.Compile(pattern)
 	if err != nil {

@@ -22,8 +22,8 @@ import (
 )
 
 type Repository struct {
-	Matches    []common.Regexp `yaml:"matches"`
-	NotMatches []common.Regexp `yaml:"not_matches"`
+	Matches    []common.Regexp `yaml:"matches,omitempty"`
+	NotMatches []common.Regexp `yaml:"not_matches,omitempty"`
 }
 
 var _ Predicate = Repository{}

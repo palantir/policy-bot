@@ -23,7 +23,7 @@ import (
 )
 
 type TargetsBranch struct {
-	Pattern common.Regexp `yaml:"pattern"`
+	Pattern common.Regexp `yaml:"pattern,omitempty"`
 }
 
 var _ Predicate = &TargetsBranch{}
@@ -54,7 +54,7 @@ func (pred *TargetsBranch) Trigger() common.Trigger {
 }
 
 type FromBranch struct {
-	Pattern common.Regexp `yaml:"pattern"`
+	Pattern common.Regexp `yaml:"pattern,omitempty"`
 }
 
 var _ Predicate = &FromBranch{}

@@ -26,8 +26,8 @@ import (
 )
 
 type ChangedFiles struct {
-	Paths       []common.Regexp `yaml:"paths"`
-	IgnorePaths []common.Regexp `yaml:"ignore"`
+	Paths       []common.Regexp `yaml:"paths,omitempty"`
+	IgnorePaths []common.Regexp `yaml:"ignore,omitempty"`
 }
 
 var _ Predicate = &ChangedFiles{}
@@ -86,7 +86,7 @@ func (pred *ChangedFiles) Trigger() common.Trigger {
 }
 
 type OnlyChangedFiles struct {
-	Paths []common.Regexp `yaml:"paths"`
+	Paths []common.Regexp `yaml:"paths,omitempty"`
 }
 
 var _ Predicate = &OnlyChangedFiles{}
@@ -142,8 +142,8 @@ func (pred *OnlyChangedFiles) Trigger() common.Trigger {
 }
 
 type NoChangedFiles struct {
-	Paths       []common.Regexp `yaml:"paths"`
-	IgnorePaths []common.Regexp `yaml:"ignore"`
+	Paths       []common.Regexp `yaml:"paths,omitempty"`
+	IgnorePaths []common.Regexp `yaml:"ignore,omitempty"`
 }
 
 var _ Predicate = &NoChangedFiles{}
@@ -182,9 +182,9 @@ func (pred *NoChangedFiles) Trigger() common.Trigger {
 }
 
 type ModifiedLines struct {
-	Additions ComparisonExpr `yaml:"additions"`
-	Deletions ComparisonExpr `yaml:"deletions"`
-	Total     ComparisonExpr `yaml:"total"`
+	Additions ComparisonExpr `yaml:"additions,omitempty"`
+	Deletions ComparisonExpr `yaml:"deletions,omitempty"`
+	Total     ComparisonExpr `yaml:"total,omitempty"`
 }
 
 type CompareOp uint8

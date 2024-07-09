@@ -15,36 +15,40 @@
 package predicate
 
 type Predicates struct {
-	ChangedFiles     *ChangedFiles     `yaml:"changed_files"`
-	NoChangedFiles   *NoChangedFiles   `yaml:"no_changed_files"`
-	OnlyChangedFiles *OnlyChangedFiles `yaml:"only_changed_files"`
+	ChangedFiles     *ChangedFiles     `yaml:"changed_files,omitempty"`
+	NoChangedFiles   *NoChangedFiles   `yaml:"no_changed_files,omitempty"`
+	OnlyChangedFiles *OnlyChangedFiles `yaml:"only_changed_files,omitempty"`
 
-	HasAuthorIn             *HasAuthorIn             `yaml:"has_author_in"`
-	HasContributorIn        *HasContributorIn        `yaml:"has_contributor_in"`
-	OnlyHasContributorsIn   *OnlyHasContributorsIn   `yaml:"only_has_contributors_in"`
-	AuthorIsOnlyContributor *AuthorIsOnlyContributor `yaml:"author_is_only_contributor"`
+	HasAuthorIn             *HasAuthorIn             `yaml:"has_author_in,omitempty"`
+	HasContributorIn        *HasContributorIn        `yaml:"has_contributor_in,omitempty"`
+	OnlyHasContributorsIn   *OnlyHasContributorsIn   `yaml:"only_has_contributors_in,omitempty"`
+	AuthorIsOnlyContributor *AuthorIsOnlyContributor `yaml:"author_is_only_contributor,omitempty"`
 
-	TargetsBranch *TargetsBranch `yaml:"targets_branch"`
-	FromBranch    *FromBranch    `yaml:"from_branch"`
+	TargetsBranch *TargetsBranch `yaml:"targets_branch,omitempty"`
+	FromBranch    *FromBranch    `yaml:"from_branch,omitempty"`
 
-	ModifiedLines *ModifiedLines `yaml:"modified_lines"`
+	ModifiedLines *ModifiedLines `yaml:"modified_lines,omitempty"`
 
-	HasStatus *HasStatus `yaml:"has_status"`
+	HasStatus *HasStatus `yaml:"has_status,omitempty"`
 	// `has_successful_status` is a deprecated field that is kept for backwards
 	// compatibility.  `has_status` replaces it, and can accept any conclusion
 	// rather than just "success".
-	HasSuccessfulStatus *HasSuccessfulStatus `yaml:"has_successful_status"`
+	HasSuccessfulStatus *HasSuccessfulStatus `yaml:"has_successful_status,omitempty"`
 
-	HasWorkflowResult *HasWorkflowResult `yaml:"has_workflow_result"`
+	HasWorkflowResult *HasWorkflowResult `yaml:"has_workflow_result,omitempty"`
 
-	HasLabels *HasLabels `yaml:"has_labels"`
+	HasLabels *HasLabels `yaml:"has_labels,omitempty"`
 
-	Repository *Repository `yaml:"repository"`
-	Title      *Title      `yaml:"title"`
+	Repository *Repository `yaml:"repository,omitempty"`
+	Title      *Title      `yaml:"title,omitempty"`
 
-	HasValidSignatures       *HasValidSignatures       `yaml:"has_valid_signatures"`
-	HasValidSignaturesBy     *HasValidSignaturesBy     `yaml:"has_valid_signatures_by"`
-	HasValidSignaturesByKeys *HasValidSignaturesByKeys `yaml:"has_valid_signatures_by_keys"`
+	HasValidSignatures       *HasValidSignatures       `yaml:"has_valid_signatures,omitempty"`
+	HasValidSignaturesBy     *HasValidSignaturesBy     `yaml:"has_valid_signatures_by,omitempty"`
+	HasValidSignaturesByKeys *HasValidSignaturesByKeys `yaml:"has_valid_signatures_by_keys,omitempty"`
+}
+
+func (p Predicates) IsZero() bool {
+	return p == Predicates{}
 }
 
 func (p *Predicates) Predicates() []Predicate {

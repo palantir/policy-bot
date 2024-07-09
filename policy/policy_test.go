@@ -17,13 +17,18 @@ package policy
 import (
 	"context"
 	"errors"
+	"regexp"
 	"testing"
 
+	"github.com/palantir/policy-bot/policy/approval"
 	"github.com/palantir/policy-bot/policy/common"
+	"github.com/palantir/policy-bot/policy/disapproval"
+	"github.com/palantir/policy-bot/policy/predicate"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/pull/pulltest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
 )
 
 type StaticEvaluator common.Result
@@ -111,6 +116,131 @@ func TestEvaluator(t *testing.T) {
 			assert.Equal(t, castToResult(eval.disapproval), r.Children[1])
 		}
 	})
+}
+
+func TestConfigMarshalYaml(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   Config
+		expected string
+	}{
+		{
+			name:   "empty",
+			config: Config{},
+		},
+		{
+			name: "withDisapproval",
+			config: Config{
+				Policy: Policy{
+					Disapproval: &disapproval.Policy{},
+				},
+			},
+			expected: `policy:
+  disapproval: {}
+`,
+		},
+		{
+			name: "withApprovalRules",
+			config: Config{
+				ApprovalRules: []*approval.Rule{
+					{
+						Name: "rule1",
+					},
+				},
+			},
+			expected: `approval_rules:
+- name: rule1
+`,
+		},
+		{
+			name: "withChangedFiles",
+			config: Config{
+				ApprovalRules: []*approval.Rule{
+					{
+						Name: "rule1",
+						Predicates: predicate.Predicates{
+							ChangedFiles: &predicate.ChangedFiles{
+								Paths: []common.Regexp{
+									common.NewCompiledRegexp(regexp.MustCompile(`^\.github/workflows/.*\.yml$`)),
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: `approval_rules:
+- name: rule1
+  if:
+    changed_files:
+      paths:
+      - ^\.github/workflows/.*\.yml$
+`,
+		},
+		{
+			name: "author",
+			config: Config{
+				ApprovalRules: []*approval.Rule{
+					{
+						Name: "rule1",
+						Predicates: predicate.Predicates{
+							HasAuthorIn: &predicate.HasAuthorIn{
+								Actors: common.Actors{
+									Users: []string{"author1", "author2"},
+								},
+							},
+							AuthorIsOnlyContributor: new(predicate.AuthorIsOnlyContributor),
+						},
+					},
+				},
+			},
+			expected: `approval_rules:
+- name: rule1
+  if:
+    has_author_in:
+      users:
+      - author1
+      - author2
+    author_is_only_contributor: false
+`,
+		},
+		{
+			name: "modifiedLines",
+			config: Config{
+				ApprovalRules: []*approval.Rule{
+					{
+						Name: "rule1",
+						Predicates: predicate.Predicates{
+							ModifiedLines: &predicate.ModifiedLines{
+								Additions: predicate.ComparisonExpr{
+									Op:    predicate.OpGreaterThan,
+									Value: 10,
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: `approval_rules:
+- name: rule1
+  if:
+    modified_lines:
+      additions: '> 10'
+`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			expected := test.expected
+			if expected == "" {
+				expected = "{}\n"
+			}
+
+			b, err := yaml.Marshal(test.config)
+			require.NoError(t, err)
+			require.Equal(t, expected, string(b))
+		})
+	}
 }
 
 func castToResult(e common.Evaluator) *common.Result {
