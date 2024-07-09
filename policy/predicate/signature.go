@@ -70,7 +70,7 @@ func (pred HasValidSignatures) Trigger() common.Trigger {
 }
 
 type HasValidSignaturesBy struct {
-	common.Actors `yaml:",inline"`
+	common.Actors `yaml:",inline,omitempty"`
 }
 
 var _ Predicate = &HasValidSignaturesBy{}
@@ -136,7 +136,7 @@ func (pred *HasValidSignaturesBy) Trigger() common.Trigger {
 }
 
 type HasValidSignaturesByKeys struct {
-	KeyIDs []string `yaml:"key_ids"`
+	KeyIDs []string `yaml:"key_ids,omitempty"`
 }
 
 var _ Predicate = &HasValidSignaturesByKeys{}

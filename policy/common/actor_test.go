@@ -117,17 +117,17 @@ func TestIsActor(t *testing.T) {
 
 func TestIsEmpty(t *testing.T) {
 	a := &Actors{}
-	assert.True(t, a.IsEmpty(), "Actors struct was not empty")
+	assert.True(t, a.IsZero(), "Actors struct was not empty")
 
 	a = &Actors{Users: []string{"user"}}
-	assert.False(t, a.IsEmpty(), "Actors struct was empty")
+	assert.False(t, a.IsZero(), "Actors struct was empty")
 
 	a = &Actors{Teams: []string{"org/team"}}
-	assert.False(t, a.IsEmpty(), "Actors struct was empty")
+	assert.False(t, a.IsZero(), "Actors struct was empty")
 
 	a = &Actors{Organizations: []string{"org"}}
-	assert.False(t, a.IsEmpty(), "Actors struct was empty")
+	assert.False(t, a.IsZero(), "Actors struct was empty")
 
 	a = nil
-	assert.True(t, a.IsEmpty(), "nil struct was not empty")
+	assert.True(t, a.IsZero(), "nil struct was not empty")
 }

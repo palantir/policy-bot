@@ -29,32 +29,32 @@ import (
 )
 
 type Rule struct {
-	Name        string               `yaml:"name"`
-	Description string               `yaml:"description"`
-	Predicates  predicate.Predicates `yaml:"if"`
-	Options     Options              `yaml:"options"`
-	Requires    Requires             `yaml:"requires"`
+	Name        string               `yaml:"name,omitempty"`
+	Description string               `yaml:"description,omitempty"`
+	Predicates  predicate.Predicates `yaml:"if,omitempty"`
+	Options     Options              `yaml:"options,omitempty"`
+	Requires    Requires             `yaml:"requires,omitempty"`
 }
 
 type Options struct {
-	AllowAuthor               bool `yaml:"allow_author"`
-	AllowContributor          bool `yaml:"allow_contributor"`
-	AllowNonAuthorContributor bool `yaml:"allow_non_author_contributor"`
-	InvalidateOnPush          bool `yaml:"invalidate_on_push"`
+	AllowAuthor               bool `yaml:"allow_author,omitempty"`
+	AllowContributor          bool `yaml:"allow_contributor,omitempty"`
+	AllowNonAuthorContributor bool `yaml:"allow_non_author_contributor,omitempty"`
+	InvalidateOnPush          bool `yaml:"invalidate_on_push,omitempty"`
 
-	IgnoreEditedComments bool          `yaml:"ignore_edited_comments"`
-	IgnoreUpdateMerges   bool          `yaml:"ignore_update_merges"`
-	IgnoreCommitsBy      common.Actors `yaml:"ignore_commits_by"`
+	IgnoreEditedComments bool          `yaml:"ignore_edited_comments,omitempty"`
+	IgnoreUpdateMerges   bool          `yaml:"ignore_update_merges,omitempty"`
+	IgnoreCommitsBy      common.Actors `yaml:"ignore_commits_by,omitempty"`
 
-	RequestReview RequestReview `yaml:"request_review"`
+	RequestReview RequestReview `yaml:"request_review,omitempty"`
 
-	Methods *common.Methods `yaml:"methods"`
+	Methods *common.Methods `yaml:"methods,omitempty"`
 }
 
 type RequestReview struct {
-	Enabled bool               `yaml:"enabled"`
-	Mode    common.RequestMode `yaml:"mode"`
-	Count   int                `yaml:"count"`
+	Enabled bool               `yaml:"enabled,omitempty"`
+	Mode    common.RequestMode `yaml:"mode,omitempty"`
+	Count   int                `yaml:"count,omitempty"`
 }
 
 func (opts *Options) GetMethods() *common.Methods {
@@ -78,9 +78,9 @@ func (opts *Options) GetMethods() *common.Methods {
 }
 
 type Requires struct {
-	Count      int                  `yaml:"count"`
+	Count      int                  `yaml:"count,omitempty"`
 	Actors     common.Actors        `yaml:",inline"`
-	Conditions predicate.Predicates `yaml:"conditions"`
+	Conditions predicate.Predicates `yaml:"conditions,omitempty"`
 }
 
 func (r *Rule) Trigger() common.Trigger {
@@ -411,7 +411,7 @@ func (r *Rule) filteredCommits(ctx context.Context, prctx pull.Context) ([]*pull
 	commits = sortCommits(commits, prctx.HeadSHA())
 
 	ignoreUpdates := r.Options.IgnoreUpdateMerges
-	ignoreCommits := !r.Options.IgnoreCommitsBy.IsEmpty()
+	ignoreCommits := !r.Options.IgnoreCommitsBy.IsZero()
 
 	if !ignoreUpdates && !ignoreCommits {
 		return commits, nil

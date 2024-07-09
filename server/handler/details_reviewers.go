@@ -64,7 +64,7 @@ func (h *DetailsReviewers) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 	ruleName := r.URL.Query().Get("rule")
 	requires := findRuleRequires(config.Config, ruleName)
 
-	if requires == nil || requires.Count == 0 || requires.Actors.IsEmpty() {
+	if requires == nil || requires.Count == 0 || requires.Actors.IsZero() {
 		// If the rule does not exist, it does not require approval, or it has
 		// no actors specified, there's no need to list reviewers
 		return h.renderEmptyReviewers(w, r)
