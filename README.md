@@ -322,6 +322,14 @@ if:
     deletions: "> 100"
     total: "> 200"
 
+  # DEPRECATED: Use "has_status" below instead, which is more flexible.
+  # "has_successful_status" is satisfied if the status checks that are specified
+  # are marked successful on the head commit of the pull request.
+  has_successful_status:
+    - "status-name-1"
+    - "status-name-2"
+    - "status-name-3"
+
   # "has_status" is satisfied if the status checks that are specified are
   # finished and concluded with one of the conclusions specified.
   # "conclusions" is optional and defaults to ["success"].
