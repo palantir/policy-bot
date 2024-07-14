@@ -43,7 +43,7 @@ func TestHasSuccessfulStatus(t *testing.T) {
 	hasStatus := HasStatus{Statuses: []string{"status-name", "status-name-2"}}
 	hasStatusSkippedOk := HasStatus{
 		Statuses:    []string{"status-name", "status-name-2"},
-		Conclusions: allowedConclusions{"success": {}, "skipped": {}},
+		Conclusions: allowedConclusions{"success", "skipped"},
 	}
 	hasSuccessfulStatus := HasSuccessfulStatus{"status-name", "status-name-2"}
 
@@ -215,6 +215,46 @@ func runStatusTestCase(t *testing.T, p Predicate, suite StatusTestSuite) {
 			if assert.NoError(t, err, "evaluation failed") {
 				assertPredicateResult(t, tc.ExpectedPredicateResult, predicateResult)
 			}
+		})
+	}
+}
+
+func TestJoinWithOr(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    allowedConclusions
+		expected string
+	}{
+		{
+			"empty",
+			allowedConclusions{},
+			"",
+		},
+		{
+			"single",
+			allowedConclusions{"a"},
+			"a",
+		},
+		{
+			"two",
+			allowedConclusions{"a", "b"},
+			"a or b",
+		},
+		{
+			"three",
+			allowedConclusions{"a", "b", "c"},
+			"a, b, or c",
+		},
+		{
+			"conclusions get sorted",
+			allowedConclusions{"c", "a", "b"},
+			"a, b, or c",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.input.joinWithOr())
 		})
 	}
 }

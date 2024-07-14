@@ -17,6 +17,7 @@ package predicate
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/palantir/policy-bot/policy/common"
@@ -24,18 +25,16 @@ import (
 	"github.com/pkg/errors"
 )
 
+type allowedConclusions []string
+
 type HasStatus struct {
 	Conclusions allowedConclusions `yaml:"conclusions"`
 	Statuses    []string           `yaml:"statuses"`
 }
 
 func NewHasStatus(statuses []string, conclusions []string) *HasStatus {
-	conclusionsSet := make(allowedConclusions, len(conclusions))
-	for _, conclusion := range conclusions {
-		conclusionsSet[conclusion] = unit{}
-	}
 	return &HasStatus{
-		Conclusions: conclusionsSet,
+		Conclusions: conclusions,
 		Statuses:    statuses,
 	}
 }
@@ -50,7 +49,7 @@ func (pred HasStatus) Evaluate(ctx context.Context, prctx pull.Context) (*common
 
 	conclusions := pred.Conclusions
 	if len(conclusions) == 0 {
-		conclusions = defaultConclusions
+		conclusions = allowedConclusions{"success"}
 	}
 
 	predicateResult := common.PredicateResult{
@@ -65,7 +64,7 @@ func (pred HasStatus) Evaluate(ctx context.Context, prctx pull.Context) (*common
 		if !ok {
 			missingResults = append(missingResults, status)
 		}
-		if _, allowed := conclusions[result]; !allowed {
+		if !slices.Contains(conclusions, result) {
 			failingStatuses = append(failingStatuses, status)
 		}
 	}
@@ -104,11 +103,33 @@ var _ Predicate = HasSuccessfulStatus{}
 
 func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
 	return HasStatus{
-		Statuses:    pred,
-		Conclusions: allowedConclusions{"success": {}},
+		Statuses: pred,
 	}.Evaluate(ctx, prctx)
 }
 
 func (pred HasSuccessfulStatus) Trigger() common.Trigger {
 	return common.TriggerStatus
+}
+
+// joinWithOr returns a string that represents the allowed conclusions in a
+// format that can be used in a sentence. For example, if the allowed
+// conclusions are "success" and "failure", this will return "success or
+// failure". If there are more than two conclusions, the first n-1 will be
+// separated by commas.
+func (c allowedConclusions) joinWithOr() string {
+	slices.Sort(c)
+
+	length := len(c)
+	switch length {
+	case 0:
+		return ""
+	case 1:
+		return c[0]
+	case 2:
+		return c[0] + " or " + c[1]
+	}
+
+	head, tail := c[:length-1], c[length-1]
+
+	return strings.Join(head, ", ") + ", or " + tail
 }
