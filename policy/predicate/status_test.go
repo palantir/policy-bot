@@ -16,9 +16,12 @@ package predicate
 
 import (
 	"context"
+	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
+	"github.com/google/go-github/v62/github"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/pull/pulltest"
@@ -37,7 +40,12 @@ func keysSorted[V any](m map[string]V) []string {
 }
 
 func TestHasSuccessfulStatus(t *testing.T) {
-	p := HasStatus{Statuses: []string{"status-name", "status-name-2"}}
+	hasStatus := HasStatus{Statuses: []string{"status-name", "status-name-2"}}
+	hasStatusSkippedOk := HasStatus{
+		Statuses:    []string{"status-name", "status-name-2"},
+		Conclusions: allowedConclusions{"success": {}, "skipped": {}},
+	}
+	hasSuccessfulStatus := HasSuccessfulStatus{"status-name", "status-name-2"}
 
 	commonTestCases := []StatusTestCase{
 		{
@@ -141,22 +149,34 @@ func TestHasSuccessfulStatus(t *testing.T) {
 		},
 	}
 
-	// Run tests with skipped statuses counting as failures
-	runStatusTestCase(t, p, commonTestCases)
-	runStatusTestCase(t, p, okOnlyIfSkippedAllowed)
-
-	// Run tests with skipped statuses counting as successes
-	p.Conclusions = allowedConclusions{"success": {}, "skipped": {}}
-
-	for i := 0; i < len(commonTestCases); i++ {
-		commonTestCases[i].name += ", but skipped statuses are allowed"
+	testSuites := []StatusTestSuite{
+		{predicate: hasStatus, testCases: commonTestCases},
+		{predicate: hasStatus, testCases: okOnlyIfSkippedAllowed},
+		{predicate: hasSuccessfulStatus, testCases: commonTestCases},
+		{predicate: hasSuccessfulStatus, testCases: okOnlyIfSkippedAllowed},
+		{
+			nameSuffix: "skipped allowed",
+			predicate:  hasStatusSkippedOk,
+			testCases:  commonTestCases,
+		},
+		{
+			nameSuffix:        "skipped allowed",
+			predicate:         hasStatusSkippedOk,
+			testCases:         okOnlyIfSkippedAllowed,
+			overrideSatisfied: github.Bool(true),
+		},
 	}
-	for i := 0; i < len(okOnlyIfSkippedAllowed); i++ {
-		okOnlyIfSkippedAllowed[i].name += ", but skipped statuses are allowed"
-		okOnlyIfSkippedAllowed[i].ExpectedPredicateResult.Satisfied = true
+
+	for _, suite := range testSuites {
+		runStatusTestCase(t, suite.predicate, suite)
 	}
-	runStatusTestCase(t, p, commonTestCases)
-	runStatusTestCase(t, p, okOnlyIfSkippedAllowed)
+}
+
+type StatusTestSuite struct {
+	nameSuffix        string
+	predicate         Predicate
+	testCases         []StatusTestCase
+	overrideSatisfied *bool
 }
 
 type StatusTestCase struct {
@@ -165,10 +185,14 @@ type StatusTestCase struct {
 	ExpectedPredicateResult *common.PredicateResult
 }
 
-func runStatusTestCase(t *testing.T, p Predicate, cases []StatusTestCase) {
+func runStatusTestCase(t *testing.T, p Predicate, suite StatusTestSuite) {
 	ctx := context.Background()
 
-	for _, tc := range cases {
+	for _, tc := range suite.testCases {
+		if suite.overrideSatisfied != nil {
+			tc.ExpectedPredicateResult.Satisfied = *suite.overrideSatisfied
+		}
+
 		// If the test case expects the predicate to be satisfied, we always
 		// expect the values to contain all the statuses. Doing this here lets
 		// us use the same testcases when we allow and don't allow skipped
@@ -178,7 +202,15 @@ func runStatusTestCase(t *testing.T, p Predicate, cases []StatusTestCase) {
 			tc.ExpectedPredicateResult.Values = keysSorted(statuses)
 		}
 
-		t.Run(tc.name, func(t *testing.T) {
+		// `predicate.HasStatus` -> `HasStatus`
+		_, predicateType, _ := strings.Cut(fmt.Sprintf("%T", p), ".")
+		testName := fmt.Sprintf("%s_%s", predicateType, tc.name)
+
+		if suite.nameSuffix != "" {
+			testName += "_" + suite.nameSuffix
+		}
+
+		t.Run(testName, func(t *testing.T) {
 			predicateResult, err := p.Evaluate(ctx, tc.context)
 			if assert.NoError(t, err, "evaluation failed") {
 				assertPredicateResult(t, tc.ExpectedPredicateResult, predicateResult)

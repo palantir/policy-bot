@@ -40,26 +40,6 @@ func NewHasStatus(statuses []string, conclusions []string) *HasStatus {
 	}
 }
 
-// UnmarshalYAML implements the yaml.Unmarshaler interface for HasStatus.
-// This supports unmarshalling the predicate in two forms:
-//  1. A list of strings, which are the statuses to check for. This is the
-//     deprecated `has_successful_status` format.
-//  2. A full structure with `statuses` and `conclusions` fields as in
-//     `has_status`.
-func (pred *HasStatus) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	// Try to unmarshal as a list of strings first
-	statuses := []string{}
-	if err := unmarshal(&statuses); err == nil {
-		pred.Statuses = statuses
-
-		return nil
-	}
-
-	// If that fails, try to unmarshal as the full structure
-	type rawHasSuccessfulStatus HasStatus
-	return unmarshal((*rawHasSuccessfulStatus)(pred))
-}
-
 var _ Predicate = HasStatus{}
 
 func (pred HasStatus) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
@@ -110,5 +90,25 @@ func (pred HasStatus) Evaluate(ctx context.Context, prctx pull.Context) (*common
 }
 
 func (pred HasStatus) Trigger() common.Trigger {
+	return common.TriggerStatus
+}
+
+// HasSuccessfulStatus checks that the specified statuses have a successful
+// conclusion.
+//
+// Deprecated: use the more flexible `HasStatus` with `conclusions: ["success"]`
+// instead.
+type HasSuccessfulStatus []string
+
+var _ Predicate = HasSuccessfulStatus{}
+
+func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
+	return HasStatus{
+		Statuses:    pred,
+		Conclusions: allowedConclusions{"success": {}},
+	}.Evaluate(ctx, prctx)
+}
+
+func (pred HasSuccessfulStatus) Trigger() common.Trigger {
 	return common.TriggerStatus
 }

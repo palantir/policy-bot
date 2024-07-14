@@ -33,7 +33,7 @@ type Predicates struct {
 	// `has_successful_status` is a deprecated field that is kept for backwards
 	// compatibility.  `has_status` replaces it, and can accept any conclusion
 	// rather than just "success".
-	HasSuccessfulStatus *HasStatus `yaml:"has_successful_status"`
+	HasSuccessfulStatus *HasSuccessfulStatus `yaml:"has_successful_status"`
 
 	HasLabels *HasLabels `yaml:"has_labels"`
 
