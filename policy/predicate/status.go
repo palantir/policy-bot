@@ -25,10 +25,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-type allowedConclusions []string
+type AllowedConclusions []string
 
 type HasStatus struct {
-	Conclusions allowedConclusions `yaml:"conclusions"`
+	Conclusions AllowedConclusions `yaml:"conclusions"`
 	Statuses    []string           `yaml:"statuses"`
 }
 
@@ -49,7 +49,7 @@ func (pred HasStatus) Evaluate(ctx context.Context, prctx pull.Context) (*common
 
 	conclusions := pred.Conclusions
 	if len(conclusions) == 0 {
-		conclusions = allowedConclusions{"success"}
+		conclusions = AllowedConclusions{"success"}
 	}
 
 	predicateResult := common.PredicateResult{
@@ -116,7 +116,7 @@ func (pred HasSuccessfulStatus) Trigger() common.Trigger {
 // conclusions are "success" and "failure", this will return "success or
 // failure". If there are more than two conclusions, the first n-1 will be
 // separated by commas.
-func (c allowedConclusions) joinWithOr() string {
+func (c AllowedConclusions) joinWithOr() string {
 	slices.Sort(c)
 
 	length := len(c)

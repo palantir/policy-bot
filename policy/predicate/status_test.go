@@ -43,7 +43,7 @@ func TestHasSuccessfulStatus(t *testing.T) {
 	hasStatus := HasStatus{Statuses: []string{"status-name", "status-name-2"}}
 	hasStatusSkippedOk := HasStatus{
 		Statuses:    []string{"status-name", "status-name-2"},
-		Conclusions: allowedConclusions{"success", "skipped"},
+		Conclusions: AllowedConclusions{"success", "skipped"},
 	}
 	hasSuccessfulStatus := HasSuccessfulStatus{"status-name", "status-name-2"}
 
@@ -222,32 +222,32 @@ func runStatusTestCase(t *testing.T, p Predicate, suite StatusTestSuite) {
 func TestJoinWithOr(t *testing.T) {
 	testCases := []struct {
 		name     string
-		input    allowedConclusions
+		input    AllowedConclusions
 		expected string
 	}{
 		{
 			"empty",
-			allowedConclusions{},
+			AllowedConclusions{},
 			"",
 		},
 		{
 			"single",
-			allowedConclusions{"a"},
+			AllowedConclusions{"a"},
 			"a",
 		},
 		{
 			"two",
-			allowedConclusions{"a", "b"},
+			AllowedConclusions{"a", "b"},
 			"a or b",
 		},
 		{
 			"three",
-			allowedConclusions{"a", "b", "c"},
+			AllowedConclusions{"a", "b", "c"},
 			"a, b, or c",
 		},
 		{
 			"conclusions get sorted",
-			allowedConclusions{"c", "a", "b"},
+			AllowedConclusions{"c", "a", "b"},
 			"a, b, or c",
 		},
 	}
