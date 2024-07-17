@@ -41,7 +41,8 @@ func (h *Status) Handle(ctx context.Context, eventType, deliveryID string, paylo
 		return errors.Wrap(err, "failed to parse status event payload")
 	}
 
-	if strings.HasPrefix(event.GetContext(), h.PullOpts.StatusCheckContext) {
+	ownContext := h.PullOpts.StatusCheckContext
+	if event.GetContext() == ownContext || strings.HasPrefix(event.GetContext(), ownContext+":") {
 		return h.processOwn(ctx, event)
 	}
 
