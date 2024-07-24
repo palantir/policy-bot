@@ -35,6 +35,9 @@ func TestParsePolicy(t *testing.T) {
 - and:
   - rule6
   - rule7
+  - or:
+    - rule8
+    - rule9
 `
 
 	ruleText := `
@@ -67,6 +70,15 @@ func TestParsePolicy(t *testing.T) {
       enabled: true
   requires:
     admins: true
+- name: rule8
+  if:
+    has_successful_status:
+      - status1
+- name: rule9
+  if:
+    has_status:
+      conclusions: ["success", "skipped"]
+      statuses: [status2, status3]
 `
 
 	var policy Policy
@@ -118,6 +130,16 @@ func TestParsePolicy(t *testing.T) {
 						},
 						&RuleRequirement{
 							rule: rules[6],
+						},
+						&OrRequirement{
+							requirements: []common.Evaluator{
+								&RuleRequirement{
+									rule: rules[7],
+								},
+								&RuleRequirement{
+									rule: rules[8],
+								},
+							},
 						},
 					},
 				},

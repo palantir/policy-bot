@@ -29,6 +29,10 @@ type Predicates struct {
 
 	ModifiedLines *ModifiedLines `yaml:"modified_lines"`
 
+	HasStatus *HasStatus `yaml:"has_status"`
+	// `has_successful_status` is a deprecated field that is kept for backwards
+	// compatibility.  `has_status` replaces it, and can accept any conclusion
+	// rather than just "success".
 	HasSuccessfulStatus *HasSuccessfulStatus `yaml:"has_successful_status"`
 
 	HasLabels *HasLabels `yaml:"has_labels"`
@@ -76,6 +80,10 @@ func (p *Predicates) Predicates() []Predicate {
 
 	if p.ModifiedLines != nil {
 		ps = append(ps, Predicate(p.ModifiedLines))
+	}
+
+	if p.HasStatus != nil {
+		ps = append(ps, Predicate(p.HasStatus))
 	}
 
 	if p.HasSuccessfulStatus != nil {

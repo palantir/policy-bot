@@ -676,7 +676,7 @@ func TestIsApproved(t *testing.T) {
 		r := &Rule{
 			Requires: Requires{
 				Conditions: predicate.Predicates{
-					HasSuccessfulStatus: &predicate.HasSuccessfulStatus{"deploy"},
+					HasStatus: &predicate.HasStatus{Statuses: []string{"deploy"}},
 				},
 			},
 		}
@@ -688,7 +688,7 @@ func TestIsApproved(t *testing.T) {
 		r := &Rule{
 			Requires: Requires{
 				Conditions: predicate.Predicates{
-					HasSuccessfulStatus: &predicate.HasSuccessfulStatus{"build"},
+					HasStatus: &predicate.HasStatus{Statuses: []string{"build"}},
 				},
 			},
 		}
@@ -701,7 +701,7 @@ func TestIsApproved(t *testing.T) {
 			Requires: Requires{
 				Count: 1,
 				Conditions: predicate.Predicates{
-					HasSuccessfulStatus: &predicate.HasSuccessfulStatus{"build"},
+					HasStatus: &predicate.HasStatus{Statuses: []string{"build"}},
 				},
 			},
 		}
@@ -717,7 +717,7 @@ func TestIsApproved(t *testing.T) {
 					Organizations: []string{"everyone"},
 				},
 				Conditions: predicate.Predicates{
-					HasSuccessfulStatus: &predicate.HasSuccessfulStatus{"build"},
+					HasStatus: &predicate.HasStatus{Statuses: []string{"build"}},
 				},
 			},
 		}
@@ -825,7 +825,7 @@ func TestTrigger(t *testing.T) {
 		r := &Rule{
 			Requires: Requires{
 				Conditions: predicate.Predicates{
-					HasSuccessfulStatus: &predicate.HasSuccessfulStatus{"build"},
+					HasStatus: predicate.NewHasStatus([]string{"status1"}, []string{"skipped", "success"}),
 				},
 			},
 		}

@@ -16,18 +16,38 @@ package predicate
 
 import (
 	"context"
+	"fmt"
+	"slices"
+	"strings"
 	"testing"
 
+	"github.com/google/go-github/v62/github"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/pull/pulltest"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestHasSuccessfulStatus(t *testing.T) {
-	p := HasSuccessfulStatus([]string{"status-name", "status-name-2"})
+func keysSorted[V any](m map[string]V) []string {
+	r := make([]string, 0, len(m))
 
-	runStatusTestCase(t, p, []StatusTestCase{
+	for k := range m {
+		r = append(r, k)
+	}
+
+	slices.Sort(r)
+	return r
+}
+
+func TestHasSuccessfulStatus(t *testing.T) {
+	hasStatus := HasStatus{Statuses: []string{"status-name", "status-name-2"}}
+	hasStatusSkippedOk := HasStatus{
+		Statuses:    []string{"status-name", "status-name-2"},
+		Conclusions: AllowedConclusions{"success", "skipped"},
+	}
+	hasSuccessfulStatus := HasSuccessfulStatus{"status-name", "status-name-2"}
+
+	commonTestCases := []StatusTestCase{
 		{
 			"all statuses succeed",
 			&pulltest.Context{
@@ -38,7 +58,6 @@ func TestHasSuccessfulStatus(t *testing.T) {
 			},
 			&common.PredicateResult{
 				Satisfied: true,
-				Values:    []string{"status-name", "status-name-2"},
 			},
 		},
 		{
@@ -80,6 +99,18 @@ func TestHasSuccessfulStatus(t *testing.T) {
 			},
 		},
 		{
+			"a status does not exist, the other status is skipped",
+			&pulltest.Context{
+				LatestStatusesValue: map[string]string{
+					"status-name-2": "skipped",
+				},
+			},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"status-name"},
+			},
+		},
+		{
 			"multiple statuses do not exist",
 			&pulltest.Context{},
 			&common.PredicateResult{
@@ -87,7 +118,65 @@ func TestHasSuccessfulStatus(t *testing.T) {
 				Values:    []string{"status-name", "status-name-2"},
 			},
 		},
-	})
+	}
+
+	okOnlyIfSkippedAllowed := []StatusTestCase{
+		{
+			"a status is skipped",
+			&pulltest.Context{
+				LatestStatusesValue: map[string]string{
+					"status-name":   "success",
+					"status-name-2": "skipped",
+				},
+			},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"status-name-2"},
+			},
+		},
+		{
+			"all statuses are skipped",
+			&pulltest.Context{
+				LatestStatusesValue: map[string]string{
+					"status-name":   "skipped",
+					"status-name-2": "skipped",
+				},
+			},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"status-name", "status-name-2"},
+			},
+		},
+	}
+
+	testSuites := []StatusTestSuite{
+		{predicate: hasStatus, testCases: commonTestCases},
+		{predicate: hasStatus, testCases: okOnlyIfSkippedAllowed},
+		{predicate: hasSuccessfulStatus, testCases: commonTestCases},
+		{predicate: hasSuccessfulStatus, testCases: okOnlyIfSkippedAllowed},
+		{
+			nameSuffix: "skipped allowed",
+			predicate:  hasStatusSkippedOk,
+			testCases:  commonTestCases,
+		},
+		{
+			nameSuffix:        "skipped allowed",
+			predicate:         hasStatusSkippedOk,
+			testCases:         okOnlyIfSkippedAllowed,
+			overrideSatisfied: github.Bool(true),
+		},
+	}
+
+	for _, suite := range testSuites {
+		runStatusTestCase(t, suite.predicate, suite)
+	}
+}
+
+type StatusTestSuite struct {
+	nameSuffix        string
+	predicate         Predicate
+	testCases         []StatusTestCase
+	overrideSatisfied *bool
 }
 
 type StatusTestCase struct {
@@ -96,15 +185,76 @@ type StatusTestCase struct {
 	ExpectedPredicateResult *common.PredicateResult
 }
 
-func runStatusTestCase(t *testing.T, p Predicate, cases []StatusTestCase) {
+func runStatusTestCase(t *testing.T, p Predicate, suite StatusTestSuite) {
 	ctx := context.Background()
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tc := range suite.testCases {
+		if suite.overrideSatisfied != nil {
+			tc.ExpectedPredicateResult.Satisfied = *suite.overrideSatisfied
+		}
+
+		// If the test case expects the predicate to be satisfied, we always
+		// expect the values to contain all the statuses. Doing this here lets
+		// us use the same testcases when we allow and don't allow skipped
+		// statuses.
+		if tc.ExpectedPredicateResult.Satisfied {
+			statuses, _ := tc.context.LatestStatuses()
+			tc.ExpectedPredicateResult.Values = keysSorted(statuses)
+		}
+
+		// `predicate.HasStatus` -> `HasStatus`
+		_, predicateType, _ := strings.Cut(fmt.Sprintf("%T", p), ".")
+		testName := fmt.Sprintf("%s_%s", predicateType, tc.name)
+
+		if suite.nameSuffix != "" {
+			testName += "_" + suite.nameSuffix
+		}
+
+		t.Run(testName, func(t *testing.T) {
 			predicateResult, err := p.Evaluate(ctx, tc.context)
 			if assert.NoError(t, err, "evaluation failed") {
 				assertPredicateResult(t, tc.ExpectedPredicateResult, predicateResult)
 			}
+		})
+	}
+}
+
+func TestJoinWithOr(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    AllowedConclusions
+		expected string
+	}{
+		{
+			"empty",
+			AllowedConclusions{},
+			"",
+		},
+		{
+			"single",
+			AllowedConclusions{"a"},
+			"a",
+		},
+		{
+			"two",
+			AllowedConclusions{"a", "b"},
+			"a or b",
+		},
+		{
+			"three",
+			AllowedConclusions{"a", "b", "c"},
+			"a, b, or c",
+		},
+		{
+			"conclusions get sorted",
+			AllowedConclusions{"c", "a", "b"},
+			"a, b, or c",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.input.joinWithOr())
 		})
 	}
 }
