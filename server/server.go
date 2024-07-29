@@ -223,15 +223,17 @@ func New(c *Config) (*Server, error) {
 	mux.Handle(pat.Get("/api/metrics"), handler.Metrics(base.Registry(), c.Prometheus))
 	mux.Handle(pat.Put("/api/validate"), handler.Validate())
 	mux.Handle(pat.Post("/api/simulate/:owner/:repo/:number"), hatpear.Try(simulateHandler))
+
+	oauth2RedirectURL := *publicURL
+	oauth2RedirectURL.Path = basePath + oauth2.DefaultRoute
+
 	mux.Handle(pat.Get(oauth2.DefaultRoute), oauth2.NewHandler(
 		oauth2.GetConfig(c.Github, nil),
 		oauth2.WithStore(&oauth2.SessionStateStore{
 			Sessions: sessions,
 		}),
 		oauth2.OnLogin(handler.Login(c.Github, basePath, sessions)),
-		oauth2.WithRedirectURL(publicURL.ResolveReference(&url.URL{
-			Path: oauth2.DefaultRoute,
-		}).String()),
+		oauth2.WithRedirectURL(oauth2RedirectURL.String()),
 	))
 
 	// additional client routes
