@@ -29,8 +29,8 @@ const (
 type PullEvaluationOptions struct {
 	PolicyPath string `yaml:"policy_path"`
 
-	SharedRepository string `yaml:"shared_repository"`
-	SharedPolicyPath string `yaml:"shared_policy_path"`
+	SharedRepository *string `yaml:"shared_repository"`
+	SharedPolicyPath *string `yaml:"shared_policy_path"`
 
 	// StatusCheckContext will be used to create the status context. It will be used in the following
 	// pattern: <StatusCheckContext>: <Base Branch Name>
@@ -64,12 +64,23 @@ func (p *PullEvaluationOptions) fillDefaults() {
 	if p.PolicyPath == "" {
 		p.PolicyPath = DefaultPolicyPath
 	}
-	if p.SharedRepository == "" {
-		p.SharedRepository = DefaultSharedRepository
+	if p.SharedRepository == nil {
+		defaultSharedRepository := DefaultSharedRepository
+		p.SharedRepository = &defaultSharedRepository
 	}
-	if p.SharedPolicyPath == "" {
-		p.SharedPolicyPath = DefaultSharedPolicyPath
+	if p.SharedPolicyPath == nil {
+		defaultSharedPolicyPath := DefaultSharedPolicyPath
+		p.SharedPolicyPath = &defaultSharedPolicyPath
 	}
+
+	// Explicitly set either `SharedRepository` or `SharedPolicyPath` to an
+	// empty string to disable the shared repository feature.
+	if *p.SharedRepository == "" || *p.SharedPolicyPath == "" {
+		emptyString := ""
+		p.SharedRepository = &emptyString
+		p.SharedPolicyPath = nil
+	}
+
 	if p.StatusCheckContext == "" {
 		p.StatusCheckContext = DefaultStatusCheckContext
 	}
@@ -77,8 +88,8 @@ func (p *PullEvaluationOptions) fillDefaults() {
 
 func (p *PullEvaluationOptions) SetValuesFromEnv(prefix string) {
 	setStringFromEnv("POLICY_PATH", prefix, &p.PolicyPath)
-	setStringFromEnv("SHARED_REPOSITORY", prefix, &p.SharedRepository)
-	setStringFromEnv("SHARED_POLICY_PATH", prefix, &p.SharedPolicyPath)
+	setStringPtrFromEnv("SHARED_REPOSITORY", prefix, &p.SharedRepository)
+	setStringPtrFromEnv("SHARED_POLICY_PATH", prefix, &p.SharedPolicyPath)
 	setStringFromEnv("STATUS_CHECK_CONTEXT", prefix, &p.StatusCheckContext)
 	setBoolFromEnv("EXPAND_REQUIRED_REVIEWERS", prefix, &p.ExpandRequiredReviewers)
 	setBoolFromEnv("POST_INSECURE_STATUS_CHECKS", prefix, &p.PostInsecureStatusChecks)
@@ -88,6 +99,14 @@ func (p *PullEvaluationOptions) SetValuesFromEnv(prefix string) {
 func setStringFromEnv(key, prefix string, value *string) bool {
 	if v, ok := os.LookupEnv(prefix + key); ok {
 		*value = v
+		return true
+	}
+	return false
+}
+
+func setStringPtrFromEnv(key, prefix string, value **string) bool {
+	if v, ok := os.LookupEnv(prefix + key); ok {
+		*value = &v
 		return true
 	}
 	return false

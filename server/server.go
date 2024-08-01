@@ -148,6 +148,11 @@ func New(c *Config) (*Server, error) {
 		return nil, errors.Wrap(err, "failed to initialize global cache")
 	}
 
+	sharedPolicyPaths := []string{}
+	if c.Options.SharedPolicyPath != nil {
+		sharedPolicyPaths = []string{*c.Options.SharedPolicyPath}
+	}
+
 	basePolicyHandler := handler.Base{
 		ClientCreator: cc,
 		BaseConfig:    &c.Server,
@@ -158,9 +163,7 @@ func New(c *Config) (*Server, error) {
 		ConfigFetcher: &handler.ConfigFetcher{
 			Loader: appconfig.NewLoader(
 				[]string{c.Options.PolicyPath},
-				appconfig.WithOwnerDefault(c.Options.SharedRepository, []string{
-					c.Options.SharedPolicyPath,
-				}),
+				appconfig.WithOwnerDefault(*c.Options.SharedRepository, sharedPolicyPaths),
 			),
 		},
 

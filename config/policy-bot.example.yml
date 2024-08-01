@@ -109,7 +109,9 @@ sessions:
 #
 #   # The name of an organization repository to look in for a shared policy if
 #   # a repository does not define a policy file. Can also be set by the
-#   # POLICYBOT_OPTIONS_SHARED_REPOSITORY environment variable.
+#   # POLICYBOT_OPTIONS_SHARED_REPOSITORY environment variable. Explicitly set
+#   # this or `shared_policy_path` to an empty string(`""`) to disable searching
+#   # in a shared repository.
 #   shared_repository: .github
 #
 #   # The path to the policy file in the shared organization repository.

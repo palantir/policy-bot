@@ -128,7 +128,9 @@ instance of the server.
 - If the file does not exist in the repository, `policy-bot` tries to load a
   shared `policy.yml` file at the root of the `.github` repository in the same
   organization. You can change this path and repository name when running your
-  own instance of the server.
+  own instance of the server, or disable this feature by setting
+  `options.shared_repository` to an empty string (`""`) in the server
+  configuration.
 
 - If a policy does not exist in the repository or in the shared organization
   repository, `policy-bot` does not post a status check on the pull request.
