@@ -304,7 +304,7 @@ func (r *Rule) isApprovedByConditions(ctx context.Context, prctx pull.Context) (
 // FilteredCandidates returns the potential approval candidates and any
 // candidates that should be dimissed due to rule options.
 func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*common.Candidate, []*common.Dismissal, error) {
-	if r.Requires.Count == 0 {
+	if r.Requires.Count <= 0 {
 		return nil, nil, nil
 	}
 
