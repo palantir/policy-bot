@@ -42,6 +42,7 @@ func (h *CheckRun) Handle(ctx context.Context, eventType, deliveryID string, pay
 	}
 
 	repo := event.GetRepo()
+	repoID := repo.GetID()
 	ownerName := repo.GetOwner().GetLogin()
 	repoName := repo.GetName()
 	commitSHA := event.GetCheckRun().GetHeadSHA()
@@ -55,6 +56,19 @@ func (h *CheckRun) Handle(ctx context.Context, eventType, deliveryID string, pay
 		// of the event, but I can't find confirmation of that in the GitHub
 		// docs. The PR object is a minimal version that is missing the "state"
 		// field, so we can't check without loading the full object.
+
+		// The `check_run` event includes pull requests that contain the SHA
+		// which is being checked. These can be pull requests _from_ our
+		// repository _to_ another one, for example if it's been forked and
+		// there's a PR to merge changes from our repo into the fork. We don't
+		// want to try to evaluate the policy for such PRs as they're nothing to
+		// do with us.
+		prBaseRepo := pr.GetBase().GetRepo()
+		if prBaseRepo.GetID() != repoID {
+			logger.Debug().Msgf("Skipping pull request '%d' from different repository '%s'", pr.GetNumber(), prBaseRepo.GetURL())
+			continue
+		}
+
 		if err := h.Evaluate(ctx, installationID, common.TriggerStatus, pull.Locator{
 			Owner:  ownerName,
 			Repo:   repoName,
