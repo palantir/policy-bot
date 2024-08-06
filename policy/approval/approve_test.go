@@ -16,6 +16,7 @@ package approval
 
 import (
 	"context"
+	"errors"
 	"os"
 	"regexp"
 	"testing"
@@ -174,6 +175,11 @@ func TestIsApproved(t *testing.T) {
 
 	t.Run("noApprovalRequired", func(t *testing.T) {
 		prctx := basePullContext()
+		// There are no approvers required, so `Comments()` should not be
+		// called, and therefore this error should not be returned. We are
+		// checking that we don't make an unnecessary call to the GitHub API.
+		prctx.CommentsError = errors.New("Comments() was called")
+
 		r := &Rule{}
 		assertApproved(t, prctx, r, "No approval required")
 	})
