@@ -71,6 +71,9 @@ type Context struct {
 	LatestStatusesValue map[string]string
 	LatestStatusesError error
 
+	LatestWorkflowRunsValue map[string][]string
+	LatestWorkflowRunsError error
+
 	LabelsValue []string
 	LabelsError error
 
@@ -252,6 +255,10 @@ func (c *Context) Teams() (map[string]pull.Permission, error) {
 
 func (c *Context) LatestStatuses() (map[string]string, error) {
 	return c.LatestStatusesValue, c.LatestStatusesError
+}
+
+func (c *Context) LatestWorkflowRuns() (map[string][]string, error) {
+	return c.LatestWorkflowRunsValue, c.LatestWorkflowRunsError
 }
 
 func (c *Context) Labels() ([]string, error) {

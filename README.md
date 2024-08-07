@@ -342,6 +342,19 @@ if:
       - "status-name-2"
       - "status-name-3"
 
+  # "has_workflow_result" is satisfied if the GitHub Actions workflow runs that
+  # are specified all finished and concluded with one of the conclusions
+  # specified. "conclusions" is optional and defaults to ["success"].
+  # `workflows` contains the paths to the workflow files that are being checked.
+  # If a workflow is run more than once for a commit - for example for a `push`
+  # and `pull_request` event, the most recent completed run for each event type
+  # will be considered.
+  has_workflow_result:
+    conclusions: ["success", "skipped"]
+    workflows:
+      - ".github/workflows/a.yml"
+      - ".github/workflows/b.yml"
+
   # "has_labels" is satisfied if the pull request has the specified labels
   # applied
   has_labels:
@@ -997,6 +1010,7 @@ The app requires these permissions:
 
 | Permission | Access | Reason |
 | ---------- | ------ | ------ |
+| Actions| Read-only | Read workflow run events for the `has_workflow_result` predicate |
 | Repository contents | Read-only | Read configuration and commit metadata |
 | Checks | Read-only | Read check run results |
 | Repository administration | Read-only | Read admin team(s) membership |
@@ -1015,6 +1029,7 @@ The app should be subscribed to these events:
 * Pull request
 * Pull request review
 * Status
+* Workflow Run
 
 There is a [`logo.png`](https://github.com/palantir/policy-bot/blob/develop/logo.png)
 provided if you'd like to use it as the GitHub application logo. The background

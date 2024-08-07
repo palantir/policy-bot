@@ -611,6 +611,39 @@ func TestPushedAt(t *testing.T) {
 	})
 }
 
+func TestLatestWorkflowRunsNoRuns(t *testing.T) {
+	rp := &ResponsePlayer{}
+	noRunsRule := rp.AddRule(
+		ExactPathMatcher("/repos/testorg/testrepo/actions/runs"),
+		"testdata/responses/pull_no_workflow_runs.yml",
+	)
+
+	ctx := makeContext(t, rp, nil, nil)
+	runs, err := ctx.LatestWorkflowRuns()
+	require.NoError(t, err)
+
+	assert.Len(t, runs, 0, "incorrect number of workflow runs")
+	assert.Equal(t, 1, noRunsRule.Count, "incorrect http request count")
+}
+
+func TestLatestWorkflowRuns(t *testing.T) {
+	rp := &ResponsePlayer{}
+	runsRule := rp.AddRule(
+		ExactPathMatcher("/repos/testorg/testrepo/actions/runs"),
+		"testdata/responses/pull_workflow_runs.yml",
+	)
+
+	ctx := makeContext(t, rp, nil, nil)
+	runs, err := ctx.LatestWorkflowRuns()
+	require.NoError(t, err)
+
+	assert.Len(t, runs, 3, "incorrect number of workflow runs")
+	assert.Equal(t, runs[".github/workflows/a.yml"], []string{"success", "skipped"}, "incorrect conclusion for workflow run a")
+	assert.Equal(t, runs[".github/workflows/b.yml"], []string{"failure"}, "incorrect conclusion for workflow run b")
+	assert.Equal(t, runs[".github/workflows/c.yml"], []string{"cancelled"}, "incorrect conclusion for workflow run c")
+	assert.Equal(t, 2, runsRule.Count, "incorrect http request count")
+}
+
 func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest, gc GlobalCache) Context {
 	ctx := context.Background()
 	client := github.NewClient(&http.Client{Transport: rp})

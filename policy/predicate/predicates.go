@@ -35,6 +35,8 @@ type Predicates struct {
 	// rather than just "success".
 	HasSuccessfulStatus *HasSuccessfulStatus `yaml:"has_successful_status"`
 
+	HasWorkflowResult *HasWorkflowResult `yaml:"has_workflow_result"`
+
 	HasLabels *HasLabels `yaml:"has_labels"`
 
 	Repository *Repository `yaml:"repository"`
@@ -88,6 +90,10 @@ func (p *Predicates) Predicates() []Predicate {
 
 	if p.HasSuccessfulStatus != nil {
 		ps = append(ps, Predicate(p.HasSuccessfulStatus))
+	}
+
+	if p.HasWorkflowResult != nil {
+		ps = append(ps, Predicate(p.HasWorkflowResult))
 	}
 
 	if p.HasLabels != nil {
