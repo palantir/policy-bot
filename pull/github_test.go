@@ -644,6 +644,30 @@ func TestLatestWorkflowRuns(t *testing.T) {
 	assert.Equal(t, 2, runsRule.Count, "incorrect http request count")
 }
 
+func TestLatestStatuses(t *testing.T) {
+	pr := defaultTestPR()
+
+	rp := &ResponsePlayer{}
+	rp.AddRule(
+		ExactPathMatcher("/repos/testorg/testrepo/commits/"+pr.Head.GetSHA()+"/status"),
+		"testdata/responses/combined_status_for_ref.yml",
+	)
+	rp.AddRule(
+		ExactPathMatcher("/repos/testorg/testrepo/commits/"+pr.Head.GetSHA()+"/check-runs"),
+		"testdata/responses/check_runs_for_ref.yml",
+	)
+
+	ctx := makeContext(t, rp, pr, nil)
+	statuses, err := ctx.LatestStatuses()
+	require.NoError(t, err)
+
+	assert.Len(t, statuses, 4, "incorrect number of statuses")
+	assert.Equal(t, statuses["commit-status-a"], "success", "incorrect conclusion for 'commit-status-a' status")
+	assert.Equal(t, statuses["commit-status-b"], "pending", "incorrect conclusion for 'commit-status-a' status")
+	assert.Equal(t, statuses["check-run-a"], "success", "incorrect conclusion for 'check-run-a' status")
+	assert.Equal(t, statuses["check-run-b"], "failure", "incorrect conclusion for 'check-run-b' status")
+}
+
 func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest, gc GlobalCache) Context {
 	ctx := context.Background()
 	client := github.NewClient(&http.Client{Transport: rp})

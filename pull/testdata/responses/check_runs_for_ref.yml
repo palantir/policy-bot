@@ -1,0 +1,28 @@
+- status: 200
+  body: |
+    {
+      "total_count": 3,
+      "check_runs": [
+        {
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2024-08-14T12:12:45Z",
+          "completed_at": "2024-08-14T12:13:14Z",
+          "name": "check-run-a"
+        },
+        {
+          "status": "completed",
+          "conclusion": "failure",
+          "started_at": "2024-08-14T12:10:00Z",
+          "completed_at": "2024-08-14T12:10:36Z",
+          "name": "check-run-b"
+        },
+        {
+          "status": "completed",
+          "conclusion": "failure",
+          "started_at": "2024-08-14T12:10:00Z",
+          "completed_at": "2024-08-14T12:10:21Z",
+          "name": "check-run-a"
+        }
+      ]
+    }
