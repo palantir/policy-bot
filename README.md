@@ -891,7 +891,7 @@ in mid-2023 because computing it was unreliable and inaccurate (see issue
 The details view for a pull request shows the users, organizations, teams, and
 permission levels that are reqired to approve each rule. When the
 `options.expand_required_reviewers` server option is set, `policy-bot` expands
-these to show the list of users whose approval will satify each rule. This can
+these to show the list of users whose approval will satisfy each rule. This can
 make it easier for developers to figure out who they should ask for approval.
 
 Like with review requests, when expanding permission levels only users with
