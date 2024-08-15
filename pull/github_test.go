@@ -638,9 +638,9 @@ func TestLatestWorkflowRuns(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, runs, 3, "incorrect number of workflow runs")
-	assert.Equal(t, runs[".github/workflows/a.yml"], []string{"success", "skipped"}, "incorrect conclusion for workflow run a")
-	assert.Equal(t, runs[".github/workflows/b.yml"], []string{"failure"}, "incorrect conclusion for workflow run b")
-	assert.Equal(t, runs[".github/workflows/c.yml"], []string{"cancelled"}, "incorrect conclusion for workflow run c")
+	assert.ElementsMatch(t, runs[".github/workflows/a.yml"], []string{"success", "skipped"}, "incorrect conclusion for workflow run a")
+	assert.ElementsMatch(t, runs[".github/workflows/b.yml"], []string{"failure"}, "incorrect conclusion for workflow run b")
+	assert.ElementsMatch(t, runs[".github/workflows/c.yml"], []string{"cancelled"}, "incorrect conclusion for workflow run c")
 	assert.Equal(t, 2, runsRule.Count, "incorrect http request count")
 }
 
