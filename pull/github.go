@@ -819,9 +819,18 @@ func (ghc *GitHubContext) getCheckStatuses() (map[string]string, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get check runs for page %d", opt.Page)
 		}
+
+		// Check runs are ordered from most to least recent. In some cases,
+		// like when a commit is included in multiple PRs or when users re-run
+		// checks, there may be multiple runs with the same name. We only want
+		// to keep the first (most recent) result for each name.
 		for _, checkRun := range checkRuns.CheckRuns {
-			statuses[checkRun.GetName()] = checkRun.GetConclusion()
+			name := checkRun.GetName()
+			if _, exists := statuses[name]; !exists {
+				statuses[name] = checkRun.GetConclusion()
+			}
 		}
+
 		if resp.NextPage == 0 {
 			break
 		}
