@@ -1,0 +1,67 @@
+go mod operation failed. This may mean that there are legitimate dependency issues with the "go.mod" definition in the repository and the updates performed by the gomod check. This branch can be cloned locally to debug the issue.
+
+Command that caused error:
+./godelw check compiles
+
+Output:
+Running compiles...
+server/handler/base.go:53:65: cannot use pr.GetBase().GetRepo() (value of type *"github.com/google/go-github/v63/github".Repository) as *"github.com/google/go-github/v65/github".Repository value in argument to githubapp.PreparePRContext
+server/handler/base.go:72:46: cannot use client (variable of type *"github.com/google/go-github/v65/github".Client) as *"github.com/google/go-github/v63/github".Client value in argument to NewCrossOrgMembershipContext
+server/handler/base.go:73:66: cannot use client (variable of type *"github.com/google/go-github/v65/github".Client) as *"github.com/google/go-github/v63/github".Client value in argument to pull.NewGitHubContext
+server/handler/base.go:82:66: cannot use client (variable of type *"github.com/google/go-github/v65/github".Client) as *"github.com/google/go-github/v63/github".Client value in argument to b.ConfigFetcher.ConfigForRepositoryBranch
+server/handler/base.go:85:13: cannot use client (variable of type *"github.com/google/go-github/v65/github".Client) as *"github.com/google/go-github/v63/github".Client value in struct literal
+server/handler/check_run.go:49:57: cannot use &event (value of type *"github.com/google/go-github/v63/github".CheckRunEvent) as githubapp.InstallationSource value in argument to githubapp.GetInstallationIDFromEvent: *"github.com/google/go-github/v63/github".CheckRunEvent does not implement githubapp.InstallationSource (wrong type for method GetInstallation)
+		have GetInstallation() *"github.com/google/go-github/v63/github".Installation
+		want GetInstallation() *"github.com/google/go-github/v65/github".Installation
+server/handler/check_run.go:51:67: cannot use repo (variable of type *"github.com/google/go-github/v63/github".Repository) as *"github.com/google/go-github/v65/github".Repository value in argument to githubapp.PrepareRepoContext
+server/handler/cross_org.go:66:51: cannot use client (variable of type *"github.com/google/go-github/v65/github".Client) as *"github.com/google/go-github/v63/github".Client value in argument to pull.NewGitHubMembershipContext
+server/handler/details.go:144:66: cannot use client (variable of type *"github.com/google/go-github/v65/github".Client) as *"github.com/google/go-github/v63/github".Client value in argument to checkUserPermissions
+server/handler/details.go:164:58: cannot use pr (variable of type *"github.com/google/go-github/v65/github".PullRequest) as *"github.com/google/go-github/v63/github".PullRequest value in argument to h.PreparePRContext
+server/handler/details.go:169:11: cannot use pr (variable of type *"github.com/google/go-github/v65/github".PullRequest) as *"github.com/google/go-github/v63/github".PullRequest value in struct literal
+server/handler/details.go:180:16: cannot use pr (variable of type *"github.com/google/go-github/v65/github".PullRequest) as *"github.com/google/go-github/v63/github".PullRequest value in struct literal
+server/handler/fetcher.go:41:38: cannot use client (variable of type *"github.com/google/go-github/v63/github".Client) as *"github.com/google/go-github/v65/github".Client value in argument to cf.Loader.LoadConfig
+server/handler/installation.go:53:57: cannot use &event (value of type *"github.com/google/go-github/v63/github".InstallationEvent) as githubapp.InstallationSource value in argument to githubapp.GetInstallationIDFromEvent: *"github.com/google/go-github/v63/github".InstallationEvent does not implement githubapp.InstallationSource (wrong type for method GetInstallation)
+		have GetInstallation() *"github.com/google/go-github/v63/github".Installation
+		want GetInstallation() *"github.com/google/go-github/v65/github".Installation
+server/handler/installation.go:63:57: cannot use &event (value of type *"github.com/google/go-github/v63/github".InstallationRepositoriesEvent) as githubapp.InstallationSource value in argument to githubapp.GetInstallationIDFromEvent: *"github.com/google/go-github/v63/github".InstallationRepositoriesEvent does not implement githubapp.InstallationSource (wrong type for method GetInstallation)
+		have GetInstallation() *"github.com/google/go-github/v63/github".Installation
+		want GetInstallation() *"github.com/google/go-github/v65/github".Installation
+server/handler/installation.go:74:38: cannot use client (variable of type *"github.com/google/go-github/v65/github".Client) as *"github.com/google/go-github/v63/github".Client value in argument to h.postRepoInstallationStatus
+server/handler/issue_comment.go:48:57: cannot use &event (value of type *"github.com/google/go-github/v63/github".IssueCommentEvent) as githubapp.InstallationSource value in argument to githubapp.GetInstallationIDFromEvent: *"github.com/google/go-github/v63/github".IssueCommentEvent does not implement githubapp.InstallationSource (wrong type for method GetInstallation)
+		have GetInstallation() *"github.com/google/go-github/v63/github".Installation
+		want GetInstallation() *"github.com/google/go-github/v65/github".Installation
+server/handler/issue_comment.go:65:57: cannot use pr (variable of type *"github.com/google/go-github/v65/github".PullRequest) as *"github.com/google/go-github/v63/github".PullRequest value in argument to h.PreparePRContext
+server/handler/issue_comment.go:71:11: cannot use pr (variable of type *"github.com/google/go-github/v65/github".PullRequest) as *"github.com/google/go-github/v63/github".PullRequest value in struct literal
+server/handler/merge_group.go:49:57: cannot use &event (value of type *"github.com/google/go-github/v63/github".MergeGroupEvent) as githubapp.InstallationSource value in argument to githubapp.GetInstallationIDFromEvent: *"github.com/google/go-github/v63/github".MergeGroupEvent does not implement githubapp.InstallationSource (wrong type for method GetInstallation)
+		have GetInstallation() *"github.com/google/go-github/v63/github".Installation
+		want GetInstallation() *"github.com/google/go-github/v65/github".Installation
+server/handler/merge_group.go:63:66: cannot use client (variable of type *"github.com/google/go-github/v65/github".Client) as *"github.com/google/go-github/v63/github".Client value in argument to h.ConfigFetcher.ConfigForRepositoryBranch
+server/handler/merge_group.go:77:28: cannot use client (variable of type *"github.com/google/go-github/v65/github".Client) as *"github.com/google/go-github/v63/github".Client value in argument to PostStatus
+server/handler/pull_request.go:42:57: cannot use &event (value of type *"github.com/google/go-github/v63/github".PullRequestEvent) as githubapp.InstallationSource value in argument to githubapp.GetInstallationIDFromEvent: *"github.com/google/go-github/v63/github".PullRequestEvent does not implement githubapp.InstallationSource (wrong type for method GetInstallation)
+		have GetInstallation() *"github.com/google/go-github/v63/github".Installation
+		want GetInstallation() *"github.com/google/go-github/v65/github".Installation
+server/handler/pull_request_review.go:52:57: cannot use &event (value of type *"github.com/google/go-github/v63/github".PullRequestReviewEvent) as githubapp.InstallationSource value in argument to githubapp.GetInstallationIDFromEvent: *"github.com/google/go-github/v63/github".PullRequestReviewEvent does not implement githubapp.InstallationSource (wrong type for method GetInstallation)
+		have GetInstallation() *"github.com/google/go-github/v63/github".Installation
+		want GetInstallation() *"github.com/google/go-github/v65/github".Installation
+server/handler/simulate.go:82:52: cannot use pr (variable of type *"github.com/google/go-github/v65/github".PullRequest) as *"github.com/google/go-github/v63/github".PullRequest value in argument to h.PreparePRContext
+server/handler/simulate.go:92:11: cannot use pr (variable of type *"github.com/google/go-github/v65/github".PullRequest) as *"github.com/google/go-github/v63/github".PullRequest value in struct literal
+server/handler/simulate.go:147:46: cannot use client (variable of type *"github.com/google/go-github/v65/github".Client) as *"github.com/google/go-github/v63/github".Client value in argument to NewCrossOrgMembershipContext
+server/handler/simulate.go:148:66: cannot use client (variable of type *"github.com/google/go-github/v65/github".Client) as *"github.com/google/go-github/v63/github".Client value in argument to pull.NewGitHubContext
+server/handler/simulate.go:157:66: cannot use client (variable of type *"github.com/google/go-github/v65/github".Client) as *"github.com/google/go-github/v63/github".Client value in argument to h.ConfigFetcher.ConfigForRepositoryBranch
+server/handler/status.go:61:57: cannot use &event (value of type *"github.com/google/go-github/v63/github".StatusEvent) as githubapp.InstallationSource value in argument to githubapp.GetInstallationIDFromEvent: *"github.com/google/go-github/v63/github".StatusEvent does not implement githubapp.InstallationSource (wrong type for method GetInstallation)
+		have GetInstallation() *"github.com/google/go-github/v63/github".Installation
+		want GetInstallation() *"github.com/google/go-github/v65/github".Installation
+server/handler/status.go:68:67: cannot use repo (variable of type *"github.com/google/go-github/v63/github".Repository) as *"github.com/google/go-github/v65/github".Repository value in argument to githubapp.PrepareRepoContext
+server/handler/status.go:99:84: cannot use status (variable of type *"github.com/google/go-github/v63/github".RepoStatus) as *"github.com/google/go-github/v65/github".RepoStatus value in argument to client.Repositories.CreateStatus
+server/handler/status.go:108:57: cannot use &event (value of type *"github.com/google/go-github/v63/github".StatusEvent) as githubapp.InstallationSource value in argument to githubapp.GetInstallationIDFromEvent: *"github.com/google/go-github/v63/github".StatusEvent does not implement githubapp.InstallationSource (wrong type for method GetInstallation)
+		have GetInstallation() *"github.com/google/go-github/v63/github".Installation
+		want GetInstallation() *"github.com/google/go-github/v65/github".Installation
+server/handler/status.go:115:67: cannot use repo (variable of type *"github.com/google/go-github/v63/github".Repository) as *"github.com/google/go-github/v65/github".Repository value in argument to githubapp.PrepareRepoContext
+server/handler/status.go:124:3: cannot use &github.ListOptions{…} (value of type *"github.com/google/go-github/v63/github".ListOptions) as *"github.com/google/go-github/v65/github".ListOptions value in argument to client.PullRequests.ListPullRequestsWithCommit
+server/handler/status.go:139:13: cannot use pr (variable of type *"github.com/google/go-github/v65/github".PullRequest) as *"github.com/google/go-github/v63/github".PullRequest value in struct literal
+server/handler/workflow_run.go:50:57: cannot use &event (value of type *"github.com/google/go-github/v63/github".WorkflowRunEvent) as githubapp.InstallationSource value in argument to githubapp.GetInstallationIDFromEvent: *"github.com/google/go-github/v63/github".WorkflowRunEvent does not implement githubapp.InstallationSource (wrong type for method GetInstallation)
+		have GetInstallation() *"github.com/google/go-github/v63/github".Installation
+		want GetInstallation() *"github.com/google/go-github/v65/github".Installation
+server/handler/workflow_run.go:52:67: cannot use repo (variable of type *"github.com/google/go-github/v63/github".Repository) as *"github.com/google/go-github/v65/github".Repository value in argument to githubapp.PrepareRepoContext
+Finished compiles
+Check(s) produced output: [compiles]
