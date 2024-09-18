@@ -1,6 +1,6 @@
 module github.com/palantir/policy-bot
 
-go 1.21
+go 1.22.0
 
 require (
 	github.com/alexedwards/scs v1.4.1
