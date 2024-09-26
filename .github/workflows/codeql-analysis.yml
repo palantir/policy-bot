@@ -34,7 +34,7 @@ jobs:
     - name: Set Go version
       id: go_version
       run: |
-        GO_VERSION=$(cat .palantir/go-version | sed 's/^go//' )
+        GO_VERSION=$(sed -E -n '/^go / s/^go ([0-9]+\.[0-9]+)(\.[0-9]+)?$/\1/p' < go.mod)
         echo "version=${GO_VERSION}" >> $GITHUB_OUTPUT
 
     - name: Set up Go
