@@ -17,6 +17,7 @@ package handler
 import (
 	"context"
 	"math/rand"
+	"slices"
 	"time"
 
 	"github.com/google/go-github/v65/github"
@@ -150,6 +151,12 @@ func selectionToReviewersRequest(s reviewer.Selection) github.ReviewersRequest {
 	} else {
 		req.TeamReviewers = []string{}
 	}
+
+	// Order the reviewers and remove any duplicates because the Github API will error on duplicates as of Oct 2024
+	slices.Sort(req.Reviewers)
+	req.Reviewers = slices.Compact(req.Reviewers)
+	slices.Sort(req.TeamReviewers)
+	req.TeamReviewers = slices.Compact(req.TeamReviewers)
 
 	return req
 }
