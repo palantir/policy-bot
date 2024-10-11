@@ -28,8 +28,8 @@ import (
 type AllowedConclusions []string
 
 type HasStatus struct {
-	Conclusions AllowedConclusions `yaml:"conclusions"`
-	Statuses    []string           `yaml:"statuses"`
+	Conclusions AllowedConclusions `yaml:"conclusions,omitempty"`
+	Statuses    []string           `yaml:"statuses,omitempty"`
 }
 
 func NewHasStatus(statuses []string, conclusions []string) *HasStatus {

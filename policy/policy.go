@@ -29,19 +29,19 @@ import (
 // with the default value being the configured default policy file location. The Ref is optional,
 // and the default branch of the Remote repository will be used.
 type RemoteConfig struct {
-	Remote string `yaml:"remote"`
-	Path   string `yaml:"path"`
-	Ref    string `yaml:"ref"`
+	Remote string `yaml:"remote,omitempty"`
+	Path   string `yaml:"path,omitempty"`
+	Ref    string `yaml:"ref,omitempty"`
 }
 
 type Config struct {
-	Policy        Policy           `yaml:"policy"`
-	ApprovalRules []*approval.Rule `yaml:"approval_rules"`
+	Policy        Policy           `yaml:"policy,omitempty"`
+	ApprovalRules []*approval.Rule `yaml:"approval_rules,omitempty"`
 }
 
 type Policy struct {
-	Approval    approval.Policy     `yaml:"approval"`
-	Disapproval *disapproval.Policy `yaml:"disapproval"`
+	Approval    approval.Policy     `yaml:"approval,omitempty"`
+	Disapproval *disapproval.Policy `yaml:"disapproval,omitempty"`
 }
 
 func ParsePolicy(c *Config) (common.Evaluator, error) {

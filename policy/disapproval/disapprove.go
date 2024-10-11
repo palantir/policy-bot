@@ -27,18 +27,26 @@ import (
 )
 
 type Policy struct {
-	Predicates predicate.Predicates `yaml:"if"`
-	Options    Options              `yaml:"options"`
-	Requires   Requires             `yaml:"requires"`
+	Predicates predicate.Predicates `yaml:"if,omitempty"`
+	Options    Options              `yaml:"options,omitempty"`
+	Requires   Requires             `yaml:"requires,omitempty"`
 }
 
 type Options struct {
-	Methods Methods `yaml:"methods"`
+	Methods Methods `yaml:"methods,omitempty"`
+}
+
+func (opts Options) IsZero() bool {
+	return opts.Methods.IsZero()
 }
 
 type Methods struct {
-	Disapprove *common.Methods `yaml:"disapprove"`
-	Revoke     *common.Methods `yaml:"revoke"`
+	Disapprove *common.Methods `yaml:"disapprove,omitempty"`
+	Revoke     *common.Methods `yaml:"revoke,omitempty"`
+}
+
+func (m *Methods) IsZero() bool {
+	return m.Disapprove == nil && m.Revoke == nil
 }
 
 func (opts *Options) GetDisapproveMethods() *common.Methods {
@@ -82,7 +90,7 @@ type Requires struct {
 func (p *Policy) Trigger() common.Trigger {
 	t := common.TriggerCommit
 
-	if !p.Requires.IsEmpty() {
+	if !p.Requires.IsZero() {
 		dm := p.Options.GetDisapproveMethods()
 		rm := p.Options.GetRevokeMethods()
 
@@ -136,7 +144,7 @@ func (p *Policy) Evaluate(ctx context.Context, prctx pull.Context) (res common.R
 		}
 	}
 	res.PredicateResults = predicateResults
-	if p.Requires.IsEmpty() {
+	if p.Requires.IsZero() {
 		log.Debug().Msg("no users are allowed to disapprove; skipping")
 
 		res.StatusDescription = "No disapproval policy is specified or the policy is empty"
