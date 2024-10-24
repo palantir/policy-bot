@@ -88,6 +88,10 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 
 func (h *PullRequestReview) affectsApproval(reviewState pull.ReviewState, config *policy.Config) bool {
 	states := make(map[pull.ReviewState]struct{})
+
+	// Always process events for dismissed reviews because they can revert the overall approval or disapproval to a previous state
+	states[pull.ReviewDismissed] = struct{}{}
+
 	for _, rule := range config.ApprovalRules {
 		states[rule.Options.GetMethods().GithubReviewState] = struct{}{}
 	}
