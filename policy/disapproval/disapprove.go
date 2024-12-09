@@ -110,7 +110,7 @@ func (p *Policy) Evaluate(ctx context.Context, prctx pull.Context) (res common.R
 		Count:  1,
 		Actors: p.Requires.Actors,
 	}
-
+	res.Methods = p.Options.GetRevokeMethods()
 	var predicateResults []*common.PredicateResult
 
 	for _, p := range p.Predicates.Predicates() {
