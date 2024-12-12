@@ -16,6 +16,8 @@ package handler
 
 import (
 	"context"
+	"os"
+	"time"
 
 	"github.com/google/go-github/v66/github"
 	"github.com/palantir/go-githubapp/appconfig"
@@ -37,26 +39,50 @@ type ConfigFetcher struct {
 }
 
 func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *github.Client, owner, repository, branch string) FetchedConfig {
+	retries := 0
+	delay := 1 * time.Second
+	ticker := time.NewTicker(delay)
+	defer ticker.Stop()
+	for {
+		c, err := cf.Loader.LoadConfig(ctx, client, owner, repository, branch)
+		fc := FetchedConfig{
+			Source: c.Source,
+			Path:   c.Path,
+		}
 
-	c, err := cf.Loader.LoadConfig(ctx, client, owner, repository, branch)
-	fc := FetchedConfig{
-		Source: c.Source,
-		Path:   c.Path,
-	}
+		if err != nil {
+			if !os.IsTimeout(err) {
+				fc.LoadError = err
+				return fc
+			}
 
-	switch {
-	case err != nil:
-		fc.LoadError = err
+			retries++
+			if retries > 3 {
+				fc.LoadError = err
+				return fc
+			}
+
+			ticker.Reset(delay)
+			select {
+			case <-ctx.Done():
+				fc.LoadError = ctx.Err()
+				return fc
+			case <-ticker.C:
+				delay *= 2
+				continue
+			}
+		}
+
+		if c.IsUndefined() {
+			return fc
+		}
+
+		var pc policy.Config
+		if err := yaml.UnmarshalStrict(c.Content, &pc); err != nil {
+			fc.ParseError = err
+		} else {
+			fc.Config = &pc
+		}
 		return fc
-	case c.IsUndefined():
-		return fc
 	}
-
-	var pc policy.Config
-	if err := yaml.UnmarshalStrict(c.Content, &pc); err != nil {
-		fc.ParseError = err
-	} else {
-		fc.Config = &pc
-	}
-	return fc
 }
