@@ -63,6 +63,14 @@ func (r *RuleRequirement) Evaluate(ctx context.Context, prctx pull.Context) comm
 	result := r.rule.Evaluate(ctx, prctx)
 	if result.Error == nil {
 		log.Debug().Msgf("rule evaluation resulted in %s:\"%s\"", result.Status, result.StatusDescription)
+	} else {
+		// Log rule evaluations that fail at info level so they appear in logs
+		// by default, but don't log them as warnings or errors since they
+		// don't necessarily break the overall policy (e.g. an 'or' rule can
+		// suppress an error if other members are pending or approved.) Having
+		// this information in logs is useful to understand the rate of
+		// particular types of failures across a policy-bot installation.
+		log.Info().Err(result.Error).Msgf("rule evaluation resulted in error: \"%s\"", result.StatusDescription)
 	}
 
 	return result
