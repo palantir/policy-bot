@@ -70,7 +70,7 @@ func (r *RuleRequirement) Evaluate(ctx context.Context, prctx pull.Context) comm
 		// suppress an error if other members are pending or approved.) Having
 		// this information in logs is useful to understand the rate of
 		// particular types of failures across a policy-bot installation.
-		log.Info().Err(result.Error).Msgf("rule evaluation resulted in error: \"%s\"", result.StatusDescription)
+		log.Info().Err(result.Error).Msg("rule evaluation resulted in error")
 	}
 
 	return result
