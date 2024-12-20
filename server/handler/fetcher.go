@@ -41,8 +41,6 @@ type ConfigFetcher struct {
 func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *github.Client, owner, repository, branch string) FetchedConfig {
 	retries := 0
 	delay := 1 * time.Second
-	ticker := time.NewTicker(delay)
-	defer ticker.Stop()
 	for {
 		c, err := cf.Loader.LoadConfig(ctx, client, owner, repository, branch)
 		fc := FetchedConfig{
@@ -62,12 +60,11 @@ func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *
 				return fc
 			}
 
-			ticker.Reset(delay)
 			select {
 			case <-ctx.Done():
 				fc.LoadError = ctx.Err()
 				return fc
-			case <-ticker.C:
+			case <-time.After(delay):
 				delay *= 2
 				continue
 			}
