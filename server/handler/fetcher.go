@@ -16,6 +16,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"os"
 	"time"
 
@@ -49,7 +50,8 @@ func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *
 		}
 
 		if err != nil {
-			if !os.IsTimeout(err) {
+			var ghErr *github.ErrorResponse
+			if !os.IsTimeout(err) && !errors.As(err, &ghErr) && ghErr.Response.StatusCode != 500 {
 				fc.LoadError = err
 				return fc
 			}
