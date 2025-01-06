@@ -17,6 +17,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"net/http"
 	"os"
 	"time"
 
@@ -50,8 +51,7 @@ func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *
 		}
 
 		if err != nil {
-			var ghErr *github.ErrorResponse
-			if !os.IsTimeout(err) && !errors.As(err, &ghErr) && ghErr.Response.StatusCode != 500 {
+			if !os.IsTimeout(err) && !isServerError(err) {
 				fc.LoadError = err
 				return fc
 			}
@@ -84,4 +84,15 @@ func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *
 		}
 		return fc
 	}
+}
+
+func isServerError(err error) bool {
+	var ghErr *github.ErrorResponse
+	if errors.As(err, &ghErr) {
+		switch ghErr.Response.StatusCode {
+		case http.StatusInternalServerError, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+			return true
+		}
+	}
+	return false
 }
