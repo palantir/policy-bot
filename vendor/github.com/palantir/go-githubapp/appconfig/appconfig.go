@@ -25,7 +25,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/google/go-github/v67/github"
+	"github.com/google/go-github/v68/github"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
