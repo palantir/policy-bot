@@ -17,6 +17,7 @@ package predicate
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/go-github/v69/github"
 	"github.com/palantir/policy-bot/policy/common"
@@ -24,7 +25,88 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestHasSuccessfulWorkflowRun(t *testing.T) {
+type WorkflowTestCase struct {
+	name                    string
+	latestWorkflowRunsValue map[string][]*github.WorkflowRun
+	latestWorkflowRunsError error
+	predicate               Predicate
+	ExpectedPredicateResult *common.PredicateResult
+}
+
+func mockWorkflowRun(status string, conclusion string) *github.WorkflowRun {
+	id := int64(1)
+	name := "abc"
+	nodeID := "MDg6V29ya2Zsb3cx"
+	headBranch := "main"
+	headSHA := "abc123"
+	path := ".github/workflows/test.yml"
+	runNumber := 1
+	runAttempt := 1
+	event := "push"
+	displayTitle := "Test Workflow"
+	workflowID := int64(123456)
+	checkSuiteID := int64(654321)
+	checkSuiteNodeID := "MDg6Q2hlY2tTdWl0ZQ=="
+	url := "https://api.github.com/repos/octocat/Hello-World/actions/runs/1"
+	htmlURL := "https://github.com/octocat/Hello-World/actions/runs/1"
+	createdAt := github.Timestamp{Time: time.Now()}
+	updatedAt := github.Timestamp{Time: time.Now()}
+	runStartedAt := github.Timestamp{Time: time.Now()}
+	jobsURL := "https://api.github.com/repos/octocat/Hello-World/actions/runs/1/jobs"
+	logsURL := "https://api.github.com/repos/octocat/Hello-World/actions/runs/1/logs"
+	checkSuiteURL := "https://api.github.com/repos/octocat/Hello-World/check-suites/654321"
+	artifactsURL := "https://api.github.com/repos/octocat/Hello-World/actions/runs/1/artifacts"
+	cancelURL := "https://api.github.com/repos/octocat/Hello-World/actions/runs/1/cancel"
+	rerunURL := "https://api.github.com/repos/octocat/Hello-World/actions/runs/1/rerun"
+	previousAttemptURL := "https://api.github.com/repos/octocat/Hello-World/actions/runs/1/attempts/1"
+	headCommit := &github.HeadCommit{
+		ID:      github.String("abc123"),
+		Message: github.String("Initial commit"),
+	}
+	repository := &github.Repository{
+		ID:   github.Int64(1296269),
+		Name: github.String("Hello-World"),
+	}
+	actor := &github.User{
+		Login: github.String("octocat"),
+		ID:    github.Int64(1),
+	}
+
+	return &github.WorkflowRun{
+		ID:                 &id,
+		Name:               &name,
+		NodeID:             &nodeID,
+		HeadBranch:         &headBranch,
+		HeadSHA:            &headSHA,
+		Path:               &path,
+		RunNumber:          &runNumber,
+		RunAttempt:         &runAttempt,
+		Event:              &event,
+		DisplayTitle:       &displayTitle,
+		Status:             &status,
+		Conclusion:         &conclusion,
+		WorkflowID:         &workflowID,
+		CheckSuiteID:       &checkSuiteID,
+		CheckSuiteNodeID:   &checkSuiteNodeID,
+		URL:                &url,
+		HTMLURL:            &htmlURL,
+		CreatedAt:          &createdAt,
+		UpdatedAt:          &updatedAt,
+		RunStartedAt:       &runStartedAt,
+		JobsURL:            &jobsURL,
+		LogsURL:            &logsURL,
+		CheckSuiteURL:      &checkSuiteURL,
+		ArtifactsURL:       &artifactsURL,
+		CancelURL:          &cancelURL,
+		RerunURL:           &rerunURL,
+		PreviousAttemptURL: &previousAttemptURL,
+		HeadCommit:         headCommit,
+		Repository:         repository,
+		Actor:              actor,
+	}
+}
+
+func TestHasSuccessfulWorkflowResultRun(t *testing.T) {
 	commonTestCases := []WorkflowTestCase{
 		{
 			name: "all workflows succeed",
@@ -69,7 +151,7 @@ func TestHasSuccessfulWorkflowRun(t *testing.T) {
 		{
 			name: "a workflow fails and succeeds",
 			latestWorkflowRunsValue: map[string][]*github.WorkflowRun{
-				".github/workflows/test.yml": {mockWorkflowRun("completed", "failure"), mockWorkflowRun("completed", "success")},
+				".github/workflows/test.yml": {mockWorkflowRun("completed", "success"), mockWorkflowRun("completed", "failure")},
 			},
 			predicate: HasWorkflowResult{
 				Workflows: []string{".github/workflows/test.yml"},
@@ -189,7 +271,7 @@ func TestHasSuccessfulWorkflowRun(t *testing.T) {
 			name: "a workflow fails, the other workflow is skipped, but skipped workflows are allowed",
 			latestWorkflowRunsValue: map[string][]*github.WorkflowRun{
 				".github/workflows/test.yml":  {mockWorkflowRun("completed", "failure")},
-				".github/workflows/test2.yml": {mockWorkflowRun("completed", "skipped")},
+				".github/workflows/test2.yml": {mockWorkflowRun("completed", "success")},
 			},
 			predicate: HasWorkflowResult{
 				Workflows:   []string{".github/workflows/test.yml", ".github/workflows/test2.yml"},
@@ -231,10 +313,10 @@ func TestHasSuccessfulWorkflowRun(t *testing.T) {
 		},
 	}
 
-	runWorkflowTestCase(t, commonTestCases)
+	runWorkflowResultTestCase(t, commonTestCases)
 }
 
-func runWorkflowTestCase(t *testing.T, cases []WorkflowTestCase) {
+func runWorkflowResultTestCase(t *testing.T, cases []WorkflowTestCase) {
 	ctx := context.Background()
 
 	for _, tc := range cases {

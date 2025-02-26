@@ -25,47 +25,66 @@ import (
 	"github.com/pkg/errors"
 )
 
-type HasWorkflowResult struct {
+type HasWorkflow struct {
+	Statuses    AllowedStatuses    `yaml:"statuses,omitempty"`
 	Conclusions AllowedConclusions `yaml:"conclusions,omitempty"`
-	Workflows   []string           `yaml:"workflows,omitempty"`
+	Workflows   []common.Regexp    `yaml:"workflows,omitempty"`
 }
 
-func NewHasWorkflowResult(workflows []string, conclusions []string) *HasWorkflowResult {
-	return &HasWorkflowResult{
+func NewHasWorkflow(workflows []common.Regexp, conclusions AllowedConclusions, statuses AllowedStatuses) *HasWorkflow {
+	return &HasWorkflow{
+		Statuses:    statuses,
 		Conclusions: conclusions,
 		Workflows:   workflows,
 	}
 }
 
-var _ Predicate = HasWorkflowResult{}
+var _ Predicate = HasWorkflow{}
 
-func (pred HasWorkflowResult) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
+func (pred HasWorkflow) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
+	allowedConclusions := pred.Conclusions
+	if len(allowedConclusions) == 0 {
+		allowedConclusions = AllowedConclusions{"success"}
+	} else if slices.Contains(allowedConclusions, "any") {
+		allowedConclusions = AllowedConclusions{"action_required", "cancelled", "failure", "neutral", "skipped", "stale", "success", "timed_out"}
+	}
+
+	allowedStatuses := pred.Statuses
+	if len(allowedStatuses) == 0 {
+		allowedStatuses = AllowedStatuses{"completed"}
+	} else if slices.Contains(allowedStatuses, "any") {
+		allowedStatuses = AllowedStatuses{"completed", "expected", "failure", "in_progress", "pending", "queued", "requested", "startup_failure", "waiting"}
+	}
+
 	workflowRuns, err := prctx.LatestWorkflowRuns()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list latest workflow runs")
 	}
 
-	allowedConclusions := pred.Conclusions
-	if len(allowedConclusions) == 0 {
-		allowedConclusions = AllowedConclusions{"success"}
-	}
-
 	predicateResult := common.PredicateResult{
 		ValuePhrase:     "workflow results",
-		ConditionPhrase: fmt.Sprintf("exist and have conclusion %s", allowedConclusions.joinWithOr()),
+		ConditionPhrase: fmt.Sprintf("exist and have statuses %s and in case status \"completed\" is required also one of conclusions %s", allowedStatuses.joinWithOr(), allowedConclusions.joinWithOr()),
 	}
 
 	var missingResults []string
 	var failingWorkflows []string
 	for _, workflow := range pred.Workflows {
-		conclusions, ok := workflowRuns[workflow]
-		if !ok {
-			missingResults = append(missingResults, workflow)
-		}
-		for _, conclusion := range conclusions {
-			if !slices.Contains(allowedConclusions, conclusion) {
-				failingWorkflows = append(failingWorkflows, workflow)
+		matched := false
+		for name, workflowSteps := range workflowRuns {
+			if workflow.Matches(name) {
+				matched = true
+				for _, workflowResult := range workflowSteps {
+					isStatusAllowed := workflowResult.Status != nil && slices.Contains(allowedStatuses, *workflowResult.Status)
+					isStatusCompletedAllowed := workflowResult.Status != nil && slices.Contains(allowedStatuses, "completed")
+					isConclusionAllowed := workflowResult.Conclusion != nil && slices.Contains(allowedConclusions, *workflowResult.Conclusion)
+					if !isStatusAllowed || (isStatusCompletedAllowed && !isConclusionAllowed) {
+						failingWorkflows = append(failingWorkflows, name)
+					}
+				}
 			}
+		}
+		if !matched {
+			missingResults = append(missingResults, workflow.String())
 		}
 	}
 
@@ -78,17 +97,21 @@ func (pred HasWorkflowResult) Evaluate(ctx context.Context, prctx pull.Context) 
 
 	if len(failingWorkflows) > 0 {
 		predicateResult.Values = failingWorkflows
-		predicateResult.Description = fmt.Sprintf("One or more workflow runs have not concluded with %s: %s", pred.Conclusions.joinWithOr(), strings.Join(failingWorkflows, ","))
+		predicateResult.Description = fmt.Sprintf("One or more workflow runs have not concluded with %s (yet): %s", allowedConclusions.joinWithOr(), strings.Join(failingWorkflows, ","))
 		predicateResult.Satisfied = false
 		return &predicateResult, nil
 	}
 
-	predicateResult.Values = pred.Workflows
+	workflows := make([]string, len(pred.Workflows))
+	for i, workflow := range pred.Workflows {
+		workflows[i] = workflow.String()
+	}
+	predicateResult.Values = workflows
 	predicateResult.Satisfied = true
 
 	return &predicateResult, nil
 }
 
-func (pred HasWorkflowResult) Trigger() common.Trigger {
+func (pred HasWorkflow) Trigger() common.Trigger {
 	return common.TriggerStatus
 }

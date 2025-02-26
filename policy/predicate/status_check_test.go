@@ -17,23 +17,101 @@ package predicate
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/google/go-github/v70/github"
+	"github.com/google/go-github/v69/github"
 	"github.com/palantir/policy-bot/policy/common"
-	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/pull/pulltest"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestHasSuccessfulStatus(t *testing.T) {
-	hasStatus := HasStatus{Statuses: []string{"status-name", "status-name-2"}}
-	hasStatusSkippedOk := HasStatus{
-		Statuses:    []string{"status-name", "status-name-2"},
+func keysSorted[V any](m map[string]V) []string {
+	r := make([]string, 0, len(m))
+
+	for k := range m {
+		r = append(r, k)
+	}
+
+	slices.Sort(r)
+	return r
+}
+
+func mockCheckRun(status string, conclusion string) *github.CheckRun {
+	id := int64(1)
+	nodeID := "node-id-123"
+	headSHA := "abc123"
+	externalID := "external-id"
+	url := "https://api.github.com/repos/test/Hello-World/check-runs/1"
+	htmlURL := "https://github.com/test/Hello-World/check-runs/1"
+	detailsURL := "https://github.com/test/Hello-World/check-runs/1/details"
+	startedAt := github.Timestamp{Time: time.Now()}
+	completedAt := github.Timestamp{Time: time.Now()}
+	name := "test-check-run"
+	checkSuite := &github.CheckSuite{
+		ID: github.Ptr(int64(1)),
+	}
+	app := &github.App{
+		ID: github.Ptr(int64(1)),
+	}
+	pullRequests := []*github.PullRequest{
+		{
+			ID: github.Ptr(int64(1)),
+		},
+	}
+
+	return &github.CheckRun{
+		ID:           &id,
+		NodeID:       &nodeID,
+		HeadSHA:      &headSHA,
+		ExternalID:   &externalID,
+		URL:          &url,
+		HTMLURL:      &htmlURL,
+		DetailsURL:   &detailsURL,
+		Status:       &status,
+		Conclusion:   &conclusion,
+		StartedAt:    &startedAt,
+		CompletedAt:  &completedAt,
+		Name:         &name,
+		CheckSuite:   checkSuite,
+		App:          app,
+		PullRequests: pullRequests,
+	}
+}
+
+func mockRepoStatus(state string) *github.RepoStatus {
+	id := int64(1)
+	nodeID := "node-id-123"
+	url := "https://api.github.com/repos/octocat/Hello-World/statuses/1"
+	targetURL := "https://github.com/octocat/Hello-World/statuses/1"
+	context := "default"
+	avatarURL := "https://avatars.githubusercontent.com/u/1234?v=4"
+	createdAt := github.Timestamp{Time: time.Now()}
+	updatedAt := github.Timestamp{Time: time.Now()}
+
+	return &github.RepoStatus{
+		ID:          &id,
+		NodeID:      &nodeID,
+		URL:         &url,
+		State:       &state,
+		TargetURL:   &targetURL,
+		Description: nil,
+		Context:     &context,
+		AvatarURL:   &avatarURL,
+		CreatedAt:   &createdAt,
+		UpdatedAt:   &updatedAt,
+	}
+}
+
+func TestHasSuccessfulStatusCheck(t *testing.T) {
+	hasStatusCheck := HasStatusCheck{Checks: []string{"status-name", "status-name-2"}}
+	hasStatusCheckSkippedOk := HasStatusCheck{
+		Checks:      []string{"status-name", "status-name-2"},
 		Conclusions: AllowedConclusions{"success", "skipped"},
 	}
-	hasSuccessfulStatus := HasSuccessfulStatus{"status-name", "status-name-2"}
+	hasSuccessfulStatusCheck := HasSuccessfulStatus{"status-name", "status-name-2"}
 
 	commonTestCases := []StatusTestCase{
 		{
@@ -138,18 +216,18 @@ func TestHasSuccessfulStatus(t *testing.T) {
 	}
 
 	testSuites := []StatusTestSuite{
-		{predicate: hasStatus, testCases: commonTestCases},
-		{predicate: hasStatus, testCases: okOnlyIfSkippedAllowed},
-		{predicate: hasSuccessfulStatus, testCases: commonTestCases},
-		{predicate: hasSuccessfulStatus, testCases: okOnlyIfSkippedAllowed},
+		{predicate: hasStatusCheck, testCases: commonTestCases},
+		{predicate: hasStatusCheck, testCases: okOnlyIfSkippedAllowed},
+		{predicate: hasSuccessfulStatusCheck, testCases: commonTestCases},
+		{predicate: hasSuccessfulStatusCheck, testCases: okOnlyIfSkippedAllowed},
 		{
 			nameSuffix: "skipped allowed",
-			predicate:  hasStatusSkippedOk,
+			predicate:  hasStatusCheckSkippedOk,
 			testCases:  commonTestCases,
 		},
 		{
 			nameSuffix:        "skipped allowed",
-			predicate:         hasStatusSkippedOk,
+			predicate:         hasStatusCheckSkippedOk,
 			testCases:         okOnlyIfSkippedAllowed,
 			overrideSatisfied: github.Bool(true),
 		},
@@ -160,20 +238,7 @@ func TestHasSuccessfulStatus(t *testing.T) {
 	}
 }
 
-type StatusTestSuite struct {
-	nameSuffix        string
-	predicate         Predicate
-	testCases         []StatusTestCase
-	overrideSatisfied *bool
-}
-
-type StatusTestCase struct {
-	name                    string
-	context                 pull.Context
-	ExpectedPredicateResult *common.PredicateResult
-}
-
-func runStatusTestCase(t *testing.T, p Predicate, suite StatusTestSuite) {
+func runStatusCheckTestCase(t *testing.T, p Predicate, suite StatusTestSuite) {
 	ctx := context.Background()
 
 	for _, tc := range suite.testCases {
@@ -190,7 +255,7 @@ func runStatusTestCase(t *testing.T, p Predicate, suite StatusTestSuite) {
 			tc.ExpectedPredicateResult.Values = keysSorted(statuses)
 		}
 
-		// `predicate.HasStatus` -> `HasStatus`
+		// `predicate.HasStatusCheck` -> `HasStatusCheck`
 		_, predicateType, _ := strings.Cut(fmt.Sprintf("%T", p), ".")
 		testName := fmt.Sprintf("%s_%s", predicateType, tc.name)
 
@@ -203,86 +268,6 @@ func runStatusTestCase(t *testing.T, p Predicate, suite StatusTestSuite) {
 			if assert.NoError(t, err, "evaluation failed") {
 				assertPredicateResult(t, tc.ExpectedPredicateResult, predicateResult)
 			}
-		})
-	}
-}
-
-func TestAllowedConclusionsJoinWithOr(t *testing.T) {
-	testCases := []struct {
-		name     string
-		input    AllowedConclusions
-		expected string
-	}{
-		{
-			"empty",
-			AllowedConclusions{},
-			"",
-		},
-		{
-			"single",
-			AllowedConclusions{"a"},
-			"a",
-		},
-		{
-			"two",
-			AllowedConclusions{"a", "b"},
-			"a or b",
-		},
-		{
-			"three",
-			AllowedConclusions{"a", "b", "c"},
-			"a, b, or c",
-		},
-		{
-			"conclusions get sorted",
-			AllowedConclusions{"c", "a", "b"},
-			"a, b, or c",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.expected, tc.input.joinWithOr())
-		})
-	}
-}
-
-func TestAllowedStatuseJoinWithOr(t *testing.T) {
-	testCases := []struct {
-		name     string
-		input    AllowedStatuses
-		expected string
-	}{
-		{
-			"empty",
-			AllowedStatuses{},
-			"",
-		},
-		{
-			"single",
-			AllowedStatuses{"a"},
-			"a",
-		},
-		{
-			"two",
-			AllowedStatuses{"a", "b"},
-			"a or b",
-		},
-		{
-			"three",
-			AllowedStatuses{"a", "b", "c"},
-			"a, b, or c",
-		},
-		{
-			"conclusions get sorted",
-			AllowedStatuses{"c", "a", "b"},
-			"a, b, or c",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.expected, tc.input.joinWithOr())
 		})
 	}
 }

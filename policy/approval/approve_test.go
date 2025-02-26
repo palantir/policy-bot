@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-github/v69/github"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/policy/predicate"
 	"github.com/palantir/policy-bot/pull"
@@ -139,10 +140,12 @@ func TestIsApproved(t *testing.T) {
 				"comment-approver":      {"everyone", "cool-org"},
 				"review-approver":       {"everyone", "even-cooler-org"},
 			},
-			LatestStatusesValue: map[string]string{
-				"build":  "success",
-				"deploy": "pending",
-				"scan":   "success",
+			LatestRepoStatusesValue: map[string]*github.RepoStatus{
+				"build":  {State: github.Ptr("success")},
+				"deploy": {State: github.Ptr("pending")},
+				"scan":   {State: github.Ptr("success")},
+				"flaky":  {State: github.Ptr("failure")},
+				"kermit": {State: github.Ptr("error")},
 			},
 		}
 	}
@@ -683,6 +686,30 @@ func TestIsApproved(t *testing.T) {
 			Requires: Requires{
 				Conditions: predicate.Predicates{
 					HasStatus: &predicate.HasStatus{Statuses: []string{"deploy"}},
+				},
+			},
+		}
+		assertPending(t, prctx, r, "0/1 required conditions")
+	})
+
+	t.Run("conditionsRequiredStatusFailure", func(t *testing.T) {
+		prctx := basePullContext()
+		r := &Rule{
+			Requires: Requires{
+				Conditions: predicate.Predicates{
+					HasStatus: &predicate.HasStatus{Statuses: []string{"flaky"}},
+				},
+			},
+		}
+		assertPending(t, prctx, r, "0/1 required conditions")
+	})
+
+	t.Run("conditionsRequiredStatusError", func(t *testing.T) {
+		prctx := basePullContext()
+		r := &Rule{
+			Requires: Requires{
+				Conditions: predicate.Predicates{
+					HasStatus: &predicate.HasStatus{Statuses: []string{"kermit"}},
 				},
 			},
 		}
