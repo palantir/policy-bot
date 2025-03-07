@@ -185,7 +185,7 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 
 	status := github.RepoStatus{
 		State:       &state,
-		Context:     github.String(fmt.Sprintf("%s: %s", ec.Options.StatusCheckContext, base)),
+		Context:     github.Ptr(fmt.Sprintf("%s: %s", ec.Options.StatusCheckContext, base)),
 		Description: &message,
 		TargetURL:   &detailsURL,
 	}
@@ -204,7 +204,7 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 		logger.Err(err).Msg("Failed to post repo status")
 	}
 	if ec.Options.PostInsecureStatusChecks {
-		status.Context = github.String(ec.Options.StatusCheckContext)
+		status.Context = github.Ptr(ec.Options.StatusCheckContext)
 		if err := PostStatus(ctx, ec.Client, owner, repo, sha, &status); err != nil {
 			logger.Err(err).Msg("Failed to post insecure repo status")
 		}
