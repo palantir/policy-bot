@@ -17,6 +17,7 @@ package predicate
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -29,6 +30,7 @@ type HasWorkflow struct {
 	Statuses    AllowedStatuses    `yaml:"statuses,omitempty"`
 	Conclusions AllowedConclusions `yaml:"conclusions,omitempty"`
 	Workflows   []common.Regexp    `yaml:"workflows,omitempty"`
+	noRegex     bool
 }
 
 func NewHasWorkflow(workflows []common.Regexp, conclusions AllowedConclusions, statuses AllowedStatuses) *HasWorkflow {
@@ -36,6 +38,7 @@ func NewHasWorkflow(workflows []common.Regexp, conclusions AllowedConclusions, s
 		Statuses:    statuses,
 		Conclusions: conclusions,
 		Workflows:   workflows,
+		noRegex:     false,
 	}
 }
 
@@ -68,12 +71,21 @@ func (pred HasWorkflow) Evaluate(ctx context.Context, prctx pull.Context) (*comm
 
 	var missingResults []string
 	var failingWorkflows []string
+	var allWorkflows []string
 	for _, workflow := range pred.Workflows {
 		matched := false
-		for name, workflowSteps := range workflowRuns {
-			if workflow.Matches(name) {
+		workflow_to_use := workflow
+		if pred.noRegex {
+			workflow_to_use, err = common.NewRegexp(fmt.Sprintf("^%s$", regexp.QuoteMeta(workflow.String())))
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to create regexp for workflow %s", workflow.String())
+			}
+		}
+		for name, workflowRun := range workflowRuns {
+			if workflow_to_use.Matches(name) {
 				matched = true
-				for _, workflowResult := range workflowSteps {
+				allWorkflows = append(allWorkflows, name)
+				for _, workflowResult := range workflowRun {
 					isStatusAllowed := workflowResult.Status != nil && slices.Contains(allowedStatuses, *workflowResult.Status)
 					isStatusCompletedAllowed := workflowResult.Status != nil && slices.Contains(allowedStatuses, "completed")
 					isConclusionAllowed := workflowResult.Conclusion != nil && slices.Contains(allowedConclusions, *workflowResult.Conclusion)
@@ -102,11 +114,7 @@ func (pred HasWorkflow) Evaluate(ctx context.Context, prctx pull.Context) (*comm
 		return &predicateResult, nil
 	}
 
-	workflows := make([]string, len(pred.Workflows))
-	for i, workflow := range pred.Workflows {
-		workflows[i] = workflow.String()
-	}
-	predicateResult.Values = workflows
+	predicateResult.Values = allWorkflows
 	predicateResult.Satisfied = true
 
 	return &predicateResult, nil

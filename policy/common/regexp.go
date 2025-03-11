@@ -41,8 +41,19 @@ func NewRegexp(pattern string) (Regexp, error) {
 	return Regexp{r: r}, nil
 }
 
+func NewMustCompileRegexp(pattern string) Regexp {
+	return Regexp{r: regexp.MustCompile(pattern)}
+}
+
 func NewCompiledRegexp(r *regexp.Regexp) Regexp {
 	return Regexp{r: r}
+}
+
+// UnquoteMeta reverses the effect of QuoteMeta
+func UnquoteMeta(s string) string {
+	re := regexp.MustCompile(`\\([\\.?])`) // Match escaped characters \\, \., and \?
+	literalString := re.ReplaceAllString(s, "$1")
+	return literalString
 }
 
 func (r Regexp) Matches(s string) bool {

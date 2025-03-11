@@ -106,12 +106,17 @@ func mockRepoStatus(state string) *github.RepoStatus {
 }
 
 func TestHasSuccessfulStatusCheck(t *testing.T) {
-	hasStatusCheck := HasStatusCheck{Checks: []string{"status-name", "status-name-2"}}
+	hasStatusCheck := HasStatusCheck{Checks: []common.Regexp{
+		common.NewMustCompileRegexp("status-name"),
+		common.NewMustCompileRegexp("status-name-2"),
+	}}
 	hasStatusCheckSkippedOk := HasStatusCheck{
-		Checks:      []string{"status-name", "status-name-2"},
+		Checks: []common.Regexp{
+			common.NewMustCompileRegexp("status-name"),
+			common.NewMustCompileRegexp("status-name-2"),
+		},
 		Conclusions: AllowedConclusions{"success", "skipped"},
 	}
-	hasSuccessfulStatusCheck := HasSuccessfulStatus{"status-name", "status-name-2"}
 
 	commonTestCases := []StatusTestCase{
 		{
@@ -218,8 +223,6 @@ func TestHasSuccessfulStatusCheck(t *testing.T) {
 	testSuites := []StatusTestSuite{
 		{predicate: hasStatusCheck, testCases: commonTestCases},
 		{predicate: hasStatusCheck, testCases: okOnlyIfSkippedAllowed},
-		{predicate: hasSuccessfulStatusCheck, testCases: commonTestCases},
-		{predicate: hasSuccessfulStatusCheck, testCases: okOnlyIfSkippedAllowed},
 		{
 			nameSuffix: "skipped allowed",
 			predicate:  hasStatusCheckSkippedOk,

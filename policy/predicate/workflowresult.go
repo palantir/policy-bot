@@ -39,11 +39,15 @@ func NewHasWorkflowResult(workflows []string, conclusions []string) *HasWorkflow
 var _ Predicate = HasWorkflowResult{}
 
 func (pred HasWorkflowResult) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
-	regexpWorkflows := make([]common.Regexp, len(pred.Workflows))
-	for i, workflow := range pred.Workflows {
-		regexpWorkflows[i], _ = common.NewRegexp(workflow)
+	// Convert strings into a regex object to comply with function signature
+	var workflows []common.Regexp
+	for _, workflow := range pred.Workflows {
+		escaped_workflow, err := common.NewRegexp(workflow)
+		if err == nil {
+			workflows = append(workflows, escaped_workflow)
+		}
 	}
-	return HasWorkflow{Workflows: regexpWorkflows, Conclusions: pred.Conclusions}.Evaluate(ctx, prctx)
+	return HasWorkflow{Workflows: workflows, Conclusions: pred.Conclusions, noRegex: true}.Evaluate(ctx, prctx)
 }
 
 func (pred HasWorkflowResult) Trigger() common.Trigger {

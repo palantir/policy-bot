@@ -31,8 +31,8 @@ func TestHasSuccessfulWorkflowRun(t *testing.T) {
 			latestWorkflowRunsValue: map[string][]*github.WorkflowRun{
 				".github/workflows/test.yml": {mockWorkflowRun("completed", "success")},
 			},
-			predicate: HasWorkflowResult{
-				Workflows: []string{".github/workflows/test.yml"},
+			predicate: HasWorkflow{
+				Workflows: []common.Regexp{common.NewMustCompileRegexp(".github/workflows/test.yml")},
 			},
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied: true,
@@ -45,8 +45,8 @@ func TestHasSuccessfulWorkflowRun(t *testing.T) {
 				".github/workflows/test.yml":  {mockWorkflowRun("completed", "success")},
 				".github/workflows/test2.yml": {mockWorkflowRun("completed", "success")},
 			},
-			predicate: HasWorkflowResult{
-				Workflows: []string{".github/workflows/test.yml", ".github/workflows/test2.yml"},
+			predicate: HasWorkflow{
+				Workflows: []common.Regexp{common.NewMustCompileRegexp(".github/workflows/test.yml"), common.NewMustCompileRegexp(".github/workflows/test2.yml")},
 			},
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied: true,
@@ -58,8 +58,8 @@ func TestHasSuccessfulWorkflowRun(t *testing.T) {
 			latestWorkflowRunsValue: map[string][]*github.WorkflowRun{
 				".github/workflows/test.yml": {mockWorkflowRun("completed", "failure")},
 			},
-			predicate: HasWorkflowResult{
-				Workflows: []string{".github/workflows/test.yml"},
+			predicate: HasWorkflow{
+				Workflows: []common.Regexp{common.NewMustCompileRegexp(".github/workflows/test.yml")},
 			},
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied: false,
@@ -71,8 +71,8 @@ func TestHasSuccessfulWorkflowRun(t *testing.T) {
 			latestWorkflowRunsValue: map[string][]*github.WorkflowRun{
 				".github/workflows/test.yml": {mockWorkflowRun("completed", "failure"), mockWorkflowRun("completed", "success")},
 			},
-			predicate: HasWorkflowResult{
-				Workflows: []string{".github/workflows/test.yml"},
+			predicate: HasWorkflow{
+				Workflows: []common.Regexp{common.NewMustCompileRegexp(".github/workflows/test.yml")},
 			},
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied: false,
@@ -85,8 +85,8 @@ func TestHasSuccessfulWorkflowRun(t *testing.T) {
 				".github/workflows/test.yml":  {mockWorkflowRun("completed", "failure")},
 				".github/workflows/test2.yml": {mockWorkflowRun("completed", "failure")},
 			},
-			predicate: HasWorkflowResult{
-				Workflows: []string{".github/workflows/test.yml", ".github/workflows/test2.yml"},
+			predicate: HasWorkflow{
+				Workflows: []common.Regexp{common.NewMustCompileRegexp(".github/workflows/test.yml"), common.NewMustCompileRegexp(".github/workflows/test2.yml")},
 			},
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied: false,
@@ -99,8 +99,8 @@ func TestHasSuccessfulWorkflowRun(t *testing.T) {
 				".github/workflows/test.yml":  {mockWorkflowRun("completed", "success")},
 				".github/workflows/test2.yml": {mockWorkflowRun("completed", "failure")},
 			},
-			predicate: HasWorkflowResult{
-				Workflows: []string{".github/workflows/test.yml", ".github/workflows/test2.yml"},
+			predicate: HasWorkflow{
+				Workflows: []common.Regexp{common.NewMustCompileRegexp(".github/workflows/test.yml"), common.NewMustCompileRegexp(".github/workflows/test2.yml")},
 			},
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied: false,
@@ -110,8 +110,8 @@ func TestHasSuccessfulWorkflowRun(t *testing.T) {
 		{
 			name:                    "a workflow is missing",
 			latestWorkflowRunsValue: map[string][]*github.WorkflowRun{},
-			predicate: HasWorkflowResult{
-				Workflows: []string{".github/workflows/test.yml"},
+			predicate: HasWorkflow{
+				Workflows: []common.Regexp{common.NewMustCompileRegexp(".github/workflows/test.yml")},
 			},
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied: false,
@@ -121,8 +121,8 @@ func TestHasSuccessfulWorkflowRun(t *testing.T) {
 		{
 			name:                    "multiple workflow are missing",
 			latestWorkflowRunsValue: map[string][]*github.WorkflowRun{},
-			predicate: HasWorkflowResult{
-				Workflows: []string{".github/workflows/test.yml", ".github/workflows/test2.yml"},
+			predicate: HasWorkflow{
+				Workflows: []common.Regexp{common.NewMustCompileRegexp(".github/workflows/test.yml"), common.NewMustCompileRegexp(".github/workflows/test2.yml")},
 			},
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied: false,
@@ -134,8 +134,8 @@ func TestHasSuccessfulWorkflowRun(t *testing.T) {
 			latestWorkflowRunsValue: map[string][]*github.WorkflowRun{
 				".github/workflows/test2.yml": {mockWorkflowRun("completed", "skipped")},
 			},
-			predicate: HasWorkflowResult{
-				Workflows: []string{".github/workflows/test.yml", ".github/workflows/test2.yml"},
+			predicate: HasWorkflow{
+				Workflows: []common.Regexp{common.NewMustCompileRegexp(".github/workflows/test.yml"), common.NewMustCompileRegexp(".github/workflows/test2.yml")},
 			},
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied: false,
@@ -147,8 +147,8 @@ func TestHasSuccessfulWorkflowRun(t *testing.T) {
 			latestWorkflowRunsValue: map[string][]*github.WorkflowRun{
 				".github/workflows/test.yml": {mockWorkflowRun("completed", "skipped")},
 			},
-			predicate: HasWorkflowResult{
-				Workflows:   []string{".github/workflows/test.yml"},
+			predicate: HasWorkflow{
+				Workflows:   []common.Regexp{common.NewMustCompileRegexp(".github/workflows/test.yml")},
 				Conclusions: AllowedConclusions{"skipped"},
 			},
 			ExpectedPredicateResult: &common.PredicateResult{
@@ -162,8 +162,8 @@ func TestHasSuccessfulWorkflowRun(t *testing.T) {
 				".github/workflows/test.yml":  {mockWorkflowRun("completed", "success")},
 				".github/workflows/test2.yml": {mockWorkflowRun("completed", "skipped")},
 			},
-			predicate: HasWorkflowResult{
-				Workflows:   []string{".github/workflows/test.yml", ".github/workflows/test2.yml"},
+			predicate: HasWorkflow{
+				Workflows:   []common.Regexp{common.NewMustCompileRegexp(".github/workflows/test.yml"), common.NewMustCompileRegexp(".github/workflows/test2.yml")},
 				Conclusions: AllowedConclusions{"skipped", "success"},
 			},
 			ExpectedPredicateResult: &common.PredicateResult{
@@ -176,8 +176,8 @@ func TestHasSuccessfulWorkflowRun(t *testing.T) {
 			latestWorkflowRunsValue: map[string][]*github.WorkflowRun{
 				".github/workflows/test.yml": {mockWorkflowRun("completed", "success"), mockWorkflowRun("completed", "skipped")},
 			},
-			predicate: HasWorkflowResult{
-				Workflows:   []string{".github/workflows/test.yml"},
+			predicate: HasWorkflow{
+				Workflows:   []common.Regexp{common.NewMustCompileRegexp(".github/workflows/test.yml")},
 				Conclusions: AllowedConclusions{"skipped", "success"},
 			},
 			ExpectedPredicateResult: &common.PredicateResult{
@@ -191,8 +191,8 @@ func TestHasSuccessfulWorkflowRun(t *testing.T) {
 				".github/workflows/test.yml":  {mockWorkflowRun("completed", "failure")},
 				".github/workflows/test2.yml": {mockWorkflowRun("completed", "skipped")},
 			},
-			predicate: HasWorkflowResult{
-				Workflows:   []string{".github/workflows/test.yml", ".github/workflows/test2.yml"},
+			predicate: HasWorkflow{
+				Workflows:   []common.Regexp{common.NewMustCompileRegexp(".github/workflows/test.yml"), common.NewMustCompileRegexp(".github/workflows/test2.yml")},
 				Conclusions: AllowedConclusions{"skipped", "success"},
 			},
 			ExpectedPredicateResult: &common.PredicateResult{
@@ -206,8 +206,8 @@ func TestHasSuccessfulWorkflowRun(t *testing.T) {
 				".github/workflows/test.yml":  {mockWorkflowRun("completed", "success")},
 				".github/workflows/test2.yml": {mockWorkflowRun("completed", "skipped")},
 			},
-			predicate: HasWorkflowResult{
-				Workflows:   []string{".github/workflows/test.yml", ".github/workflows/test2.yml"},
+			predicate: HasWorkflow{
+				Workflows:   []common.Regexp{common.NewMustCompileRegexp(".github/workflows/test.yml"), common.NewMustCompileRegexp(".github/workflows/test2.yml")},
 				Conclusions: AllowedConclusions{"skipped"},
 			},
 			ExpectedPredicateResult: &common.PredicateResult{
@@ -220,8 +220,8 @@ func TestHasSuccessfulWorkflowRun(t *testing.T) {
 			latestWorkflowRunsValue: map[string][]*github.WorkflowRun{
 				".github/workflows/test.yml": {mockWorkflowRun("completed", "success"), mockWorkflowRun("completed", "skipped")},
 			},
-			predicate: HasWorkflowResult{
-				Workflows:   []string{".github/workflows/test.yml"},
+			predicate: HasWorkflow{
+				Workflows:   []common.Regexp{common.NewMustCompileRegexp(".github/workflows/test.yml")},
 				Conclusions: AllowedConclusions{"skipped"},
 			},
 			ExpectedPredicateResult: &common.PredicateResult{

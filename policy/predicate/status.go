@@ -44,7 +44,15 @@ func NewHasStatus(statuses []string, conclusions []string) *HasStatus {
 var _ Predicate = HasStatus{}
 
 func (pred HasStatus) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
-	return HasStatusCheck{Checks: pred.Statuses, Conclusions: pred.Conclusions}.Evaluate(ctx, prctx)
+	// Convert strings into a regex object to comply with function signature
+	var checks []common.Regexp
+	for _, status := range pred.Statuses {
+		check, err := common.NewRegexp(status)
+		if err == nil {
+			checks = append(checks, check)
+		}
+	}
+	return HasStatusCheck{Checks: checks, Conclusions: pred.Conclusions, noRegex: true}.Evaluate(ctx, prctx)
 }
 
 func (pred HasStatus) Trigger() common.Trigger {
@@ -61,7 +69,7 @@ type HasSuccessfulStatus []string
 var _ Predicate = HasSuccessfulStatus{}
 
 func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
-	return HasStatusCheck{Checks: pred}.Evaluate(ctx, prctx)
+	return HasStatus{Statuses: pred}.Evaluate(ctx, prctx)
 }
 
 func (pred HasSuccessfulStatus) Trigger() common.Trigger {

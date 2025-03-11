@@ -17,6 +17,7 @@ package predicate
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -28,14 +29,16 @@ import (
 type HasStatusCheck struct {
 	Conclusions AllowedConclusions `yaml:"conclusions"`
 	Statuses    AllowedStatuses    `yaml:"statuses"`
-	Checks      []string           `yaml:"checks,omitempty"`
+	Checks      []common.Regexp    `yaml:"checks,omitempty"`
+	noRegex     bool
 }
 
-func NewHasStatusCheck(checks []string, statuses []string, conclusions []string) *HasStatusCheck {
+func NewHasStatusCheck(checks []common.Regexp, statuses []string, conclusions []string) *HasStatusCheck {
 	return &HasStatusCheck{
 		Conclusions: conclusions,
 		Statuses:    statuses,
 		Checks:      checks,
+		noRegex:     false,
 	}
 }
 
@@ -76,21 +79,38 @@ func (pred HasStatusCheck) Evaluate(ctx context.Context, prctx pull.Context) (*c
 
 	var missingResults []string
 	var failingStatuses []string
+	var allChecks []string
 	for _, check := range pred.Checks {
-		if checkResult, ok := checkStatuses[check]; ok {
-			isInvalidConclusion := !slices.Contains(allowedConclusions, *checkResult.Conclusion)
-			if (checkResult.Status == nil || !slices.Contains(allowedStatuses, *checkResult.Status)) ||
-				(slices.Contains(allowedStatuses, "completed") && checkResult.Conclusion != nil && isInvalidConclusion) {
-				failingStatuses = append(failingStatuses, check)
+		matched := false
+		check_to_use := check
+		if pred.noRegex {
+			check_to_use, err = common.NewRegexp(fmt.Sprintf("^%s$", regexp.QuoteMeta(check.String())))
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to create regexp for workflow %s", check.String())
 			}
-		} else if repoStatusResult, ok := repoStatuses[check]; ok {
-			if repoStatusResult == nil {
-				missingResults = append(missingResults, check)
-			} else if repoStatusResult.State == nil || !slices.Contains(allowedStatuses, *repoStatusResult.State) {
-				failingStatuses = append(failingStatuses, check)
+		}
+		for checkResultName, checkResult := range checkStatuses {
+			if check_to_use.Matches(checkResultName) {
+				matched = true
+				allChecks = append(allChecks, checkResultName)
+				isInvalidConclusion := !slices.Contains(allowedConclusions, *checkResult.Conclusion)
+				if (checkResult.Status == nil || !slices.Contains(allowedStatuses, *checkResult.Status)) ||
+					(slices.Contains(allowedStatuses, "completed") && checkResult.Conclusion != nil && isInvalidConclusion) {
+					failingStatuses = append(failingStatuses, checkResultName)
+				}
 			}
-		} else {
-			missingResults = append(missingResults, check)
+		}
+		for repoStatusName, repoStatusResult := range repoStatuses {
+			if check_to_use.Matches(repoStatusName) {
+				matched = true
+				allChecks = append(allChecks, repoStatusName)
+				if repoStatusResult == nil || repoStatusResult.State == nil || !slices.Contains(allowedStatuses, *repoStatusResult.State) {
+					failingStatuses = append(failingStatuses, repoStatusName)
+				}
+			}
+		}
+		if !matched {
+			missingResults = append(missingResults, check.String())
 		}
 	}
 
@@ -108,7 +128,7 @@ func (pred HasStatusCheck) Evaluate(ctx context.Context, prctx pull.Context) (*c
 		return &predicateResult, nil
 	}
 
-	predicateResult.Values = pred.Checks
+	predicateResult.Values = allChecks
 	predicateResult.Satisfied = true
 	return &predicateResult, nil
 }
