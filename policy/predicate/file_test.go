@@ -364,6 +364,95 @@ func TestOnlyChangedFiles(t *testing.T) {
 	})
 }
 
+func TestFileNotDeleted(t *testing.T) {
+	p := &FileNotDeleted{
+		Paths: []common.Regexp{
+			common.NewCompiledRegexp(regexp.MustCompile("workflows/.*\\.yaml")),
+			common.NewCompiledRegexp(regexp.MustCompile("actions/.*\\.yaml")),
+		},
+	}
+
+	runFileTests(t, p, []FileTestCase{
+		{
+			"file not changed",
+			[]*pull.File{},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{},
+				ConditionValues: []string{"workflows/.*\\.yaml", "actions/.*\\.yaml"},
+			},
+		},
+		{
+			"files exist and modified",
+			[]*pull.File{
+				{
+					Filename: "workflows/workflow.yaml",
+					Status:   pull.FileModified,
+				},
+				{
+					Filename: "actions/action.yaml",
+					Status:   pull.FileModified,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{},
+				ConditionValues: []string{"workflows/.*\\.yaml", "actions/.*\\.yaml"},
+			},
+		},
+		{
+			"one file deleted",
+			[]*pull.File{
+				{
+					Filename: "workflows/workflow.yaml",
+					Status:   pull.FileDeleted,
+				},
+				{
+					Filename: "actions/action.yaml",
+					Status:   pull.FileModified,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"workflows/workflow.yaml"},
+				ConditionValues: []string{"workflows/.*\\.yaml", "actions/.*\\.yaml"},
+			},
+		},
+		{
+			"multiple files deleted",
+			[]*pull.File{
+				{
+					Filename: "workflows/workflow.yaml",
+					Status:   pull.FileDeleted,
+				},
+				{
+					Filename: "actions/action.yaml",
+					Status:   pull.FileDeleted,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"workflows/workflow.yaml"},
+				ConditionValues: []string{"workflows/.*\\.yaml", "actions/.*\\.yaml"},
+			},
+		},
+		{
+			"file deleted not matching",
+			[]*pull.File{
+				{
+					Filename: "some/otherfile.yaml",
+					Status:   pull.FileDeleted,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"some/otherfile.yaml"},
+				ConditionValues: []string{"workflows/.*\\.yaml", "actions/.*\\.yaml"},
+			},
+		},
+	})
+}
+
 func TestModifiedLines(t *testing.T) {
 	p := &ModifiedLines{
 		Additions: ComparisonExpr{Op: OpGreaterThan, Value: 100},

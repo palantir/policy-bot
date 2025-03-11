@@ -181,6 +181,60 @@ func (pred *NoChangedFiles) Trigger() common.Trigger {
 	return common.TriggerCommit
 }
 
+type FileNotDeleted struct {
+	Paths []common.Regexp `yaml:"paths"`
+}
+
+var _ Predicate = &FileNotDeleted{}
+
+func (pred *FileNotDeleted) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
+	var paths []string
+	for _, r := range pred.Paths {
+		paths = append(paths, r.String())
+	}
+
+	predicateResult := common.PredicateResult{
+		Satisfied:         true,
+		ValuePhrase:       "deleted files",
+		Values:            []string{},
+		ConditionPhrase:   "match path patterns",
+		ReverseSkipPhrase: true,
+		ConditionValues:   paths,
+	}
+
+	changedFiles, err := prctx.ChangedFiles()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list changed files")
+	}
+
+	if len(changedFiles) == 0 {
+		predicateResult.Description = "No files were changed"
+		return &predicateResult, nil
+	}
+
+	deletedFiles := []string{}
+	for _, f := range changedFiles {
+		if f.Status == pull.FileDeleted {
+			deletedFiles = append(deletedFiles, f.Filename)
+
+			if anyMatches(pred.Paths, f.Filename) {
+				predicateResult.Satisfied = false
+				predicateResult.Values = []string{f.Filename}
+				predicateResult.Description = f.Filename + " was deleted"
+				return &predicateResult, nil
+			}
+		}
+	}
+
+	predicateResult.Values = deletedFiles
+	predicateResult.Description = "No deleted files match the specified patterns"
+	return &predicateResult, nil
+}
+
+func (pred *FileNotDeleted) Trigger() common.Trigger {
+	return common.TriggerCommit
+}
+
 type ModifiedLines struct {
 	Additions ComparisonExpr `yaml:"additions"`
 	Deletions ComparisonExpr `yaml:"deletions"`

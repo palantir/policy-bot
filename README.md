@@ -268,6 +268,17 @@ if:
     paths:
       - "^config/.*$"
 
+  # "file_not_deleted" is satisfied if none of the files matching any regular expression
+  # in the "paths" list have been deleted in the pull request. If any matching file
+  # was deleted, the predicate fails, allowing rules that depend on the file's existence
+  # to be skipped.
+  #
+  # Note: Double-quote strings must escape backslashes while single/plain do not.
+  # See the Notes on YAML Syntax section of this README for more information.
+  file_not_deleted:
+    paths:
+      - "^\\.github/workflows/.*\\.ya?ml$"
+
   # "has_author_in" is satisfied if the user who opened the pull request is in
   # the users list or belongs to any of the listed organizations or teams. The
   # `users` field can contain a GitHub App by appending `[bot]` to the end of
