@@ -18,6 +18,7 @@ type Predicates struct {
 	ChangedFiles     *ChangedFiles     `yaml:"changed_files"`
 	NoChangedFiles   *NoChangedFiles   `yaml:"no_changed_files"`
 	OnlyChangedFiles *OnlyChangedFiles `yaml:"only_changed_files"`
+	FileExists       *FileExists       `yaml:"file_exists"`
 
 	HasAuthorIn             *HasAuthorIn             `yaml:"has_author_in"`
 	HasContributorIn        *HasContributorIn        `yaml:"has_contributor_in"`
@@ -58,6 +59,9 @@ func (p *Predicates) Predicates() []Predicate {
 	}
 	if p.OnlyChangedFiles != nil {
 		ps = append(ps, Predicate(p.OnlyChangedFiles))
+	}
+	if p.FileExists != nil {
+		ps = append(ps, Predicate(p.FileExists))
 	}
 
 	if p.HasAuthorIn != nil {

@@ -181,6 +181,60 @@ func (pred *NoChangedFiles) Trigger() common.Trigger {
 	return common.TriggerCommit
 }
 
+type FileExists struct {
+	Paths []common.Regexp `yaml:"paths"`
+}
+
+var _ Predicate = &FileExists{}
+
+func (pred *FileExists) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
+	var paths []string
+	for _, r := range pred.Paths {
+		paths = append(paths, r.String())
+	}
+
+	predicateResult := common.PredicateResult{
+		Satisfied:       true,
+		ValuePhrase:     "file exists",
+		Values:          []string{},
+		ConditionPhrase: "all specified paths exist",
+		ConditionValues: paths,
+	}
+
+	changedFiles, err := prctx.ChangedFiles()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list changed files")
+	}
+
+	if len(changedFiles) == 0 {
+		predicateResult.Description = "No files were changed"
+		return &predicateResult, nil
+	}
+
+	var deletedFiles []string
+	for _, f := range changedFiles {
+		if anyMatches(pred.Paths, f.Filename) {
+			if f.Status == pull.FileDeleted {
+				deletedFiles = append(deletedFiles, f.Filename)
+			}
+		}
+	}
+
+	if len(deletedFiles) > 0 {
+		predicateResult.Satisfied = false
+		predicateResult.Values = deletedFiles
+		predicateResult.Description = fmt.Sprintf("Files matching defined patterns were deleted: %v", deletedFiles)
+		return &predicateResult, nil
+	}
+
+	predicateResult.Description = "All specified paths exist"
+	return &predicateResult, nil
+}
+
+func (pred *FileExists) Trigger() common.Trigger {
+	return common.TriggerCommit
+}
+
 type ModifiedLines struct {
 	Additions ComparisonExpr `yaml:"additions"`
 	Deletions ComparisonExpr `yaml:"deletions"`
