@@ -17,6 +17,7 @@ package predicate
 import (
 	"context"
 	"fmt"
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -27,9 +28,9 @@ import (
 )
 
 type HasStatusCheck struct {
-	Conclusions AllowedConclusions `yaml:"conclusions"`
-	Statuses    AllowedStatuses    `yaml:"statuses"`
-	Checks      []common.Regexp    `yaml:"checks,omitempty"`
+	Conclusions []string        `yaml:"conclusions"`
+	Statuses    []string        `yaml:"statuses"`
+	Checks      []common.Regexp `yaml:"checks,omitempty"`
 	noRegex     bool
 }
 
@@ -47,9 +48,9 @@ var _ Predicate = HasStatus{}
 func (pred HasStatusCheck) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
 	allowedConclusions := pred.Conclusions
 	if len(allowedConclusions) == 0 {
-		allowedConclusions = AllowedConclusions{"success"}
+		allowedConclusions = []string{"success"}
 	} else if slices.Contains(allowedConclusions, "any") {
-		allowedConclusions = AllowedConclusions{"action_required", "cancelled", "failure", "neutral", "skipped", "stale", "success", "timed_out"}
+		allowedConclusions = []string{"action_required", "cancelled", "failure", "neutral", "skipped", "stale", "success", "timed_out"}
 	}
 
 	allowedStatuses := pred.Statuses
@@ -57,9 +58,9 @@ func (pred HasStatusCheck) Evaluate(ctx context.Context, prctx pull.Context) (*c
 	// pending and failure are statuses that apply to both repo commit statuses and check runs.
 	// all other statuses are only applicable to check runs.
 	if len(allowedStatuses) == 0 {
-		allowedStatuses = AllowedStatuses{"completed", "success"}
+		allowedStatuses = []string{"completed", "success"}
 	} else if slices.Contains(allowedStatuses, "any") {
-		allowedStatuses = AllowedStatuses{"completed", "expected", "failure", "in_progress", "pending", "queued", "requested", "startup_failure", "waiting"} // "error", "success"
+		allowedStatuses = []string{"completed", "expected", "failure", "in_progress", "pending", "queued", "requested", "startup_failure", "waiting", "error", "success"}
 	}
 
 	checkStatuses, err := prctx.LatestCheckStatuses()
@@ -72,14 +73,9 @@ func (pred HasStatusCheck) Evaluate(ctx context.Context, prctx pull.Context) (*c
 		return nil, errors.Wrap(err, "failed to list commit statuses")
 	}
 
-	predicateResult := common.PredicateResult{
-		ValuePhrase:     "status checks",
-		ConditionPhrase: fmt.Sprintf("exist and have conclusion %s", allowedConclusions.joinWithOr()),
-	}
-
-	var missingResults []string
-	var failingStatuses []string
-	var allChecks []string
+	var missingResults = make(map[string]string)
+	var failingStatuses = make(map[string]string)
+	var allChecks = make(map[string]string)
 	for _, check := range pred.Checks {
 		matched := false
 		check_to_use := check
@@ -89,50 +85,87 @@ func (pred HasStatusCheck) Evaluate(ctx context.Context, prctx pull.Context) (*c
 				return nil, errors.Wrapf(err, "failed to create regexp for workflow %s", check.String())
 			}
 		}
-		for checkResultName, checkResult := range checkStatuses {
+		for _, checkResultName := range slices.Sorted(maps.Keys(checkStatuses)) {
 			if check_to_use.Matches(checkResultName) {
 				matched = true
-				allChecks = append(allChecks, checkResultName)
-				isInvalidConclusion := !slices.Contains(allowedConclusions, *checkResult.Conclusion)
-				if (checkResult.Status == nil || !slices.Contains(allowedStatuses, *checkResult.Status)) ||
-					(slices.Contains(allowedStatuses, "completed") && checkResult.Conclusion != nil && isInvalidConclusion) {
-					failingStatuses = append(failingStatuses, checkResultName)
+				allChecks[checkResultName] = checkResultName
+				checkResult := checkStatuses[checkResultName]
+				isValidStatus := slices.Contains(allowedStatuses, *checkResult.Status)
+				isValidConclusion := checkResult.Conclusion != nil && slices.Contains(allowedConclusions, *checkResult.Conclusion)
+				if (checkResult.Status == nil || !isValidStatus) ||
+					(*checkResult.Status == "completed" && !isValidConclusion) {
+					failingStatuses[checkResultName] = checkResultName
 				}
 			}
 		}
-		for repoStatusName, repoStatusResult := range repoStatuses {
+		for _, repoStatusName := range slices.Sorted(maps.Keys(repoStatuses)) {
 			if check_to_use.Matches(repoStatusName) {
 				matched = true
-				allChecks = append(allChecks, repoStatusName)
+				allChecks[repoStatusName] = repoStatusName
+				repoStatusResult := repoStatuses[repoStatusName]
 				if repoStatusResult == nil || repoStatusResult.State == nil || !slices.Contains(allowedStatuses, *repoStatusResult.State) {
-					failingStatuses = append(failingStatuses, repoStatusName)
+					failingStatuses[repoStatusName] = repoStatusName
 				}
 			}
 		}
 		if !matched {
-			missingResults = append(missingResults, check.String())
+			missingResults[check.String()] = check.String()
 		}
 	}
 
+	allChecksList := slices.Sorted(maps.Keys(allChecks))
+	predicateResult := common.PredicateResult{
+		ValuePhrase: "status checks and repo statuses",
+		ConditionPhrase: fmt.Sprintf(
+			"exist and have statuses %s and have conclusion(in case status is completed) %s: %s",
+			joinElementsWithOr(allowedStatuses),
+			joinElementsWithOr(allowedConclusions),
+			allChecksList,
+		),
+	}
+
 	if len(missingResults) > 0 {
-		predicateResult.Values = missingResults
-		predicateResult.Description = "One or more statuses is missing: " + strings.Join(missingResults, ", ")
+		predicateResult.Values = slices.Sorted(maps.Keys(missingResults))
+		predicateResult.Description = fmt.Sprintf("One or more status checks or repo statuses are missing: %s", predicateResult.Values)
 		predicateResult.Satisfied = false
 		return &predicateResult, nil
 	}
 
 	if len(failingStatuses) > 0 {
-		predicateResult.Values = failingStatuses
-		predicateResult.Description = fmt.Sprintf("One or more statuses has not concluded with %s: %s", allowedConclusions.joinWithOr(), strings.Join(failingStatuses, ","))
+		predicateResult.Values = slices.Sorted(maps.Keys(failingStatuses))
+		predicateResult.Description = fmt.Sprintf("One or more status checks or repo statuses have not concluded with %s: %s", joinElementsWithOr(allowedConclusions), failingStatuses)
 		predicateResult.Satisfied = false
 		return &predicateResult, nil
 	}
 
-	predicateResult.Values = allChecks
+	predicateResult.Values = allChecksList
 	predicateResult.Satisfied = true
 	return &predicateResult, nil
 }
 
 func (pred HasStatusCheck) Trigger() common.Trigger {
 	return common.TriggerStatus
+}
+
+// joinWithOr returns a string that represents the allowed conclusions in a
+// format that can be used in a sentence. For example, if the allowed
+// conclusions/statuses are "success" and "failure", this will return "success or
+// failure". If there are more than two conclusions/statuses, the first n-1 will be
+// separated by commas.
+func joinElementsWithOr(c []string) string {
+	slices.Sort(c)
+
+	length := len(c)
+	switch length {
+	case 0:
+		return ""
+	case 1:
+		return c[0]
+	case 2:
+		return c[0] + " or " + c[1]
+	}
+
+	head, tail := c[:length-1], c[length-1]
+
+	return strings.Join(head, ", ") + ", or " + tail
 }

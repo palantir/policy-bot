@@ -231,7 +231,7 @@ func TestHasSuccessfulWorkflowResultRun(t *testing.T) {
 			},
 			predicate: HasWorkflowResult{
 				Workflows:   []string{".github/workflows/test.yml"},
-				Conclusions: AllowedConclusions{"skipped"},
+				Conclusions: []string{"skipped"},
 			},
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied: true,
@@ -246,7 +246,7 @@ func TestHasSuccessfulWorkflowResultRun(t *testing.T) {
 			},
 			predicate: HasWorkflowResult{
 				Workflows:   []string{".github/workflows/test.yml", ".github/workflows/test2.yml"},
-				Conclusions: AllowedConclusions{"skipped", "success"},
+				Conclusions: []string{"skipped", "success"},
 			},
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied: true,
@@ -260,7 +260,7 @@ func TestHasSuccessfulWorkflowResultRun(t *testing.T) {
 			},
 			predicate: HasWorkflowResult{
 				Workflows:   []string{".github/workflows/test.yml"},
-				Conclusions: AllowedConclusions{"skipped", "success"},
+				Conclusions: []string{"skipped", "success"},
 			},
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied: true,
@@ -275,7 +275,7 @@ func TestHasSuccessfulWorkflowResultRun(t *testing.T) {
 			},
 			predicate: HasWorkflowResult{
 				Workflows:   []string{".github/workflows/test.yml", ".github/workflows/test2.yml"},
-				Conclusions: AllowedConclusions{"skipped", "success"},
+				Conclusions: []string{"skipped", "success"},
 			},
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied: false,
@@ -290,7 +290,7 @@ func TestHasSuccessfulWorkflowResultRun(t *testing.T) {
 			},
 			predicate: HasWorkflowResult{
 				Workflows:   []string{".github/workflows/test.yml", ".github/workflows/test2.yml"},
-				Conclusions: AllowedConclusions{"skipped"},
+				Conclusions: []string{"skipped"},
 			},
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied: false,
@@ -304,11 +304,137 @@ func TestHasSuccessfulWorkflowResultRun(t *testing.T) {
 			},
 			predicate: HasWorkflowResult{
 				Workflows:   []string{".github/workflows/test.yml"},
-				Conclusions: AllowedConclusions{"skipped"},
+				Conclusions: []string{"skipped"},
 			},
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied: false,
 				Values:    []string{".github/workflows/test.yml"},
+			},
+		},
+		{
+			name: "a workflow in state 'expected', it should be ignored",
+			latestWorkflowRunsValue: map[string][]*github.WorkflowRun{
+				".github/workflows/test.yml":  {mockWorkflowRun("completed", "success")},
+				".github/workflows/test2.yml": {mockWorkflowRun("expected", "")},
+			},
+			predicate: HasWorkflowResult{
+				Workflows: []string{".github/workflows/test.yml"},
+			},
+			ExpectedPredicateResult: &common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{".github/workflows/test.yml"},
+			},
+		},
+		{
+			name: "a workflow in state 'failure', it should be ignored",
+			latestWorkflowRunsValue: map[string][]*github.WorkflowRun{
+				".github/workflows/test.yml":  {mockWorkflowRun("completed", "success")},
+				".github/workflows/test2.yml": {mockWorkflowRun("failure", "")},
+			},
+			predicate: HasWorkflowResult{
+				Workflows: []string{".github/workflows/test.yml"},
+			},
+			ExpectedPredicateResult: &common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{".github/workflows/test.yml"},
+			},
+		},
+		{
+			name: "a workflow in state 'in_progress', it should be ignored",
+			latestWorkflowRunsValue: map[string][]*github.WorkflowRun{
+				".github/workflows/test.yml":  {mockWorkflowRun("completed", "success")},
+				".github/workflows/test2.yml": {mockWorkflowRun("in_progress", "")},
+			},
+			predicate: HasWorkflowResult{
+				Workflows: []string{".github/workflows/test.yml"},
+			},
+			ExpectedPredicateResult: &common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{".github/workflows/test.yml"},
+			},
+		},
+		{
+			name: "a workflow in state 'queued', it should be ignored",
+			latestWorkflowRunsValue: map[string][]*github.WorkflowRun{
+				".github/workflows/test.yml":  {mockWorkflowRun("completed", "success")},
+				".github/workflows/test2.yml": {mockWorkflowRun("queued", "")},
+			},
+			predicate: HasWorkflowResult{
+				Workflows: []string{".github/workflows/test.yml"},
+			},
+			ExpectedPredicateResult: &common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{".github/workflows/test.yml"},
+			},
+		},
+		{
+			name: "a workflow in state 'pending', it should be ignored",
+			latestWorkflowRunsValue: map[string][]*github.WorkflowRun{
+				".github/workflows/test.yml":  {mockWorkflowRun("completed", "success")},
+				".github/workflows/test2.yml": {mockWorkflowRun("pending", "")},
+			},
+			predicate: HasWorkflowResult{
+				Workflows: []string{".github/workflows/test.yml"},
+			},
+			ExpectedPredicateResult: &common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{".github/workflows/test.yml"},
+			},
+		},
+		{
+			name: "a workflow in state 'waiting', it should be ignored",
+			latestWorkflowRunsValue: map[string][]*github.WorkflowRun{
+				".github/workflows/test.yml":  {mockWorkflowRun("completed", "success")},
+				".github/workflows/test2.yml": {mockWorkflowRun("waiting", "")},
+			},
+			predicate: HasWorkflowResult{
+				Workflows: []string{".github/workflows/test.yml"},
+			},
+			ExpectedPredicateResult: &common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{".github/workflows/test.yml"},
+			},
+		},
+		{
+			name: "a workflow in state 'requested', it should be ignored",
+			latestWorkflowRunsValue: map[string][]*github.WorkflowRun{
+				".github/workflows/test.yml":  {mockWorkflowRun("completed", "success")},
+				".github/workflows/test2.yml": {mockWorkflowRun("requested", "")},
+			},
+			predicate: HasWorkflowResult{
+				Workflows: []string{".github/workflows/test.yml"},
+			},
+			ExpectedPredicateResult: &common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{".github/workflows/test.yml"},
+			},
+		},
+		{
+			name: "a workflow in state 'startup_failure', it should be ignored",
+			latestWorkflowRunsValue: map[string][]*github.WorkflowRun{
+				".github/workflows/test.yml":  {mockWorkflowRun("completed", "success")},
+				".github/workflows/test2.yml": {mockWorkflowRun("startup_failure", "")},
+			},
+			predicate: HasWorkflowResult{
+				Workflows: []string{".github/workflows/test.yml"},
+			},
+			ExpectedPredicateResult: &common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{".github/workflows/test.yml"},
+			},
+		},
+		{
+			name: "a predicate with regex syntax is treated as a literal string",
+			latestWorkflowRunsValue: map[string][]*github.WorkflowRun{
+				".github/workflows/test.yml":  {mockWorkflowRun("completed", "success")},
+				".github/workflows/test2.yml": {mockWorkflowRun("startup_failure", "")},
+			},
+			predicate: HasWorkflowResult{
+				Workflows: []string{".*test.*"},
+			},
+			ExpectedPredicateResult: &common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{".*test.*"},
 			},
 		},
 	}

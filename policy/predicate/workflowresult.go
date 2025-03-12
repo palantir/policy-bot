@@ -25,8 +25,8 @@ import (
 //
 // Deprecated: use the more flexible `HasWorkflow` instead.
 type HasWorkflowResult struct {
-	Conclusions AllowedConclusions `yaml:"conclusions,omitempty"`
-	Workflows   []string           `yaml:"workflows,omitempty"`
+	Conclusions []string `yaml:"conclusions,omitempty"`
+	Workflows   []string `yaml:"workflows,omitempty"`
 }
 
 func NewHasWorkflowResult(workflows []string, conclusions []string) *HasWorkflowResult {

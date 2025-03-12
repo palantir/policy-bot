@@ -16,22 +16,17 @@ package predicate
 
 import (
 	"context"
-	"slices"
-	"strings"
 
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 )
 
-type AllowedConclusions []string
-type AllowedStatuses []string
-
 // HasStatus checks that the specified statuses have a completed status with configurable conclusions.
 //
 // Deprecated: use the more flexible `HasStatusCheck` instead.
 type HasStatus struct {
-	Conclusions AllowedConclusions `yaml:"conclusions,omitempty"`
-	Statuses    []string           `yaml:"statuses,omitempty"`
+	Conclusions []string `yaml:"conclusions,omitempty"`
+	Statuses    []string `yaml:"statuses,omitempty"`
 }
 
 func NewHasStatus(statuses []string, conclusions []string) *HasStatus {
@@ -74,44 +69,4 @@ func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context
 
 func (pred HasSuccessfulStatus) Trigger() common.Trigger {
 	return common.TriggerStatus
-}
-
-// joinWithOr returns a string that represents the allowed conclusions in a
-// format that can be used in a sentence. For example, if the allowed
-// conclusions are "success" and "failure", this will return "success or
-// failure". If there are more than two conclusions, the first n-1 will be
-// separated by commas.
-func (c AllowedConclusions) joinWithOr() string {
-	slices.Sort(c)
-
-	length := len(c)
-	switch length {
-	case 0:
-		return ""
-	case 1:
-		return c[0]
-	case 2:
-		return c[0] + " or " + c[1]
-	}
-
-	head, tail := c[:length-1], c[length-1]
-
-	return strings.Join(head, ", ") + ", or " + tail
-}
-func (c AllowedStatuses) joinWithOr() string {
-	slices.Sort(c)
-
-	length := len(c)
-	switch length {
-	case 0:
-		return ""
-	case 1:
-		return c[0]
-	case 2:
-		return c[0] + " or " + c[1]
-	}
-
-	head, tail := c[:length-1], c[length-1]
-
-	return strings.Join(head, ", ") + ", or " + tail
 }
