@@ -268,7 +268,44 @@ if:
     paths:
       - "^config/.*$"
 
-  # "file_not_deleted" is satisfied if none of the files matching any regular expression
+  # "file_added" is satisfied if any file matching any regular expression in the "paths"
+  # list has been added in the pull request, allowing enforcement of rules when
+  # specific types of files are added. If no matching files are added, the predicate
+  # fails.
+  #
+  # Note: Double-quote strings must escape backslashes while single/plain do not.
+  # See the Notes on YAML Syntax section of this README for more information.
+  file_added:
+    paths:
+      - "^config/.*\\.yaml$"
+      - "^server/.*\\.go$"
+
+  # "file_not_added" is the negation of "file_added". This predicate is
+  # satisfied if none of the files matching any regular expression
+  # in the "paths" list have been added in the pull request. If any matching file
+  # was added, the predicate fails, allowing rules to be skipped that depend on
+  # files not being added.
+  #
+  # Note: Double-quote strings must escape backslashes while single/plain do not.
+  # See the Notes on YAML Syntax section of this README for more information.
+  file_not_added:
+    paths:
+      - "^deprecated/.*$"
+
+  # "file_deleted" is satisfied if any file matching any regular expression in the "paths"
+  # list has been deleted in the pull request, allowing enforcement of rules when
+  # specific types of files are deleted. If no matching files are deleted, the
+  # predicate fails.
+  #
+  # Note: Double-quote strings must escape backslashes while single/plain do not.
+  # See the Notes on YAML Syntax section of this README for more information.
+  file_deleted:
+    paths:
+      - "^legacy/.*\\.js$"
+      - "^deprecated/.*\\.go$"
+
+  # "file_not_deleted" is the negation of "file_deleted". This predicate is
+  # satisfied if none of the files matching any regular expression
   # in the "paths" list have been deleted in the pull request. If any matching file
   # was deleted, the predicate fails, allowing rules that depend on the file's existence
   # to be skipped.

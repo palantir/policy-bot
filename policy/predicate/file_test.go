@@ -453,6 +453,245 @@ func TestFileNotDeleted(t *testing.T) {
 	})
 }
 
+func TestFileAdded(t *testing.T) {
+	p := &FileAdded{
+		Paths: []common.Regexp{
+			common.NewCompiledRegexp(regexp.MustCompile("app/.*\\.go")),
+			common.NewCompiledRegexp(regexp.MustCompile("server/.*\\.go")),
+		},
+	}
+
+	runFileTests(t, p, []FileTestCase{
+		{
+			"no files",
+			[]*pull.File{},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{},
+				ConditionValues: []string{"app/.*\\.go", "server/.*\\.go"},
+			},
+		},
+		{
+			"matching file added",
+			[]*pull.File{
+				{
+					Filename: "app/client.go",
+					Status:   pull.FileAdded,
+				},
+				{
+					Filename: "other/file.go",
+					Status:   pull.FileAdded,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"app/client.go"},
+				ConditionValues: []string{"app/.*\\.go", "server/.*\\.go"},
+			},
+		},
+		{
+			"no matching files added",
+			[]*pull.File{
+				{
+					Filename: "other/file1.go",
+					Status:   pull.FileAdded,
+				},
+				{
+					Filename: "other/file2.go",
+					Status:   pull.FileAdded,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"other/file1.go", "other/file2.go"},
+				ConditionValues: []string{"app/.*\\.go", "server/.*\\.go"},
+			},
+		},
+		{
+			"files exist but modified",
+			[]*pull.File{
+				{
+					Filename: "app/client.go",
+					Status:   pull.FileModified,
+				},
+				{
+					Filename: "server/server.go",
+					Status:   pull.FileModified,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{},
+				ConditionValues: []string{"app/.*\\.go", "server/.*\\.go"},
+			},
+		},
+	})
+}
+
+func TestFileDeleted(t *testing.T) {
+	p := &FileDeleted{
+		Paths: []common.Regexp{
+			common.NewCompiledRegexp(regexp.MustCompile("app/.*\\.go")),
+			common.NewCompiledRegexp(regexp.MustCompile("server/.*\\.go")),
+		},
+	}
+
+	runFileTests(t, p, []FileTestCase{
+		{
+			"no files",
+			[]*pull.File{},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{},
+				ConditionValues: []string{"app/.*\\.go", "server/.*\\.go"},
+			},
+		},
+		{
+			"matching file deleted",
+			[]*pull.File{
+				{
+					Filename: "app/client.go",
+					Status:   pull.FileDeleted,
+				},
+				{
+					Filename: "other/file.go",
+					Status:   pull.FileDeleted,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"app/client.go"},
+				ConditionValues: []string{"app/.*\\.go", "server/.*\\.go"},
+			},
+		},
+		{
+			"no matching files deleted",
+			[]*pull.File{
+				{
+					Filename: "other/file1.go",
+					Status:   pull.FileDeleted,
+				},
+				{
+					Filename: "other/file2.go",
+					Status:   pull.FileDeleted,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"other/file1.go", "other/file2.go"},
+				ConditionValues: []string{"app/.*\\.go", "server/.*\\.go"},
+			},
+		},
+		{
+			"files exist but modified",
+			[]*pull.File{
+				{
+					Filename: "app/client.go",
+					Status:   pull.FileModified,
+				},
+				{
+					Filename: "server/server.go",
+					Status:   pull.FileModified,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{},
+				ConditionValues: []string{"app/.*\\.go", "server/.*\\.go"},
+			},
+		},
+	})
+}
+
+func TestFileNotAdded(t *testing.T) {
+	p := &FileNotAdded{
+		Paths: []common.Regexp{
+			common.NewCompiledRegexp(regexp.MustCompile("workflows/.*\\.yaml")),
+			common.NewCompiledRegexp(regexp.MustCompile("actions/.*\\.yaml")),
+		},
+	}
+
+	runFileTests(t, p, []FileTestCase{
+		{
+			"file not changed",
+			[]*pull.File{},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{},
+				ConditionValues: []string{"workflows/.*\\.yaml", "actions/.*\\.yaml"},
+			},
+		},
+		{
+			"files exist and modified",
+			[]*pull.File{
+				{
+					Filename: "workflows/workflow.yaml",
+					Status:   pull.FileModified,
+				},
+				{
+					Filename: "actions/action.yaml",
+					Status:   pull.FileModified,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{},
+				ConditionValues: []string{"workflows/.*\\.yaml", "actions/.*\\.yaml"},
+			},
+		},
+		{
+			"one file added",
+			[]*pull.File{
+				{
+					Filename: "workflows/workflow.yaml",
+					Status:   pull.FileAdded,
+				},
+				{
+					Filename: "actions/action.yaml",
+					Status:   pull.FileModified,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"workflows/workflow.yaml"},
+				ConditionValues: []string{"workflows/.*\\.yaml", "actions/.*\\.yaml"},
+			},
+		},
+		{
+			"multiple files added",
+			[]*pull.File{
+				{
+					Filename: "workflows/workflow.yaml",
+					Status:   pull.FileAdded,
+				},
+				{
+					Filename: "actions/action.yaml",
+					Status:   pull.FileAdded,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"workflows/workflow.yaml"},
+				ConditionValues: []string{"workflows/.*\\.yaml", "actions/.*\\.yaml"},
+			},
+		},
+		{
+			"file added not matching",
+			[]*pull.File{
+				{
+					Filename: "some/otherfile.yaml",
+					Status:   pull.FileAdded,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"some/otherfile.yaml"},
+				ConditionValues: []string{"workflows/.*\\.yaml", "actions/.*\\.yaml"},
+			},
+		},
+	})
+}
+
 func TestModifiedLines(t *testing.T) {
 	p := &ModifiedLines{
 		Additions: ComparisonExpr{Op: OpGreaterThan, Value: 100},

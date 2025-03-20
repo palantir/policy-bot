@@ -25,6 +25,14 @@ import (
 	"github.com/pkg/errors"
 )
 
+func getPathStrings(patterns []common.Regexp) []string {
+	var paths []string
+	for _, r := range patterns {
+		paths = append(paths, r.String())
+	}
+	return paths
+}
+
 type ChangedFiles struct {
 	Paths       []common.Regexp `yaml:"paths,omitempty"`
 	IgnorePaths []common.Regexp `yaml:"ignore,omitempty"`
@@ -33,15 +41,8 @@ type ChangedFiles struct {
 var _ Predicate = &ChangedFiles{}
 
 func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
-	var paths, ignorePaths []string
-
-	for _, path := range pred.Paths {
-		paths = append(paths, path.String())
-	}
-
-	for _, ignorePath := range pred.IgnorePaths {
-		ignorePaths = append(ignorePaths, ignorePath.String())
-	}
+	paths := getPathStrings(pred.Paths)
+	ignorePaths := getPathStrings(pred.IgnorePaths)
 
 	predicateResult := common.PredicateResult{
 		ValuePhrase:     "changed files",
@@ -92,11 +93,7 @@ type OnlyChangedFiles struct {
 var _ Predicate = &OnlyChangedFiles{}
 
 func (pred *OnlyChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
-	var paths []string
-
-	for _, path := range pred.Paths {
-		paths = append(paths, path.String())
-	}
+	paths := getPathStrings(pred.Paths)
 
 	predicateResult := common.PredicateResult{
 		ValuePhrase:     "changed files",
@@ -181,25 +178,20 @@ func (pred *NoChangedFiles) Trigger() common.Trigger {
 	return common.TriggerCommit
 }
 
-type FileNotDeleted struct {
+type FileAdded struct {
 	Paths []common.Regexp `yaml:"paths"`
 }
 
-var _ Predicate = &FileNotDeleted{}
+var _ Predicate = &FileAdded{}
 
-func (pred *FileNotDeleted) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
-	var paths []string
-	for _, r := range pred.Paths {
-		paths = append(paths, r.String())
-	}
-
+func (pred *FileAdded) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
+	paths := getPathStrings(pred.Paths)
 	predicateResult := common.PredicateResult{
-		Satisfied:         true,
-		ValuePhrase:       "deleted files",
-		Values:            []string{},
-		ConditionPhrase:   "match path patterns",
-		ReverseSkipPhrase: true,
-		ConditionValues:   paths,
+		Satisfied:       false,
+		ValuePhrase:     "added files",
+		Values:          []string{},
+		ConditionPhrase: "match path patterns",
+		ConditionValues: paths,
 	}
 
 	changedFiles, err := prctx.ChangedFiles()
@@ -207,9 +199,140 @@ func (pred *FileNotDeleted) Evaluate(ctx context.Context, prctx pull.Context) (*
 		return nil, errors.Wrap(err, "failed to list changed files")
 	}
 
-	if len(changedFiles) == 0 {
-		predicateResult.Description = "No files were changed"
-		return &predicateResult, nil
+	addedFiles := []string{}
+	for _, f := range changedFiles {
+		if f.Status == pull.FileAdded {
+			addedFiles = append(addedFiles, f.Filename)
+
+			if anyMatches(pred.Paths, f.Filename) {
+				predicateResult.Satisfied = true
+				predicateResult.Values = []string{f.Filename}
+				predicateResult.Description = f.Filename + " was added"
+				return &predicateResult, nil
+			}
+		}
+	}
+
+	predicateResult.Values = addedFiles
+	predicateResult.Description = "No added files match the specified patterns"
+	return &predicateResult, nil
+}
+
+func (pred *FileAdded) Trigger() common.Trigger {
+	return common.TriggerCommit
+}
+
+type FileNotAdded struct {
+	Paths []common.Regexp `yaml:"paths"`
+}
+
+var _ Predicate = &FileNotAdded{}
+
+func (pred *FileNotAdded) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
+	paths := getPathStrings(pred.Paths)
+
+	predicateResult := common.PredicateResult{
+		Satisfied:         true,
+		ValuePhrase:       "added files",
+		Values:            []string{},
+		ConditionPhrase:   "match path patterns",
+		ConditionValues:   paths,
+		ReverseSkipPhrase: true,
+	}
+
+	changedFiles, err := prctx.ChangedFiles()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list changed files")
+	}
+
+	addedFiles := []string{}
+	for _, f := range changedFiles {
+		if f.Status == pull.FileAdded {
+			addedFiles = append(addedFiles, f.Filename)
+
+			if anyMatches(pred.Paths, f.Filename) {
+				predicateResult.Satisfied = false
+				predicateResult.Values = []string{f.Filename}
+				predicateResult.Description = f.Filename + " was added"
+				return &predicateResult, nil
+			}
+		}
+	}
+
+	predicateResult.Values = addedFiles
+	predicateResult.Description = "No added files match the specified patterns"
+	return &predicateResult, nil
+}
+
+func (pred *FileNotAdded) Trigger() common.Trigger {
+	return common.TriggerCommit
+}
+
+type FileDeleted struct {
+	Paths []common.Regexp `yaml:"paths"`
+}
+
+var _ Predicate = &FileDeleted{}
+
+func (pred *FileDeleted) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
+	paths := getPathStrings(pred.Paths)
+
+	predicateResult := common.PredicateResult{
+		Satisfied:       false,
+		ValuePhrase:     "deleted files",
+		Values:          []string{},
+		ConditionPhrase: "match path patterns",
+		ConditionValues: paths,
+	}
+
+	changedFiles, err := prctx.ChangedFiles()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list changed files")
+	}
+
+	deletedFiles := []string{}
+	for _, f := range changedFiles {
+		if f.Status == pull.FileDeleted {
+			deletedFiles = append(deletedFiles, f.Filename)
+
+			if anyMatches(pred.Paths, f.Filename) {
+				predicateResult.Satisfied = true
+				predicateResult.Values = []string{f.Filename}
+				predicateResult.Description = f.Filename + " was deleted"
+				return &predicateResult, nil
+			}
+		}
+	}
+
+	predicateResult.Values = deletedFiles
+	predicateResult.Description = "No deleted files match the specified patterns"
+	return &predicateResult, nil
+}
+
+func (pred *FileDeleted) Trigger() common.Trigger {
+	return common.TriggerCommit
+}
+
+type FileNotDeleted struct {
+	Paths []common.Regexp `yaml:"paths"`
+}
+
+var _ Predicate = &FileNotDeleted{}
+
+func (pred *FileNotDeleted) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
+	paths := getPathStrings(pred.Paths)
+	predicateResult := common.PredicateResult{
+		Satisfied:         true,
+		ValuePhrase:       "deleted files",
+		Values:            []string{},
+		ConditionPhrase:   "match path patterns",
+		ConditionValues:   paths,
+		ReverseSkipPhrase: true,
+	}
+
+	changedFiles, err := prctx.ChangedFiles()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list changed files")
 	}
 
 	deletedFiles := []string{}

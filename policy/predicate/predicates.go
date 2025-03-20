@@ -18,6 +18,9 @@ type Predicates struct {
 	ChangedFiles     *ChangedFiles     `yaml:"changed_files,omitempty"`
 	NoChangedFiles   *NoChangedFiles   `yaml:"no_changed_files,omitempty"`
 	OnlyChangedFiles *OnlyChangedFiles `yaml:"only_changed_files,omitempty"`
+	FileAdded        *FileAdded        `yaml:"file_added,omitempty"`
+	FileNotAdded     *FileNotAdded     `yaml:"file_not_added,omitempty"`
+	FileDeleted      *FileDeleted      `yaml:"file_deleted,omitempty"`
 	FileNotDeleted   *FileNotDeleted   `yaml:"file_not_deleted,omitempty"`
 
 	HasAuthorIn             *HasAuthorIn             `yaml:"has_author_in,omitempty"`
@@ -63,6 +66,15 @@ func (p *Predicates) Predicates() []Predicate {
 	}
 	if p.OnlyChangedFiles != nil {
 		ps = append(ps, Predicate(p.OnlyChangedFiles))
+	}
+	if p.FileAdded != nil {
+		ps = append(ps, Predicate(p.FileAdded))
+	}
+	if p.FileNotAdded != nil {
+		ps = append(ps, Predicate(p.FileNotAdded))
+	}
+	if p.FileDeleted != nil {
+		ps = append(ps, Predicate(p.FileDeleted))
 	}
 	if p.FileNotDeleted != nil {
 		ps = append(ps, Predicate(p.FileNotDeleted))
