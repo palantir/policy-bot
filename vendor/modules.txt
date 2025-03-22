@@ -43,6 +43,9 @@ github.com/golang/protobuf/ptypes/timestamp
 # github.com/google/go-github/v69 v69.2.0
 ## explicit; go 1.22.0
 github.com/google/go-github/v69/github
+# github.com/google/go-github/v70 v70.0.0
+## explicit; go 1.23.0
+github.com/google/go-github/v70/github
 # github.com/google/go-querystring v1.1.0
 ## explicit; go 1.10
 github.com/google/go-querystring/query
@@ -74,8 +77,8 @@ github.com/palantir/go-baseapp/appmetrics/emitter/prometheus
 github.com/palantir/go-baseapp/baseapp
 github.com/palantir/go-baseapp/baseapp/datadog
 github.com/palantir/go-baseapp/pkg/errfmt
-# github.com/palantir/go-githubapp v0.33.0
-## explicit; go 1.23.0
+# github.com/palantir/go-githubapp v0.34.0
+## explicit; go 1.24.0
 github.com/palantir/go-githubapp/appconfig
 github.com/palantir/go-githubapp/githubapp
 github.com/palantir/go-githubapp/oauth2
@@ -112,7 +115,7 @@ github.com/rcrowley/go-metrics
 # github.com/rs/xid v1.6.0
 ## explicit; go 1.16
 github.com/rs/xid
-# github.com/rs/zerolog v1.33.0
+# github.com/rs/zerolog v1.34.0
 ## explicit; go 1.15
 github.com/rs/zerolog
 github.com/rs/zerolog/hlog
