@@ -34,9 +34,11 @@ func (ec *EvalContext) dismissStaleReviewsForResult(ctx context.Context, result 
 		if d.Candidate.Type != common.ReviewCandidate {
 			continue
 		}
-		// Only dismiss reviews from users who are not currently approvers
-		if approvers[d.Candidate.User] {
-			continue
+		if !ec.Options.StrictReviewDismissal {
+			// Only dismiss reviews from users who are not currently approvers
+			if approvers[d.Candidate.User] {
+				continue
+			}
 		}
 		// Only dismiss reviews once if they're dismissed by multiple rules
 		if alreadyDismissed[d.Candidate.ReviewID] {

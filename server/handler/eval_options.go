@@ -42,6 +42,11 @@ type PullEvaluationOptions struct {
 	// is otherwise private. See the README for details.
 	ExpandRequiredReviewers bool `yaml:"expand_required_reviewers"`
 
+	// StrictReviewDismissal enables sending unconditional GitHub dismissals
+	// for reviews associated with rules of invalidated approval candidates
+	// even if that same approval candidate satifies another rule.
+	StrictReviewDismissal bool `yaml:"strict_review_dismissal"`
+
 	// PostInsecureStatusChecks enables the sending of a second status using just StatusCheckContext as the context,
 	// no templating. This is turned off by default. This is to support legacy workflows that depend on the original
 	// context behaviour, and will be removed in 2.0
@@ -92,6 +97,7 @@ func (p *PullEvaluationOptions) SetValuesFromEnv(prefix string) {
 	setStringPtrFromEnv("SHARED_POLICY_PATH", prefix, &p.SharedPolicyPath)
 	setStringFromEnv("STATUS_CHECK_CONTEXT", prefix, &p.StatusCheckContext)
 	setBoolFromEnv("EXPAND_REQUIRED_REVIEWERS", prefix, &p.ExpandRequiredReviewers)
+	setBoolFromEnv("STRICT_REVIEW_DISMISSAL", prefix, &p.StrictReviewDismissal)
 	setBoolFromEnv("POST_INSECURE_STATUS_CHECKS", prefix, &p.PostInsecureStatusChecks)
 	p.fillDefaults()
 }
