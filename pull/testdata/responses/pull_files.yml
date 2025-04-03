@@ -14,7 +14,7 @@
       },
       {
         "filename": "path/bar.txt",
-        "status": "deleted",
+        "status": "removed",
         "additions": 0,
         "deletions": 21,
         "changes": 21

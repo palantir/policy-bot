@@ -301,7 +301,7 @@ func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
 			switch f.GetStatus() {
 			case "added":
 				status = FileAdded
-			case "deleted":
+			case "removed":
 				status = FileDeleted
 			case "renamed":
 				// Break renames into components: the new file is added and we
