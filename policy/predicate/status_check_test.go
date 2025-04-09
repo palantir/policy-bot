@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-github/v69/github"
+	"github.com/google/go-github/v70/github"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull/pulltest"
 	"github.com/stretchr/testify/assert"
@@ -728,44 +728,4 @@ func TestHasStatusCheck(t *testing.T) {
 	runStatusCheckTestCase(t, customStatusRepoStatusTestCases)
 	runStatusCheckTestCase(t, checkAndRepoStatusMixedTestCases)
 	runStatusCheckTestCase(t, regexTestCases)
-}
-
-func TestjoinElementsWithOr(t *testing.T) {
-	testCases := []struct {
-		name     string
-		input    []string
-		expected string
-	}{
-		{
-			"empty",
-			[]string{},
-			"",
-		},
-		{
-			"single",
-			[]string{"a"},
-			"a",
-		},
-		{
-			"two",
-			[]string{"a", "b"},
-			"a or b",
-		},
-		{
-			"three",
-			[]string{"a", "b", "c"},
-			"a, b, or c",
-		},
-		{
-			"conclusions get sorted",
-			[]string{"c", "a", "b"},
-			"a, b, or c",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.expected, joinElementsWithOr(tc.input))
-		})
-	}
 }

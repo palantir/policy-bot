@@ -17,7 +17,7 @@ package pull
 import (
 	"time"
 
-	"github.com/google/go-github/v69/github"
+	"github.com/google/go-github/v70/github"
 )
 
 // MembershipContext defines methods to get information

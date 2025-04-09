@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-github/v69/github"
+	"github.com/google/go-github/v70/github"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/policy/predicate"
 	"github.com/palantir/policy-bot/pull"
