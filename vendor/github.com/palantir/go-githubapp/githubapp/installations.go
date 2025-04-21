@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/google/go-github/v70/github"
+	"github.com/google/go-github/v71/github"
 	"github.com/pkg/errors"
 )
 
