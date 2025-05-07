@@ -50,6 +50,8 @@ func (h *CheckRun) Handle(ctx context.Context, eventType, deliveryID string, pay
 
 	ctx, logger := githubapp.PrepareRepoContext(ctx, installationID, repo)
 
+	logger.Debug().Msgf("Check run event is for '%s', found %d PRs", event.GetCheckRun().GetName(), len(event.GetCheckRun().PullRequests))
+
 	evaluationFailures := 0
 	for _, pr := range event.GetCheckRun().PullRequests {
 		// TODO(bkeyes): I'm assuming PRs in a check run are open at the time

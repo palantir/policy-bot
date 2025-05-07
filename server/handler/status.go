@@ -127,7 +127,7 @@ func (h *Status) processOthers(ctx context.Context, event github.StatusEvent) er
 	if err != nil {
 		return errors.Wrapf(err, "failed to list pull requests for SHA %s", commitSHA)
 	}
-	logger.Debug().Msgf("Context event is for '%s', found %d PRs", event.GetContext(), len(prs))
+	logger.Debug().Msgf("Status event is for '%s', found %d PRs", event.GetContext(), len(prs))
 
 	evaluationFailures := 0
 	for _, pr := range prs {
