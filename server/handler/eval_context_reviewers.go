@@ -20,7 +20,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/google/go-github/v71/github"
+	"github.com/google/go-github/v72/github"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/policy/reviewer"
 	"github.com/palantir/policy-bot/pull"
