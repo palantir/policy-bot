@@ -29,11 +29,10 @@ require (
 	github.com/DataDog/datadog-go/v5 v5.6.0 // indirect
 	github.com/Microsoft/go-winio v0.5.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bradleyfalzon/ghinstallation/v2 v2.15.0 // indirect
+	github.com/bradleyfalzon/ghinstallation/v2 v2.16.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
-	github.com/google/go-github/v71 v71.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
