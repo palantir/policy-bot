@@ -982,11 +982,12 @@ relevant audit logs or minimize write access to repositories.
 
 GitHub users with sufficient permissions can edit the comments of other users,
 possibly changing an unrelated comment into one that enables approval.
-`policy-bot` also contains audting for this event, but as with statuses, a
+`policy-bot` also contains auditing for this event, but as with statuses, a
 well-timed edit can approve and merge a pull request before `policy-bot` can
 detect the problem. Organizations concerned about this case can use the
-`ignore_edited_comments` option or can monitor and alert on the relevant audit
-logs.
+`options.ignore_edited_comments` server configuration option, the
+`ignore_edited_comments` rule option, or can monitor and 
+alert on the relevant audit logs.
 
 This issue can also be minimized by only using GitHub reviews for approval, at
 the expense of removing the ability to self-approve pull requests.
