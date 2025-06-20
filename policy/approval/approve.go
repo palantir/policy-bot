@@ -317,7 +317,8 @@ func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*c
 	sort.Stable(common.CandidatesByCreationTime(candidates))
 
 	var editDismissals []*common.Dismissal
-	if r.Options.IgnoreEditedComments {
+	ignoreEdited := r.Options.IgnoreEditedComments || options.ShouldIgnoreEditedComments(ctx)
+	if ignoreEdited {
 		candidates, editDismissals, err = r.filterEditedCandidates(ctx, prctx, candidates)
 		if err != nil {
 			return nil, nil, err
