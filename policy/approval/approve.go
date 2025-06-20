@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/palantir/policy-bot/policy/common"
+	"github.com/palantir/policy-bot/policy/options"
 	"github.com/palantir/policy-bot/policy/predicate"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
@@ -341,7 +342,9 @@ func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*c
 func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, []*common.Dismissal, error) {
 	log := zerolog.Ctx(ctx)
 
-	if !r.Options.IgnoreEditedComments {
+	// Check both rule-specific option and server-side option
+	ignoreEdited := r.Options.IgnoreEditedComments || options.ShouldIgnoreEditedComments(ctx)
+	if !ignoreEdited {
 		return candidates, nil, nil
 	}
 

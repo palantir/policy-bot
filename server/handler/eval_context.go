@@ -22,6 +22,7 @@ import (
 	"github.com/google/go-github/v72/github"
 	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/common"
+	"github.com/palantir/policy-bot/policy/options"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -121,6 +122,11 @@ func (ec *EvalContext) ParseConfig(ctx context.Context, trigger common.Trigger) 
 // ParseConfig before calling this method.
 func (ec *EvalContext) EvaluatePolicy(ctx context.Context, evaluator common.Evaluator) (common.Result, error) {
 	logger := zerolog.Ctx(ctx)
+
+	// Apply server-side options to the context
+	if ec.Options != nil {
+		ctx = options.WithIgnoreEditedComments(ctx, ec.Options.IgnoreEditedComments)
+	}
 
 	result := evaluator.Evaluate(ctx, ec.PullContext)
 	if result.Error != nil {

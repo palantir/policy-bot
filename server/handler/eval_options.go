@@ -52,6 +52,10 @@ type PullEvaluationOptions struct {
 	// context behaviour, and will be removed in 2.0
 	PostInsecureStatusChecks bool `yaml:"post_insecure_status_checks"`
 
+	// IgnoreEditedComments enables ignoring comments that have been edited when evaluating approval rules.
+	// This provides a server-side option to ignore edited comments across all rules.
+	IgnoreEditedComments bool `yaml:"ignore_edited_comments"`
+
 	// This field is unused but is left to avoid breaking configuration files.
 	// This value is now loaded from the GitHub API.
 	//
@@ -99,6 +103,7 @@ func (p *PullEvaluationOptions) SetValuesFromEnv(prefix string) {
 	setBoolFromEnv("EXPAND_REQUIRED_REVIEWERS", prefix, &p.ExpandRequiredReviewers)
 	setBoolFromEnv("STRICT_REVIEW_DISMISSAL", prefix, &p.StrictReviewDismissal)
 	setBoolFromEnv("POST_INSECURE_STATUS_CHECKS", prefix, &p.PostInsecureStatusChecks)
+	setBoolFromEnv("IGNORE_EDITED_COMMENTS", prefix, &p.IgnoreEditedComments)
 	p.fillDefaults()
 }
 
