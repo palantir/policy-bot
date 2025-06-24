@@ -73,7 +73,7 @@ func isValidLocalPolicy(requestPolicy []byte) (bool, error) {
 		return false, err
 	}
 
-	if _, err := policy.ParsePolicy(&policyConfig); err != nil {
+	if _, err := policy.ParsePolicy(&policyConfig, nil); err != nil {
 		return false, err
 	}
 

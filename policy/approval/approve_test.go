@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/palantir/policy-bot/policy/common"
-	"github.com/palantir/policy-bot/policy/options"
 	"github.com/palantir/policy-bot/policy/predicate"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/pull/pulltest"
@@ -676,81 +675,6 @@ func TestIsApproved(t *testing.T) {
 		r.Options.IgnoreEditedComments = true
 
 		assertPending(t, prctx, r, "0/1 required approvals. Ignored 5 approvals from disqualified users")
-	})
-
-	t.Run("serverSideIgnoreEditedComments", func(t *testing.T) {
-		prctx := basePullContext()
-
-		r := &Rule{
-			Requires: Requires{
-				Count: 1,
-				Actors: common.Actors{
-					Users: []string{"comment-editor"},
-				},
-			},
-			Options: Options{
-				IgnoreEditedComments: false,
-			},
-		}
-
-		// With no server-side option and rule option false, should be approved
-		allowedCandidates, _, err := r.FilteredCandidates(ctx, prctx)
-		require.NoError(t, err)
-
-		approved, _, err := r.IsApproved(ctx, prctx, allowedCandidates)
-		require.NoError(t, err)
-		assert.True(t, approved, "Expected rule to be approved with no server-side option")
-
-		// With server-side option enabled, should be pending even though rule option is false
-		ctxWithOption := options.WithIgnoreEditedComments(ctx, true)
-		allowedCandidates, _, err = r.FilteredCandidates(ctxWithOption, prctx)
-		require.NoError(t, err)
-
-		approved, _, err = r.IsApproved(ctxWithOption, prctx, allowedCandidates)
-		require.NoError(t, err)
-		assert.False(t, approved, "Expected rule to be pending with server-side option enabled")
-
-		// With server-side option disabled, should be approved again
-		ctxWithOption = options.WithIgnoreEditedComments(ctx, false)
-		allowedCandidates, _, err = r.FilteredCandidates(ctxWithOption, prctx)
-		require.NoError(t, err)
-
-		approved, _, err = r.IsApproved(ctxWithOption, prctx, allowedCandidates)
-		require.NoError(t, err)
-		assert.True(t, approved, "Expected rule to be approved with server-side option disabled")
-	})
-
-	t.Run("serverSideAndRuleIgnoreEditedComments", func(t *testing.T) {
-		prctx := basePullContext()
-
-		r := &Rule{
-			Requires: Requires{
-				Count: 1,
-				Actors: common.Actors{
-					Users: []string{"comment-editor"},
-				},
-			},
-			Options: Options{
-				IgnoreEditedComments: true,
-			},
-		}
-
-		// With rule option true, should be pending regardless of server-side option
-		allowedCandidates, _, err := r.FilteredCandidates(ctx, prctx)
-		require.NoError(t, err)
-
-		approved, _, err := r.IsApproved(ctx, prctx, allowedCandidates)
-		require.NoError(t, err)
-		assert.False(t, approved, "Expected rule to be pending with rule option enabled")
-
-		// With server-side option disabled but rule option true, should still be pending
-		ctxWithOption := options.WithIgnoreEditedComments(ctx, false)
-		allowedCandidates, _, err = r.FilteredCandidates(ctxWithOption, prctx)
-		require.NoError(t, err)
-
-		approved, _, err = r.IsApproved(ctxWithOption, prctx, allowedCandidates)
-		require.NoError(t, err)
-		assert.False(t, approved, "Expected rule to be pending with rule option enabled but server-side option disabled")
 	})
 
 	t.Run("conditionsRequiredStatusPending", func(t *testing.T) {

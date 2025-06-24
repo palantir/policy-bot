@@ -41,6 +41,34 @@ func (eval *StaticEvaluator) Evaluate(ctx context.Context, prctx pull.Context) c
 	return common.Result(*eval)
 }
 
+// TODO: Add in better parsing tests
+func TestParsePolicy(t *testing.T) {
+
+	t.Run("happyPath", func(t *testing.T) {
+		c := &Config{
+			Policy: Policy{
+				Approval: approval.Policy{},
+			},
+		}
+
+		_, err := ParsePolicy(c, nil)
+		assert.NoError(t, err)
+	})
+
+	t.Run("overridesEditedCommentValue", func(t *testing.T) {
+		c := &Config{
+			Policy: Policy{
+				Approval: approval.Policy{},
+			},
+		}
+
+		_, err := ParsePolicy(c, &GlobalOptions{
+			IgnoreEditedComments: boolPtr(true),
+		})
+		assert.NoError(t, err)
+	})
+}
+
 func TestEvaluator(t *testing.T) {
 	ctx := context.Background()
 	prctx := &pulltest.Context{}
@@ -245,4 +273,8 @@ func TestConfigMarshalYaml(t *testing.T) {
 
 func castToResult(e common.Evaluator) *common.Result {
 	return (*common.Result)(e.(*StaticEvaluator))
+}
+
+func boolPtr(b bool) *bool {
+	return &b
 }

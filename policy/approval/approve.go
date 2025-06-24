@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/palantir/policy-bot/policy/common"
-	"github.com/palantir/policy-bot/policy/options"
 	"github.com/palantir/policy-bot/policy/predicate"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
@@ -317,7 +316,7 @@ func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*c
 	sort.Stable(common.CandidatesByCreationTime(candidates))
 
 	var editDismissals []*common.Dismissal
-	ignoreEdited := r.Options.IgnoreEditedComments || options.ShouldIgnoreEditedComments(ctx)
+	ignoreEdited := r.Options.IgnoreEditedComments
 	if ignoreEdited {
 		candidates, editDismissals, err = r.filterEditedCandidates(ctx, prctx, candidates)
 		if err != nil {
@@ -344,7 +343,7 @@ func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, c
 	log := zerolog.Ctx(ctx)
 
 	// Check both rule-specific option and server-side option
-	ignoreEdited := r.Options.IgnoreEditedComments || options.ShouldIgnoreEditedComments(ctx)
+	ignoreEdited := r.Options.IgnoreEditedComments
 	if !ignoreEdited {
 		return candidates, nil, nil
 	}

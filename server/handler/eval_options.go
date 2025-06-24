@@ -54,7 +54,7 @@ type PullEvaluationOptions struct {
 
 	// IgnoreEditedComments enables ignoring comments that have been edited when evaluating approval rules.
 	// This provides a server-side option to ignore edited comments across all rules.
-	IgnoreEditedComments bool `yaml:"ignore_edited_comments"`
+	IgnoreEditedComments *bool `yaml:"ignore_edited_comments"`
 
 	// This field is unused but is left to avoid breaking configuration files.
 	// This value is now loaded from the GitHub API.
@@ -103,7 +103,7 @@ func (p *PullEvaluationOptions) SetValuesFromEnv(prefix string) {
 	setBoolFromEnv("EXPAND_REQUIRED_REVIEWERS", prefix, &p.ExpandRequiredReviewers)
 	setBoolFromEnv("STRICT_REVIEW_DISMISSAL", prefix, &p.StrictReviewDismissal)
 	setBoolFromEnv("POST_INSECURE_STATUS_CHECKS", prefix, &p.PostInsecureStatusChecks)
-	setBoolFromEnv("IGNORE_EDITED_COMMENTS", prefix, &p.IgnoreEditedComments)
+	setBoolPtrFromEnv("IGNORE_EDITED_COMMENTS", prefix, &p.IgnoreEditedComments)
 	p.fillDefaults()
 }
 
@@ -127,6 +127,16 @@ func setBoolFromEnv(key, prefix string, value *bool) bool {
 	if v, ok := os.LookupEnv(prefix + key); ok {
 		if b, err := strconv.ParseBool(v); err == nil {
 			*value = b
+			return true
+		}
+	}
+	return false
+}
+
+func setBoolPtrFromEnv(key, prefix string, value **bool) bool {
+	if v, ok := os.LookupEnv(prefix + key); ok {
+		if b, err := strconv.ParseBool(v); err == nil {
+			*value = &b
 			return true
 		}
 	}

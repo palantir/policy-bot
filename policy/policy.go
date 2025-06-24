@@ -44,9 +44,17 @@ type Policy struct {
 	Disapproval *disapproval.Policy `yaml:"disapproval,omitempty"`
 }
 
-func ParsePolicy(c *Config) (common.Evaluator, error) {
+type GlobalOptions struct {
+	IgnoreEditedComments *bool `yaml:"ignore_edited_comments,omitempty"` // If true, edited comments will not trigger the policy evaluation.
+}
+
+func ParsePolicy(c *Config, opts *GlobalOptions) (common.Evaluator, error) {
 	rulesByName := make(map[string]*approval.Rule)
 	for _, r := range c.ApprovalRules {
+		if opts != nil && opts.IgnoreEditedComments != nil {
+			r.Options.IgnoreEditedComments = *opts.IgnoreEditedComments
+		}
+
 		rulesByName[r.Name] = r
 	}
 
