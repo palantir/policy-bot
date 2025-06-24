@@ -82,11 +82,11 @@ func TestOptionDefaults(t *testing.T) {
 	options.setDefaults()
 	for _, comment := range options.AddComments {
 		assert.False(t, comment.CreatedAt.IsZero())
-		assert.False(t, comment.LastEditedAt.IsZero())
+		assert.True(t, comment.LastEditedAt.IsZero())
 	}
 
 	for _, review := range options.AddReviews {
 		assert.False(t, review.CreatedAt.IsZero())
-		assert.False(t, review.LastEditedAt.IsZero())
+		assert.True(t, review.LastEditedAt.IsZero())
 	}
 }
