@@ -111,10 +111,6 @@ func (r *Review) setDefaults(id, sha string) {
 		r.CreatedAt = &now
 	}
 
-	if r.LastEditedAt == nil {
-		r.LastEditedAt = &now
-	}
-
 	r.ID = id
 	r.SHA = sha
 }
