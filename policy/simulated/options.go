@@ -72,7 +72,7 @@ type Comment struct {
 	Body         string     `json:"body"`
 }
 
-// setDefaults sets the createdAt and lastEdtedAt values to time.Now() if they are otherwise unset
+// setDefaults sets the createdAt value to time.Now(), and the lastEditedAt value to zero, if they are otherwise unset
 func (c *Comment) setDefaults() {
 	now := time.Now()
 	if c.CreatedAt == nil {
