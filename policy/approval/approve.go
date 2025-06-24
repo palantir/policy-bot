@@ -316,8 +316,7 @@ func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*c
 	sort.Stable(common.CandidatesByCreationTime(candidates))
 
 	var editDismissals []*common.Dismissal
-	ignoreEdited := r.Options.IgnoreEditedComments
-	if ignoreEdited {
+	if r.Options.IgnoreEditedComments {
 		candidates, editDismissals, err = r.filterEditedCandidates(ctx, prctx, candidates)
 		if err != nil {
 			return nil, nil, err
@@ -342,9 +341,7 @@ func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*c
 func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, []*common.Dismissal, error) {
 	log := zerolog.Ctx(ctx)
 
-	// Check both rule-specific option and server-side option
-	ignoreEdited := r.Options.IgnoreEditedComments
-	if !ignoreEdited {
+	if !r.Options.IgnoreEditedComments {
 		return candidates, nil, nil
 	}
 
