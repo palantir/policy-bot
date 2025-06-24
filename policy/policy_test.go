@@ -41,7 +41,6 @@ func (eval *StaticEvaluator) Evaluate(ctx context.Context, prctx pull.Context) c
 	return common.Result(*eval)
 }
 
-// TODO: Add in better parsing tests
 func TestParsePolicy(t *testing.T) {
 
 	t.Run("happyPath", func(t *testing.T) {
@@ -66,6 +65,179 @@ func TestParsePolicy(t *testing.T) {
 			IgnoreEditedComments: boolPtr(true),
 		})
 		assert.NoError(t, err)
+	})
+
+	t.Run("withDisapprovalPolicy", func(t *testing.T) {
+		disapprovalPolicy := &disapproval.Policy{}
+		c := &Config{
+			Policy: Policy{
+				Approval:    approval.Policy{},
+				Disapproval: disapprovalPolicy,
+			},
+		}
+
+		eval, err := ParsePolicy(c, nil)
+		assert.NoError(t, err)
+		assert.NotNil(t, eval)
+
+		evaluatorImpl, ok := eval.(evaluator)
+		assert.True(t, ok)
+		assert.Equal(t, disapprovalPolicy, evaluatorImpl.disapproval)
+	})
+
+	t.Run("withMultipleApprovalRules", func(t *testing.T) {
+		rule1 := &approval.Rule{Name: "rule1"}
+		rule2 := &approval.Rule{Name: "rule2"}
+
+		c := &Config{
+			Policy: Policy{
+				Approval: approval.Policy{
+					"rule1",
+					"rule2",
+				},
+			},
+			ApprovalRules: []*approval.Rule{rule1, rule2},
+		}
+
+		_, err := ParsePolicy(c, nil)
+		assert.NoError(t, err)
+	})
+
+	t.Run("withComplexApprovalPolicy", func(t *testing.T) {
+		rule1 := &approval.Rule{Name: "rule1"}
+		rule2 := &approval.Rule{Name: "rule2"}
+		rule3 := &approval.Rule{Name: "rule3"}
+
+		c := &Config{
+			Policy: Policy{
+				Approval: approval.Policy{
+					map[interface{}]interface{}{
+						"or": []interface{}{
+							"rule1",
+							map[interface{}]interface{}{
+								"and": []interface{}{
+									"rule2",
+									"rule3",
+								},
+							},
+						},
+					},
+				},
+			},
+			ApprovalRules: []*approval.Rule{rule1, rule2, rule3},
+		}
+
+		_, err := ParsePolicy(c, nil)
+		assert.NoError(t, err)
+		assert.Len(t, c.ApprovalRules, 3)
+	})
+
+	t.Run("withGlobalOptionsAppliedToRules", func(t *testing.T) {
+		rule := &approval.Rule{
+			Name: "test-rule",
+			Options: approval.Options{
+				IgnoreEditedComments: false,
+			},
+		}
+
+		c := &Config{
+			Policy: Policy{
+				Approval: approval.Policy{
+					"test-rule",
+				},
+			},
+			ApprovalRules: []*approval.Rule{rule},
+		}
+
+		_, err := ParsePolicy(c, &GlobalOptions{
+			IgnoreEditedComments: boolPtr(true),
+		})
+		assert.NoError(t, err)
+		assert.True(t, rule.Options.IgnoreEditedComments)
+	})
+
+	t.Run("errorWhenRuleNotFound", func(t *testing.T) {
+		c := &Config{
+			Policy: Policy{
+				Approval: approval.Policy{
+					"non-existent-rule",
+				},
+			},
+		}
+
+		_, err := ParsePolicy(c, nil)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to parse approval policy")
+	})
+
+	t.Run("emptyApprovalRules", func(t *testing.T) {
+		c := &Config{
+			Policy: Policy{
+				Approval: approval.Policy{},
+			},
+		}
+
+		eval, err := ParsePolicy(c, nil)
+		assert.NoError(t, err)
+		assert.NotNil(t, eval)
+	})
+
+	t.Run("maximumRecursiveDepth", func(t *testing.T) {
+		rule := &approval.Rule{Name: "rule"}
+
+		var nestedPolicy interface{} = "rule"
+		for i := 0; i < 12; i++ {
+			nestedPolicy = map[interface{}]interface{}{
+				"and": []interface{}{nestedPolicy},
+			}
+		}
+
+		c := &Config{
+			Policy: Policy{
+				Approval: approval.Policy{nestedPolicy},
+			},
+			ApprovalRules: []*approval.Rule{rule},
+		}
+
+		_, err := ParsePolicy(c, nil)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "reached maximum recursive depth")
+	})
+
+	t.Run("invalidConjunction", func(t *testing.T) {
+		rule := &approval.Rule{Name: "rule"}
+
+		invalidConjunction := map[interface{}]interface{}{
+			"and": []interface{}{"rule"},
+			"or":  []interface{}{"rule"},
+		}
+
+		c := &Config{
+			Policy: Policy{
+				Approval: approval.Policy{invalidConjunction},
+			},
+			ApprovalRules: []*approval.Rule{rule},
+		}
+
+		_, err := ParsePolicy(c, nil)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "multiple keys found when one was expected")
+	})
+
+	t.Run("emptySubconditions", func(t *testing.T) {
+		emptySubconditions := map[interface{}]interface{}{
+			"and": []interface{}{},
+		}
+
+		c := &Config{
+			Policy: Policy{
+				Approval: approval.Policy{emptySubconditions},
+			},
+		}
+
+		_, err := ParsePolicy(c, nil)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "empty list of subconditions is not allowed")
 	})
 }
 
