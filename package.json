@@ -22,6 +22,6 @@
     "webpack-manifest-plugin": "^5.0.1"
   },
   "dependencies": {
-    "htmx.org": "^1.9.12"
+    "htmx.org": "^2.0.6"
   }
 }
