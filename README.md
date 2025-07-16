@@ -705,15 +705,17 @@ however it cannot validate that the rules are semantically correct for a given u
 The API can be used as such:
 
 ```sh
-$ curl https://policybot.domain/api/validate -XPUT -T path/to/policy.yml
+$ curl https://policybot.domain/api/validate -T path/to/policy.yml
 {"message":"failed to parse approval policy: failed to parse subpolicies for 'and': policy references undefined rule 'the devtools team has approved', allowed values: [the devtools team has]","version":"1.12.5"}
 ```
 
-You can examine the HTTP response code to automatically detect failures
+When using `curl` you can have it detect failures (4xx and 5xx status codes) with the `--fail-with-body` flag and still show the response body.
+Using the `-S` flag will also print the response status code on failure.
 
 ```sh
-$ rcode=$(curl https://policybot.domain/api/validate -XPUT -T path/to/policy.yml -s -w "%{http_code}" -o /tmp/response)
-$ if [[ "${rcode}" -gt 299 ]]; then cat /tmp/response && exit 1; fi
+$ curl -s -S --fail-with-body https://policybot.domain/api/validate -T ./.policy.yml
+curl: (22) The requested URL returned error: 422
+{"message":"failed to parse approval policy: failed to parse subpolicies for 'and': policy references undefined rule 'the devtools team has approved', allowed values: [the devtools team has]","version":"1.12.5"}
 ```
 
 #### Simulation API
