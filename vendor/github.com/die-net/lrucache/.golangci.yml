@@ -1,0 +1,280 @@
+# Config file for golangci-lint
+
+# options for analysis running
+run:
+  # timeout for analysis, e.g.  30s, 5m, default is 1m.  This has to be long
+  # enough to handle an empty cache on a slow machine.
+  timeout: 2m
+
+  # include test files or not, default is true
+  tests: true
+
+# Run "golangci-lint linters" for a list of available linters.  Don't enable
+# any linters here, or they can't be disabled on the commandline.
+linters:
+  disable-all: true
+  enable:
+    - asciicheck
+    - bodyclose
+    - deadcode
+    - depguard
+    - errcheck
+    - errorlint
+    - exhaustive
+    - exportloopref
+    - gocritic
+    - goerr113
+    - gofumpt
+    - goimports
+    - goprintffuncname
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - makezero
+    - misspell
+    - nakedret
+    - noctx
+    - nolintlint
+    - prealloc
+    - predeclared
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - staticcheck
+    - structcheck
+    - tparallel
+    - typecheck
+    - unconvert
+    - varcheck
+    - wastedassign
+
+  fast: false
+
+# all available settings of specific linters
+linters-settings:
+  errcheck:
+    # report about assignment of errors to blank identifier: `num, _ := strconv.Atoi(numStr)`;
+    # default is false: such cases aren't reported by default.
+    check-blank: false
+
+    # [deprecated] comma-separated list of pairs of the form pkg:regex
+    # the regex is used to ignore names within pkg. (default "fmt:.*").
+    ignore: fmt:.*,bufio:Write(String)?,database/sql:Close,io:Close,net:Close,os:(Close|Remove(All)?|Setenv),github.com/go-kit/kit/log:Log
+  exhaustive:
+    # If enum-like constants don't use all cases in a switch statement,
+    # consider a default good enough.
+    default-signifies-exhaustive: true
+  gocritic:
+    # all checks list: https://github.com/go-critic/checkers
+    # Enable all checks by enabling all tags, then disable a few.
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      # Don't be aggressive with comments.
+      - commentedOutCode
+      # Catches legit uses of case checking.
+      - equalFold
+      # Many defers can be skipped when exiting. Could fix this with a log.Fatal replacement.
+      - exitAfterDefer
+      # Disagree with the style recommendations for these three.
+      - ifElseChain
+      - octalLiteral
+      - unnamedResult
+      - filepathJoin
+      - tooManyResultsChecker
+    settings:
+      captLocal:
+        paramsOnly: false
+      hugeParam:
+        # Allowing 512 byte parameters.
+        sizeThreshold: 512
+      nestingReduce:
+        # How many nested blocks before suggesting early exit.
+        bodyWidth: 4
+      rangeExprCopy:
+        # Avoid copying arrays larger than this in range statement.
+        sizeThreshold: 512
+      rangeValCopy:
+        # Avoid copying range values larger than this on every iteration.
+        sizeThreshold: 128
+      truncateCmp:
+        skipArchDependent: false
+      underef:
+        skipRecvDeref: false
+  goimports:
+    # put imports beginning with prefix after 3rd-party packages;
+    # it's a comma-separated list of prefixes
+    local-prefixes: github.com/die-net/
+  govet:
+    # Enable most of the non-default linters too.
+    enable:
+      - asmdecl
+      - assign
+      - atomic
+      - atomicalign
+      - bools
+      - buildtag
+      - cgocall
+      - composite
+      - copylock
+      - durationcheck
+      - errorsas
+      - findcall
+      - httpresponse
+      - ifaceassert
+      - loopclosure
+      - lostcancel
+      - nilfunc
+      - nilness
+      - printf
+      - shadow
+      - shift
+      - sortslice
+      - stdmethods
+      - stringintconv
+      - structtag
+      - testinggoroutine
+      - tests
+      - unmarshal
+      - unreachable
+      - unsafeptr
+      - unusedresult
+    disable:
+      # We need to fix a few tests that rely on this first.
+      - deepequalerrors
+  nakedret:
+    # make an issue if func has more lines of code than this setting and it has naked returns; default is 30
+    max-func-lines: 6
+  nolintlint:
+    allow-unused: false
+    allow-leading-space: false
+    require-explanation: true
+  revive:
+    # Show all issues, not just those with a high confidence
+    confidence: 0.0
+    rules:
+      - name: atomic
+      # - name: bare-return
+      - name: blank-imports
+      # - name: confusing-naming
+      # - name: confusing-results
+      - name: constant-logical-expr
+      - name: context-as-argument
+      - name: context-keys-type
+      # - name: deep-exit
+      # - name: defer
+      - name: dot-imports
+      # - name: early-return
+      # - name: empty-block
+      - name: error-naming
+      - name: error-return
+      - name: error-strings
+      - name: errorf
+      - name: exported
+      # - name: get-return
+      - name: identical-branches
+      - name: if-return
+      - name: increment-decrement
+      - name: indent-error-flow
+      # - name: import-shadowing
+      - name: modifies-parameter
+      # - name: modifies-value-receiver
+      - name: package-comments
+      - name: range
+      - name: range-val-in-closure
+      - name: range-val-address
+      - name: receiver-naming
+      # - name: redefines-builtin-id
+      - name: string-of-int
+      # - name: struct-tag
+      - name: superfluous-else
+      - name: time-naming
+      # - name: var-naming
+      # - name: var-declaration
+      - name: unconditional-recursion
+      # - name: unexported-naming
+      - name: unexported-return
+      - name: unnecessary-stmt
+      - name: unreachable-code
+      # - name: unused-parameter
+      # - name: unused-receiver
+      - name: waitgroup-by-value
+
+# output configuration options
+output:
+  # colored-line-number|line-number|json|tab|checkstyle, default is "colored-line-number"
+  format: line-number
+
+  # print lines of code with issue, default is true
+  print-issued-lines: false
+
+  # sorts results by: filepath, line and column
+  sort-results: true
+
+issues:
+  # List of regexps of issue texts to exclude, empty list by default.
+  # But independently from this option we use default exclude patterns,
+  # it can be disabled by `exclude-use-default: false`. To list all
+  # excluded by default patterns execute `golangci-lint run --help`
+  exclude:
+    # revive: We don't require comments, only that they be properly formatted
+    - should have( a package)? comment
+
+    # revive: Don't force variable scope changes
+    - (indent-error-flow|superfluous-else).*drop this else and outdent its block .move short variable declaration to its own line if necessary.
+
+    # govet: Allow the most common form of shadowing
+    - declaration of .err. shadows declaration
+
+    # gocritic: We use named Err return as part of our defer handling pattern.
+    - captLocal. .Err. should not be capitalized
+
+    # govet: Allow an unused noCopy struct field to disallow copying
+    - .noCopy. is unused
+
+    # gosec: Let errcheck complain about this instead
+    - G104. Errors unhandled
+
+    # gosec: All URLs are variable in our code; this isn't useful
+    - G107. Potential HTTP request made with variable url
+
+    # gosec: Complaining about every exec.Command() is annoying; we'll audit them
+    - G204. Subprocess launching should be audited
+    - G204. Subprocess launched with variable
+    - G204. Subprocess launched with function call as argument or cmd arguments
+
+    # gosec: Too many false positives for legit uses of files and directories
+    - G301. Expect directory permissions to be 0750 or less
+    - G302. Expect file permissions to be 0600 or less
+    - G306. Expect WriteFile permissions to be 0600 or less
+
+    # gosec: False positive is triggered by 'src, err := ioutil.ReadFile(filename)'
+    - G304. Potential file inclusion via variable
+
+    # gosec: Complaining about every use of math/rand is annoying.
+    - G404. Use of weak random number generator .math/rand instead of crypto/rand.
+
+    # gosec: We're allowing SHA1 for now, but MD5, DES, and RC4 need to be audited
+    - G401. Use of weak cryptographic primitive
+    - G505. Blocklisted import crypto/sha1. weak cryptographic primitive
+
+  # Exclude some linters from running on template-generated code, where we
+  # can't fix the output.
+  exclude-rules:
+
+  # Independently from option `exclude` we use default exclude patterns,
+  # it can be disabled by this option. To list all
+  # excluded by default patterns execute `golangci-lint run --help`.
+  # Default value for this option is true.
+  exclude-use-default: false
+
+  # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
+  max-issues-per-linter: 0
+
+  # Maximum count of issues with the same text. Set to 0 to disable. Default is 3.
+  max-same-issues: 0
