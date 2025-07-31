@@ -124,8 +124,8 @@ github.com/rs/zerolog/hlog/internal/mutil
 github.com/rs/zerolog/internal/cbor
 github.com/rs/zerolog/internal/json
 github.com/rs/zerolog/log
-# github.com/sergi/go-diff v1.1.0
-## explicit; go 1.12
+# github.com/sergi/go-diff v1.4.0
+## explicit; go 1.13
 # github.com/shurcooL/githubv4 v0.0.0-20240727222349-48295856cce7
 ## explicit; go 1.19
 github.com/shurcooL/githubv4
