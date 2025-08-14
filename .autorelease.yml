@@ -1,0 +1,3 @@
+version: 3
+options:
+  allow_patch_releases_on_major_series_branches: true
