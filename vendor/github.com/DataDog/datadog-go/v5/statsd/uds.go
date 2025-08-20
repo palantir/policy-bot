@@ -113,11 +113,34 @@ func (w *udsWriter) tryToDial(network string) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	newConn, err := net.DialTimeout(udsAddr.Network(), udsAddr.String(), w.connectTimeout)
-	if err != nil {
-		return nil, err
+
+	// Try to gracefully reconnect to the socket when we encounter "connection refused", as it's likely that the Agent
+	// is restarting and the socket is not yet available.
+	connectAttemptsLeft := 3
+	connectDeadline := time.Now().Add(w.connectTimeout)
+
+	// Calculate the backoff time for connection refused errors, but don't exceed one second: this means we won't waste
+	// longer than 1 seconds worth of time if the socket becomes available immediately after our last connect attempt
+	connRefusedBackoff := w.connectTimeout / time.Duration(connectAttemptsLeft+1)
+	if connRefusedBackoff > time.Second {
+		connRefusedBackoff = time.Second
 	}
-	return newConn, nil
+
+	for {
+		connectAttemptsLeft--
+
+		perCallTimeout := time.Until(connectDeadline)
+		newConn, err := net.DialTimeout(udsAddr.Network(), udsAddr.String(), perCallTimeout)
+		if err != nil {
+			if strings.HasSuffix(err.Error(), "connection refused") && connectAttemptsLeft > 0 {
+				// If we get a connection refused error, we need to wait a bit before trying again.
+				time.Sleep(connRefusedBackoff)
+				continue
+			}
+			return nil, err
+		}
+		return newConn, nil
+	}
 }
 
 func (w *udsWriter) ensureConnection() (net.Conn, error) {
