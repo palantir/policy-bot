@@ -150,22 +150,20 @@ const (
 const noTimestamp = int64(0)
 
 type metric struct {
-	metricType      metricType
-	namespace       string
-	globalTags      []string
-	name            string
-	fvalue          float64
-	fvalues         []float64
-	ivalue          int64
-	svalue          string
-	evalue          *Event
-	scvalue         *ServiceCheck
-	tags            []string
-	stags           string
-	rate            float64
-	timestamp       int64
-	originDetection bool
-	overrideCard    Cardinality
+	metricType metricType
+	namespace  string
+	globalTags []string
+	name       string
+	fvalue     float64
+	fvalues    []float64
+	ivalue     int64
+	svalue     string
+	evalue     *Event
+	scvalue    *ServiceCheck
+	tags       []string
+	stags      string
+	rate       float64
+	timestamp  int64
 }
 
 type noClientErr string
@@ -192,7 +190,7 @@ func (e invalidTimestampErr) Error() string {
 // downstream users' with their testing.
 type ClientInterface interface {
 	// Gauge measures the value of a metric at a particular time.
-	Gauge(name string, value float64, tags []string, rate float64, parameters ...Parameter) error
+	Gauge(name string, value float64, tags []string, rate float64) error
 
 	// GaugeWithTimestamp measures the value of a metric at a given time.
 	// BETA - Please contact our support team for more information to use this feature: https://www.datadoghq.com/support/
@@ -200,10 +198,10 @@ type ClientInterface interface {
 	// useful when sending points in the past.
 	//
 	// Minimum Datadog Agent version: 7.40.0
-	GaugeWithTimestamp(name string, value float64, tags []string, rate float64, timestamp time.Time, parameters ...Parameter) error
+	GaugeWithTimestamp(name string, value float64, tags []string, rate float64, timestamp time.Time) error
 
 	// Count tracks how many times something happened per second.
-	Count(name string, value int64, tags []string, rate float64, parameters ...Parameter) error
+	Count(name string, value int64, tags []string, rate float64) error
 
 	// CountWithTimestamp tracks how many times something happened at the given second.
 	// BETA - Please contact our support team for more information to use this feature: https://www.datadoghq.com/support/
@@ -211,44 +209,44 @@ type ClientInterface interface {
 	// useful when sending points in the past.
 	//
 	// Minimum Datadog Agent version: 7.40.0
-	CountWithTimestamp(name string, value int64, tags []string, rate float64, timestamp time.Time, parameters ...Parameter) error
+	CountWithTimestamp(name string, value int64, tags []string, rate float64, timestamp time.Time) error
 
 	// Histogram tracks the statistical distribution of a set of values on each host.
-	Histogram(name string, value float64, tags []string, rate float64, parameters ...Parameter) error
+	Histogram(name string, value float64, tags []string, rate float64) error
 
 	// Distribution tracks the statistical distribution of a set of values across your infrastructure.
 	//
 	// It is recommended to use `WithMaxBufferedMetricsPerContext` to avoid dropping metrics at high throughput, `rate` can
 	// also be used to limit the load. Both options can *not* be used together.
-	Distribution(name string, value float64, tags []string, rate float64, parameters ...Parameter) error
+	Distribution(name string, value float64, tags []string, rate float64) error
 
 	// Decr is just Count of -1
-	Decr(name string, tags []string, rate float64, parameters ...Parameter) error
+	Decr(name string, tags []string, rate float64) error
 
 	// Incr is just Count of 1
-	Incr(name string, tags []string, rate float64, parameters ...Parameter) error
+	Incr(name string, tags []string, rate float64) error
 
 	// Set counts the number of unique elements in a group.
-	Set(name string, value string, tags []string, rate float64, parameters ...Parameter) error
+	Set(name string, value string, tags []string, rate float64) error
 
 	// Timing sends timing information, it is an alias for TimeInMilliseconds
-	Timing(name string, value time.Duration, tags []string, rate float64, parameters ...Parameter) error
+	Timing(name string, value time.Duration, tags []string, rate float64) error
 
 	// TimeInMilliseconds sends timing information in milliseconds.
 	// It is flushed by statsd with percentiles, mean and other info (https://github.com/etsy/statsd/blob/master/docs/metric_types.md#timing)
-	TimeInMilliseconds(name string, value float64, tags []string, rate float64, parameters ...Parameter) error
+	TimeInMilliseconds(name string, value float64, tags []string, rate float64) error
 
 	// Event sends the provided Event.
-	Event(e *Event, parameters ...Parameter) error
+	Event(e *Event) error
 
 	// SimpleEvent sends an event with the provided title and text.
-	SimpleEvent(title, text string, parameters ...Parameter) error
+	SimpleEvent(title, text string) error
 
 	// ServiceCheck sends the provided ServiceCheck.
-	ServiceCheck(sc *ServiceCheck, parameters ...Parameter) error
+	ServiceCheck(sc *ServiceCheck) error
 
 	// SimpleServiceCheck sends an serviceCheck with the provided name and status.
-	SimpleServiceCheck(name string, status ServiceCheckStatus, parameters ...Parameter) error
+	SimpleServiceCheck(name string, status ServiceCheckStatus) error
 
 	// Close the client connection.
 	Close() error
@@ -290,7 +288,6 @@ type Client struct {
 	isClosed              bool
 	errorOnBlockedChannel bool
 	errorHandler          ErrorHandler
-	originDetection       bool
 }
 
 // statsdTelemetry contains telemetry metrics about the client
@@ -455,7 +452,6 @@ func newWithWriter(w Transport, o *Options, writerName string) (*Client, error) 
 		telemetry:             &statsdTelemetry{},
 		errorOnBlockedChannel: o.channelModeErrorsWhenFull,
 		errorHandler:          o.errorHandler,
-		originDetection:       isOriginDetectionEnabled(o),
 	}
 
 	// Inject values of DD_* environment variables as global tags.
@@ -464,14 +460,8 @@ func newWithWriter(w Transport, o *Options, writerName string) (*Client, error) 
 			c.tags = append(c.tags, fmt.Sprintf("%s:%s", mapping.tagName, value))
 		}
 	}
-	// Whether origin detection is enabled or not for this client, we need to initialize the global
-	// external environment variable in case another client has enabled it and needs to access it.
-	initExternalEnv()
 
-	// Initializes the global tag cardinality with either the value passed in by the user or the value from the DD_CARDINALITY/DATADOG_CARDINALITY environment variable.
-	initTagCardinality(o.tagCardinality)
-
-	initContainerID(o.containerID, fillInContainerID(o), isHostCgroupNamespace())
+	initContainerID(o.containerID, isOriginDetectionEnabled(o), isHostCgroupNamespace())
 	isUDS := writerName == writerNameUDS
 
 	if o.maxBytesPerPayload == 0 {
@@ -668,9 +658,9 @@ func (c *Client) sendBlocking(m metric) error {
 	return worker.processMetric(m)
 }
 
-func (c *Client) sendToAggregator(mType metricType, name string, value float64, tags []string, rate float64, f bufferedMetricSampleFunc, cardinality Cardinality) error {
+func (c *Client) sendToAggregator(mType metricType, name string, value float64, tags []string, rate float64, f bufferedMetricSampleFunc) error {
 	if c.aggregatorMode == channelMode {
-		m := metric{metricType: mType, name: name, fvalue: value, tags: tags, rate: rate, overrideCard: cardinality}
+		m := metric{metricType: mType, name: name, fvalue: value, tags: tags, rate: rate}
 		select {
 		case c.aggExtended.inputMetrics <- m:
 		default:
@@ -685,22 +675,19 @@ func (c *Client) sendToAggregator(mType metricType, name string, value float64, 
 		}
 		return nil
 	}
-	return f(name, value, tags, rate, cardinality)
+	return f(name, value, tags, rate)
 }
 
 // Gauge measures the value of a metric at a particular time.
-func (c *Client) Gauge(name string, value float64, tags []string, rate float64, parameters ...Parameter) error {
+func (c *Client) Gauge(name string, value float64, tags []string, rate float64) error {
 	if c == nil {
 		return ErrNoClient
 	}
 	atomic.AddUint64(&c.telemetry.totalMetricsGauge, 1)
-
-	cardinality := parseTagCardinality(parameters)
-
 	if c.agg != nil {
-		return c.agg.gauge(name, value, tags, cardinality)
+		return c.agg.gauge(name, value, tags)
 	}
-	return c.send(metric{metricType: gauge, name: name, fvalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, originDetection: c.originDetection, overrideCard: cardinality})
+	return c.send(metric{metricType: gauge, name: name, fvalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace})
 }
 
 // GaugeWithTimestamp measures the value of a metric at a given time.
@@ -709,7 +696,7 @@ func (c *Client) Gauge(name string, value float64, tags []string, rate float64, 
 // useful when sending points in the past.
 //
 // Minimum Datadog Agent version: 7.40.0
-func (c *Client) GaugeWithTimestamp(name string, value float64, tags []string, rate float64, timestamp time.Time, parameters ...Parameter) error {
+func (c *Client) GaugeWithTimestamp(name string, value float64, tags []string, rate float64, timestamp time.Time) error {
 	if c == nil {
 		return ErrNoClient
 	}
@@ -719,21 +706,19 @@ func (c *Client) GaugeWithTimestamp(name string, value float64, tags []string, r
 	}
 
 	atomic.AddUint64(&c.telemetry.totalMetricsGauge, 1)
-	cardinality := parseTagCardinality(parameters)
-	return c.send(metric{metricType: gauge, name: name, fvalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, timestamp: timestamp.Unix(), originDetection: c.originDetection, overrideCard: cardinality})
+	return c.send(metric{metricType: gauge, name: name, fvalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, timestamp: timestamp.Unix()})
 }
 
 // Count tracks how many times something happened per second.
-func (c *Client) Count(name string, value int64, tags []string, rate float64, parameters ...Parameter) error {
+func (c *Client) Count(name string, value int64, tags []string, rate float64) error {
 	if c == nil {
 		return ErrNoClient
 	}
 	atomic.AddUint64(&c.telemetry.totalMetricsCount, 1)
-	cardinality := parseTagCardinality(parameters)
 	if c.agg != nil {
-		return c.agg.count(name, value, tags, cardinality)
+		return c.agg.count(name, value, tags)
 	}
-	return c.send(metric{metricType: count, name: name, ivalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, originDetection: c.originDetection, overrideCard: cardinality})
+	return c.send(metric{metricType: count, name: name, ivalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace})
 }
 
 // CountWithTimestamp tracks how many times something happened at the given second.
@@ -742,7 +727,7 @@ func (c *Client) Count(name string, value int64, tags []string, rate float64, pa
 // useful when sending points in the past.
 //
 // Minimum Datadog Agent version: 7.40.0
-func (c *Client) CountWithTimestamp(name string, value int64, tags []string, rate float64, timestamp time.Time, parameters ...Parameter) error {
+func (c *Client) CountWithTimestamp(name string, value int64, tags []string, rate float64, timestamp time.Time) error {
 	if c == nil {
 		return ErrNoClient
 	}
@@ -752,109 +737,101 @@ func (c *Client) CountWithTimestamp(name string, value int64, tags []string, rat
 	}
 
 	atomic.AddUint64(&c.telemetry.totalMetricsCount, 1)
-	cardinality := parseTagCardinality(parameters)
-	return c.send(metric{metricType: count, name: name, ivalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, timestamp: timestamp.Unix(), originDetection: c.originDetection, overrideCard: cardinality})
+	return c.send(metric{metricType: count, name: name, ivalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, timestamp: timestamp.Unix()})
 }
 
 // Histogram tracks the statistical distribution of a set of values on each host.
-func (c *Client) Histogram(name string, value float64, tags []string, rate float64, parameters ...Parameter) error {
+func (c *Client) Histogram(name string, value float64, tags []string, rate float64) error {
 	if c == nil {
 		return ErrNoClient
 	}
 	atomic.AddUint64(&c.telemetry.totalMetricsHistogram, 1)
-	cardinality := parseTagCardinality(parameters)
 	if c.aggExtended != nil {
-		return c.sendToAggregator(histogram, name, value, tags, rate, c.aggExtended.histogram, cardinality)
+		return c.sendToAggregator(histogram, name, value, tags, rate, c.aggExtended.histogram)
 	}
-	return c.send(metric{metricType: histogram, name: name, fvalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, originDetection: c.originDetection, overrideCard: cardinality})
+	return c.send(metric{metricType: histogram, name: name, fvalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace})
 }
 
 // Distribution tracks the statistical distribution of a set of values across your infrastructure.
-func (c *Client) Distribution(name string, value float64, tags []string, rate float64, parameters ...Parameter) error {
+func (c *Client) Distribution(name string, value float64, tags []string, rate float64) error {
 	if c == nil {
 		return ErrNoClient
 	}
 	atomic.AddUint64(&c.telemetry.totalMetricsDistribution, 1)
-	cardinality := parseTagCardinality(parameters)
 	if c.aggExtended != nil {
-		return c.sendToAggregator(distribution, name, value, tags, rate, c.aggExtended.distribution, cardinality)
+		return c.sendToAggregator(distribution, name, value, tags, rate, c.aggExtended.distribution)
 	}
-	return c.send(metric{metricType: distribution, name: name, fvalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, originDetection: c.originDetection, overrideCard: cardinality})
+	return c.send(metric{metricType: distribution, name: name, fvalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace})
 }
 
 // Decr is just Count of -1
-func (c *Client) Decr(name string, tags []string, rate float64, parameters ...Parameter) error {
-	return c.Count(name, -1, tags, rate, parameters...)
+func (c *Client) Decr(name string, tags []string, rate float64) error {
+	return c.Count(name, -1, tags, rate)
 }
 
 // Incr is just Count of 1
-func (c *Client) Incr(name string, tags []string, rate float64, parameters ...Parameter) error {
-	return c.Count(name, 1, tags, rate, parameters...)
+func (c *Client) Incr(name string, tags []string, rate float64) error {
+	return c.Count(name, 1, tags, rate)
 }
 
 // Set counts the number of unique elements in a group.
-func (c *Client) Set(name string, value string, tags []string, rate float64, parameters ...Parameter) error {
+func (c *Client) Set(name string, value string, tags []string, rate float64) error {
 	if c == nil {
 		return ErrNoClient
 	}
 	atomic.AddUint64(&c.telemetry.totalMetricsSet, 1)
-	cardinality := parseTagCardinality(parameters)
-
 	if c.agg != nil {
-		return c.agg.set(name, value, tags, cardinality)
+		return c.agg.set(name, value, tags)
 	}
-	return c.send(metric{metricType: set, name: name, svalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, originDetection: c.originDetection, overrideCard: cardinality})
+	return c.send(metric{metricType: set, name: name, svalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace})
 }
 
 // Timing sends timing information, it is an alias for TimeInMilliseconds
-func (c *Client) Timing(name string, value time.Duration, tags []string, rate float64, parameters ...Parameter) error {
-	return c.TimeInMilliseconds(name, value.Seconds()*1000, tags, rate, parameters...)
+func (c *Client) Timing(name string, value time.Duration, tags []string, rate float64) error {
+	return c.TimeInMilliseconds(name, value.Seconds()*1000, tags, rate)
 }
 
 // TimeInMilliseconds sends timing information in milliseconds.
 // It is flushed by statsd with percentiles, mean and other info (https://github.com/etsy/statsd/blob/master/docs/metric_types.md#timing)
-func (c *Client) TimeInMilliseconds(name string, value float64, tags []string, rate float64, parameters ...Parameter) error {
+func (c *Client) TimeInMilliseconds(name string, value float64, tags []string, rate float64) error {
 	if c == nil {
 		return ErrNoClient
 	}
 	atomic.AddUint64(&c.telemetry.totalMetricsTiming, 1)
-	cardinality := parseTagCardinality(parameters)
 	if c.aggExtended != nil {
-		return c.sendToAggregator(timing, name, value, tags, rate, c.aggExtended.timing, cardinality)
+		return c.sendToAggregator(timing, name, value, tags, rate, c.aggExtended.timing)
 	}
-	return c.send(metric{metricType: timing, name: name, fvalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, originDetection: c.originDetection, overrideCard: cardinality})
+	return c.send(metric{metricType: timing, name: name, fvalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace})
 }
 
 // Event sends the provided Event.
-func (c *Client) Event(e *Event, parameters ...Parameter) error {
+func (c *Client) Event(e *Event) error {
 	if c == nil {
 		return ErrNoClient
 	}
 	atomic.AddUint64(&c.telemetry.totalEvents, 1)
-	cardinality := parseTagCardinality(parameters)
-	return c.send(metric{metricType: event, evalue: e, rate: 1, globalTags: c.tags, namespace: c.namespace, originDetection: c.originDetection, overrideCard: cardinality})
+	return c.send(metric{metricType: event, evalue: e, rate: 1, globalTags: c.tags, namespace: c.namespace})
 }
 
 // SimpleEvent sends an event with the provided title and text.
-func (c *Client) SimpleEvent(title, text string, parameters ...Parameter) error {
+func (c *Client) SimpleEvent(title, text string) error {
 	e := NewEvent(title, text)
-	return c.Event(e, parameters...)
+	return c.Event(e)
 }
 
 // ServiceCheck sends the provided ServiceCheck.
-func (c *Client) ServiceCheck(sc *ServiceCheck, parameters ...Parameter) error {
+func (c *Client) ServiceCheck(sc *ServiceCheck) error {
 	if c == nil {
 		return ErrNoClient
 	}
 	atomic.AddUint64(&c.telemetry.totalServiceChecks, 1)
-	cardinality := parseTagCardinality(parameters)
-	return c.send(metric{metricType: serviceCheck, scvalue: sc, rate: 1, globalTags: c.tags, namespace: c.namespace, originDetection: c.originDetection, overrideCard: cardinality})
+	return c.send(metric{metricType: serviceCheck, scvalue: sc, rate: 1, globalTags: c.tags, namespace: c.namespace})
 }
 
 // SimpleServiceCheck sends an serviceCheck with the provided name and status.
-func (c *Client) SimpleServiceCheck(name string, status ServiceCheckStatus, parameters ...Parameter) error {
+func (c *Client) SimpleServiceCheck(name string, status ServiceCheckStatus) error {
 	sc := NewServiceCheck(name, status)
-	return c.ServiceCheck(sc, parameters...)
+	return c.ServiceCheck(sc)
 }
 
 // Close the client connection.
@@ -902,13 +879,13 @@ func (c *Client) Close() error {
 	return c.sender.close()
 }
 
-// isOriginDetectionEnabled returns whether origin detection is enabled.
+// isOriginDetectionEnabled returns whether the clients should fill the container field.
 //
 // Disable origin detection only in one of the following cases:
 // - DD_ORIGIN_DETECTION_ENABLED is explicitly set to false
 // - o.originDetection is explicitly set to false, which is true by default
 func isOriginDetectionEnabled(o *Options) bool {
-	if !o.originDetection {
+	if !o.originDetection || o.containerID != "" {
 		return false
 	}
 
@@ -927,12 +904,4 @@ func isOriginDetectionEnabled(o *Options) bool {
 	}
 
 	return enabled
-}
-
-// fillInContainerID returns whether the clients should fill the container field.
-func fillInContainerID(o *Options) bool {
-	if o.containerID != "" {
-		return false
-	}
-	return isOriginDetectionEnabled(o)
 }

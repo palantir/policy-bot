@@ -92,7 +92,7 @@ func (w *worker) writeAggregatedMetricUnsafe(m metric, metricSymbol []byte, prec
 	}
 
 	for {
-		pos, err := w.buffer.writeAggregated(metricSymbol, m.namespace, m.globalTags, m.name, m.fvalues[globalPos:], m.stags, extraSize, precision, rate, m.originDetection, m.overrideCard)
+		pos, err := w.buffer.writeAggregated(metricSymbol, m.namespace, m.globalTags, m.name, m.fvalues[globalPos:], m.stags, extraSize, precision, rate)
 		if err == errPartialWrite {
 			// We successfully wrote part of the histogram metrics.
 			// We flush the current buffer and finish the histogram
@@ -108,21 +108,21 @@ func (w *worker) writeAggregatedMetricUnsafe(m metric, metricSymbol []byte, prec
 func (w *worker) writeMetricUnsafe(m metric) error {
 	switch m.metricType {
 	case gauge:
-		return w.buffer.writeGauge(m.namespace, m.globalTags, m.name, m.fvalue, m.tags, m.rate, m.timestamp, m.originDetection, m.overrideCard)
+		return w.buffer.writeGauge(m.namespace, m.globalTags, m.name, m.fvalue, m.tags, m.rate, m.timestamp)
 	case count:
-		return w.buffer.writeCount(m.namespace, m.globalTags, m.name, m.ivalue, m.tags, m.rate, m.timestamp, m.originDetection, m.overrideCard)
+		return w.buffer.writeCount(m.namespace, m.globalTags, m.name, m.ivalue, m.tags, m.rate, m.timestamp)
 	case histogram:
-		return w.buffer.writeHistogram(m.namespace, m.globalTags, m.name, m.fvalue, m.tags, m.rate, m.originDetection, m.overrideCard)
+		return w.buffer.writeHistogram(m.namespace, m.globalTags, m.name, m.fvalue, m.tags, m.rate)
 	case distribution:
-		return w.buffer.writeDistribution(m.namespace, m.globalTags, m.name, m.fvalue, m.tags, m.rate, m.originDetection, m.overrideCard)
+		return w.buffer.writeDistribution(m.namespace, m.globalTags, m.name, m.fvalue, m.tags, m.rate)
 	case set:
-		return w.buffer.writeSet(m.namespace, m.globalTags, m.name, m.svalue, m.tags, m.rate, m.originDetection, m.overrideCard)
+		return w.buffer.writeSet(m.namespace, m.globalTags, m.name, m.svalue, m.tags, m.rate)
 	case timing:
-		return w.buffer.writeTiming(m.namespace, m.globalTags, m.name, m.fvalue, m.tags, m.rate, m.originDetection, m.overrideCard)
+		return w.buffer.writeTiming(m.namespace, m.globalTags, m.name, m.fvalue, m.tags, m.rate)
 	case event:
-		return w.buffer.writeEvent(m.evalue, m.globalTags, m.originDetection, m.overrideCard)
+		return w.buffer.writeEvent(m.evalue, m.globalTags)
 	case serviceCheck:
-		return w.buffer.writeServiceCheck(m.scvalue, m.globalTags, m.originDetection, m.overrideCard)
+		return w.buffer.writeServiceCheck(m.scvalue, m.globalTags)
 	case histogramAggregated:
 		return w.writeAggregatedMetricUnsafe(m, histogramSymbol, -1, m.rate)
 	case distributionAggregated:
