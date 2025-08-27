@@ -86,13 +86,14 @@ func ClientLogging(lvl zerolog.Level, opts ...ClientLoggingOption) ClientMiddlew
 				} else {
 					evt.Int64("size", size)
 				}
+
+				addRateLimitInformationToLog(options.LogRateLimitInformation, evt, res)
 			} else {
 				evt.Bool("cached", false).
 					Int("status", -1).
 					Int64("size", -1)
 			}
 
-			addRateLimitInformationToLog(options.LogRateLimitInformation, evt, res)
 			evt.Msg("github_request")
 			return res, err
 		})
