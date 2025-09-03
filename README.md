@@ -371,10 +371,22 @@ if:
   # "modified_lines" is satisfied if the number of lines added or deleted by
   # the pull request matches any of the listed conditions. Each expression is
   # an operator (one of '<', '>' or '='), an optional space, and a number.
+  # Optionally, use "files" to filter which files are counted:
+  # - If files is not specified, all files are counted
+  # - If only files.include is specified, only matching files are counted
+  # - If only files.exclude is specified, all files except those matching are counted
+  # - If both are specified, files must match an include pattern and NOT match any exclude pattern
   modified_lines:
     additions: "> 100"
     deletions: "> 100"
     total: "> 200"
+    files:
+      include:
+        - ".*\\.go$"
+        - ".*\\.js$"
+      exclude:
+        - ".*_test\\.go$"
+        - ".*\\.generated\\..*"
 
   # DEPRECATED: Use "has_status" below instead, which is more flexible.
   # "has_successful_status" is satisfied if the status checks that are specified

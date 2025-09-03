@@ -823,6 +823,202 @@ func TestModifiedLines(t *testing.T) {
 
 }
 
+func TestModifiedLinesFiles(t *testing.T) {
+	// Test with include patterns only
+	p := &ModifiedLines{
+		Additions: ComparisonExpr{Op: OpGreaterThan, Value: 50},
+		Files: &FilesConfig{
+			Include: []common.Regexp{
+				common.NewCompiledRegexp(regexp.MustCompile(`.*\.go`)),
+				common.NewCompiledRegexp(regexp.MustCompile(`.*\.js`)),
+			},
+		},
+	}
+
+	runFileTests(t, p, []FileTestCase{
+		{
+			"filtered files meet criteria",
+			[]*pull.File{
+				{Filename: "app.go", Additions: 30},
+				{Filename: "server.go", Additions: 25},
+				{Filename: "readme.md", Additions: 100}, // Should be ignored
+			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"+55"},
+				ConditionValues: []string{"added lines > 50"},
+				ConditionsMap: map[string][]string{
+					"included patterns": {`.*\.go`, `.*\.js`},
+				},
+			},
+		},
+		{
+			"filtered files don't meet criteria",
+			[]*pull.File{
+				{Filename: "app.go", Additions: 20},
+				{Filename: "server.go", Additions: 15},
+				{Filename: "readme.md", Additions: 100}, // Should be ignored
+			},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"+35"},
+				ConditionValues: []string{"added lines > 50"},
+				ConditionsMap: map[string][]string{
+					"included patterns": {`.*\.go`, `.*\.js`},
+				},
+			},
+		},
+		{
+			"no matching files",
+			[]*pull.File{
+				{Filename: "readme.md", Additions: 100},
+				{Filename: "config.xml", Additions: 50},
+			},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"+0"},
+				ConditionValues: []string{"added lines > 50"},
+				ConditionsMap: map[string][]string{
+					"included patterns": {`.*\.go`, `.*\.js`},
+				},
+			},
+		},
+	})
+
+	// Test with total modifications and include patterns
+	p = &ModifiedLines{
+		Total: ComparisonExpr{Op: OpGreaterThan, Value: 75},
+		Files: &FilesConfig{
+			Include: []common.Regexp{
+				common.NewCompiledRegexp(regexp.MustCompile(`src/.*\.ts`)),
+			},
+		},
+	}
+
+	runFileTests(t, p, []FileTestCase{
+		{
+			"typescript files with total modifications",
+			[]*pull.File{
+				{Filename: "src/app.ts", Additions: 30, Deletions: 20},
+				{Filename: "src/utils.ts", Additions: 15, Deletions: 15},
+				{Filename: "docs/readme.md", Additions: 100, Deletions: 50}, // Should be ignored
+			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"total 80"},
+				ConditionValues: []string{"total modifications > 75"},
+				ConditionsMap: map[string][]string{
+					"included patterns": {`src/.*\.ts`},
+				},
+			},
+		},
+	})
+
+	// Test with exclude patterns only
+	p = &ModifiedLines{
+		Additions: ComparisonExpr{Op: OpGreaterThan, Value: 50},
+		Files: &FilesConfig{
+			Exclude: []common.Regexp{
+				common.NewCompiledRegexp(regexp.MustCompile(`.*\.md`)),
+				common.NewCompiledRegexp(regexp.MustCompile(`.*\.txt`)),
+			},
+		},
+	}
+
+	runFileTests(t, p, []FileTestCase{
+		{
+			"exclude patterns filter out unwanted files",
+			[]*pull.File{
+				{Filename: "app.go", Additions: 30},
+				{Filename: "server.go", Additions: 25},
+				{Filename: "readme.md", Additions: 100}, // Should be excluded
+				{Filename: "notes.txt", Additions: 50},  // Should be excluded
+			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"+55"},
+				ConditionValues: []string{"added lines > 50"},
+				ConditionsMap: map[string][]string{
+					"excluded patterns": {`.*\.md`, `.*\.txt`},
+				},
+			},
+		},
+	})
+
+	// Test with both include and exclude patterns (exclude takes precedence)
+	p = &ModifiedLines{
+		Total: ComparisonExpr{Op: OpGreaterThan, Value: 50},
+		Files: &FilesConfig{
+			Include: []common.Regexp{
+				common.NewCompiledRegexp(regexp.MustCompile(`src/.*`)),
+			},
+			Exclude: []common.Regexp{
+				common.NewCompiledRegexp(regexp.MustCompile(`.*\.test\..*`)),
+				common.NewCompiledRegexp(regexp.MustCompile(`.*_test\..*`)),
+			},
+		},
+	}
+
+	runFileTests(t, p, []FileTestCase{
+		{
+			"include and exclude patterns work together",
+			[]*pull.File{
+				{Filename: "src/app.go", Additions: 30, Deletions: 10},
+				{Filename: "src/app.test.go", Additions: 20, Deletions: 5},   // Should be excluded
+				{Filename: "src/utils_test.go", Additions: 15, Deletions: 5}, // Should be excluded
+				{Filename: "src/server.go", Additions: 25, Deletions: 5},
+				{Filename: "docs/readme.md", Additions: 100, Deletions: 50}, // Not in src/, should be excluded
+			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"total 70"},
+				ConditionValues: []string{"total modifications > 50"},
+				ConditionsMap: map[string][]string{
+					"included patterns": {`src/.*`},
+					"excluded patterns": {`.*\.test\..*`, `.*_test\..*`},
+				},
+			},
+		},
+		{
+			"conflicting patterns - exclude takes precedence",
+			[]*pull.File{
+				{Filename: "src/app.test.go", Additions: 100, Deletions: 50},  // Matches include but also exclude
+				{Filename: "src/utils_test.go", Additions: 75, Deletions: 25}, // Matches include but also exclude
+			},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"total 0"},
+				ConditionValues: []string{"total modifications > 50"},
+				ConditionsMap: map[string][]string{
+					"included patterns": {`src/.*`},
+					"excluded patterns": {`.*\.test\..*`, `.*_test\..*`},
+				},
+			},
+		},
+	})
+
+	// Test with no Files config (all files should be counted)
+	p = &ModifiedLines{
+		Additions: ComparisonExpr{Op: OpGreaterThan, Value: 100},
+	}
+
+	runFileTests(t, p, []FileTestCase{
+		{
+			"no file config counts all files",
+			[]*pull.File{
+				{Filename: "app.go", Additions: 30},
+				{Filename: "readme.md", Additions: 50},
+				{Filename: "test.txt", Additions: 25},
+			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"+105"},
+				ConditionValues: []string{"added lines > 100"},
+			},
+		},
+	})
+}
+
 func TestComparisonExpr(t *testing.T) {
 	tests := map[string]struct {
 		Expr   ComparisonExpr
