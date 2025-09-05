@@ -48,9 +48,6 @@ github.com/google/go-github/v74/github
 # github.com/google/go-querystring v1.1.0
 ## explicit; go 1.10
 github.com/google/go-querystring/query
-# github.com/grafana/regexp v0.0.0-20250905093917-f7b3be9d1853
-## explicit; go 1.21
-github.com/grafana/regexp
 # github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 ## explicit
 github.com/gregjones/httpcache
@@ -104,7 +101,7 @@ github.com/prometheus/client_golang/prometheus/promhttp/internal
 # github.com/prometheus/client_model v0.6.2
 ## explicit; go 1.22.0
 github.com/prometheus/client_model/go
-# github.com/prometheus/common v0.66.0
+# github.com/prometheus/common v0.66.1
 ## explicit; go 1.23.0
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/model
@@ -154,6 +151,9 @@ github.com/vektah/gqlparser/ast
 github.com/vektah/gqlparser/gqlerror
 github.com/vektah/gqlparser/lexer
 github.com/vektah/gqlparser/parser
+# go.yaml.in/yaml/v2 v2.4.2
+## explicit; go 1.15
+go.yaml.in/yaml/v2
 # goji.io v2.0.2+incompatible
 ## explicit
 goji.io
