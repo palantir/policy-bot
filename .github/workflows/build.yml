@@ -30,7 +30,7 @@ jobs:
         echo "version=${GO_VERSION}" >> $GITHUB_OUTPUT
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: ${{ steps.go_version.outputs.version }}
 
@@ -65,7 +65,7 @@ jobs:
         echo "version=${GO_VERSION}" >> $GITHUB_OUTPUT
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: ${{ steps.go_version.outputs.version }}
 
