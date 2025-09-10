@@ -16,6 +16,8 @@ package pull
 
 import (
 	"time"
+
+	"github.com/google/go-github/v70/github"
 )
 
 // MembershipContext defines methods to get information
@@ -121,13 +123,16 @@ type Context interface {
 	// the pull request.
 	RequestedReviewers() ([]*Reviewer, error)
 
-	// LatestStatuses returns a map of status check names to the latest result
-	LatestStatuses() (map[string]string, error)
+	// LatestRepoStatuses returns a map of commit status names to the latest result
+	LatestRepoStatuses() (map[string]*github.RepoStatus, error)
+
+	// LatestStaLatestCheckStatusestuses returns a map of status check names to the latest result
+	LatestCheckStatuses() (map[string]*github.CheckRun, error)
 
 	// LatestWorkflowRuns returns the latest GitHub Actions workflow runs for
 	// the pull request. The keys of the map are paths to the workflow files and
 	// the values are the conclusions of the latest runs, one per event type.
-	LatestWorkflowRuns() (map[string][]string, error)
+	LatestWorkflowRuns() (map[string][]*github.WorkflowRun, error)
 
 	// Labels returns a list of labels applied on the Pull Request
 	Labels() ([]string, error)

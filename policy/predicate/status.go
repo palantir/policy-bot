@@ -16,20 +16,17 @@ package predicate
 
 import (
 	"context"
-	"fmt"
-	"slices"
-	"strings"
 
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
-	"github.com/pkg/errors"
 )
 
-type AllowedConclusions []string
-
+// HasStatus checks that the specified statuses have a completed status with configurable conclusions.
+//
+// Deprecated: use the more flexible `HasStatusCheck` instead.
 type HasStatus struct {
-	Conclusions AllowedConclusions `yaml:"conclusions,omitempty"`
-	Statuses    []string           `yaml:"statuses,omitempty"`
+	Conclusions []string `yaml:"conclusions,omitempty"`
+	Statuses    []string `yaml:"statuses,omitempty"`
 }
 
 func NewHasStatus(statuses []string, conclusions []string) *HasStatus {
@@ -42,50 +39,15 @@ func NewHasStatus(statuses []string, conclusions []string) *HasStatus {
 var _ Predicate = HasStatus{}
 
 func (pred HasStatus) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
-	statuses, err := prctx.LatestStatuses()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to list commit statuses")
-	}
-
-	conclusions := pred.Conclusions
-	if len(conclusions) == 0 {
-		conclusions = AllowedConclusions{"success"}
-	}
-
-	predicateResult := common.PredicateResult{
-		ValuePhrase:     "status checks",
-		ConditionPhrase: fmt.Sprintf("exist and have conclusion %s", conclusions.joinWithOr()),
-	}
-
-	var missingResults []string
-	var failingStatuses []string
+	// Convert strings into a regex object to comply with function signature
+	var checks []common.Regexp
 	for _, status := range pred.Statuses {
-		result, ok := statuses[status]
-		if !ok {
-			missingResults = append(missingResults, status)
-		}
-		if !slices.Contains(conclusions, result) {
-			failingStatuses = append(failingStatuses, status)
+		check, err := common.NewRegexp(status)
+		if err == nil {
+			checks = append(checks, check)
 		}
 	}
-
-	if len(missingResults) > 0 {
-		predicateResult.Values = missingResults
-		predicateResult.Description = "One or more statuses is missing: " + strings.Join(missingResults, ", ")
-		predicateResult.Satisfied = false
-		return &predicateResult, nil
-	}
-
-	if len(failingStatuses) > 0 {
-		predicateResult.Values = failingStatuses
-		predicateResult.Description = fmt.Sprintf("One or more statuses has not concluded with %s: %s", pred.Conclusions.joinWithOr(), strings.Join(failingStatuses, ","))
-		predicateResult.Satisfied = false
-		return &predicateResult, nil
-	}
-
-	predicateResult.Values = pred.Statuses
-	predicateResult.Satisfied = true
-	return &predicateResult, nil
+	return HasStatusCheck{Checks: checks, Conclusions: pred.Conclusions, noRegex: true}.Evaluate(ctx, prctx)
 }
 
 func (pred HasStatus) Trigger() common.Trigger {
@@ -95,41 +57,16 @@ func (pred HasStatus) Trigger() common.Trigger {
 // HasSuccessfulStatus checks that the specified statuses have a successful
 // conclusion.
 //
-// Deprecated: use the more flexible `HasStatus` with `conclusions: ["success"]`
+// Deprecated: use the more flexible `HasStatusCheck` with `conclusions: ["success"]`
 // instead.
 type HasSuccessfulStatus []string
 
 var _ Predicate = HasSuccessfulStatus{}
 
 func (pred HasSuccessfulStatus) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
-	return HasStatus{
-		Statuses: pred,
-	}.Evaluate(ctx, prctx)
+	return HasStatus{Statuses: pred}.Evaluate(ctx, prctx)
 }
 
 func (pred HasSuccessfulStatus) Trigger() common.Trigger {
 	return common.TriggerStatus
-}
-
-// joinWithOr returns a string that represents the allowed conclusions in a
-// format that can be used in a sentence. For example, if the allowed
-// conclusions are "success" and "failure", this will return "success or
-// failure". If there are more than two conclusions, the first n-1 will be
-// separated by commas.
-func (c AllowedConclusions) joinWithOr() string {
-	slices.Sort(c)
-
-	length := len(c)
-	switch length {
-	case 0:
-		return ""
-	case 1:
-		return c[0]
-	case 2:
-		return c[0] + " or " + c[1]
-	}
-
-	head, tail := c[:length-1], c[length-1]
-
-	return strings.Join(head, ", ") + ", or " + tail
 }

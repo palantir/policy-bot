@@ -376,7 +376,7 @@ if:
     deletions: "> 100"
     total: "> 200"
 
-  # DEPRECATED: Use "has_status" below instead, which is more flexible.
+  # DEPRECATED: Use "has_status_check" below instead, which is more flexible.
   # "has_successful_status" is satisfied if the status checks that are specified
   # are marked successful on the head commit of the pull request.
   has_successful_status:
@@ -384,6 +384,7 @@ if:
     - "status-name-2"
     - "status-name-3"
 
+  # DEPRECATED: Use "has_status_check" below instead, which is more flexible.
   # "has_status" is satisfied if the status checks that are specified are
   # finished and concluded with one of the conclusions specified.
   # "conclusions" is optional and defaults to ["success"].
@@ -394,6 +395,29 @@ if:
       - "status-name-2"
       - "status-name-3"
 
+  # "has_status_check" is satisfied if the status checks that are specified are
+  # in one of the statuses specified. If statuses includes "completed" and the status check
+  # is in that state it must also concluded with one of the conclusions specified additionally to statify has_status_check.
+  # > "checks" are required and are evaluated as regular expressions.
+  # > "statuses" is optional and defaults to ["completed", "success"].
+  # Possible values are: ["completed", "expected", "failure", "in_progress", "pending", "queued", "requested", "startup_failure", "waiting", "error", "success"].
+  # If the value "any" is included in "statuses", the statuses will be expanded to all possible values listed above.
+  # While ["completed", "expected", "failure", "in_progress", "pending", "queued", "requested", "startup_failure", "waiting]
+  # represent possible statuses for a 'check', 
+  # the statuses ["error", "failing", "pending", "success"] represent possible statuses for 'commit statuses' 
+  # see https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/about-status-checks#types-of-status-checks-on-github
+  # > "conclusions" is optional and defaults to ["success"].
+  # Possible values are ["action_required", "cancelled", "failure", "neutral", "skipped", "stale", "success", "timed_out"].
+  # If the value "any" is included in "conclusions", the statuses will be expanded to all possible values listed above.
+  # Conclustions are only evaluated if the status is in the "completed" state so this must be included in the "statuses" list.
+  # Also it has no effect on 'commit statuses' since they do not have conclusions.
+  has_status_check:
+    statuses: ["any"]
+    conclusions: ["any"]
+    checks:
+      - status-name-[0-9]
+
+  # DEPRECATED: Use "has_workflow" below instead, which is more flexible.
   # "has_workflow_result" is satisfied if the GitHub Actions workflow runs that
   # are specified all finished and concluded with one of the conclusions
   # specified. "conclusions" is optional and defaults to ["success"].
@@ -406,6 +430,24 @@ if:
     workflows:
       - ".github/workflows/a.yml"
       - ".github/workflows/b.yml"
+
+  # "has_workflow" is satisfied if the workflows that are specified are
+  # in one of the statuses specified. If statuses includes "completed" and the workflow
+  # is in that state it must also concluded with one of the conclusions specified additionally to statify has_workflow.
+  # "workflows" are required and are evaluated as regular expressions.
+  # "statuses" is optional and defaults to ["completed"].
+  # Possible values are: ["completed", "expected", "failure", "in_progress", "pending", "queued", "requested", "startup_failure", "waiting"].
+  # If the value "any" is included in "statuses", the statuses will be expanded to all possible values listed above.
+  # "conclusions" is optional and defaults to ["success"].
+  # Possible values are ["action_required", "cancelled", "failure", "neutral", "skipped", "stale", "success", "timed_out"].
+  # If the value "any" is included in "conclusions", the statuses will be expanded to all possible values listed above.
+  # Conclustions are only evaluated if the status is in the "completed" state so this must be included in the "statuses" list.
+  has_workflow:
+    statuses: ["any"]
+    conclusions: ["any"]
+    workflows:
+      - '\.github/workflows/test-dependencies\.yml'
+      - 'check.*\.yml'
 
   # "has_labels" is satisfied if the pull request has the specified labels
   # applied

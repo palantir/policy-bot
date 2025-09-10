@@ -17,6 +17,7 @@ package pulltest
 import (
 	"time"
 
+	"github.com/google/go-github/v70/github"
 	"github.com/palantir/policy-bot/pull"
 )
 
@@ -68,10 +69,13 @@ type Context struct {
 	RequestedReviewersValue []*pull.Reviewer
 	RequestedReviewersError error
 
-	LatestStatusesValue map[string]string
-	LatestStatusesError error
+	LatestRepoStatusesValue map[string]*github.RepoStatus
+	LatestRepoStatusesError error
 
-	LatestWorkflowRunsValue map[string][]string
+	LatestCheckStatusesValue map[string]*github.CheckRun
+	LatestCheckStatusesError error
+
+	LatestWorkflowRunsValue map[string][]*github.WorkflowRun
 	LatestWorkflowRunsError error
 
 	LabelsValue []string
@@ -253,11 +257,15 @@ func (c *Context) Teams() (map[string]pull.Permission, error) {
 	return c.TeamsValue, c.TeamsError
 }
 
-func (c *Context) LatestStatuses() (map[string]string, error) {
-	return c.LatestStatusesValue, c.LatestStatusesError
+func (c *Context) LatestRepoStatuses() (map[string]*github.RepoStatus, error) {
+	return c.LatestRepoStatusesValue, c.LatestRepoStatusesError
 }
 
-func (c *Context) LatestWorkflowRuns() (map[string][]string, error) {
+func (c *Context) LatestCheckStatuses() (map[string]*github.CheckRun, error) {
+	return c.LatestCheckStatusesValue, c.LatestCheckStatusesError
+}
+
+func (c *Context) LatestWorkflowRuns() (map[string][]*github.WorkflowRun, error) {
 	return c.LatestWorkflowRunsValue, c.LatestWorkflowRunsError
 }
 

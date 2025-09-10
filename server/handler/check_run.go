@@ -37,10 +37,6 @@ func (h *CheckRun) Handle(ctx context.Context, eventType, deliveryID string, pay
 		return errors.Wrap(err, "failed to parse check_run event payload")
 	}
 
-	if event.GetAction() != "completed" || event.GetCheckRun().GetConclusion() != "success" {
-		return nil
-	}
-
 	repo := event.GetRepo()
 	repoID := repo.GetID()
 	ownerName := repo.GetOwner().GetLogin()

@@ -658,14 +658,31 @@ func TestLatestWorkflowRuns(t *testing.T) {
 	runs, err := ctx.LatestWorkflowRuns()
 	require.NoError(t, err)
 
-	assert.Len(t, runs, 3, "incorrect number of workflow runs")
-	assert.ElementsMatch(t, runs[".github/workflows/a.yml"], []string{"success", "skipped"}, "incorrect conclusion for workflow run a")
-	assert.ElementsMatch(t, runs[".github/workflows/b.yml"], []string{"failure"}, "incorrect conclusion for workflow run b")
-	assert.ElementsMatch(t, runs[".github/workflows/c.yml"], []string{"cancelled"}, "incorrect conclusion for workflow run c")
+	assert.Len(t, runs, 4, "incorrect number of workflow runs")
+	assert.IsType(t, []*github.WorkflowRun{}, runs[".github/workflows/a.yml"], "object is not of type *github.WorkflowRun")
+	assert.IsType(t, []*github.WorkflowRun{}, runs[".github/workflows/b.yml"], "object is not of type *github.WorkflowRun")
+	assert.IsType(t, []*github.WorkflowRun{}, runs[".github/workflows/c.yml"], "object is not of type *github.WorkflowRun")
+	assert.IsType(t, []*github.WorkflowRun{}, runs[".github/workflows/d.yml"], "object is not of type *github.WorkflowRun")
+	for _, run := range runs[".github/workflows/a.yml"] {
+		assert.Contains(t, []string{"success", "skipped"}, *run.Conclusion, "incorrect conclusion for workflow run a")
+		assert.Equal(t, "completed", *run.Status, "incorrect status for workflow run a")
+	}
+	for _, run := range runs[".github/workflows/b.yml"] {
+		assert.Equal(t, "failure", *run.Conclusion, "incorrect conclusion for workflow run b")
+		assert.Equal(t, "completed", *run.Status, "incorrect status for workflow run b")
+	}
+	for _, run := range runs[".github/workflows/c.yml"] {
+		assert.Equal(t, "cancelled", *run.Conclusion, "incorrect conclusion for workflow run c")
+		assert.Equal(t, "completed", *run.Status, "incorrect status for workflow run c")
+	}
+	for _, run := range runs[".github/workflows/d.yml"] {
+		assert.Empty(t, run.Conclusion, "incorrect conclusion for workflow run d")
+		assert.Equal(t, "in_progress", *run.Status, "incorrect status for workflow run d")
+	}
 	assert.Equal(t, 2, runsRule.Count, "incorrect http request count")
 }
 
-func TestLatestStatuses(t *testing.T) {
+func TestLatestCheckStatuses(t *testing.T) {
 	pr := defaultTestPR()
 
 	rp := &ResponsePlayer{}
@@ -679,14 +696,40 @@ func TestLatestStatuses(t *testing.T) {
 	)
 
 	ctx := makeContext(t, rp, pr, nil)
-	statuses, err := ctx.LatestStatuses()
+	statuses, err := ctx.LatestCheckStatuses()
 	require.NoError(t, err)
 
-	assert.Len(t, statuses, 4, "incorrect number of statuses")
-	assert.Equal(t, statuses["commit-status-a"], "success", "incorrect conclusion for 'commit-status-a' status")
-	assert.Equal(t, statuses["commit-status-b"], "pending", "incorrect conclusion for 'commit-status-a' status")
-	assert.Equal(t, statuses["check-run-a"], "success", "incorrect conclusion for 'check-run-a' status")
-	assert.Equal(t, statuses["check-run-b"], "failure", "incorrect conclusion for 'check-run-b' status")
+	assert.Len(t, statuses, 2, "incorrect number of statuses")
+	assert.IsType(t, &github.CheckRun{}, statuses["check-run-a"], "object is not of type *github.CheckRun")
+	assert.Equal(t, "success", *statuses["check-run-a"].Conclusion, "incorrect conclusion for check run a")
+	assert.Equal(t, "completed", *statuses["check-run-a"].Status, "incorrect status for check run a")
+	assert.IsType(t, &github.CheckRun{}, statuses["check-run-b"], "object is not of type *github.CheckRun")
+	assert.Equal(t, "failure", *statuses["check-run-b"].Conclusion, "incorrect conclusion for check run b")
+	assert.Equal(t, "completed", *statuses["check-run-b"].Status, "incorrect status for check run b")
+}
+
+func TestLatestRepoStatuses(t *testing.T) {
+	pr := defaultTestPR()
+
+	rp := &ResponsePlayer{}
+	rp.AddRule(
+		ExactPathMatcher("/repos/testorg/testrepo/commits/"+pr.Head.GetSHA()+"/status"),
+		"testdata/responses/combined_status_for_ref.yml",
+	)
+	rp.AddRule(
+		ExactPathMatcher("/repos/testorg/testrepo/commits/"+pr.Head.GetSHA()+"/check-runs"),
+		"testdata/responses/check_runs_for_ref.yml",
+	)
+
+	ctx := makeContext(t, rp, pr, nil)
+	statuses, err := ctx.LatestRepoStatuses()
+	require.NoError(t, err)
+
+	assert.Len(t, statuses, 2, "incorrect number of statuses")
+	assert.IsType(t, &github.RepoStatus{}, statuses["commit-status-a"], "object is not of type *github.CheckRun")
+	assert.Equal(t, "success", *statuses["commit-status-a"].State, "incorrect conclusion for check run a")
+	assert.IsType(t, &github.RepoStatus{}, statuses["commit-status-b"], "object is not of type *github.CheckRun")
+	assert.Equal(t, "pending", *statuses["commit-status-b"].State, "incorrect conclusion for check run b")
 }
 
 func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest, gc GlobalCache) Context {

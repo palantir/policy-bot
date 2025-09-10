@@ -140,10 +140,11 @@ type GitHubContext struct {
 	permissions   map[string]Permission
 	teams         map[string]Permission
 	membership    map[string]bool
-	statuses      map[string]string
+	repoStatuses  map[string]*github.RepoStatus
+	checkStatuses map[string]*github.CheckRun
 	labels        []string
 	pushedAt      map[string]time.Time
-	workflowRuns  map[string][]string
+	workflowRuns  map[string][]*github.WorkflowRun
 }
 
 // NewGitHubContext creates a new pull.Context that makes GitHub requests to
@@ -767,58 +768,37 @@ func (ghc *GitHubContext) Teams() (map[string]Permission, error) {
 	return ghc.teams, nil
 }
 
-func (ghc *GitHubContext) LatestStatuses() (map[string]string, error) {
-	if ghc.statuses == nil {
-		statuses, err := ghc.getStatuses()
-		if err != nil {
-			return nil, err
-		}
-
-		checkStatuses, err := ghc.getCheckStatuses()
-		if err != nil {
-			return nil, err
-		}
-
-		for k, v := range checkStatuses {
-			statuses[k] = v
-		}
-
-		ghc.statuses = statuses
-	}
-
-	return ghc.statuses, nil
-}
-
-func (ghc *GitHubContext) getStatuses() (map[string]string, error) {
+func (ghc *GitHubContext) LatestRepoStatuses() (map[string]*github.RepoStatus, error) {
 	opt := &github.ListOptions{
 		PerPage: 100,
 	}
 	// get all pages of results
-	statuses := make(map[string]string)
+	statuses := make(map[string]*github.RepoStatus)
 	for {
 		combinedStatus, resp, err := ghc.client.Repositories.GetCombinedStatus(ghc.ctx, ghc.owner, ghc.repo, ghc.HeadSHA(), opt)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get statuses for page %d", opt.Page)
 		}
 		for _, s := range combinedStatus.Statuses {
-			statuses[s.GetContext()] = s.GetState()
+			statuses[s.GetContext()] = s
 		}
 		if resp.NextPage == 0 {
 			break
 		}
 		opt.Page = resp.NextPage
 	}
+	ghc.repoStatuses = statuses
 	return statuses, nil
 }
 
-func (ghc *GitHubContext) getCheckStatuses() (map[string]string, error) {
+func (ghc *GitHubContext) LatestCheckStatuses() (map[string]*github.CheckRun, error) {
 	opt := &github.ListCheckRunsOptions{
 		ListOptions: github.ListOptions{
 			PerPage: 100,
 		},
 	}
 	// get all pages of results
-	statuses := make(map[string]string)
+	statuses := make(map[string]*github.CheckRun)
 	for {
 		checkRuns, resp, err := ghc.client.Checks.ListCheckRunsForRef(ghc.ctx, ghc.owner, ghc.repo, ghc.HeadSHA(), opt)
 		if err != nil {
@@ -832,7 +812,7 @@ func (ghc *GitHubContext) getCheckStatuses() (map[string]string, error) {
 		for _, checkRun := range checkRuns.CheckRuns {
 			name := checkRun.GetName()
 			if _, exists := statuses[name]; !exists {
-				statuses[name] = checkRun.GetConclusion()
+				statuses[name] = checkRun
 			}
 		}
 
@@ -841,10 +821,11 @@ func (ghc *GitHubContext) getCheckStatuses() (map[string]string, error) {
 		}
 		opt.Page = resp.NextPage
 	}
+	ghc.checkStatuses = statuses
 	return statuses, nil
 }
 
-func (ghc *GitHubContext) LatestWorkflowRuns() (map[string][]string, error) {
+func (ghc *GitHubContext) LatestWorkflowRuns() (map[string][]*github.WorkflowRun, error) {
 	if ghc.workflowRuns != nil {
 		return ghc.workflowRuns, nil
 	}
@@ -892,10 +873,6 @@ func (ghc *GitHubContext) LatestWorkflowRuns() (map[string][]string, error) {
 		}
 
 		for _, run := range runs.WorkflowRuns {
-			if run.GetStatus() != "completed" {
-				continue
-			}
-
 			eventName := run.GetEvent()
 
 			previousRuns := runsWithDate[*run.Path]
@@ -919,11 +896,11 @@ func (ghc *GitHubContext) LatestWorkflowRuns() (map[string][]string, error) {
 		}
 		opt.Page = resp.NextPage
 	}
-	workflowRuns := make(map[string][]string, len(runsWithDate))
+	workflowRuns := make(map[string][]*github.WorkflowRun, len(runsWithDate))
 
 	for path, eventRuns := range runsWithDate {
 		for _, run := range eventRuns {
-			workflowRuns[path] = append(workflowRuns[path], run.GetConclusion())
+			workflowRuns[path] = append(workflowRuns[path], run)
 		}
 	}
 
