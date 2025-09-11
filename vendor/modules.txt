@@ -151,7 +151,7 @@ github.com/vektah/gqlparser/ast
 github.com/vektah/gqlparser/gqlerror
 github.com/vektah/gqlparser/lexer
 github.com/vektah/gqlparser/parser
-# go.yaml.in/yaml/v2 v2.4.2
+# go.yaml.in/yaml/v2 v2.4.3
 ## explicit; go 1.15
 go.yaml.in/yaml/v2
 # goji.io v2.0.2+incompatible
