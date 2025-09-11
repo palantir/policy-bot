@@ -374,6 +374,16 @@ func (ff ModifiedLinesFileFilter) IsZero() bool {
 	return len(ff.Include) == 0 && len(ff.Exclude) == 0
 }
 
+func (ff ModifiedLinesFileFilter) MatchesFile(filename string) bool {
+	if len(ff.Exclude) > 0 && anyMatches(ff.Exclude, filename) {
+		return false
+	}
+	if len(ff.Include) > 0 && !anyMatches(ff.Include, filename) {
+		return false
+	}
+	return true
+}
+
 type CompareOp uint8
 
 const (
@@ -480,10 +490,7 @@ func (pred *ModifiedLines) Evaluate(ctx context.Context, prctx pull.Context) (*c
 
 	var additions, deletions int64
 	for _, f := range files {
-		if len(pred.Files.Exclude) > 0 && anyMatches(pred.Files.Exclude, f.Filename) {
-			continue
-		}
-		if len(pred.Files.Include) > 0 && !anyMatches(pred.Files.Include, f.Filename) {
+		if !pred.Files.MatchesFile(f.Filename) {
 			continue
 		}
 		additions += int64(f.Additions)
