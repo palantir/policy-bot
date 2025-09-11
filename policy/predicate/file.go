@@ -359,15 +359,19 @@ func (pred *FileNotDeleted) Trigger() common.Trigger {
 }
 
 type ModifiedLines struct {
-	Additions ComparisonExpr `yaml:"additions,omitempty"`
-	Deletions ComparisonExpr `yaml:"deletions,omitempty"`
-	Total     ComparisonExpr `yaml:"total,omitempty"`
-	Files     *FilesConfig   `yaml:"files,omitempty"`
+	Additions ComparisonExpr          `yaml:"additions,omitempty"`
+	Deletions ComparisonExpr          `yaml:"deletions,omitempty"`
+	Total     ComparisonExpr          `yaml:"total,omitempty"`
+	Files     ModifiedLinesFileFilter `yaml:"files,omitempty"`
 }
 
-type FilesConfig struct {
+type ModifiedLinesFileFilter struct {
 	Include []common.Regexp `yaml:"include,omitempty"`
 	Exclude []common.Regexp `yaml:"exclude,omitempty"`
+}
+
+func (ff ModifiedLinesFileFilter) IsZero() bool {
+	return len(ff.Include) == 0 && len(ff.Exclude) == 0
 }
 
 type CompareOp uint8
@@ -475,38 +479,34 @@ func (pred *ModifiedLines) Evaluate(ctx context.Context, prctx pull.Context) (*c
 
 	var additions, deletions int64
 	for _, f := range files {
-		if pred.Files != nil {
-			if len(pred.Files.Exclude) > 0 && anyMatches(pred.Files.Exclude, f.Filename) {
-				continue
-			}
-			if len(pred.Files.Include) > 0 && !anyMatches(pred.Files.Include, f.Filename) {
-				continue
-			}
+		if len(pred.Files.Exclude) > 0 && anyMatches(pred.Files.Exclude, f.Filename) {
+			continue
+		}
+		if len(pred.Files.Include) > 0 && !anyMatches(pred.Files.Include, f.Filename) {
+			continue
 		}
 		additions += int64(f.Additions)
 		deletions += int64(f.Deletions)
 	}
 
-	if pred.Files != nil {
-		if len(pred.Files.Include) > 0 || len(pred.Files.Exclude) > 0 {
-			predicateResult.ConditionsMap = make(map[string][]string)
-			if len(pred.Files.Include) > 0 {
-				predicateResult.ConditionsMap["included patterns"] = getPathStrings(pred.Files.Include)
-			}
-			if len(pred.Files.Exclude) > 0 {
-				predicateResult.ConditionsMap["excluded patterns"] = getPathStrings(pred.Files.Exclude)
-			}
-			if len(pred.Files.Include) > 0 && len(pred.Files.Exclude) > 0 {
-				predicateResult.ConditionPhrase = "meet the modification conditions for files matching include patterns but not exclude patterns"
-			} else if len(pred.Files.Include) > 0 {
-				if len(pred.Files.Include) == 1 {
-					predicateResult.ConditionPhrase = fmt.Sprintf("meet the modification conditions for files matching %s", getPathStrings(pred.Files.Include)[0])
-				} else {
-					predicateResult.ConditionPhrase = "meet the modification conditions for files matching the included patterns"
-				}
+	if len(pred.Files.Include) > 0 || len(pred.Files.Exclude) > 0 {
+		predicateResult.ConditionsMap = make(map[string][]string)
+		if len(pred.Files.Include) > 0 {
+			predicateResult.ConditionsMap["included patterns"] = getPathStrings(pred.Files.Include)
+		}
+		if len(pred.Files.Exclude) > 0 {
+			predicateResult.ConditionsMap["excluded patterns"] = getPathStrings(pred.Files.Exclude)
+		}
+		if len(pred.Files.Include) > 0 && len(pred.Files.Exclude) > 0 {
+			predicateResult.ConditionPhrase = "meet the modification conditions for files matching include patterns but not exclude patterns"
+		} else if len(pred.Files.Include) > 0 {
+			if len(pred.Files.Include) == 1 {
+				predicateResult.ConditionPhrase = fmt.Sprintf("meet the modification conditions for files matching %s", getPathStrings(pred.Files.Include)[0])
 			} else {
-				predicateResult.ConditionPhrase = "meet the modification conditions excluding specified patterns"
+				predicateResult.ConditionPhrase = "meet the modification conditions for files matching the included patterns"
 			}
+		} else {
+			predicateResult.ConditionPhrase = "meet the modification conditions excluding specified patterns"
 		}
 	}
 

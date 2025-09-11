@@ -827,7 +827,7 @@ func TestModifiedLinesFiles(t *testing.T) {
 	// Test with include patterns only
 	p := &ModifiedLines{
 		Additions: ComparisonExpr{Op: OpGreaterThan, Value: 50},
-		Files: &FilesConfig{
+		Files: ModifiedLinesFileFilter{
 			Include: []common.Regexp{
 				common.NewCompiledRegexp(regexp.MustCompile(`.*\.go`)),
 				common.NewCompiledRegexp(regexp.MustCompile(`.*\.js`)),
@@ -888,7 +888,7 @@ func TestModifiedLinesFiles(t *testing.T) {
 	// Test with total modifications and include patterns
 	p = &ModifiedLines{
 		Total: ComparisonExpr{Op: OpGreaterThan, Value: 75},
-		Files: &FilesConfig{
+		Files: ModifiedLinesFileFilter{
 			Include: []common.Regexp{
 				common.NewCompiledRegexp(regexp.MustCompile(`src/.*\.ts`)),
 			},
@@ -917,7 +917,7 @@ func TestModifiedLinesFiles(t *testing.T) {
 	// Test with exclude patterns only
 	p = &ModifiedLines{
 		Additions: ComparisonExpr{Op: OpGreaterThan, Value: 50},
-		Files: &FilesConfig{
+		Files: ModifiedLinesFileFilter{
 			Exclude: []common.Regexp{
 				common.NewCompiledRegexp(regexp.MustCompile(`.*\.md`)),
 				common.NewCompiledRegexp(regexp.MustCompile(`.*\.txt`)),
@@ -948,7 +948,7 @@ func TestModifiedLinesFiles(t *testing.T) {
 	// Test with both include and exclude patterns (exclude takes precedence)
 	p = &ModifiedLines{
 		Total: ComparisonExpr{Op: OpGreaterThan, Value: 50},
-		Files: &FilesConfig{
+		Files: ModifiedLinesFileFilter{
 			Include: []common.Regexp{
 				common.NewCompiledRegexp(regexp.MustCompile(`src/.*`)),
 			},
