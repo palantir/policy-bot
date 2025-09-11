@@ -703,9 +703,11 @@ func TestModifiedLines(t *testing.T) {
 			"empty",
 			[]*pull.File{},
 			&common.PredicateResult{
-				Satisfied:       false,
-				Values:          []string{"+0", "-0"},
-				ConditionValues: []string{"added lines > 100", "deleted lines > 10"},
+				Satisfied: false,
+				Values:    []string{"+0", "-0"},
+				ConditionsMap: map[string][]string{
+					"the modification conditions": {"added lines > 100", "deleted lines > 10"},
+				},
 			},
 		},
 		{
@@ -716,9 +718,11 @@ func TestModifiedLines(t *testing.T) {
 				{Additions: 45},
 			},
 			&common.PredicateResult{
-				Satisfied:       true,
-				Values:          []string{"+110"},
-				ConditionValues: []string{"added lines > 100"},
+				Satisfied: true,
+				Values:    []string{"+110"},
+				ConditionsMap: map[string][]string{
+					"the modification conditions": {"added lines > 100"},
+				},
 			},
 		},
 		{
@@ -730,9 +734,11 @@ func TestModifiedLines(t *testing.T) {
 				{Deletions: 10},
 			},
 			&common.PredicateResult{
-				Satisfied:       true,
-				Values:          []string{"-20"},
-				ConditionValues: []string{"deleted lines > 10"},
+				Satisfied: true,
+				Values:    []string{"-20"},
+				ConditionsMap: map[string][]string{
+					"the modification conditions": {"deleted lines > 10"},
+				},
 			},
 		},
 	})
@@ -751,9 +757,11 @@ func TestModifiedLines(t *testing.T) {
 				{Additions: 20, Deletions: 20},
 			},
 			&common.PredicateResult{
-				Satisfied:       true,
-				Values:          []string{"total 120"},
-				ConditionValues: []string{"total modifications > 100"},
+				Satisfied: true,
+				Values:    []string{"total 120"},
+				ConditionsMap: map[string][]string{
+					"the modification conditions": {"total modifications > 100"},
+				},
 			},
 		},
 	})
@@ -771,9 +779,11 @@ func TestModifiedLines(t *testing.T) {
 				{Additions: 20, Deletions: 20},
 			},
 			&common.PredicateResult{
-				Satisfied:       true,
-				Values:          []string{"total 100"},
-				ConditionValues: []string{"total modifications = 100"},
+				Satisfied: true,
+				Values:    []string{"total 100"},
+				ConditionsMap: map[string][]string{
+					"the modification conditions": {"total modifications = 100"},
+				},
 			},
 		},
 	})
@@ -788,9 +798,11 @@ func TestModifiedLines(t *testing.T) {
 			"empty",
 			[]*pull.File{},
 			&common.PredicateResult{
-				Satisfied:       false,
-				Values:          []string{"+0", "-0"},
-				ConditionValues: []string{"added lines = 100", "deleted lines = 25"},
+				Satisfied: false,
+				Values:    []string{"+0", "-0"},
+				ConditionsMap: map[string][]string{
+					"the modification conditions": {"added lines = 100", "deleted lines = 25"},
+				},
 			},
 		},
 		{
@@ -800,9 +812,11 @@ func TestModifiedLines(t *testing.T) {
 				{Additions: 45},
 			},
 			&common.PredicateResult{
-				Satisfied:       true,
-				Values:          []string{"+100"},
-				ConditionValues: []string{"added lines = 100"},
+				Satisfied: true,
+				Values:    []string{"+100"},
+				ConditionsMap: map[string][]string{
+					"the modification conditions": {"added lines = 100"},
+				},
 			},
 		},
 		{
@@ -814,9 +828,11 @@ func TestModifiedLines(t *testing.T) {
 				{Deletions: 10},
 			},
 			&common.PredicateResult{
-				Satisfied:       true,
-				Values:          []string{"-25"},
-				ConditionValues: []string{"deleted lines = 25"},
+				Satisfied: true,
+				Values:    []string{"-25"},
+				ConditionsMap: map[string][]string{
+					"the modification conditions": {"deleted lines = 25"},
+				},
 			},
 		},
 	})
@@ -844,11 +860,11 @@ func TestModifiedLinesFiles(t *testing.T) {
 				{Filename: "readme.md", Additions: 100}, // Should be ignored
 			},
 			&common.PredicateResult{
-				Satisfied:       true,
-				Values:          []string{"+55"},
-				ConditionValues: []string{"added lines > 50"},
+				Satisfied: true,
+				Values:    []string{"+55"},
 				ConditionsMap: map[string][]string{
-					"included patterns": {`.*\.go`, `.*\.js`},
+					"in files matching":           {`.*\.go`, `.*\.js`},
+					"the modification conditions": {"added lines > 50"},
 				},
 			},
 		},
@@ -860,11 +876,11 @@ func TestModifiedLinesFiles(t *testing.T) {
 				{Filename: "readme.md", Additions: 100}, // Should be ignored
 			},
 			&common.PredicateResult{
-				Satisfied:       false,
-				Values:          []string{"+35"},
-				ConditionValues: []string{"added lines > 50"},
+				Satisfied: false,
+				Values:    []string{"+35"},
 				ConditionsMap: map[string][]string{
-					"included patterns": {`.*\.go`, `.*\.js`},
+					"in files matching":           {`.*\.go`, `.*\.js`},
+					"the modification conditions": {"added lines > 50"},
 				},
 			},
 		},
@@ -875,11 +891,11 @@ func TestModifiedLinesFiles(t *testing.T) {
 				{Filename: "config.xml", Additions: 50},
 			},
 			&common.PredicateResult{
-				Satisfied:       false,
-				Values:          []string{"+0"},
-				ConditionValues: []string{"added lines > 50"},
+				Satisfied: false,
+				Values:    []string{"+0"},
 				ConditionsMap: map[string][]string{
-					"included patterns": {`.*\.go`, `.*\.js`},
+					"in files matching":           {`.*\.go`, `.*\.js`},
+					"the modification conditions": {"added lines > 50"},
 				},
 			},
 		},
@@ -904,11 +920,11 @@ func TestModifiedLinesFiles(t *testing.T) {
 				{Filename: "docs/readme.md", Additions: 100, Deletions: 50}, // Should be ignored
 			},
 			&common.PredicateResult{
-				Satisfied:       true,
-				Values:          []string{"total 80"},
-				ConditionValues: []string{"total modifications > 75"},
+				Satisfied: true,
+				Values:    []string{"total 80"},
 				ConditionsMap: map[string][]string{
-					"included patterns": {`src/.*\.ts`},
+					"in files matching":           {`src/.*\.ts`},
+					"the modification conditions": {"total modifications > 75"},
 				},
 			},
 		},
@@ -935,11 +951,11 @@ func TestModifiedLinesFiles(t *testing.T) {
 				{Filename: "notes.txt", Additions: 50},  // Should be excluded
 			},
 			&common.PredicateResult{
-				Satisfied:       true,
-				Values:          []string{"+55"},
-				ConditionValues: []string{"added lines > 50"},
+				Satisfied: true,
+				Values:    []string{"+55"},
 				ConditionsMap: map[string][]string{
-					"excluded patterns": {`.*\.md`, `.*\.txt`},
+					"excluding files matching":    {`.*\.md`, `.*\.txt`},
+					"the modification conditions": {"added lines > 50"},
 				},
 			},
 		},
@@ -970,12 +986,12 @@ func TestModifiedLinesFiles(t *testing.T) {
 				{Filename: "docs/readme.md", Additions: 100, Deletions: 50}, // Not in src/, should be excluded
 			},
 			&common.PredicateResult{
-				Satisfied:       true,
-				Values:          []string{"total 70"},
-				ConditionValues: []string{"total modifications > 50"},
+				Satisfied: true,
+				Values:    []string{"total 70"},
 				ConditionsMap: map[string][]string{
-					"included patterns": {`src/.*`},
-					"excluded patterns": {`.*\.test\..*`, `.*_test\..*`},
+					"in files matching":           {`src/.*`},
+					"excluding files matching":    {`.*\.test\..*`, `.*_test\..*`},
+					"the modification conditions": {"total modifications > 50"},
 				},
 			},
 		},
@@ -986,12 +1002,12 @@ func TestModifiedLinesFiles(t *testing.T) {
 				{Filename: "src/utils_test.go", Additions: 75, Deletions: 25}, // Matches include but also exclude
 			},
 			&common.PredicateResult{
-				Satisfied:       false,
-				Values:          []string{"total 0"},
-				ConditionValues: []string{"total modifications > 50"},
+				Satisfied: false,
+				Values:    []string{"total 0"},
 				ConditionsMap: map[string][]string{
-					"included patterns": {`src/.*`},
-					"excluded patterns": {`.*\.test\..*`, `.*_test\..*`},
+					"in files matching":           {`src/.*`},
+					"excluding files matching":    {`.*\.test\..*`, `.*_test\..*`},
+					"the modification conditions": {"total modifications > 50"},
 				},
 			},
 		},
@@ -1011,9 +1027,11 @@ func TestModifiedLinesFiles(t *testing.T) {
 				{Filename: "test.txt", Additions: 25},
 			},
 			&common.PredicateResult{
-				Satisfied:       true,
-				Values:          []string{"+105"},
-				ConditionValues: []string{"added lines > 100"},
+				Satisfied: true,
+				Values:    []string{"+105"},
+				ConditionsMap: map[string][]string{
+					"the modification conditions": {"added lines > 100"},
+				},
 			},
 		},
 	})

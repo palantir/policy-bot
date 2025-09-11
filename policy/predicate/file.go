@@ -470,7 +470,8 @@ func (pred *ModifiedLines) Evaluate(ctx context.Context, prctx pull.Context) (*c
 
 	predicateResult := common.PredicateResult{
 		ValuePhrase:     "file modifications",
-		ConditionPhrase: "meet the modification conditions",
+		ConditionPhrase: "meet",
+		ConditionsMap:   make(map[string][]string),
 	}
 
 	if err != nil {
@@ -489,56 +490,60 @@ func (pred *ModifiedLines) Evaluate(ctx context.Context, prctx pull.Context) (*c
 		deletions += int64(f.Deletions)
 	}
 
-	if len(pred.Files.Include) > 0 || len(pred.Files.Exclude) > 0 {
-		predicateResult.ConditionsMap = make(map[string][]string)
-		if len(pred.Files.Include) > 0 {
-			predicateResult.ConditionsMap["included patterns"] = getPathStrings(pred.Files.Include)
-		}
-		if len(pred.Files.Exclude) > 0 {
-			predicateResult.ConditionsMap["excluded patterns"] = getPathStrings(pred.Files.Exclude)
-		}
-		if len(pred.Files.Include) > 0 && len(pred.Files.Exclude) > 0 {
-			predicateResult.ConditionPhrase = "meet the modification conditions for files matching include patterns but not exclude patterns"
-		} else if len(pred.Files.Include) > 0 {
-			if len(pred.Files.Include) == 1 {
-				predicateResult.ConditionPhrase = fmt.Sprintf("meet the modification conditions for files matching %s", getPathStrings(pred.Files.Include)[0])
-			} else {
-				predicateResult.ConditionPhrase = "meet the modification conditions for files matching the included patterns"
-			}
-		} else {
-			predicateResult.ConditionPhrase = "meet the modification conditions excluding specified patterns"
-		}
+	if len(pred.Files.Include) > 0 {
+		predicateResult.ConditionsMap["in files matching"] = getPathStrings(pred.Files.Include)
+	}
+	if len(pred.Files.Exclude) > 0 {
+		predicateResult.ConditionsMap["excluding files matching"] = getPathStrings(pred.Files.Exclude)
 	}
 
+	const conditionKey = "the modification conditions"
+
 	if !pred.Additions.IsEmpty() {
-		predicateResult.Values = []string{fmt.Sprintf("+%d", additions)}
-		predicateResult.ConditionValues = []string{fmt.Sprintf("added lines %s", pred.Additions.String())}
+		value := fmt.Sprintf("+%d", additions)
+		cond := fmt.Sprintf("added lines %s", pred.Additions.String())
+
 		if pred.Additions.Evaluate(additions) {
+			predicateResult.Values = []string{value}
+			predicateResult.ConditionsMap[conditionKey] = []string{cond}
 			predicateResult.Satisfied = true
 			return &predicateResult, nil
 		}
+
+		predicateResult.Values = append(predicateResult.Values, value)
+		predicateResult.ConditionsMap[conditionKey] = append(predicateResult.ConditionsMap[conditionKey], cond)
 	}
+
 	if !pred.Deletions.IsEmpty() {
+		value := fmt.Sprintf("-%d", deletions)
+		cond := fmt.Sprintf("deleted lines %s", pred.Deletions.String())
+
 		if pred.Deletions.Evaluate(deletions) {
-			predicateResult.Values = []string{fmt.Sprintf("-%d", deletions)}
-			predicateResult.ConditionValues = []string{fmt.Sprintf("deleted lines %s", pred.Deletions.String())}
+			predicateResult.Values = []string{value}
+			predicateResult.ConditionsMap[conditionKey] = []string{cond}
 			predicateResult.Satisfied = true
 			return &predicateResult, nil
 		}
-		predicateResult.Values = append(predicateResult.Values, fmt.Sprintf("-%d", deletions))
-		predicateResult.ConditionValues = append(predicateResult.ConditionValues, fmt.Sprintf("deleted lines %s", pred.Deletions.String()))
+
+		predicateResult.Values = append(predicateResult.Values, value)
+		predicateResult.ConditionsMap[conditionKey] = append(predicateResult.ConditionsMap[conditionKey], cond)
 	}
+
 	if !pred.Total.IsEmpty() {
+		value := fmt.Sprintf("total %d", additions+deletions)
+		cond := fmt.Sprintf("total modifications %s", pred.Total.String())
+
 		if pred.Total.Evaluate(additions + deletions) {
-			predicateResult.Values = []string{fmt.Sprintf("total %d", additions+deletions)}
-			predicateResult.ConditionValues = []string{fmt.Sprintf("total modifications %s", pred.Total.String())}
+			predicateResult.Values = []string{value}
+			predicateResult.ConditionsMap[conditionKey] = []string{cond}
 			predicateResult.Satisfied = true
 			return &predicateResult, nil
 		}
-		predicateResult.Values = append(predicateResult.Values, fmt.Sprintf("total %d", additions+deletions))
-		predicateResult.ConditionValues = append(predicateResult.ConditionValues, fmt.Sprintf("total modifications %s", pred.Total.String()))
+
+		predicateResult.Values = append(predicateResult.Values, value)
+		predicateResult.ConditionsMap[conditionKey] = append(predicateResult.ConditionsMap[conditionKey], cond)
 	}
-	predicateResult.Satisfied = false
+
 	return &predicateResult, nil
 }
 
