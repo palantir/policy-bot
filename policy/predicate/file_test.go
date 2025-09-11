@@ -863,8 +863,8 @@ func TestModifiedLinesFiles(t *testing.T) {
 				Satisfied: true,
 				Values:    []string{"+55"},
 				ConditionsMap: map[string][]string{
-					"in files matching":           {`.*\.go`, `.*\.js`},
 					"the modification conditions": {"added lines > 50"},
+					"in files matching":           {`.*\.go`, `.*\.js`},
 				},
 			},
 		},
@@ -879,8 +879,8 @@ func TestModifiedLinesFiles(t *testing.T) {
 				Satisfied: false,
 				Values:    []string{"+35"},
 				ConditionsMap: map[string][]string{
-					"in files matching":           {`.*\.go`, `.*\.js`},
 					"the modification conditions": {"added lines > 50"},
+					"in files matching":           {`.*\.go`, `.*\.js`},
 				},
 			},
 		},
@@ -894,8 +894,8 @@ func TestModifiedLinesFiles(t *testing.T) {
 				Satisfied: false,
 				Values:    []string{"+0"},
 				ConditionsMap: map[string][]string{
-					"in files matching":           {`.*\.go`, `.*\.js`},
 					"the modification conditions": {"added lines > 50"},
+					"in files matching":           {`.*\.go`, `.*\.js`},
 				},
 			},
 		},
@@ -923,8 +923,8 @@ func TestModifiedLinesFiles(t *testing.T) {
 				Satisfied: true,
 				Values:    []string{"total 80"},
 				ConditionsMap: map[string][]string{
-					"in files matching":           {`src/.*\.ts`},
 					"the modification conditions": {"total modifications > 75"},
+					"in files matching":           {`src/.*\.ts`},
 				},
 			},
 		},
@@ -954,8 +954,8 @@ func TestModifiedLinesFiles(t *testing.T) {
 				Satisfied: true,
 				Values:    []string{"+55"},
 				ConditionsMap: map[string][]string{
-					"excluding files matching":    {`.*\.md`, `.*\.txt`},
 					"the modification conditions": {"added lines > 50"},
+					"excluding files matching":    {`.*\.md`, `.*\.txt`},
 				},
 			},
 		},
@@ -989,9 +989,9 @@ func TestModifiedLinesFiles(t *testing.T) {
 				Satisfied: true,
 				Values:    []string{"total 70"},
 				ConditionsMap: map[string][]string{
+					"the modification conditions": {"total modifications > 50"},
 					"in files matching":           {`src/.*`},
 					"excluding files matching":    {`.*\.test\..*`, `.*_test\..*`},
-					"the modification conditions": {"total modifications > 50"},
 				},
 			},
 		},
@@ -1005,9 +1005,9 @@ func TestModifiedLinesFiles(t *testing.T) {
 				Satisfied: false,
 				Values:    []string{"total 0"},
 				ConditionsMap: map[string][]string{
+					"the modification conditions": {"total modifications > 50"},
 					"in files matching":           {`src/.*`},
 					"excluding files matching":    {`.*\.test\..*`, `.*_test\..*`},
-					"the modification conditions": {"total modifications > 50"},
 				},
 			},
 		},
