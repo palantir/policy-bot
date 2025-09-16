@@ -131,18 +131,19 @@ type GitHubContext struct {
 	pr     *v4PullRequest
 
 	// cached fields
-	files         []*File
-	commits       []*Commit
-	comments      []*Comment
-	reviews       []*Review
-	reviewers     []*Reviewer
-	collaborators []*Collaborator
-	permissions   map[string]Permission
-	teams         map[string]Permission
-	statuses      map[string]string
-	labels        []string
-	pushedAt      map[string]time.Time
-	workflowRuns  map[string][]string
+	files                      []*File
+	commits                    []*Commit
+	comments                   []*Comment
+	reviews                    []*Review
+	reviewers                  []*Reviewer
+	collaborators              []*Collaborator
+	permissions                map[string]Permission
+	teams                      map[string]Permission
+	statuses                   map[string]string
+	labels                     []string
+	pushedAt                   map[string]time.Time
+	workflowRuns               map[string][]string
+	repositoryCustomProperties map[string]CustomProperty
 }
 
 // NewGitHubContext creates a new pull.Context that makes GitHub requests to
@@ -193,6 +194,40 @@ func (ghc *GitHubContext) RepositoryOwner() string {
 
 func (ghc *GitHubContext) RepositoryName() string {
 	return ghc.repo
+}
+
+func (ghc *GitHubContext) RepositoryCustomProperties() (map[string]CustomProperty, error) {
+	if ghc.repositoryCustomProperties == nil {
+		if err := ghc.loadRepositoryCustomProperties(); err != nil {
+			return nil, err
+		}
+	}
+
+	return ghc.repositoryCustomProperties, nil
+}
+
+func (ghc *GitHubContext) loadRepositoryCustomProperties() error {
+	values, _, err := ghc.client.Repositories.GetAllCustomPropertyValues(ghc.ctx, ghc.owner, ghc.repo)
+	if err != nil {
+		return errors.Wrap(err, "failed to load repository custom properties")
+	}
+
+	ghc.repositoryCustomProperties = make(map[string]CustomProperty)
+	for _, value := range values {
+		var result CustomProperty
+		if value.Value == nil {
+			continue
+		} else if strValue, ok := value.Value.(string); ok {
+			result = CustomProperty{String: &strValue}
+		} else if arrValue, ok := value.Value.([]string); ok {
+			result = CustomProperty{Array: arrValue}
+		} else {
+			return errors.Errorf("unexpected type for custom property %s: %T", value.PropertyName, value.Value)
+		}
+		ghc.repositoryCustomProperties[value.PropertyName] = result
+	}
+
+	return nil
 }
 
 func (ghc *GitHubContext) Number() int {

@@ -55,6 +55,10 @@ type Context interface {
 	// RepositoryName returns the repo that the pull request targets.
 	RepositoryName() string
 
+	// RepositoryCustomProperties returns the custom properties of the repo that the pull request targets.
+	// For an unset property, the key is _not_ present in the map.
+	RepositoryCustomProperties() (map[string]CustomProperty, error)
+
 	// Number returns the number of the pull request.
 	Number() int
 
@@ -255,4 +259,9 @@ type Body struct {
 	CreatedAt    time.Time
 	Author       string
 	LastEditedAt time.Time
+}
+
+type CustomProperty struct {
+	String *string
+	Array  []string
 }

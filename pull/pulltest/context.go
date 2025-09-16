@@ -77,6 +77,9 @@ type Context struct {
 	LabelsValue []string
 	LabelsError error
 
+	RepositoryCustomPropertiesValue map[string]pull.CustomProperty
+	RepositoryCustomPropertiesError error
+
 	Draft bool
 }
 
@@ -263,6 +266,10 @@ func (c *Context) LatestWorkflowRuns() (map[string][]string, error) {
 
 func (c *Context) Labels() ([]string, error) {
 	return c.LabelsValue, c.LabelsError
+}
+
+func (c *Context) RepositoryCustomProperties() (map[string]pull.CustomProperty, error) {
+	return c.RepositoryCustomPropertiesValue, c.RepositoryCustomPropertiesError
 }
 
 // assert that the test object implements the full interface
