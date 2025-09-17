@@ -471,6 +471,46 @@ if:
   has_valid_signatures_by_keys:
     key_ids: ["3AA5C34371567BD2"]
 
+  # "custom_property_is_not_null" is satisfied if all of the specified repository
+  # custom properties are set to a non-empty string or array on the target repository.
+  custom_property_is_not_null:
+    - "release_tier"
+    - "service_owner"
+
+  # "custom_property_is_null" is satisfied if all of the specified repository
+  # custom properties are unset or set to an empty string or array on the
+  # target repository.
+  custom_property_is_null:
+    - "deprecated_since"
+
+  # "custom_property_matches_any_of" is satisfied if, for each property key in
+  # the map, the repository custom property exists and its string value matches
+  # at least one of the provided regular expressions. 
+  #
+  # Regex matching only applies to string typed (including boolean) custom properties.
+  # Array-type properties are not matched and will cause the predicate to fail
+  # for that key. Unset/null properties will also fail the match.
+  #
+  # Note: Double-quote strings must escape backslashes while single/plain do not.
+  # See the Notes on YAML Syntax section of this README for more information.
+  custom_property_matches_any_of:
+    environment: ["^prod$", "^staging$"]
+    service_tier: ["^(critical|high)$"]
+
+  # "custom_property_matches_none_of" is satisfied if, for each property key in
+  # the map, the repository custom property does not exist, its string value matches
+  # none of the provided regular expressions.
+  #
+  # Regex matching only applies to string typed (including boolean) custom properties.
+  # Array-type properties are not matched and will cause the predicate to always pass
+  # for that key. Unset/null properties will also pass the match.
+  #
+  # Note: Double-quote strings must escape backslashes while single/plain do not.
+  # See the Notes on YAML Syntax section of this README for more information.
+  custom_property_matches_none_of:
+    environment: ["^dev$", "^test$"]
+    service_tier: ["^low$"]
+
 # "options" specifies a set of restrictions on approvals. If the block does not
 # exist, the default values are used.
 options:
