@@ -146,7 +146,7 @@ func TestCustomPropertiesMatchesAnyOf(t *testing.T) {
 	runCustomPropertyTestCase(t, customPropertiesTestCtx, []customPropertyTestCase{
 		{
 			description: "property matches regex",
-			predicate:   CustomPropertyMatchesAnyOf{"custom1": []string{`.*`}},
+			predicate:   CustomPropertyMatchesAnyOf(mustCompileRegexpMap(map[string][]string{"custom1": []string{`.*`}})),
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied:     true,
 				Values:        defaultTestCustomPropertiesValues,
@@ -155,7 +155,7 @@ func TestCustomPropertiesMatchesAnyOf(t *testing.T) {
 		},
 		{
 			description: "property does not match regex",
-			predicate:   CustomPropertyMatchesAnyOf{"custom1": []string{`nomatch`}},
+			predicate:   CustomPropertyMatchesAnyOf(mustCompileRegexpMap(map[string][]string{"custom1": []string{`nomatch`}})),
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied:     false,
 				Values:        defaultTestCustomPropertiesValues,
@@ -164,7 +164,7 @@ func TestCustomPropertiesMatchesAnyOf(t *testing.T) {
 		},
 		{
 			description: "multiple regexes and one matches",
-			predicate:   CustomPropertyMatchesAnyOf{"custom1": []string{`nomatch`, `value1`}},
+			predicate:   CustomPropertyMatchesAnyOf(mustCompileRegexpMap(map[string][]string{"custom1": []string{`nomatch`, `value1`}})),
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied:     true,
 				Values:        defaultTestCustomPropertiesValues,
@@ -173,7 +173,7 @@ func TestCustomPropertiesMatchesAnyOf(t *testing.T) {
 		},
 		{
 			description: "multiple regexes and none match",
-			predicate:   CustomPropertyMatchesAnyOf{"custom1": []string{`nomatch`, `alsonomatch`}},
+			predicate:   CustomPropertyMatchesAnyOf(mustCompileRegexpMap(map[string][]string{"custom1": []string{`nomatch`, `alsonomatch`}})),
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied:     false,
 				Values:        defaultTestCustomPropertiesValues,
@@ -182,7 +182,7 @@ func TestCustomPropertiesMatchesAnyOf(t *testing.T) {
 		},
 		{
 			description: "multiple properties and one matches",
-			predicate:   CustomPropertyMatchesAnyOf{"custom1": []string{`nomatch`}, "custom2": []string{`value2`}},
+			predicate:   CustomPropertyMatchesAnyOf(mustCompileRegexpMap(map[string][]string{"custom1": []string{`nomatch`}, "custom2": []string{`value2`}})),
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied:     false,
 				Values:        defaultTestCustomPropertiesValues,
@@ -191,7 +191,7 @@ func TestCustomPropertiesMatchesAnyOf(t *testing.T) {
 		},
 		{
 			description: "multiple properties and none match",
-			predicate:   CustomPropertyMatchesAnyOf{"custom1": []string{`nomatch`}, "custom2": []string{`alsonomatch`}},
+			predicate:   CustomPropertyMatchesAnyOf(mustCompileRegexpMap(map[string][]string{"custom1": []string{`nomatch`}, "custom2": []string{`alsonomatch`}})),
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied:     false,
 				Values:        defaultTestCustomPropertiesValues,
@@ -200,7 +200,7 @@ func TestCustomPropertiesMatchesAnyOf(t *testing.T) {
 		},
 		{
 			description: "array should never match",
-			predicate:   CustomPropertyMatchesAnyOf{"custom3": []string{`.*`}},
+			predicate:   CustomPropertyMatchesAnyOf(mustCompileRegexpMap(map[string][]string{"custom3": []string{`.*`}})),
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied:     false,
 				Values:        defaultTestCustomPropertiesValues,
@@ -208,15 +208,8 @@ func TestCustomPropertiesMatchesAnyOf(t *testing.T) {
 			},
 		},
 		{
-			description: "invalid regex should err",
-			predicate:   CustomPropertyMatchesAnyOf{"custom1": []string{`*`}},
-			ExpectedErr: func(err error) bool {
-				return err.Error() == "failed to compile regex * for custom property custom1: error parsing regexp: missing argument to repetition operator: `*`"
-			},
-		},
-		{
 			description: "no properties are checked",
-			predicate:   CustomPropertyMatchesAnyOf{},
+			predicate:   CustomPropertyMatchesAnyOf(mustCompileRegexpMap(map[string][]string{})),
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied:     true,
 				Values:        defaultTestCustomPropertiesValues,
@@ -230,7 +223,7 @@ func TestCustomPropertiesMatchesNoneOf(t *testing.T) {
 	runCustomPropertyTestCase(t, customPropertiesTestCtx, []customPropertyTestCase{
 		{
 			description: "property matches regex",
-			predicate:   CustomPropertyMatchesNoneOf{"custom1": []string{`.*`}},
+			predicate:   CustomPropertyMatchesNoneOf(mustCompileRegexpMap(map[string][]string{"custom1": []string{`.*`}})),
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied:     false,
 				Values:        defaultTestCustomPropertiesValues,
@@ -239,7 +232,7 @@ func TestCustomPropertiesMatchesNoneOf(t *testing.T) {
 		},
 		{
 			description: "property does not match regex",
-			predicate:   CustomPropertyMatchesNoneOf{"custom1": []string{`nomatch`}},
+			predicate:   CustomPropertyMatchesNoneOf(mustCompileRegexpMap(map[string][]string{"custom1": []string{`nomatch`}})),
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied:     true,
 				Values:        defaultTestCustomPropertiesValues,
@@ -248,7 +241,7 @@ func TestCustomPropertiesMatchesNoneOf(t *testing.T) {
 		},
 		{
 			description: "multiple regexes and one matches",
-			predicate:   CustomPropertyMatchesNoneOf{"custom1": []string{`nomatch`, `value1`}},
+			predicate:   CustomPropertyMatchesNoneOf(mustCompileRegexpMap(map[string][]string{"custom1": []string{`nomatch`, `value1`}})),
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied:     false,
 				Values:        defaultTestCustomPropertiesValues,
@@ -257,7 +250,7 @@ func TestCustomPropertiesMatchesNoneOf(t *testing.T) {
 		},
 		{
 			description: "multiple regexes and none match",
-			predicate:   CustomPropertyMatchesNoneOf{"custom1": []string{`nomatch`, `alsonomatch`}},
+			predicate:   CustomPropertyMatchesNoneOf(mustCompileRegexpMap(map[string][]string{"custom1": []string{`nomatch`, `alsonomatch`}})),
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied:     true,
 				Values:        defaultTestCustomPropertiesValues,
@@ -266,7 +259,7 @@ func TestCustomPropertiesMatchesNoneOf(t *testing.T) {
 		},
 		{
 			description: "multiple properties and one matches",
-			predicate:   CustomPropertyMatchesNoneOf{"custom1": []string{`nomatch`}, "custom2": []string{`value2`}},
+			predicate:   CustomPropertyMatchesNoneOf(mustCompileRegexpMap(map[string][]string{"custom1": []string{`nomatch`}, "custom2": []string{`value2`}})),
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied:     false,
 				Values:        defaultTestCustomPropertiesValues,
@@ -275,7 +268,7 @@ func TestCustomPropertiesMatchesNoneOf(t *testing.T) {
 		},
 		{
 			description: "multiple properties and none match",
-			predicate:   CustomPropertyMatchesNoneOf{"custom1": []string{`nomatch`}, "custom2": []string{`alsonomatch`}},
+			predicate:   CustomPropertyMatchesNoneOf(mustCompileRegexpMap(map[string][]string{"custom1": []string{`nomatch`}, "custom2": []string{`alsonomatch`}})),
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied:     true,
 				Values:        defaultTestCustomPropertiesValues,
@@ -284,7 +277,7 @@ func TestCustomPropertiesMatchesNoneOf(t *testing.T) {
 		},
 		{
 			description: "array should never match",
-			predicate:   CustomPropertyMatchesNoneOf{"custom3": []string{`.*`}},
+			predicate:   CustomPropertyMatchesNoneOf(mustCompileRegexpMap(map[string][]string{"custom3": []string{`.*`}})),
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied:     true,
 				Values:        defaultTestCustomPropertiesValues,
@@ -292,15 +285,8 @@ func TestCustomPropertiesMatchesNoneOf(t *testing.T) {
 			},
 		},
 		{
-			description: "invalid regex should err",
-			predicate:   CustomPropertyMatchesNoneOf{"custom1": []string{`*`}},
-			ExpectedErr: func(err error) bool {
-				return err.Error() == "failed to compile regex * for custom property custom1: error parsing regexp: missing argument to repetition operator: `*`"
-			},
-		},
-		{
 			description: "no properties are checked",
-			predicate:   CustomPropertyMatchesNoneOf{},
+			predicate:   CustomPropertyMatchesNoneOf(mustCompileRegexpMap(map[string][]string{})),
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied:     true,
 				Values:        defaultTestCustomPropertiesValues,
@@ -315,6 +301,22 @@ type customPropertyTestCase struct {
 	predicate               Predicate
 	ExpectedPredicateResult *common.PredicateResult
 	ExpectedErr             func(error) bool
+}
+
+func mustCompileRegexpMap(m map[string][]string) map[string][]common.Regexp {
+	compiled := make(map[string][]common.Regexp, len(m))
+	for k, v := range m {
+		regexps := make([]common.Regexp, len(v))
+		for i, pattern := range v {
+			re, err := common.NewRegexp(pattern)
+			if err != nil {
+				panic(err)
+			}
+			regexps[i] = re
+		}
+		compiled[k] = regexps
+	}
+	return compiled
 }
 
 func runCustomPropertyTestCase(t *testing.T, prctx pull.Context, cases []customPropertyTestCase) {

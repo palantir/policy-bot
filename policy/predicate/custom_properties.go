@@ -17,7 +17,6 @@ package predicate
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -28,8 +27,8 @@ import (
 
 type CustomPropertyIsNull []string
 type CustomPropertyIsNotNull []string
-type CustomPropertyMatchesAnyOf map[string][]string
-type CustomPropertyMatchesNoneOf map[string][]string
+type CustomPropertyMatchesAnyOf map[string][]common.Regexp
+type CustomPropertyMatchesNoneOf map[string][]common.Regexp
 
 var _ Predicate = (CustomPropertyIsNull)(nil)
 var _ Predicate = (CustomPropertyIsNotNull)(nil)
@@ -112,11 +111,20 @@ func (pred CustomPropertyMatchesAnyOf) Evaluate(ctx context.Context, prctx pull.
 		return nil, errors.Wrap(err, "failed to get repository custom properties")
 	}
 
+	conditionsMap := make(map[string][]string, len(pred))
+	for property, allowedValues := range pred {
+		strValues := make([]string, len(allowedValues))
+		for i, v := range allowedValues {
+			strValues[i] = v.String()
+		}
+		conditionsMap[property] = strValues
+	}
+
 	predicateResult := common.PredicateResult{
 		ValuePhrase:     "specified custom properties",
 		Values:          formatCustomProperties(customProperties),
 		ConditionPhrase: "match one or more of the specified values",
-		ConditionsMap:   pred,
+		ConditionsMap:   conditionsMap,
 		Satisfied:       true,
 	}
 
@@ -130,11 +138,7 @@ func (pred CustomPropertyMatchesAnyOf) Evaluate(ctx context.Context, prctx pull.
 		matched := false
 		if propValue.String != nil {
 			for _, v := range allowedValues {
-				re, err := regexp.Compile(v)
-				if err != nil {
-					return nil, errors.Wrapf(err, "failed to compile regex %v for custom property %s", v, property)
-				}
-				if re.MatchString(*propValue.String) {
+				if v.Matches(*propValue.String) {
 					matched = true
 					break
 				}
@@ -156,12 +160,21 @@ func (pred CustomPropertyMatchesNoneOf) Evaluate(ctx context.Context, prctx pull
 		return nil, errors.Wrap(err, "failed to get repository custom properties")
 	}
 
+	conditionsMap := make(map[string][]string, len(pred))
+	for property, allowedValues := range pred {
+		strValues := make([]string, len(allowedValues))
+		for i, v := range allowedValues {
+			strValues[i] = v.String()
+		}
+		conditionsMap[property] = strValues
+	}
+
 	predicateResult := common.PredicateResult{
 		ValuePhrase:       "specified custom properties",
 		Values:            formatCustomProperties(customProperties),
 		ReverseSkipPhrase: true,
 		ConditionPhrase:   "match one or more of the specified values",
-		ConditionsMap:     pred,
+		ConditionsMap:     conditionsMap,
 		Satisfied:         true,
 	}
 
@@ -173,11 +186,7 @@ func (pred CustomPropertyMatchesNoneOf) Evaluate(ctx context.Context, prctx pull
 
 		if propValue.String != nil {
 			for _, v := range disallowedValues {
-				re, err := regexp.Compile(v)
-				if err != nil {
-					return nil, errors.Wrapf(err, "failed to compile regex %v for custom property %s", v, property)
-				}
-				if re.MatchString(*propValue.String) {
+				if v.Matches(*propValue.String) {
 					predicateResult.Satisfied = false
 					return &predicateResult, nil
 				}
