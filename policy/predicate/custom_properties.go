@@ -135,17 +135,7 @@ func (pred CustomPropertyMatchesAnyOf) Evaluate(ctx context.Context, prctx pull.
 			return &predicateResult, nil
 		}
 
-		matched := false
-		if propValue.String != nil {
-			for _, v := range allowedValues {
-				if v.Matches(*propValue.String) {
-					matched = true
-					break
-				}
-			}
-		}
-
-		if !matched {
+		if propValue.String == nil || !anyMatches(allowedValues, *propValue.String) {
 			predicateResult.Satisfied = false
 			return &predicateResult, nil
 		}
@@ -184,13 +174,9 @@ func (pred CustomPropertyMatchesNoneOf) Evaluate(ctx context.Context, prctx pull
 			continue
 		}
 
-		if propValue.String != nil {
-			for _, v := range disallowedValues {
-				if v.Matches(*propValue.String) {
-					predicateResult.Satisfied = false
-					return &predicateResult, nil
-				}
-			}
+		if propValue.String != nil && anyMatches(disallowedValues, *propValue.String) {
+			predicateResult.Satisfied = false
+			return &predicateResult, nil
 		}
 	}
 
