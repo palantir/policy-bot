@@ -139,7 +139,6 @@ type GitHubContext struct {
 	collaborators []*Collaborator
 	permissions   map[string]Permission
 	teams         map[string]Permission
-	membership    map[string]bool
 	statuses      map[string]string
 	labels        []string
 	pushedAt      map[string]time.Time

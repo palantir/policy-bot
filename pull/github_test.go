@@ -748,10 +748,6 @@ func defaultTestPR() *github.PullRequest {
 	}
 }
 
-func newTime(t time.Time) *time.Time {
-	return &t
-}
-
 type MockGlobalCache struct {
 	PushedAt map[string]time.Time
 }

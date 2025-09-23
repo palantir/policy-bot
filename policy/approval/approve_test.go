@@ -924,7 +924,3 @@ func TestSortCommits(t *testing.T) {
 		})
 	}
 }
-
-func newTime(t time.Time) *time.Time {
-	return &t
-}
