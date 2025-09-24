@@ -51,16 +51,16 @@ func (c *ClientDirect) DistributionSamples(name string, values []float64, tags [
 	if c == nil {
 		return ErrNoClient
 	}
-	atomic.AddUint64(&c.telemetry.totalMetricsDistribution, uint64(len(values)))
-	return c.send(metric{
+	atomic.AddUint64(&c.clientEx.telemetry.totalMetricsDistribution, uint64(len(values)))
+	return c.clientEx.send(metric{
 		metricType: distributionAggregated,
 		name:       name,
 		fvalues:    values,
 		tags:       tags,
 		stags:      strings.Join(tags, tagSeparatorSymbol),
 		rate:       rate,
-		globalTags: c.tags,
-		namespace:  c.namespace,
+		globalTags: c.clientEx.tags,
+		namespace:  c.clientEx.namespace,
 	})
 }
 

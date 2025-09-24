@@ -32,7 +32,7 @@ type aggregator struct {
 
 	closed chan struct{}
 
-	client *Client
+	client *ClientEx
 
 	// aggregator implements channelMode mechanism to receive histograms,
 	// distributions and timings. Since they need sampling they need to
@@ -43,7 +43,7 @@ type aggregator struct {
 	wg              sync.WaitGroup
 }
 
-func newAggregator(c *Client, maxSamplesPerContext int64) *aggregator {
+func newAggregator(c *ClientEx, maxSamplesPerContext int64) *aggregator {
 	return &aggregator{
 		client:          c,
 		counts:          countsMap{},
@@ -96,11 +96,11 @@ func (a *aggregator) pullMetric() {
 		case m := <-a.inputMetrics:
 			switch m.metricType {
 			case histogram:
-				a.histogram(m.name, m.fvalue, m.tags, m.rate)
+				a.histogram(m.name, m.fvalue, m.tags, m.rate, m.overrideCard)
 			case distribution:
-				a.distribution(m.name, m.fvalue, m.tags, m.rate)
+				a.distribution(m.name, m.fvalue, m.tags, m.rate, m.overrideCard)
 			case timing:
-				a.timing(m.name, m.fvalue, m.tags, m.rate)
+				a.timing(m.name, m.fvalue, m.tags, m.rate, m.overrideCard)
 			}
 		case <-a.stopChannelMode:
 			a.wg.Done()
@@ -172,32 +172,46 @@ func (a *aggregator) flushMetrics() []metric {
 	return metrics
 }
 
-// getContext returns the context for a metric name and tags.
+// getContext returns the context for a metric name, tags, and cardinality.
 //
-// The context is the metric name and tags separated by a separator symbol.
+// The context is the metric name, tags, and cardinality separated by separator symbols.
 // It is not intended to be used as a metric name but as a unique key to aggregate
-func getContext(name string, tags []string) string {
-	c, _ := getContextAndTags(name, tags)
+func getContext(name string, tags []string, cardinality Cardinality) string {
+	c, _ := getContextAndTags(name, tags, cardinality)
 	return c
 }
 
-// getContextAndTags returns the context and tags for a metric name and tags.
+// getContextAndTags returns the context and tags for a metric name, tags, and cardinality.
 //
 // See getContext for usage for context
 // The tags are the tags separated by a separator symbol and can be re-used to pass down to the writer
-func getContextAndTags(name string, tags []string) (string, string) {
+func getContextAndTags(name string, tags []string, cardinality Cardinality) (string, string) {
+	cardString := cardinality.String()
 	if len(tags) == 0 {
-		return name, ""
+		if cardString == "" {
+			return name, ""
+		}
+		return name + nameSeparatorSymbol + cardinality.String(), ""
 	}
+
 	n := len(name) + len(nameSeparatorSymbol) + len(tagSeparatorSymbol)*(len(tags)-1)
 	for _, s := range tags {
 		n += len(s)
+	}
+	var cardStringLen = 0
+	if cardString != "" {
+		n += len(cardString) + len(cardSeparatorSymbol)
+		cardStringLen = len(cardString) + len(cardSeparatorSymbol)
 	}
 
 	var sb strings.Builder
 	sb.Grow(n)
 	sb.WriteString(name)
 	sb.WriteString(nameSeparatorSymbol)
+	if cardString != "" {
+		sb.WriteString(cardString)
+		sb.WriteString(cardSeparatorSymbol)
+	}
 	sb.WriteString(tags[0])
 	for _, s := range tags[1:] {
 		sb.WriteString(tagSeparatorSymbol)
@@ -206,11 +220,12 @@ func getContextAndTags(name string, tags []string) (string, string) {
 
 	s := sb.String()
 
-	return s, s[len(name)+len(nameSeparatorSymbol):]
+	return s, s[len(name)+len(nameSeparatorSymbol)+cardStringLen:]
 }
 
-func (a *aggregator) count(name string, value int64, tags []string) error {
-	context := getContext(name, tags)
+func (a *aggregator) count(name string, value int64, tags []string, cardinality Cardinality) error {
+	resolvedCardinality := resolveCardinality(cardinality)
+	context := getContext(name, tags, resolvedCardinality)
 	a.countsM.RLock()
 	if count, found := a.counts[context]; found {
 		count.sample(value)
@@ -227,13 +242,14 @@ func (a *aggregator) count(name string, value int64, tags []string) error {
 		return nil
 	}
 
-	a.counts[context] = newCountMetric(name, value, tags)
+	a.counts[context] = newCountMetric(name, value, tags, resolvedCardinality)
 	a.countsM.Unlock()
 	return nil
 }
 
-func (a *aggregator) gauge(name string, value float64, tags []string) error {
-	context := getContext(name, tags)
+func (a *aggregator) gauge(name string, value float64, tags []string, cardinality Cardinality) error {
+	resolvedCardinality := resolveCardinality(cardinality)
+	context := getContext(name, tags, resolvedCardinality)
 	a.gaugesM.RLock()
 	if gauge, found := a.gauges[context]; found {
 		gauge.sample(value)
@@ -242,7 +258,7 @@ func (a *aggregator) gauge(name string, value float64, tags []string) error {
 	}
 	a.gaugesM.RUnlock()
 
-	gauge := newGaugeMetric(name, value, tags)
+	gauge := newGaugeMetric(name, value, tags, resolvedCardinality)
 
 	a.gaugesM.Lock()
 	// Check if another goroutines hasn't created the value betwen the 'RUnlock' and 'Lock'
@@ -256,8 +272,9 @@ func (a *aggregator) gauge(name string, value float64, tags []string) error {
 	return nil
 }
 
-func (a *aggregator) set(name string, value string, tags []string) error {
-	context := getContext(name, tags)
+func (a *aggregator) set(name string, value string, tags []string, cardinality Cardinality) error {
+	resolvedCardinality := resolveCardinality(cardinality)
+	context := getContext(name, tags, resolvedCardinality)
 	a.setsM.RLock()
 	if set, found := a.sets[context]; found {
 		set.sample(value)
@@ -273,7 +290,7 @@ func (a *aggregator) set(name string, value string, tags []string) error {
 		a.setsM.Unlock()
 		return nil
 	}
-	a.sets[context] = newSetMetric(name, value, tags)
+	a.sets[context] = newSetMetric(name, value, tags, resolvedCardinality)
 	a.setsM.Unlock()
 	return nil
 }
@@ -283,16 +300,16 @@ func (a *aggregator) set(name string, value string, tags []string) error {
 // sample rate will have impacts on the CPU and memory usage of the Agent.
 
 // type alias for Client.sendToAggregator
-type bufferedMetricSampleFunc func(name string, value float64, tags []string, rate float64) error
+type bufferedMetricSampleFunc func(name string, value float64, tags []string, rate float64, cardinality Cardinality) error
 
-func (a *aggregator) histogram(name string, value float64, tags []string, rate float64) error {
-	return a.histograms.sample(name, value, tags, rate)
+func (a *aggregator) histogram(name string, value float64, tags []string, rate float64, cardinality Cardinality) error {
+	return a.histograms.sample(name, value, tags, rate, cardinality)
 }
 
-func (a *aggregator) distribution(name string, value float64, tags []string, rate float64) error {
-	return a.distributions.sample(name, value, tags, rate)
+func (a *aggregator) distribution(name string, value float64, tags []string, rate float64, cardinality Cardinality) error {
+	return a.distributions.sample(name, value, tags, rate, cardinality)
 }
 
-func (a *aggregator) timing(name string, value float64, tags []string, rate float64) error {
-	return a.timings.sample(name, value, tags, rate)
+func (a *aggregator) timing(name string, value float64, tags []string, rate float64, cardinality Cardinality) error {
+	return a.timings.sample(name, value, tags, rate, cardinality)
 }

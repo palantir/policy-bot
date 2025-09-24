@@ -39,40 +39,44 @@ func newStatsdBuffer(maxSize, maxElements int) *statsdBuffer {
 	}
 }
 
-func (b *statsdBuffer) writeGauge(namespace string, globalTags []string, name string, value float64, tags []string, rate float64, timestamp int64) error {
+func (b *statsdBuffer) writeGauge(namespace string, globalTags []string, name string, value float64, tags []string, rate float64, timestamp int64, originDetection bool, overrideCard Cardinality) error {
 	if b.elementCount >= b.maxElements {
 		return errBufferFull
 	}
 	originalBuffer := b.buffer
-	b.buffer = appendGauge(b.buffer, namespace, globalTags, name, value, tags, rate)
+	b.buffer = appendGauge(b.buffer, namespace, globalTags, name, value, tags, rate, originDetection)
 	b.buffer = appendTimestamp(b.buffer, timestamp)
+	b.buffer = appendTagCardinality(b.buffer, overrideCard)
 	b.writeSeparator()
 	return b.validateNewElement(originalBuffer)
 }
 
-func (b *statsdBuffer) writeCount(namespace string, globalTags []string, name string, value int64, tags []string, rate float64, timestamp int64) error {
+
+func (b *statsdBuffer) writeCount(namespace string, globalTags []string, name string, value int64, tags []string, rate float64, timestamp int64, originDetection bool, overrideCard Cardinality) error {
 	if b.elementCount >= b.maxElements {
 		return errBufferFull
 	}
 	originalBuffer := b.buffer
-	b.buffer = appendCount(b.buffer, namespace, globalTags, name, value, tags, rate)
+	b.buffer = appendCount(b.buffer, namespace, globalTags, name, value, tags, rate, originDetection)
 	b.buffer = appendTimestamp(b.buffer, timestamp)
+	b.buffer = appendTagCardinality(b.buffer, overrideCard)
 	b.writeSeparator()
 	return b.validateNewElement(originalBuffer)
 }
 
-func (b *statsdBuffer) writeHistogram(namespace string, globalTags []string, name string, value float64, tags []string, rate float64) error {
+func (b *statsdBuffer) writeHistogram(namespace string, globalTags []string, name string, value float64, tags []string, rate float64, originDetection bool, overrideCard Cardinality) error {
 	if b.elementCount >= b.maxElements {
 		return errBufferFull
 	}
 	originalBuffer := b.buffer
-	b.buffer = appendHistogram(b.buffer, namespace, globalTags, name, value, tags, rate)
+	b.buffer = appendHistogram(b.buffer, namespace, globalTags, name, value, tags, rate, originDetection)
+	b.buffer = appendTagCardinality(b.buffer, overrideCard)
 	b.writeSeparator()
 	return b.validateNewElement(originalBuffer)
 }
 
 // writeAggregated serialized as many values as possible in the current buffer and return the position in values where it stopped.
-func (b *statsdBuffer) writeAggregated(metricSymbol []byte, namespace string, globalTags []string, name string, values []float64, tags string, tagSize int, precision int, rate float64) (int, error) {
+func (b *statsdBuffer) writeAggregated(metricSymbol []byte, namespace string, globalTags []string, name string, values []float64, tags string, tagSize int, precision int, rate float64, originDetection bool, overrideCard Cardinality) (int, error) {
 	if b.elementCount >= b.maxElements {
 		return 0, errBufferFull
 	}
@@ -115,6 +119,8 @@ func (b *statsdBuffer) writeAggregated(metricSymbol []byte, namespace string, gl
 	b.buffer = appendRate(b.buffer, rate)
 	b.buffer = appendTagsAggregated(b.buffer, globalTags, tags)
 	b.buffer = appendContainerID(b.buffer)
+	b.buffer = appendExternalEnv(b.buffer, originDetection)
+	b.buffer = appendTagCardinality(b.buffer, overrideCard)
 	b.writeSeparator()
 	b.elementCount++
 
@@ -125,52 +131,57 @@ func (b *statsdBuffer) writeAggregated(metricSymbol []byte, namespace string, gl
 
 }
 
-func (b *statsdBuffer) writeDistribution(namespace string, globalTags []string, name string, value float64, tags []string, rate float64) error {
+func (b *statsdBuffer) writeDistribution(namespace string, globalTags []string, name string, value float64, tags []string, rate float64, originDetection bool, overrideCard Cardinality) error {
 	if b.elementCount >= b.maxElements {
 		return errBufferFull
 	}
 	originalBuffer := b.buffer
-	b.buffer = appendDistribution(b.buffer, namespace, globalTags, name, value, tags, rate)
+	b.buffer = appendDistribution(b.buffer, namespace, globalTags, name, value, tags, rate, originDetection)
+	b.buffer = appendTagCardinality(b.buffer, overrideCard)
 	b.writeSeparator()
 	return b.validateNewElement(originalBuffer)
 }
 
-func (b *statsdBuffer) writeSet(namespace string, globalTags []string, name string, value string, tags []string, rate float64) error {
+func (b *statsdBuffer) writeSet(namespace string, globalTags []string, name string, value string, tags []string, rate float64, originDetection bool, overrideCard Cardinality) error {
 	if b.elementCount >= b.maxElements {
 		return errBufferFull
 	}
 	originalBuffer := b.buffer
-	b.buffer = appendSet(b.buffer, namespace, globalTags, name, value, tags, rate)
+	b.buffer = appendSet(b.buffer, namespace, globalTags, name, value, tags, rate, originDetection)
+	b.buffer = appendTagCardinality(b.buffer, overrideCard)
 	b.writeSeparator()
 	return b.validateNewElement(originalBuffer)
 }
 
-func (b *statsdBuffer) writeTiming(namespace string, globalTags []string, name string, value float64, tags []string, rate float64) error {
+func (b *statsdBuffer) writeTiming(namespace string, globalTags []string, name string, value float64, tags []string, rate float64, originDetection bool, overrideCard Cardinality) error {
 	if b.elementCount >= b.maxElements {
 		return errBufferFull
 	}
 	originalBuffer := b.buffer
-	b.buffer = appendTiming(b.buffer, namespace, globalTags, name, value, tags, rate)
+	b.buffer = appendTiming(b.buffer, namespace, globalTags, name, value, tags, rate, originDetection)
+	b.buffer = appendTagCardinality(b.buffer, overrideCard)
 	b.writeSeparator()
 	return b.validateNewElement(originalBuffer)
 }
 
-func (b *statsdBuffer) writeEvent(event *Event, globalTags []string) error {
+func (b *statsdBuffer) writeEvent(event *Event, globalTags []string, originDetection bool, overrideCard Cardinality) error {
 	if b.elementCount >= b.maxElements {
 		return errBufferFull
 	}
 	originalBuffer := b.buffer
-	b.buffer = appendEvent(b.buffer, event, globalTags)
+	b.buffer = appendEvent(b.buffer, event, globalTags, originDetection)
+	b.buffer = appendTagCardinality(b.buffer, overrideCard)
 	b.writeSeparator()
 	return b.validateNewElement(originalBuffer)
 }
 
-func (b *statsdBuffer) writeServiceCheck(serviceCheck *ServiceCheck, globalTags []string) error {
+func (b *statsdBuffer) writeServiceCheck(serviceCheck *ServiceCheck, globalTags []string, originDetection bool, overrideCard Cardinality) error {
 	if b.elementCount >= b.maxElements {
 		return errBufferFull
 	}
 	originalBuffer := b.buffer
-	b.buffer = appendServiceCheck(b.buffer, serviceCheck, globalTags)
+	b.buffer = appendServiceCheck(b.buffer, serviceCheck, globalTags, originDetection)
+	b.buffer = appendTagCardinality(b.buffer, overrideCard)
 	b.writeSeparator()
 	return b.validateNewElement(originalBuffer)
 }

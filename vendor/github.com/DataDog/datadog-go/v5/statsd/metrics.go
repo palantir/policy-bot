@@ -15,16 +15,18 @@ Those are metrics type that can be aggregated on the client side:
 */
 
 type countMetric struct {
-	value int64
-	name  string
-	tags  []string
+	value        int64
+	name         string
+	tags         []string
+	overrideCard Cardinality
 }
 
-func newCountMetric(name string, value int64, tags []string) *countMetric {
+func newCountMetric(name string, value int64, tags []string, cardinality Cardinality) *countMetric {
 	return &countMetric{
-		value: value,
-		name:  name,
-		tags:  copySlice(tags),
+		value:        value,
+		name:         name,
+		tags:         copySlice(tags),
+		overrideCard: cardinality,
 	}
 }
 
@@ -34,27 +36,30 @@ func (c *countMetric) sample(v int64) {
 
 func (c *countMetric) flushUnsafe() metric {
 	return metric{
-		metricType: count,
-		name:       c.name,
-		tags:       c.tags,
-		rate:       1,
-		ivalue:     c.value,
+		metricType:   count,
+		name:         c.name,
+		tags:         c.tags,
+		rate:         1,
+		ivalue:       c.value,
+		overrideCard: c.overrideCard,
 	}
 }
 
 // Gauge
 
 type gaugeMetric struct {
-	value uint64
-	name  string
-	tags  []string
+	value        uint64
+	name         string
+	tags         []string
+	overrideCard Cardinality
 }
 
-func newGaugeMetric(name string, value float64, tags []string) *gaugeMetric {
+func newGaugeMetric(name string, value float64, tags []string, cardinality Cardinality) *gaugeMetric {
 	return &gaugeMetric{
-		value: math.Float64bits(value),
-		name:  name,
-		tags:  copySlice(tags),
+		value:        math.Float64bits(value),
+		name:         name,
+		tags:         copySlice(tags),
+		overrideCard: cardinality,
 	}
 }
 
@@ -64,28 +69,31 @@ func (g *gaugeMetric) sample(v float64) {
 
 func (g *gaugeMetric) flushUnsafe() metric {
 	return metric{
-		metricType: gauge,
-		name:       g.name,
-		tags:       g.tags,
-		rate:       1,
-		fvalue:     math.Float64frombits(g.value),
+		metricType:   gauge,
+		name:         g.name,
+		tags:         g.tags,
+		rate:         1,
+		fvalue:       math.Float64frombits(g.value),
+		overrideCard: g.overrideCard,
 	}
 }
 
 // Set
 
 type setMetric struct {
-	data map[string]struct{}
-	name string
-	tags []string
+	data         map[string]struct{}
+	name         string
+	tags         []string
+	overrideCard Cardinality
 	sync.Mutex
 }
 
-func newSetMetric(name string, value string, tags []string) *setMetric {
+func newSetMetric(name string, value string, tags []string, cardinality Cardinality) *setMetric {
 	set := &setMetric{
-		data: map[string]struct{}{},
-		name: name,
-		tags: copySlice(tags),
+		data:         map[string]struct{}{},
+		name:         name,
+		tags:         copySlice(tags),
+		overrideCard: cardinality,
 	}
 	set.data[value] = struct{}{}
 	return set
@@ -108,11 +116,12 @@ func (s *setMetric) flushUnsafe() []metric {
 	i := 0
 	for value := range s.data {
 		metrics[i] = metric{
-			metricType: set,
-			name:       s.name,
-			tags:       s.tags,
-			rate:       1,
-			svalue:     value,
+			metricType:   set,
+			name:         s.name,
+			tags:         s.tags,
+			rate:         1,
+			svalue:       value,
+			overrideCard: s.overrideCard,
 		}
 		i++
 	}
@@ -144,6 +153,8 @@ type bufferedMetric struct {
 	// The first observed user-specified sample rate. When specified
 	// it is used because we don't know better.
 	specifiedRate float64
+
+	overrideCard Cardinality
 }
 
 func (s *bufferedMetric) sample(v float64) {
@@ -201,17 +212,18 @@ func (s *bufferedMetric) flushUnsafe() metric {
 	}
 
 	return metric{
-		metricType: s.mtype,
-		name:       s.name,
-		stags:      s.tags,
-		rate:       rate,
-		fvalues:    s.data[:s.storedSamples],
+		metricType:   s.mtype,
+		name:         s.name,
+		stags:        s.tags,
+		rate:         rate,
+		fvalues:      s.data[:s.storedSamples],
+		overrideCard: resolveCardinality(s.overrideCard),
 	}
 }
 
 type histogramMetric = bufferedMetric
 
-func newHistogramMetric(name string, value float64, stringTags string, maxSamples int64, rate float64) *histogramMetric {
+func newHistogramMetric(name string, value float64, stringTags string, maxSamples int64, rate float64, cardinality Cardinality) *histogramMetric {
 	return &histogramMetric{
 		data:          newData(value, maxSamples),
 		totalSamples:  1,
@@ -221,12 +233,13 @@ func newHistogramMetric(name string, value float64, stringTags string, maxSample
 		mtype:         histogramAggregated,
 		maxSamples:    maxSamples,
 		specifiedRate: rate,
+		overrideCard:  resolveCardinality(cardinality),
 	}
 }
 
 type distributionMetric = bufferedMetric
 
-func newDistributionMetric(name string, value float64, stringTags string, maxSamples int64, rate float64) *distributionMetric {
+func newDistributionMetric(name string, value float64, stringTags string, maxSamples int64, rate float64, cardinality Cardinality) *distributionMetric {
 	return &distributionMetric{
 		data:          newData(value, maxSamples),
 		totalSamples:  1,
@@ -236,12 +249,13 @@ func newDistributionMetric(name string, value float64, stringTags string, maxSam
 		mtype:         distributionAggregated,
 		maxSamples:    maxSamples,
 		specifiedRate: rate,
+		overrideCard:  resolveCardinality(cardinality),
 	}
 }
 
 type timingMetric = bufferedMetric
 
-func newTimingMetric(name string, value float64, stringTags string, maxSamples int64, rate float64) *timingMetric {
+func newTimingMetric(name string, value float64, stringTags string, maxSamples int64, rate float64, cardinality Cardinality) *timingMetric {
 	return &timingMetric{
 		data:          newData(value, maxSamples),
 		totalSamples:  1,
@@ -251,6 +265,7 @@ func newTimingMetric(name string, value float64, stringTags string, maxSamples i
 		mtype:         timingAggregated,
 		maxSamples:    maxSamples,
 		specifiedRate: rate,
+		overrideCard:  resolveCardinality(cardinality),
 	}
 }
 
