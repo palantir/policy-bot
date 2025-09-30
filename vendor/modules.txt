@@ -76,7 +76,7 @@ github.com/palantir/go-baseapp/appmetrics/emitter/prometheus
 github.com/palantir/go-baseapp/baseapp
 github.com/palantir/go-baseapp/baseapp/datadog
 github.com/palantir/go-baseapp/pkg/errfmt
-# github.com/palantir/go-githubapp v0.38.1
+# github.com/palantir/go-githubapp v0.38.2
 ## explicit; go 1.25.0
 github.com/palantir/go-githubapp/appconfig
 github.com/palantir/go-githubapp/githubapp
