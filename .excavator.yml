@@ -6,6 +6,7 @@ auto-label:
     circleci/manage-circleci: [ "merge when ready" ]
   tags:
     donotmerge: [ "do not merge" ]
-    roomba: [ "merge when ready" ]
-    automerge: [ "merge when ready" ]
+    roomba: [ "merge when ready", "🤖 fix nits" ]
+    automerge: [ "merge when ready", "🤖 fix nits" ]
+    standards: [ "merge when ready", "🤖 fix nits" ]
     autorelease: [ "autorelease" ]
