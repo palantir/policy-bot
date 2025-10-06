@@ -94,10 +94,18 @@ func (h *PullRequestReview) affectsApproval(reviewState pull.ReviewState, config
 
 	for _, rule := range config.ApprovalRules {
 		states[rule.Options.GetMethods().GithubReviewState] = struct{}{}
+		// Process review comments if review comment patterns are configured
+		if len(rule.Options.GetMethods().GithubReviewCommentPatterns) > 0 {
+			states[pull.ReviewCommented] = struct{}{}
+		}
 	}
 	if disapproval := config.Policy.Disapproval; disapproval != nil {
 		states[disapproval.Options.GetDisapproveMethods().GithubReviewState] = struct{}{}
 		states[disapproval.Options.GetRevokeMethods().GithubReviewState] = struct{}{}
+		// Process review comments if review comment patterns are configured
+		if len(disapproval.Options.GetDisapproveMethods().GithubReviewCommentPatterns) > 0 || len(disapproval.Options.GetRevokeMethods().GithubReviewCommentPatterns) > 0 {
+			states[pull.ReviewCommented] = struct{}{}
+		}
 	}
 
 	for state := range states {
