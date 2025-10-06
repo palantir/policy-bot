@@ -3,15 +3,12 @@ version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
-    schedule:
-      interval: weekly
-
-  - package-ecosystem: gomod
-    directory: /
+    labels: ["no changelog", "merge when ready", "dependencies", "github_actions"]
     schedule:
       interval: weekly
 
   - package-ecosystem: npm
     directory: /
+    labels: ["no changelog", "merge when ready", "dependencies", "javascript"]
     schedule:
       interval: monthly
