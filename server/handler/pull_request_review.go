@@ -71,8 +71,7 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 		return nil
 	}
 
-	reviewState := pull.ReviewState(event.GetReview().GetState())
-	if !h.affectsApproval(reviewState, evalCtx.Config.Config) {
+	if !h.affectsApproval(event.GetReview(), evalCtx.Config.Config) {
 		logger.Debug().Msg("Skipping evaluation because this review does not impact approval")
 		return nil
 	}
@@ -86,24 +85,43 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 	return nil
 }
 
-func (h *PullRequestReview) affectsApproval(reviewState pull.ReviewState, config *policy.Config) bool {
-	states := make(map[pull.ReviewState]struct{})
+func (h *PullRequestReview) affectsApproval(review *github.PullRequestReview, config *policy.Config) bool {
+	// States contains the review states that may affect approval. Always consider dismissed
+	// reviews because they can revert the overall approval or disapproval to a previous state.
+	states := map[pull.ReviewState]bool{
+		pull.ReviewDismissed: true,
+	}
 
-	// Always process events for dismissed reviews because they can revert the overall approval or disapproval to a previous state
-	states[pull.ReviewDismissed] = struct{}{}
-
+	var methods []*common.Methods
 	for _, rule := range config.ApprovalRules {
-		states[rule.Options.GetMethods().GithubReviewState] = struct{}{}
+		m := rule.Options.GetMethods()
+		states[m.GithubReviewState] = true
+		methods = append(methods, m)
 	}
 	if disapproval := config.Policy.Disapproval; disapproval != nil {
-		states[disapproval.Options.GetDisapproveMethods().GithubReviewState] = struct{}{}
-		states[disapproval.Options.GetRevokeMethods().GithubReviewState] = struct{}{}
+		md := disapproval.Options.GetDisapproveMethods()
+		states[md.GithubReviewState] = true
+		methods = append(methods, md)
+
+		mr := disapproval.Options.GetRevokeMethods()
+		states[mr.GithubReviewState] = true
+		methods = append(methods, mr)
 	}
 
-	for state := range states {
-		if state == reviewState {
-			return true
+	reviewState := pull.ReviewState(review.GetState())
+	if states[reviewState] {
+		return true
+	}
+
+	// Reviews with the COMMENTED state are also processed as normal comments, so also consider
+	// methods that match on comments in this case.
+	if reviewState == pull.ReviewCommented {
+		for _, m := range methods {
+			if m.CommentMatches(review.GetBody()) {
+				return true
+			}
 		}
 	}
+
 	return false
 }
