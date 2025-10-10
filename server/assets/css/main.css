@@ -92,13 +92,13 @@ details summary > * {
 .toggle > label::before {
   content: "";
 
-  @apply w-8 h-4 rounded-full bg-gray4 bg-opacity-50 left-0 absolute;
+  @apply w-8 h-4 rounded-full bg-gray4/50 left-0 absolute;
   @apply transition-colors duration-100;
-  @apply top-1/2 transform -translate-y-1/2;
+  @apply top-1/2 -translate-y-1/2;
 }
 
 .toggle > label:hover::before {
-  @apply bg-gray3 bg-opacity-50;
+  @apply bg-gray3/50;
 }
 
 .toggle > label::after {
@@ -110,7 +110,7 @@ details summary > * {
   left: 2px;
 
   @apply transition-transform duration-100;
-  @apply top-1/2 transform -translate-y-1/2;
+  @apply top-1/2 -translate-y-1/2;
 
   box-shadow: 0 0 0 1px rgba(16, 22, 26, 0.2), 0 1px 1px rgba(16, 22, 26, 0.2);
 }

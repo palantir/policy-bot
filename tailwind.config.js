@@ -1,12 +1,21 @@
 module.exports = {
+  content: {
+    relative: true,
+    files: [
+      './server/templates/**/*.html.tmpl',
+      './server/assets/**/*.js',
+    ],
+  },
   theme: {
-    // generated from @blueprintjs/core v5 colors
-    // curl -s https://raw.githubusercontent.com/palantir/blueprint/develop/packages/colors/src/_colors.scss \
-    //   | grep '^\$' \
-    //   | sed 's/\$\(.*\): \([#0-9a-f]*\).*/  '"'\1': '\2',/"
     colors: {
+      'inherit': 'inherit',
       'transparent': 'transparent',
       'current': 'currentColor',
+
+      // generated from @blueprintjs/core v5 colors
+      // curl -s https://raw.githubusercontent.com/palantir/blueprint/develop/packages/colors/src/_colors.scss \
+      //   | grep '^\$' \
+      //   | sed 's/\$\(.*\): \([#0-9a-f]*\).*/  '"'\1': '\2',/"
       'black': '#111418',
       'dark-gray1': '#1c2127',
       'dark-gray2': '#252a31',
@@ -127,10 +136,4 @@ module.exports = {
       },
     },
   },
-  corePlugins: {
-    container: false,
-    keyframes: false,
-    animation: true,
-  },
-  purge: false,
 }
