@@ -100,7 +100,7 @@ module.exports = {
       // 0 -> xs, 1 -> sm, 2 -> default, 3 -> lg, 4 -> xl
       'xs': '0 0 0 1px rgba(16,22,26, 0.15), 0 0 0 rgba(16,22,26, 0), 0 0 0 rgba(16,22,26, 0)',
       'sm': '0 0 0 1px rgba(16,22,26, 0.1), 0 0 0 rgba(16,22,26, 0), 0 1px 1px rgba(16,22,26, 0.2)',
-      'default': '0 0 0 1px rgba(16,22,26, 0.1), 0 1px 1px rgba(16,22,26, 0.2), 0 2px 6px rgba(16,22,26, 0.2)',
+      'DEFAULT': '0 0 0 1px rgba(16,22,26, 0.1), 0 1px 1px rgba(16,22,26, 0.2), 0 2px 6px rgba(16,22,26, 0.2)',
       'lg': '0 0 0 1px rgba(16,22,26, 0.1), 0 2px 4px rgba(16,22,26, 0.2), 0 8px 24px rgba(16,22,26, 0.2)',
       'xl': '0 0 0 1px rgba(16,22,26, 0.1), 0 4px 8px rgba(16,22,26, 0.2), 0 18px 46px 6px rgba(16,22,26, 0.2)',
 
@@ -108,6 +108,18 @@ module.exports = {
       'inner': 'inset 0 2px 4px 0 rgba(0,0,0,0.06)',
       'outline': '0 0 0 3px rgba(52,144,220,0.5)',
       'none': 'none',
+    },
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      base: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      '2xl': '1.5rem',
+      '3xl': '1.875rem',
+      '4xl': '2.25rem',
+      '5xl': '3rem',
+      '6xl': '4rem',
     },
     extend: {
       inset: {
@@ -121,7 +133,4 @@ module.exports = {
     animation: true,
   },
   purge: false,
-  future: {
-    removeDeprecatedGapUtilities: true,
-  },
 }
