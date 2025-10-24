@@ -348,7 +348,7 @@ func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, c
 	var allowed []*common.Candidate
 	var dismissed []*common.Dismissal
 	for _, c := range candidates {
-		if c.LastEditedAt.IsZero() {
+		if c.Type == common.ReviewCandidate || c.LastEditedAt.IsZero() {
 			allowed = append(allowed, c)
 		} else {
 			dismissed = append(dismissed, &common.Dismissal{
