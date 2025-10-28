@@ -43,6 +43,6 @@ products:
           tag-templates:
             version: "{{Repository}}tooling/policy-bot:{{Version}}"
             latest: "{{Repository}}tooling/policy-bot:latest"
-            snapshot: "{{Repository}}tooling/policy-bot:snapshot-001"
+            snapshot: "crinternal01.azurecr.io/tooling/policy-bot:snapshot-001"
     publish:
       group-id: com.palantir.policy-bot
