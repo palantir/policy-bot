@@ -127,6 +127,12 @@ sessions:
 #   # Can also be set by the POLICYBOT_OPTIONS_EXPAND_REQUIRED_REVIEWERS
 #   # environment variable.
 #   expand_required_reviewers: false
+#
+#   # If true, forces the use of the shared repository policy for all repositories,
+#   # even if they define their own local policy file.
+#   # Can also be set by the POLICYBOT_OPTIONS_FORCE_SHARED_POLICY
+#   # environment variable.
+#   force_shared_policy: false
 
 # Options for locating the frontend files. By default, the server uses appropriate
 # paths for the binary distribution and Docker container. For local development,
