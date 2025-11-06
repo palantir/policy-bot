@@ -738,7 +738,7 @@ curl: (22) The requested URL returned error: 422
 
 It can be useful to simulate how Policy Bot would evaluate a pull request if certain conditions were changed. For example: adding a review from a specific user or group, or adjusting the base branch.
 
-An API endpoint exists at `api/simulate/:org/:repo/:prNumber` to simiulate the result of a pull request. Simulations using this endpoint will NOT write the result back to the pull request status check and will instead return the result.
+An API endpoint exists at `api/simulate/:org/:repo/:prNumber` to simulate the result of a pull request. Simulations using this endpoint will NOT write the result back to the pull request status check and will instead return the result.
 
 This API requires a GitHub token be passed as a bearer token. The token must have the ability to read the pull request the simulation is being run against.
 
@@ -831,7 +831,7 @@ use a previous, non-dismissed review, if it exists, when evaluating rules.
 
 For example, if a user leaves an "approval" review and follows up with a
 "request changes" review, `policy-bot` will use the "request changes" review
-when evaluating rules. However, if the user then dimisses their "request
+when evaluating rules. However, if the user then dismisses their "request
 changes" review, `policy-bot` will instead use the initial "approval" review in
 evaluating any rules.
 
@@ -926,7 +926,7 @@ from the set.
 
 #### Invalidating Approval on Push <!-- omit in toc -->
 
-By default, `policy-bot` does not invalidate exisitng approvals when users add
+By default, `policy-bot` does not invalidate existing approvals when users add
 new commits to a pull request. You can control this behavior for each rule in a
 policy using the `invalidate_on_push` option.
 
@@ -955,7 +955,7 @@ in mid-2023 because computing it was unreliable and inaccurate (see issue
 #### Expanding Required Reviewers <!-- omit in toc -->
 
 The details view for a pull request shows the users, organizations, teams, and
-permission levels that are reqired to approve each rule. When the
+permission levels that are required to approve each rule. When the
 `options.expand_required_reviewers` server option is set, `policy-bot` expands
 these to show the list of users whose approval will satisfy each rule. This can
 make it easier for developers to figure out who they should ask for approval.

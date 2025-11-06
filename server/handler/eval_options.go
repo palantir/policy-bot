@@ -103,6 +103,7 @@ func (p *PullEvaluationOptions) SetValuesFromEnv(prefix string) {
 	setStringPtrFromEnv("SHARED_REPOSITORY", prefix, &p.SharedRepository)
 	setStringPtrFromEnv("SHARED_POLICY_PATH", prefix, &p.SharedPolicyPath)
 	setStringFromEnv("STATUS_CHECK_CONTEXT", prefix, &p.StatusCheckContext)
+	setBoolFromEnv("FORCE_SHARED_POLICY", prefix, &p.ForceSharedPolicy)
 	setBoolFromEnv("EXPAND_REQUIRED_REVIEWERS", prefix, &p.ExpandRequiredReviewers)
 	setBoolFromEnv("STRICT_REVIEW_DISMISSAL", prefix, &p.StrictReviewDismissal)
 	setBoolFromEnv("POST_INSECURE_STATUS_CHECKS", prefix, &p.PostInsecureStatusChecks)
