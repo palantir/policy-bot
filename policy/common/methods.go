@@ -33,28 +33,61 @@ type Methods struct {
 	// have to be considered a candidate. It is set after parsing based on the
 	// context in which Methods is used, rather than by the YAML configuration.
 	GithubReviewState pull.ReviewState `yaml:"-"`
+
+	// Defaults contains default method values for this rule, set by the policy
+	// or the server. The field is populated after parsing the YAML
+	// configuration. If nil, unset fields default to the zero value of their
+	// element type, unless otherwise noted.
+	Defaults *Methods `yaml:"-"`
 }
 
 func (m *Methods) GetComments() []string {
+	if m.Comments == nil {
+		if m.Defaults != nil {
+			return m.Defaults.GetComments()
+		}
+		return nil
+	}
 	return m.Comments
 }
 
 func (m *Methods) GetCommentPatterns() []Regexp {
+	if m.CommentPatterns == nil {
+		if m.Defaults != nil {
+			return m.Defaults.GetCommentPatterns()
+		}
+		return nil
+	}
 	return m.CommentPatterns
 }
 
 func (m *Methods) IsGithubReview() bool {
 	if m.GithubReview == nil {
+		if m.Defaults != nil {
+			return m.Defaults.IsGithubReview()
+		}
 		return false
 	}
 	return *m.GithubReview
 }
 
 func (m *Methods) GetGithubReviewCommentPatterns() []Regexp {
+	if m.GithubReviewCommentPatterns == nil {
+		if m.Defaults != nil {
+			return m.Defaults.GetGithubReviewCommentPatterns()
+		}
+		return nil
+	}
 	return m.GithubReviewCommentPatterns
 }
 
 func (m *Methods) GetBodyPatterns() []Regexp {
+	if m.BodyPatterns == nil {
+		if m.Defaults != nil {
+			return m.Defaults.GetBodyPatterns()
+		}
+		return nil
+	}
 	return m.BodyPatterns
 }
 

@@ -49,10 +49,20 @@ type GlobalOptions struct {
 }
 
 func ParsePolicy(c *Config, opts *GlobalOptions) (common.Evaluator, error) {
+	defaultApprovalOptions := approval.Options{
+		Methods: approval.DefaultMethods(),
+	}
+
 	rulesByName := make(map[string]*approval.Rule)
 	for _, r := range c.ApprovalRules {
-		if opts != nil && opts.IgnoreEditedComments != nil {
-			r.Options.IgnoreEditedComments = opts.IgnoreEditedComments
+		// Set server-level rule defaults
+		r.Options.Defaults = &defaultApprovalOptions
+
+		// Override rule options controlled by the server
+		if opts != nil {
+			if opts.IgnoreEditedComments != nil {
+				r.Options.IgnoreEditedComments = opts.IgnoreEditedComments
+			}
 		}
 
 		rulesByName[r.Name] = r

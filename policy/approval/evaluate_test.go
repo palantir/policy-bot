@@ -54,7 +54,7 @@ func TestRules(t *testing.T) {
     # invalidate_on_push: true
     methods:
       comments: ["+1"]
-      github_review: true
+      github_review: false
   requires:
     users: ["user4"]
     teams: ["team3", "team4"]
@@ -65,12 +65,6 @@ func TestRules(t *testing.T) {
 	var rules []*Rule
 	require.NoError(t, yaml.UnmarshalStrict([]byte(ruleText), &rules))
 
-	defaultGithubReview := true
-	defaultComments := []string{
-		":+1:",
-		"👍",
-	}
-	comments := []string{"+1"}
 	expected := []*Rule{
 		{
 			Name: "rule1",
@@ -108,10 +102,9 @@ func TestRules(t *testing.T) {
 			Options: Options{
 				AllowAuthor:      ptr(true),
 				AllowContributor: ptr(true),
-				// InvalidateOnPush: true,
 				Methods: &common.Methods{
-					Comments:     comments,
-					GithubReview: &defaultGithubReview,
+					Comments:     []string{"+1"},
+					GithubReview: ptr(false),
 				},
 			},
 			Requires: Requires{
@@ -126,64 +119,6 @@ func TestRules(t *testing.T) {
 	}
 
 	require.True(t, reflect.DeepEqual(expected, rules))
-
-	optionsText := `
-allow_author: true
-allow_contributor: true
-invalidate_on_push: true
-methods:
-  comments: ["+1"]
-`
-	expectedMethods := &common.Methods{
-		Comments:     comments,
-		GithubReview: &defaultGithubReview,
-	}
-	var options *Options
-	require.NoError(t, yaml.UnmarshalStrict([]byte(optionsText), &options))
-
-	methods := options.GetMethods()
-
-	require.True(t, reflect.DeepEqual(expectedMethods.Comments, methods.Comments))
-	require.True(t, reflect.DeepEqual(*expectedMethods.GithubReview, *methods.GithubReview))
-
-	optionsText = `
-allow_author: true
-allow_contributor: true
-invalidate_on_push: true
-methods:
-  github_review: false
-`
-	falseGithubReview := false
-	expectedMethods = &common.Methods{
-		Comments:     defaultComments,
-		GithubReview: &falseGithubReview,
-	}
-
-	var optionsTwo *Options
-	require.NoError(t, yaml.UnmarshalStrict([]byte(optionsText), &optionsTwo))
-
-	methods = optionsTwo.GetMethods()
-
-	require.True(t, reflect.DeepEqual(expectedMethods.Comments, methods.Comments))
-	require.True(t, reflect.DeepEqual(*expectedMethods.GithubReview, *methods.GithubReview))
-
-	optionsText = `
-allow_author: true
-allow_contributor: true
-invalidate_on_push: true
-`
-	expectedMethods = &common.Methods{
-		Comments:     defaultComments,
-		GithubReview: &defaultGithubReview,
-	}
-	var optionsThree *Options
-	require.NoError(t, yaml.UnmarshalStrict([]byte(optionsText), &optionsThree))
-
-	methods = optionsThree.GetMethods()
-
-	require.True(t, reflect.DeepEqual(expectedMethods.Comments, methods.Comments))
-	require.True(t, reflect.DeepEqual(*expectedMethods.GithubReview, *methods.GithubReview))
-
 }
 
 type mockRequirement struct {

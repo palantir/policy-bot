@@ -19,6 +19,17 @@ import (
 	"github.com/palantir/policy-bot/pull"
 )
 
+func DefaultMethods() *common.Methods {
+	review := true
+	return &common.Methods{
+		Comments: []string{
+			":+1:",
+			"👍",
+		},
+		GithubReview: &review,
+	}
+}
+
 type Options struct {
 	AllowAuthor               *bool `yaml:"allow_author,omitempty"`
 	AllowContributor          *bool `yaml:"allow_contributor,omitempty"`
@@ -32,6 +43,12 @@ type Options struct {
 	RequestReview *RequestReview `yaml:"request_review,omitempty"`
 
 	Methods *common.Methods `yaml:"methods,omitempty"`
+
+	// Defaults contains default options values for this rule, set by the
+	// policy or the server. The field is populated after parsing the YAML
+	// configuration. If nil, unset fields default to the zero value of their
+	// element type, unless otherwise noted.
+	Defaults *Options `yaml:"-"`
 }
 
 type RequestReview struct {
@@ -40,78 +57,96 @@ type RequestReview struct {
 	Count   int                `yaml:"count,omitempty"`
 }
 
-func (opts *Options) IsAllowAuthor() bool {
+func (opts Options) IsAllowAuthor() bool {
 	if opts.AllowAuthor == nil {
+		if opts.Defaults != nil {
+			return opts.Defaults.IsAllowAuthor()
+		}
 		return false
 	}
 	return *opts.AllowAuthor
 }
 
-func (opts *Options) IsAllowContributor() bool {
+func (opts Options) IsAllowContributor() bool {
 	if opts.AllowContributor == nil {
+		if opts.Defaults != nil {
+			return opts.Defaults.IsAllowContributor()
+		}
 		return false
 	}
 	return *opts.AllowContributor
 }
 
-func (opts *Options) IsAllowNonAuthorContributor() bool {
+func (opts Options) IsAllowNonAuthorContributor() bool {
 	if opts.AllowNonAuthorContributor == nil {
+		if opts.Defaults != nil {
+			return opts.Defaults.IsAllowNonAuthorContributor()
+		}
 		return false
 	}
 	return *opts.AllowNonAuthorContributor
 }
 
-func (opts *Options) IsInvalidateOnPush() bool {
+func (opts Options) IsInvalidateOnPush() bool {
 	if opts.InvalidateOnPush == nil {
+		if opts.Defaults != nil {
+			return opts.Defaults.IsInvalidateOnPush()
+		}
 		return false
 	}
 	return *opts.InvalidateOnPush
 }
 
-func (opts *Options) IsIgnoreEditedComments() bool {
+func (opts Options) IsIgnoreEditedComments() bool {
 	if opts.IgnoreEditedComments == nil {
+		if opts.Defaults != nil {
+			return opts.Defaults.IsIgnoreEditedComments()
+		}
 		return false
 	}
 	return *opts.IgnoreEditedComments
 }
 
-func (opts *Options) IsIgnoreUpdateMerges() bool {
+func (opts Options) IsIgnoreUpdateMerges() bool {
 	if opts.IgnoreUpdateMerges == nil {
+		if opts.Defaults != nil {
+			return opts.Defaults.IsIgnoreUpdateMerges()
+		}
 		return false
 	}
 	return *opts.IgnoreUpdateMerges
 }
 
-func (opts *Options) GetIgnoreCommitsBy() common.Actors {
+func (opts Options) GetIgnoreCommitsBy() common.Actors {
 	if opts.IgnoreCommitsBy == nil {
+		if opts.Defaults != nil {
+			return opts.Defaults.GetIgnoreCommitsBy()
+		}
 		return common.Actors{}
 	}
 	return *opts.IgnoreCommitsBy
 }
 
-func (opts *Options) GetRequestReview() RequestReview {
+func (opts Options) GetRequestReview() RequestReview {
 	if opts.RequestReview == nil {
+		if opts.Defaults != nil {
+			return opts.Defaults.GetRequestReview()
+		}
 		return RequestReview{}
 	}
 	return *opts.RequestReview
 }
 
-func (opts *Options) GetMethods() *common.Methods {
-	methods := opts.Methods
-	if methods == nil {
-		methods = &common.Methods{}
+func (opts Options) GetMethods() *common.Methods {
+	var m common.Methods
+	if opts.Methods != nil {
+		m = *opts.Methods // make a copy since we might modify 'm.Defaults'
 	}
-	if methods.Comments == nil {
-		methods.Comments = []string{
-			":+1:",
-			"👍",
-		}
-	}
-	if methods.GithubReview == nil {
-		defaultGithubReview := true
-		methods.GithubReview = &defaultGithubReview
+	if opts.Defaults != nil {
+		m.Defaults = opts.Defaults.GetMethods()
 	}
 
-	methods.GithubReviewState = pull.ReviewApproved
-	return methods
+	// Approvals always use `pull.ReviewApproved` as the state
+	m.GithubReviewState = pull.ReviewApproved
+	return &m
 }

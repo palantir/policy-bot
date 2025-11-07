@@ -35,6 +35,10 @@ func ptr[T any](val T) *T {
 	return &val
 }
 
+var defaultOptions = Options{
+	Methods: DefaultMethods(),
+}
+
 func TestIsApproved(t *testing.T) {
 	logger := zerolog.New(os.Stdout)
 	ctx := logger.WithContext(context.Background())
@@ -184,13 +188,20 @@ func TestIsApproved(t *testing.T) {
 		// checking that we don't make an unnecessary call to the GitHub API.
 		prctx.CommentsError = errors.New("Comments() was called")
 
-		r := &Rule{}
+		r := &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
+		}
 		assertApproved(t, prctx, r, "No approval required")
 	})
 
 	t.Run("singleApprovalRequired", func(t *testing.T) {
 		prctx := basePullContext()
 		r := &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
 			Requires: Requires{
 				Count: 1,
 			},
@@ -203,6 +214,7 @@ func TestIsApproved(t *testing.T) {
 		r := &Rule{
 			Options: Options{
 				AllowAuthor: ptr(false),
+				Defaults:    &defaultOptions,
 			},
 			Requires: Requires{
 				Count: 1,
@@ -219,6 +231,7 @@ func TestIsApproved(t *testing.T) {
 		r := &Rule{
 			Options: Options{
 				AllowAuthor: ptr(true),
+				Defaults:    &defaultOptions,
 			},
 			Requires: Requires{
 				Count: 1,
@@ -235,6 +248,7 @@ func TestIsApproved(t *testing.T) {
 		r := &Rule{
 			Options: Options{
 				AllowContributor: ptr(false),
+				Defaults:         &defaultOptions,
 			},
 			Requires: Requires{
 				Count: 1,
@@ -252,6 +266,7 @@ func TestIsApproved(t *testing.T) {
 			Options: Options{
 				AllowContributor: ptr(true),
 				AllowAuthor:      ptr(false),
+				Defaults:         &defaultOptions,
 			},
 			Requires: Requires{
 				Count: 1,
@@ -268,6 +283,7 @@ func TestIsApproved(t *testing.T) {
 		r := &Rule{
 			Options: Options{
 				AllowNonAuthorContributor: ptr(true),
+				Defaults:                  &defaultOptions,
 			},
 			Requires: Requires{
 				Count: 1,
@@ -285,6 +301,7 @@ func TestIsApproved(t *testing.T) {
 			Options: Options{
 				AllowNonAuthorContributor: ptr(true),
 				AllowAuthor:               ptr(true),
+				Defaults:                  &defaultOptions,
 			},
 			Requires: Requires{
 				Count: 1,
@@ -302,6 +319,7 @@ func TestIsApproved(t *testing.T) {
 			Options: Options{
 				AllowNonAuthorContributor: ptr(true),
 				AllowContributor:          ptr(true),
+				Defaults:                  &defaultOptions,
 			},
 			Requires: Requires{
 				Count: 1,
@@ -316,6 +334,9 @@ func TestIsApproved(t *testing.T) {
 	t.Run("specificUserApproves", func(t *testing.T) {
 		prctx := basePullContext()
 		r := &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
 			Requires: Requires{
 				Count: 1,
 				Actors: common.Actors{
@@ -326,6 +347,9 @@ func TestIsApproved(t *testing.T) {
 		assertApproved(t, prctx, r, "Approved by comment-approver")
 
 		r = &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
 			Requires: Requires{
 				Count: 1,
 				Actors: common.Actors{
@@ -339,6 +363,9 @@ func TestIsApproved(t *testing.T) {
 	t.Run("specificOrgApproves", func(t *testing.T) {
 		prctx := basePullContext()
 		r := &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
 			Requires: Requires{
 				Count: 1,
 				Actors: common.Actors{
@@ -349,6 +376,9 @@ func TestIsApproved(t *testing.T) {
 		assertApproved(t, prctx, r, "Approved by comment-approver")
 
 		r = &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
 			Requires: Requires{
 				Count: 1,
 				Actors: common.Actors{
@@ -362,6 +392,9 @@ func TestIsApproved(t *testing.T) {
 	t.Run("specificOrgsOrUserApproves", func(t *testing.T) {
 		prctx := basePullContext()
 		r := &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
 			Requires: Requires{
 				Count: 2,
 				Actors: common.Actors{
@@ -388,6 +421,9 @@ func TestIsApproved(t *testing.T) {
 		}
 
 		r := &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
 			Requires: Requires{
 				Count: 1,
 				Actors: common.Actors{
@@ -416,6 +452,9 @@ func TestIsApproved(t *testing.T) {
 		}
 
 		r := &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
 			Requires: Requires{
 				Count: 1,
 				Actors: common.Actors{
@@ -447,14 +486,15 @@ func TestIsApproved(t *testing.T) {
 		})
 
 		r := &Rule{
+			Options: Options{
+				InvalidateOnPush: ptr(true),
+				Defaults:         &defaultOptions,
+			},
 			Requires: Requires{
 				Count: 1,
 				Actors: common.Actors{
 					Users: []string{"comment-approver"},
 				},
-			},
-			Options: Options{
-				InvalidateOnPush: ptr(true),
 			},
 		}
 		assertPending(t, prctx, r, "0/1 required approvals. Ignored 6 approvals from disqualified users")
@@ -482,6 +522,9 @@ func TestIsApproved(t *testing.T) {
 		})
 
 		r := &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
 			Requires: Requires{
 				Count: 1,
 				Actors: common.Actors{
@@ -505,6 +548,9 @@ func TestIsApproved(t *testing.T) {
 		})
 
 		r := &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
 			Requires: Requires{
 				Count: 1,
 				Actors: common.Actors{
@@ -524,14 +570,15 @@ func TestIsApproved(t *testing.T) {
 		prctx := basePullContext()
 
 		r := &Rule{
+			Options: Options{
+				IgnoreCommitsBy: &common.Actors{
+					Users: []string{"contributor-author"},
+				},
+				Defaults: &defaultOptions,
+			},
 			Requires: Requires{
 				Count: 1,
 				Actors: common.Actors{
-					Users: []string{"contributor-author"},
-				},
-			},
-			Options: Options{
-				IgnoreCommitsBy: &common.Actors{
 					Users: []string{"contributor-author"},
 				},
 			},
@@ -554,6 +601,9 @@ func TestIsApproved(t *testing.T) {
 		}
 
 		r := &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
 			Requires: Requires{
 				Count: 1,
 				Actors: common.Actors{
@@ -598,6 +648,9 @@ func TestIsApproved(t *testing.T) {
 		}
 
 		r := &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
 			Requires: Requires{
 				Count: 1,
 				Actors: common.Actors{
@@ -620,6 +673,9 @@ func TestIsApproved(t *testing.T) {
 		prctx := basePullContext()
 
 		r := &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
 			Requires: Requires{
 				Count: 1,
 				Actors: common.Actors{
@@ -639,6 +695,9 @@ func TestIsApproved(t *testing.T) {
 		prctx := basePullContext()
 
 		r := &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
 			Requires: Requires{
 				Count: 1,
 				Actors: common.Actors{
@@ -658,12 +717,6 @@ func TestIsApproved(t *testing.T) {
 		prctx := basePullContext()
 
 		r := &Rule{
-			Requires: Requires{
-				Count: 1,
-				Actors: common.Actors{
-					Users: []string{"body-editor"},
-				},
-			},
 			Options: Options{
 				Methods: &common.Methods{
 					BodyPatterns: []common.Regexp{
@@ -671,6 +724,13 @@ func TestIsApproved(t *testing.T) {
 					},
 				},
 				IgnoreEditedComments: ptr(false),
+				Defaults:             &defaultOptions,
+			},
+			Requires: Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Users: []string{"body-editor"},
+				},
 			},
 		}
 
@@ -684,6 +744,9 @@ func TestIsApproved(t *testing.T) {
 	t.Run("conditionsRequiredStatusPending", func(t *testing.T) {
 		prctx := basePullContext()
 		r := &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
 			Requires: Requires{
 				Conditions: predicate.Predicates{
 					HasStatus: &predicate.HasStatus{Statuses: []string{"deploy"}},
@@ -696,6 +759,9 @@ func TestIsApproved(t *testing.T) {
 	t.Run("conditionsRequiredStatusSuccess", func(t *testing.T) {
 		prctx := basePullContext()
 		r := &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
 			Requires: Requires{
 				Conditions: predicate.Predicates{
 					HasStatus: &predicate.HasStatus{Statuses: []string{"build"}},
@@ -708,6 +774,9 @@ func TestIsApproved(t *testing.T) {
 	t.Run("conditionsRequiredStatusAndMissingApproval", func(t *testing.T) {
 		prctx := basePullContext()
 		r := &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
 			Requires: Requires{
 				Count: 1,
 				Conditions: predicate.Predicates{
@@ -721,6 +790,9 @@ func TestIsApproved(t *testing.T) {
 	t.Run("conditionsRequiredStatusAndOrgApproval", func(t *testing.T) {
 		prctx := basePullContext()
 		r := &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
 			Requires: Requires{
 				Count: 1,
 				Actors: common.Actors{
@@ -737,7 +809,11 @@ func TestIsApproved(t *testing.T) {
 
 func TestTrigger(t *testing.T) {
 	t.Run("triggerCommitOnRules", func(t *testing.T) {
-		r := &Rule{}
+		r := &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
+		}
 
 		assert.True(t, r.Trigger().Matches(common.TriggerCommit), "expected %s to match %", r.Trigger(), common.TriggerCommit)
 	})
@@ -750,6 +826,7 @@ func TestTrigger(t *testing.T) {
 						"lgtm",
 					},
 				},
+				Defaults: &defaultOptions,
 			},
 			Requires: Requires{
 				Count: 1,
@@ -768,6 +845,7 @@ func TestTrigger(t *testing.T) {
 						common.NewCompiledRegexp(regexp.MustCompile("(?i)nice")),
 					},
 				},
+				Defaults: &defaultOptions,
 			},
 			Requires: Requires{
 				Count: 1,
@@ -785,6 +863,7 @@ func TestTrigger(t *testing.T) {
 				Methods: &common.Methods{
 					GithubReview: &defaultGithubReview,
 				},
+				Defaults: &defaultOptions,
 			},
 			Requires: Requires{
 				Count: 1,
@@ -803,6 +882,7 @@ func TestTrigger(t *testing.T) {
 						common.NewCompiledRegexp(regexp.MustCompile("(?i)nice")),
 					},
 				},
+				Defaults: &defaultOptions,
 			},
 			Requires: Requires{
 				Count: 1,
@@ -822,6 +902,7 @@ func TestTrigger(t *testing.T) {
 					},
 				},
 				IgnoreEditedComments: ptr(false),
+				Defaults:             &defaultOptions,
 			},
 			Requires: Requires{
 				Count: 1,
@@ -833,6 +914,9 @@ func TestTrigger(t *testing.T) {
 
 	t.Run("triggerStatusesForStatuses", func(t *testing.T) {
 		r := &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
 			Requires: Requires{
 				Conditions: predicate.Predicates{
 					HasStatus: predicate.NewHasStatus([]string{"status1"}, []string{"skipped", "success"}),
