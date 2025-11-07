@@ -92,12 +92,18 @@ func (p *Policy) Trigger() common.Trigger {
 
 	if !p.Requires.IsZero() {
 		dm := p.Options.GetDisapproveMethods()
-		rm := p.Options.GetRevokeMethods()
-
-		if len(dm.Comments) > 0 || len(rm.Comments) > 0 {
+		if len(dm.GetComments()) > 0 || len(dm.GetCommentPatterns()) > 0 {
 			t |= common.TriggerComment
 		}
-		if dm.GithubReview != nil && *dm.GithubReview || rm.GithubReview != nil && *rm.GithubReview {
+		if dm.IsGithubReview() || len(dm.GetGithubReviewCommentPatterns()) > 0 {
+			t |= common.TriggerReview
+		}
+
+		rm := p.Options.GetRevokeMethods()
+		if len(rm.GetComments()) > 0 || len(rm.GetCommentPatterns()) > 0 {
+			t |= common.TriggerComment
+		}
+		if rm.IsGithubReview() || len(rm.GetGithubReviewCommentPatterns()) > 0 {
 			t |= common.TriggerReview
 		}
 	}

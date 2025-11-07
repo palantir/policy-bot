@@ -47,13 +47,13 @@ func (r *Rule) Trigger() common.Trigger {
 
 	if r.Requires.Count > 0 {
 		m := r.Options.GetMethods()
-		if len(m.Comments) > 0 || len(m.CommentPatterns) > 0 {
+		if len(m.GetComments()) > 0 || len(m.GetCommentPatterns()) > 0 {
 			t |= common.TriggerComment
 		}
-		if len(m.BodyPatterns) > 0 {
+		if len(m.GetBodyPatterns()) > 0 {
 			t |= common.TriggerPullRequest
 		}
-		if m.GithubReview != nil && *m.GithubReview || len(m.GithubReviewCommentPatterns) > 0 {
+		if m.IsGithubReview() || len(m.GetGithubReviewCommentPatterns()) > 0 {
 			t |= common.TriggerReview
 		}
 	}

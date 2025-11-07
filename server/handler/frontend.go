@@ -173,19 +173,19 @@ func getMethods(result *common.Result) map[string][]string {
 	)
 
 	patternInfo := make(map[string][]string)
-	for _, comment := range result.Methods.Comments {
+	for _, comment := range result.Methods.GetComments() {
 		patternInfo[commentKey] = append(patternInfo[commentKey], comment)
 	}
-	for _, commentPattern := range result.Methods.CommentPatterns {
+	for _, commentPattern := range result.Methods.GetCommentPatterns() {
 		patternInfo[commentPatternKey] = append(patternInfo[commentPatternKey], commentPattern.String())
 	}
-	for _, bodyPattern := range result.Methods.BodyPatterns {
+	for _, bodyPattern := range result.Methods.GetBodyPatterns() {
 		patternInfo[bodyPatternKey] = append(patternInfo[bodyPatternKey], bodyPattern.String())
 	}
-	if result.Methods.GithubReview != nil && *result.Methods.GithubReview {
+	if result.Methods.IsGithubReview() || len(result.Methods.GetGithubReviewCommentPatterns()) > 0 {
 		reviewPatternKey := reviewKey + fmt.Sprintf(" %s matching patterns", result.Methods.GithubReviewState)
-		if len(result.Methods.GithubReviewCommentPatterns) > 0 {
-			for _, githubReviewCommentPattern := range result.Methods.GithubReviewCommentPatterns {
+		if len(result.Methods.GetGithubReviewCommentPatterns()) > 0 {
+			for _, githubReviewCommentPattern := range result.Methods.GetGithubReviewCommentPatterns() {
 				patternInfo[reviewPatternKey] = append(patternInfo[reviewPatternKey], githubReviewCommentPattern.String())
 			}
 		} else {
