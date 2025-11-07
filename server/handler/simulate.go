@@ -126,6 +126,7 @@ func (h *Simulate) getSimulatedResult(ctx context.Context, installation githubap
 
 	opts := &policy.GlobalOptions{
 		IgnoreEditedComments: h.PullOpts.IgnoreEditedComments,
+		ApprovalDefaults:     h.PullOpts.ApprovalDefaults,
 	}
 
 	evaluator, err := policy.ParsePolicy(config.Config, opts)

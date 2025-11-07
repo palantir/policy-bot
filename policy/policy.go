@@ -35,8 +35,9 @@ type RemoteConfig struct {
 }
 
 type Config struct {
-	Policy        Policy           `yaml:"policy,omitempty"`
-	ApprovalRules []*approval.Rule `yaml:"approval_rules,omitempty"`
+	Policy           Policy             `yaml:"policy,omitempty"`
+	ApprovalDefaults *approval.Defaults `yaml:"approval_defaults,omitempty"`
+	ApprovalRules    []*approval.Rule   `yaml:"approval_rules,omitempty"`
 }
 
 type Policy struct {
@@ -44,19 +45,41 @@ type Policy struct {
 	Disapproval *disapproval.Policy `yaml:"disapproval,omitempty"`
 }
 
+// GlobalOptions defines server-level properties that affect policy parsing, like default or override values.
 type GlobalOptions struct {
-	IgnoreEditedComments *bool `yaml:"ignore_edited_comments,omitempty"` // If true, edited comments will not trigger the policy evaluation.
+	// IgnoreEditedComments, if non-nil, overrides the value of this option in
+	// all rules. If true, editing a comment will invalidate the comment for
+	// approval in all policies.
+	IgnoreEditedComments *bool
+
+	// ApprovalDefaults defines server-level default values for policies. For
+	// instance, this can change the default approval strings for all policies.
+	ApprovalDefaults *approval.Defaults
 }
 
 func ParsePolicy(c *Config, opts *GlobalOptions) (common.Evaluator, error) {
-	defaultApprovalOptions := approval.Options{
+	// Build the options hierarchy in reverse order. When reading an option,
+	// values are tried in the following order:
+	//
+	// 1. Rule
+	// 2. Policy default
+	// 3. Configurable server default
+	// 4. Hardcoded server default
+	//
+	defaultApprovalOptions := &approval.Options{
 		Methods: approval.DefaultMethods(),
+	}
+	if opts != nil && opts.ApprovalDefaults != nil {
+		defaultApprovalOptions = setDefaultOptions(defaultApprovalOptions, opts.ApprovalDefaults.Options)
+	}
+	if c.ApprovalDefaults != nil {
+		defaultApprovalOptions = setDefaultOptions(defaultApprovalOptions, c.ApprovalDefaults.Options)
 	}
 
 	rulesByName := make(map[string]*approval.Rule)
 	for _, r := range c.ApprovalRules {
-		// Set server-level rule defaults
-		r.Options.Defaults = &defaultApprovalOptions
+		// Set policy and server rule defaults
+		r.Options.Defaults = defaultApprovalOptions
 
 		// Override rule options controlled by the server
 		if opts != nil {
@@ -82,6 +105,14 @@ func ParsePolicy(c *Config, opts *GlobalOptions) (common.Evaluator, error) {
 		approval:    evalApproval,
 		disapproval: evalDisapproval,
 	}, nil
+}
+
+func setDefaultOptions(existing *approval.Options, next *approval.Options) *approval.Options {
+	if next != nil {
+		next.Defaults = existing
+		return next
+	}
+	return existing
 }
 
 type evaluator struct {

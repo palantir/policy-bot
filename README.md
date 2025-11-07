@@ -141,6 +141,10 @@ instance of the server.
   This means it is safe to enable `policy-bot` on all repositories in an
   organization.
 
+Server administrators can also set the `force_shared_policy` option to disable
+loading policies from local repositories, requiring that all repositories use a
+policy supplied in a shared organization repository.
+
 ### policy.yml Specification
 
 The overall policy is expressed by:
@@ -611,6 +615,81 @@ requires:
       statuses:
         - "build"
         - "vulnerability scan"
+```
+
+#### Default Options
+
+Policies and server administrators can define new default values for approval
+rule options. This makes it easier to set common options accross all rules.
+Policy Bot tries values in the following order until it finds a set value:
+
+1. Explicit rule options
+2. Policy-level default options
+3. Configurable server-level default options
+4. Hardcoded server-level default options
+
+To define policy-level defaults, add the `approval_defaults` section at the top
+level of the policy file:
+
+```yaml
+approval_defaults:
+  # "options" can contain any property available as a rule-level option
+  options:
+    invalidate_on_push: true
+    methods:
+      comments: []
+      comment_patterns: ["^LGTM$"]
+
+approval_rules:
+  # This rule is invalided by new commits and uses the "LGTM" comment to
+  # indicate approval
+  - name: devtools approval
+    requires:
+      count: 1
+      teams: ["palantir/devtools"]
+
+  # This rule is also invalided by new commits, but uses the ":+1:" comment to
+  # indicate approval
+  - name: special approval comments
+    options:
+      methods:
+        comment_patterns: ["^:+1:$"]
+    requires:
+      count: 1
+      teams: ["palantir/plus-oners"]
+```
+
+Option values are not merged. For example, defining the `ignore_commits_by` or
+`methods.comment_patterns` options in a rule completely replaces any default
+values for these options.
+
+The only exception to this is the `methods` property, which supports limited
+merging. This matches the legacy behavior for how rule values combined with the
+hardcoded server defaults. For example:
+
+```yaml
+# server defaults
+options:
+  methods:
+    comments: ["==APPROVED=="]
+
+# policy defaults
+options:
+  methods:
+    comment_patterns: ["^LGTM$"]
+    github_review: false
+
+# rule overrides
+options:
+  methods:
+    comment_patterns: ["^:+1:$"]
+
+# combined value used during evaluation
+options:
+  methods:
+    comments: ["==APPROVED=="]
+    comment_patterns: ["^:+1:$"]
+    github_review: false
 ```
 
 ### Approval Policies

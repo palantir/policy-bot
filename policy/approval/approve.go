@@ -42,6 +42,10 @@ type Requires struct {
 	Conditions predicate.Predicates `yaml:"conditions,omitempty"`
 }
 
+type Defaults struct {
+	Options *Options `yaml:"options,omitempty"`
+}
+
 func (r *Rule) Trigger() common.Trigger {
 	t := common.TriggerCommit
 

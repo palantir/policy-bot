@@ -17,6 +17,8 @@ package handler
 import (
 	"os"
 	"strconv"
+
+	"github.com/palantir/policy-bot/policy/approval"
 )
 
 const (
@@ -58,6 +60,12 @@ type PullEvaluationOptions struct {
 	// IgnoreEditedComments enables ignoring comments that have been edited when evaluating approval rules.
 	// This provides a server-side option to ignore edited comments across all rules.
 	IgnoreEditedComments *bool `yaml:"ignore_edited_comments"`
+
+	// ApprovalDefaults defines default values for all approval rules evaluated
+	// by the server. Use this to change things like the default approval
+	// comments or `invalidate_on_push` behavior globally. Policies may
+	// override these default by providing their own values.
+	ApprovalDefaults *approval.Defaults `yaml:"approval_defaults"`
 
 	// This field is unused but is left to avoid breaking configuration files.
 	// This value is now loaded from the GitHub API.

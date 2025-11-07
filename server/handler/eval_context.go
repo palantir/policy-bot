@@ -97,6 +97,7 @@ func (ec *EvalContext) ParseConfig(ctx context.Context, trigger common.Trigger) 
 
 	opts := &policy.GlobalOptions{
 		IgnoreEditedComments: ec.Options.IgnoreEditedComments,
+		ApprovalDefaults:     ec.Options.ApprovalDefaults,
 	}
 
 	evaluator, err := policy.ParsePolicy(fc.Config, opts)
