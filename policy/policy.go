@@ -52,7 +52,7 @@ func ParsePolicy(c *Config, opts *GlobalOptions) (common.Evaluator, error) {
 	rulesByName := make(map[string]*approval.Rule)
 	for _, r := range c.ApprovalRules {
 		if opts != nil && opts.IgnoreEditedComments != nil {
-			r.Options.IgnoreEditedComments = *opts.IgnoreEditedComments
+			r.Options.IgnoreEditedComments = opts.IgnoreEditedComments
 		}
 
 		rulesByName[r.Name] = r

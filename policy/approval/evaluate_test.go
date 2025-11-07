@@ -106,8 +106,8 @@ func TestRules(t *testing.T) {
 				},
 			},
 			Options: Options{
-				AllowAuthor:      true,
-				AllowContributor: true,
+				AllowAuthor:      ptr(true),
+				AllowContributor: ptr(true),
 				// InvalidateOnPush: true,
 				Methods: &common.Methods{
 					Comments:     comments,

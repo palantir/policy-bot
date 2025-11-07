@@ -62,7 +62,7 @@ func TestParsePolicy(t *testing.T) {
 		}
 
 		_, err := ParsePolicy(c, &GlobalOptions{
-			IgnoreEditedComments: boolPtr(true),
+			IgnoreEditedComments: ptr(true),
 		})
 		assert.NoError(t, err)
 	})
@@ -136,7 +136,7 @@ func TestParsePolicy(t *testing.T) {
 		rule := &approval.Rule{
 			Name: "test-rule",
 			Options: approval.Options{
-				IgnoreEditedComments: false,
+				IgnoreEditedComments: ptr(false),
 			},
 		}
 
@@ -150,10 +150,10 @@ func TestParsePolicy(t *testing.T) {
 		}
 
 		_, err := ParsePolicy(c, &GlobalOptions{
-			IgnoreEditedComments: boolPtr(true),
+			IgnoreEditedComments: ptr(true),
 		})
 		assert.NoError(t, err)
-		assert.True(t, rule.Options.IgnoreEditedComments)
+		assert.True(t, rule.Options.IsIgnoreEditedComments())
 	})
 
 	t.Run("errorWhenRuleNotFound", func(t *testing.T) {
@@ -447,6 +447,6 @@ func castToResult(e common.Evaluator) *common.Result {
 	return (*common.Result)(e.(*StaticEvaluator))
 }
 
-func boolPtr(b bool) *bool {
-	return &b
+func ptr[T any](val T) *T {
+	return &val
 }

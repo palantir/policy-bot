@@ -36,47 +36,6 @@ type Rule struct {
 	Requires    Requires             `yaml:"requires,omitempty"`
 }
 
-type Options struct {
-	AllowAuthor               bool `yaml:"allow_author,omitempty"`
-	AllowContributor          bool `yaml:"allow_contributor,omitempty"`
-	AllowNonAuthorContributor bool `yaml:"allow_non_author_contributor,omitempty"`
-	InvalidateOnPush          bool `yaml:"invalidate_on_push,omitempty"`
-
-	IgnoreEditedComments bool          `yaml:"ignore_edited_comments,omitempty"`
-	IgnoreUpdateMerges   bool          `yaml:"ignore_update_merges,omitempty"`
-	IgnoreCommitsBy      common.Actors `yaml:"ignore_commits_by,omitempty"`
-
-	RequestReview RequestReview `yaml:"request_review,omitempty"`
-
-	Methods *common.Methods `yaml:"methods,omitempty"`
-}
-
-type RequestReview struct {
-	Enabled bool               `yaml:"enabled,omitempty"`
-	Mode    common.RequestMode `yaml:"mode,omitempty"`
-	Count   int                `yaml:"count,omitempty"`
-}
-
-func (opts *Options) GetMethods() *common.Methods {
-	methods := opts.Methods
-	if methods == nil {
-		methods = &common.Methods{}
-	}
-	if methods.Comments == nil {
-		methods.Comments = []string{
-			":+1:",
-			"👍",
-		}
-	}
-	if methods.GithubReview == nil {
-		defaultGithubReview := true
-		methods.GithubReview = &defaultGithubReview
-	}
-
-	methods.GithubReviewState = pull.ReviewApproved
-	return methods
-}
-
 type Requires struct {
 	Count      int                  `yaml:"count,omitempty"`
 	Actors     common.Actors        `yaml:",inline"`
@@ -168,16 +127,17 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 }
 
 func (r *Rule) getReviewRequestRule() *common.ReviewRequestRule {
-	if !r.Options.RequestReview.Enabled {
+	rr := r.Options.GetRequestReview()
+	if !rr.Enabled {
 		return nil
 	}
 
-	mode := r.Options.RequestReview.Mode
+	mode := rr.Mode
 	if mode == "" {
 		mode = common.RequestModeRandomUsers
 	}
 
-	requestedCount := r.Options.RequestReview.Count
+	requestedCount := rr.Count
 	if requestedCount == 0 {
 		requestedCount = r.Requires.Count
 	}
@@ -230,12 +190,12 @@ func (r *Rule) isApprovedByActors(ctx context.Context, prctx pull.Context, candi
 	// if contributors are allowed, the author counts as a contributor
 	author := prctx.Author()
 
-	if !r.Options.AllowAuthor && !r.Options.AllowContributor {
+	if !r.Options.IsAllowAuthor() && !r.Options.IsAllowContributor() {
 		banned[author] = true
 	}
 
 	// "contributor" is any user who added a commit to the PR
-	if !r.Options.AllowContributor && !r.Options.AllowNonAuthorContributor {
+	if !r.Options.IsAllowContributor() && !r.Options.IsAllowNonAuthorContributor() {
 		commits, err := r.filteredCommits(ctx, prctx)
 		if err != nil {
 			return false, nil, err
@@ -316,7 +276,7 @@ func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*c
 	sort.Stable(common.CandidatesByCreationTime(candidates))
 
 	var editDismissals []*common.Dismissal
-	if r.Options.IgnoreEditedComments {
+	if r.Options.IsIgnoreEditedComments() {
 		candidates, editDismissals, err = r.filterEditedCandidates(ctx, prctx, candidates)
 		if err != nil {
 			return nil, nil, err
@@ -324,7 +284,7 @@ func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*c
 	}
 
 	var pushDismissals []*common.Dismissal
-	if r.Options.InvalidateOnPush {
+	if r.Options.IsInvalidateOnPush() {
 		candidates, pushDismissals, err = r.filterInvalidCandidates(ctx, prctx, candidates)
 		if err != nil {
 			return nil, nil, err
@@ -341,7 +301,7 @@ func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*c
 func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, []*common.Dismissal, error) {
 	log := zerolog.Ctx(ctx)
 
-	if !r.Options.IgnoreEditedComments {
+	if !r.Options.IsIgnoreEditedComments() {
 		return candidates, nil, nil
 	}
 
@@ -410,8 +370,9 @@ func (r *Rule) filteredCommits(ctx context.Context, prctx pull.Context) ([]*pull
 	}
 	commits = sortCommits(commits, prctx.HeadSHA())
 
-	ignoreUpdates := r.Options.IgnoreUpdateMerges
-	ignoreCommits := !r.Options.IgnoreCommitsBy.IsZero()
+	ignoreUpdates := r.Options.IsIgnoreUpdateMerges()
+	ignoreCommitsBy := r.Options.GetIgnoreCommitsBy()
+	ignoreCommits := !ignoreCommitsBy.IsZero()
 
 	if !ignoreUpdates && !ignoreCommits {
 		return commits, nil
@@ -426,7 +387,7 @@ func (r *Rule) filteredCommits(ctx context.Context, prctx pull.Context) ([]*pull
 		}
 
 		if ignoreCommits {
-			ignore, err := isIgnoredCommit(ctx, prctx, &r.Options.IgnoreCommitsBy, c)
+			ignore, err := isIgnoredCommit(ctx, prctx, &ignoreCommitsBy, c)
 			if err != nil {
 				return nil, err
 			}
