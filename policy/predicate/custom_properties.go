@@ -60,9 +60,9 @@ func (pred CustomPropertyIsNotNull) Evaluate(ctx context.Context, prctx pull.Con
 	}
 
 	predicateResult := common.PredicateResult{
-		ValuePhrase:     "specified custom properties",
+		ValuePhrase:     "custom properties",
 		Values:          formatCustomProperties(customProperties),
-		ConditionPhrase: "have a non-null value",
+		ConditionPhrase: "contain",
 		ConditionValues: pred,
 		Satisfied:       true,
 	}
@@ -84,10 +84,10 @@ func (pred CustomPropertyIsNull) Evaluate(ctx context.Context, prctx pull.Contex
 	}
 
 	predicateResult := common.PredicateResult{
-		ValuePhrase:       "specified custom properties",
+		ValuePhrase:       "custom properties",
 		Values:            formatCustomProperties(customProperties),
 		ReverseSkipPhrase: true,
-		ConditionPhrase:   "have a non-null value",
+		ConditionPhrase:   "contain",
 		ConditionValues:   pred,
 		Satisfied:         true,
 	}
