@@ -17,6 +17,7 @@ package predicate
 import (
 	"context"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -37,11 +38,7 @@ var _ Predicate = (CustomPropertyMatchesNoneOf)(nil)
 
 func formatCustomProperties(customProperties map[string]pull.CustomProperty) []string {
 	result := []string{}
-	keys := make([]string, 0, len(customProperties))
-	for k := range customProperties {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
+	keys := slices.Sorted(maps.Keys(customProperties))
 	for _, k := range keys {
 		v := customProperties[k]
 		formatted := "(null)"
@@ -121,9 +118,9 @@ func (pred CustomPropertyMatchesAnyOf) Evaluate(ctx context.Context, prctx pull.
 	}
 
 	predicateResult := common.PredicateResult{
-		ValuePhrase:     "specified custom properties",
+		ValuePhrase:     "custom properties",
 		Values:          formatCustomProperties(customProperties),
-		ConditionPhrase: "match one or more of the specified values",
+		ConditionPhrase: "match one or more of the patterns",
 		ConditionsMap:   conditionsMap,
 		Satisfied:       true,
 	}
@@ -160,10 +157,10 @@ func (pred CustomPropertyMatchesNoneOf) Evaluate(ctx context.Context, prctx pull
 	}
 
 	predicateResult := common.PredicateResult{
-		ValuePhrase:       "specified custom properties",
+		ValuePhrase:       "custom properties",
 		Values:            formatCustomProperties(customProperties),
 		ReverseSkipPhrase: true,
-		ConditionPhrase:   "match one or more of the specified values",
+		ConditionPhrase:   "match one or more of the patterns",
 		ConditionsMap:     conditionsMap,
 		Satisfied:         true,
 	}
