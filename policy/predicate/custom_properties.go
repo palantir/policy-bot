@@ -68,6 +68,7 @@ func (pred CustomPropertyIsNotNull) Evaluate(ctx context.Context, prctx pull.Con
 	}
 
 	for _, property := range pred {
+		// For custom properties, empty strings and empty arrays are considered unset, and are not returned from the API.
 		if _, ok := customProperties[property]; !ok {
 			predicateResult.Satisfied = false
 			return &predicateResult, nil
@@ -93,6 +94,7 @@ func (pred CustomPropertyIsNull) Evaluate(ctx context.Context, prctx pull.Contex
 	}
 
 	for _, property := range pred {
+		// For custom properties, empty strings and empty arrays are considered unset, and are not returned from the API.
 		if _, ok := customProperties[property]; ok {
 			predicateResult.Satisfied = false
 			return &predicateResult, nil
