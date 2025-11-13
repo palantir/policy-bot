@@ -33,6 +33,10 @@ type Predicates struct {
 
 	ModifiedLines *ModifiedLines `yaml:"modified_lines,omitempty"`
 
+	ChangedFilesCount *ChangedFilesCount `yaml:"changed_files_count,omitempty"`
+	CommitCount       *CommitCount       `yaml:"commit_count,omitempty"`
+	CommitMessages    *CommitMessages    `yaml:"commit_messages,omitempty"`
+
 	HasStatus *HasStatus `yaml:"has_status,omitempty"`
 	// `has_successful_status` is a deprecated field that is kept for backwards
 	// compatibility.  `has_status` replaces it, and can accept any conclusion
@@ -102,6 +106,18 @@ func (p *Predicates) Predicates() []Predicate {
 
 	if p.ModifiedLines != nil {
 		ps = append(ps, Predicate(p.ModifiedLines))
+	}
+
+	if p.ChangedFilesCount != nil {
+		ps = append(ps, Predicate(p.ChangedFilesCount))
+	}
+
+	if p.CommitCount != nil {
+		ps = append(ps, Predicate(p.CommitCount))
+	}
+
+	if p.CommitMessages != nil {
+		ps = append(ps, Predicate(p.CommitMessages))
 	}
 
 	if p.HasStatus != nil {
