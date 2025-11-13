@@ -200,3 +200,67 @@ func TestCandidatesByCreationTime(t *testing.T) {
 		assert.Equalf(t, u, cs[i].User, "candidate at position %d is incorrect", i)
 	}
 }
+
+func TestMethodsFields(t *testing.T) {
+	pattern := NewCompiledRegexp(regexp.MustCompile("^(?i:LGTM)$"))
+
+	fields := map[string]struct {
+		Seed         Methods
+		Get          func(Methods) any
+		UnsetValue   any
+		SetValue     any
+		DefaultValue any // use SetValue if nil
+	}{
+		"Comments": {
+			Seed:       Methods{Comments: []string{"+1"}},
+			Get:        func(m Methods) any { return m.GetComments() },
+			UnsetValue: []string(nil),
+			SetValue:   []string{"+1"},
+		},
+		"CommentPatterns": {
+			Seed:       Methods{CommentPatterns: []Regexp{pattern}},
+			Get:        func(m Methods) any { return m.GetCommentPatterns() },
+			UnsetValue: []Regexp(nil),
+			SetValue:   []Regexp{pattern},
+		},
+		"GithubReview": {
+			Seed:       Methods{GithubReview: ptr(true)},
+			Get:        func(m Methods) any { return m.IsGithubReview() },
+			UnsetValue: false,
+			SetValue:   true,
+		},
+		"GithubReviewCommentPatterns": {
+			Seed:       Methods{GithubReviewCommentPatterns: []Regexp{pattern}},
+			Get:        func(m Methods) any { return m.GetGithubReviewCommentPatterns() },
+			UnsetValue: []Regexp(nil),
+			SetValue:   []Regexp{pattern},
+		},
+		"BodyPatterns": {
+			Seed:       Methods{BodyPatterns: []Regexp{pattern}},
+			Get:        func(m Methods) any { return m.GetBodyPatterns() },
+			UnsetValue: []Regexp(nil),
+			SetValue:   []Regexp{pattern},
+		},
+	}
+
+	for field, spec := range fields {
+		t.Run(field, func(t *testing.T) {
+			v := spec.Get(Methods{})
+			assert.Equal(t, spec.UnsetValue, v, "incorrect unset value")
+
+			v = spec.Get(spec.Seed)
+			assert.Equal(t, spec.SetValue, v, "incorrect set value")
+
+			v = spec.Get(Methods{Defaults: &spec.Seed})
+			if spec.DefaultValue != nil {
+				assert.Equal(t, spec.DefaultValue, v, "incorrect default value")
+			} else {
+				assert.Equal(t, spec.SetValue, v, "incorrect default value")
+			}
+		})
+	}
+}
+
+func ptr[T any](v T) *T {
+	return &v
+}
