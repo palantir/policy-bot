@@ -620,7 +620,7 @@ requires:
 #### Default Options
 
 Policies and server administrators can define new default values for approval
-rule options. This makes it easier to set common options accross all rules.
+rule options. This makes it easier to set common options across all rules.
 Policy Bot tries values in the following order until it finds a set value:
 
 1. Explicit rule options
@@ -641,15 +641,15 @@ approval_defaults:
       comment_patterns: ["^LGTM$"]
 
 approval_rules:
-  # This rule is invalided by new commits and uses the "LGTM" comment to
-  # indicate approval
+  # Existing approvals for this rule are invalided by new commits and it uses
+  # the "LGTM" comment to indicate approval
   - name: devtools approval
     requires:
       count: 1
       teams: ["palantir/devtools"]
 
-  # This rule is also invalided by new commits, but uses the ":+1:" comment to
-  # indicate approval
+  # Existing approvals for this rule are also invalided by new commits, but it
+  # uses the ":+1:" comment to indicate approval
   - name: special approval comments
     options:
       methods:
