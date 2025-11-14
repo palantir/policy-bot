@@ -76,3 +76,8 @@ func (r *Regexp) UnmarshalJSON(data []byte) (err error) {
 	*r, err = NewRegexp(pattern)
 	return err
 }
+
+func (r *Regexp) UnmarshalText(text []byte) (err error) {
+	*r, err = NewRegexp(string(text))
+	return err
+}

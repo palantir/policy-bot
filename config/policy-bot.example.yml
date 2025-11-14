@@ -133,6 +133,23 @@ sessions:
 #   # Can also be set by the POLICYBOT_OPTIONS_FORCE_SHARED_POLICY
 #   # environment variable.
 #   force_shared_policy: false
+#
+#   # Default options to use for all appoval rules processed by the server.
+#   # Policies can override these values with their own defaults or in individual
+#   # rules. This is equivalent to the "approval_defaults" option in a policy and
+#   # accepts all of the same values.
+#   #
+#   # Options can be set by environment variables by coverting the path to the
+#   # YAML key to uppercase and replacing dots with underscores. For example,
+#   # to set the 'invalidate_on_push' option, set the
+#   # POLICYBOT_OPTIONS_APPROVAL_DEFAULTS_OPTIONS_INVALIDATE_ON_PUSH variable.
+#   #
+#   # To set list values, set the environment variable to a comma-separated
+#   # list of elements. List elements that contain commas are not supported in
+#   # environment variables; use the YAML configuration in this case.
+#   approval_defaults:
+#     options:
+#       invalidate_on_push: true
 
 # Options for locating the frontend files. By default, the server uses appropriate
 # paths for the binary distribution and Docker container. For local development,
