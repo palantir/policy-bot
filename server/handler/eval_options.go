@@ -120,7 +120,7 @@ func (p *PullEvaluationOptions) SetValuesFromEnv(prefix string) {
 	setBoolFromEnv("POST_INSECURE_STATUS_CHECKS", prefix, &p.PostInsecureStatusChecks)
 	setBoolPtrFromEnv("IGNORE_EDITED_COMMENTS", prefix, &p.IgnoreEditedComments)
 
-	p.setApprovalDefaultsFromEnv(prefix + "_APPROVAL_DEFAULTS")
+	p.setApprovalDefaultsFromEnv(prefix + "APPROVAL_DEFAULTS_")
 
 	p.fillDefaults()
 }
