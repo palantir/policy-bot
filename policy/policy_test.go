@@ -156,6 +156,134 @@ func TestParsePolicy(t *testing.T) {
 		assert.True(t, rule.Options.IsIgnoreEditedComments())
 	})
 
+	t.Run("withPolicyApprovalDefaults", func(t *testing.T) {
+		rule1 := &approval.Rule{
+			Name: "rule1",
+			Options: approval.Options{
+				AllowAuthor: ptr(true),
+			},
+		}
+		rule2 := &approval.Rule{
+			Name: "rule2",
+			Options: approval.Options{
+				InvalidateOnPush: ptr(false),
+			},
+		}
+
+		c := &Config{
+			Policy: Policy{
+				Approval: approval.Policy{
+					"rule1", "rule2",
+				},
+			},
+			ApprovalRules: []*approval.Rule{rule1, rule2},
+			ApprovalDefaults: &approval.Defaults{
+				Options: &approval.Options{
+					InvalidateOnPush:     ptr(true),
+					IgnoreEditedComments: ptr(true),
+				},
+			},
+		}
+
+		_, err := ParsePolicy(c, nil)
+		assert.NoError(t, err)
+
+		assert.True(t, rule1.Options.IsAllowAuthor())
+		assert.True(t, rule1.Options.IsInvalidateOnPush())
+		assert.True(t, rule1.Options.IsIgnoreEditedComments())
+
+		assert.False(t, rule2.Options.IsInvalidateOnPush())
+		assert.True(t, rule2.Options.IsIgnoreEditedComments())
+	})
+
+	t.Run("withServerApprovalDefaults", func(t *testing.T) {
+		rule1 := &approval.Rule{
+			Name: "rule1",
+			Options: approval.Options{
+				AllowAuthor: ptr(true),
+			},
+		}
+		rule2 := &approval.Rule{
+			Name: "rule2",
+			Options: approval.Options{
+				InvalidateOnPush: ptr(false),
+			},
+		}
+
+		c := &Config{
+			Policy: Policy{
+				Approval: approval.Policy{
+					"rule1", "rule2",
+				},
+			},
+			ApprovalRules: []*approval.Rule{rule1, rule2},
+		}
+
+		_, err := ParsePolicy(c, &GlobalOptions{
+			ApprovalDefaults: &approval.Defaults{
+				Options: &approval.Options{
+					InvalidateOnPush:     ptr(true),
+					IgnoreEditedComments: ptr(true),
+				},
+			},
+		})
+		assert.NoError(t, err)
+
+		assert.True(t, rule1.Options.IsAllowAuthor())
+		assert.True(t, rule1.Options.IsInvalidateOnPush())
+		assert.True(t, rule1.Options.IsIgnoreEditedComments())
+
+		assert.False(t, rule2.Options.IsInvalidateOnPush())
+		assert.True(t, rule2.Options.IsIgnoreEditedComments())
+	})
+
+	t.Run("withServerAndPolicyApprovalDefaults", func(t *testing.T) {
+		rule1 := &approval.Rule{
+			Name: "rule1",
+			Options: approval.Options{
+				AllowAuthor: ptr(true),
+			},
+		}
+		rule2 := &approval.Rule{
+			Name: "rule2",
+			Options: approval.Options{
+				InvalidateOnPush: ptr(false),
+			},
+		}
+
+		c := &Config{
+			Policy: Policy{
+				Approval: approval.Policy{
+					"rule1", "rule2",
+				},
+			},
+			ApprovalRules: []*approval.Rule{rule1, rule2},
+			ApprovalDefaults: &approval.Defaults{
+				Options: &approval.Options{
+					Methods: &common.Methods{
+						Comments: []string{"ship it"},
+					},
+				},
+			},
+		}
+
+		_, err := ParsePolicy(c, &GlobalOptions{
+			ApprovalDefaults: &approval.Defaults{
+				Options: &approval.Options{
+					InvalidateOnPush: ptr(true),
+				},
+			},
+		})
+		assert.NoError(t, err)
+
+		assert.True(t, rule1.Options.IsAllowAuthor())
+		assert.True(t, rule1.Options.IsInvalidateOnPush())
+		assert.Equal(t, []string{"ship it"}, rule1.Options.GetMethods().GetComments())
+
+		assert.False(t, rule2.Options.IsInvalidateOnPush())
+		assert.Equal(t, []string{"ship it"}, rule2.Options.GetMethods().GetComments())
+	})
+
 	t.Run("errorWhenRuleNotFound", func(t *testing.T) {
 		c := &Config{
 			Policy: Policy{
