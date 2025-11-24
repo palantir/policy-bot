@@ -38,11 +38,11 @@ var PolicyBotValidationCmd = &cobra.Command{
 
 func readPolicyBotPolicy(cfgFile string) ([]byte, error) {
 	fi, err := os.Stat(cfgFile)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed fetching policy file: %s", cfgFile)
-	}
 	if os.IsNotExist(err) {
 		return nil, errors.Wrapf(err, "policy file does not exist: %s", cfgFile)
+	}
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed fetching policy file: %s", cfgFile)
 	}
 	if !fi.Mode().IsRegular() {
 		return nil, errors.New("policy file is not a regular file: " + cfgFile)
