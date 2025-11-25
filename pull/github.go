@@ -365,11 +365,10 @@ func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
 
 func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 	if ghc.commits == nil {
-		commits, err := ghc.loadCommits()
+		err := ghc.loadPagedData()
 		if err != nil {
 			return nil, err
 		}
-		ghc.commits = commits
 	}
 	if len(ghc.commits) >= MaxPullRequestCommits {
 		return nil, errors.Errorf("too many commits in pull request, maximum is %d", MaxPullRequestCommits)
@@ -985,18 +984,24 @@ func (ghc *GitHubContext) Labels() ([]string, error) {
 
 func (ghc *GitHubContext) loadPagedData() error {
 	// this is a minor optimization: make max(c,r) requests instead of c+r
+	// checked that the GraphQL query has cost 1: setting all page sizes to 100 will result in cost 2, which defeats the cost saving
 	var q struct {
 		Repository struct {
 			PullRequest struct {
+				Commits struct {
+					PageInfo v4PageInfo
+					Nodes    []*v4PullRequestCommit
+				} `graphql:"commits(first: 50, after: $commitCursor)"`
+
 				Comments struct {
 					PageInfo v4PageInfo
 					Nodes    []v4IssueComment
-				} `graphql:"comments(first: 100, after: $commentCursor)"`
+				} `graphql:"comments(first: 50, after: $commentCursor)"`
 
 				Reviews struct {
 					PageInfo v4PageInfo
 					Nodes    []v4PullRequestReview
-				} `graphql:"reviews(first: 100, after: $reviewCursor, states: [APPROVED, CHANGES_REQUESTED, COMMENTED])"`
+				} `graphql:"reviews(first: 50, after: $reviewCursor, states: [APPROVED, CHANGES_REQUESTED, COMMENTED])"`
 			} `graphql:"pullRequest(number: $number)"`
 		} `graphql:"repository(owner: $owner, name: $name)"`
 	}
@@ -1005,16 +1010,23 @@ func (ghc *GitHubContext) loadPagedData() error {
 		"name":   githubv4.String(ghc.repo),
 		"number": githubv4.Int(ghc.number),
 
+		"commitCursor":  (*githubv4.String)(nil),
 		"commentCursor": (*githubv4.String)(nil),
 		"reviewCursor":  (*githubv4.String)(nil),
 	}
 
+	rawCommits := []*v4PullRequestCommit{}
 	comments := []*Comment{}
 	reviews := []*Review{}
 	for {
 		complete := 0
 		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
 			return errors.Wrap(err, "failed to load pull request data")
+		}
+
+		rawCommits = append(rawCommits, q.Repository.PullRequest.Commits.Nodes...)
+		if !q.Repository.PullRequest.Commits.PageInfo.UpdateCursor(qvars, "commitCursor") {
+			complete++
 		}
 
 		for _, c := range q.Repository.PullRequest.Comments.Nodes {
@@ -1037,22 +1049,24 @@ func (ghc *GitHubContext) loadPagedData() error {
 			complete++
 		}
 
-		if complete == 2 {
+		if complete == 3 {
 			break
 		}
 	}
 
 	ghc.comments = comments
 	ghc.reviews = reviews
+
+	var err error
+	ghc.commits, err = ghc.processCommits(rawCommits)
+	if err != nil {
+		return errors.Wrap(err, "failed to process commits")
+	}
+
 	return nil
 }
 
-func (ghc *GitHubContext) loadCommits() ([]*Commit, error) {
-	rawCommits, err := ghc.loadRawCommits()
-	if err != nil {
-		return nil, err
-	}
-
+func (ghc *GitHubContext) processCommits(rawCommits []*v4PullRequestCommit) ([]*Commit, error) {
 	commits := make([]*Commit, 0, len(rawCommits))
 	foundHead := false
 
@@ -1069,37 +1083,6 @@ func (ghc *GitHubContext) loadCommits() ([]*Commit, error) {
 		return nil, errors.Errorf("head commit %.10s is missing, probably due to a force-push", ghc.pr.HeadRefOID)
 	}
 
-	return commits, nil
-}
-
-func (ghc *GitHubContext) loadRawCommits() ([]*v4PullRequestCommit, error) {
-	var q struct {
-		Repository struct {
-			PullRequest struct {
-				Commits struct {
-					PageInfo v4PageInfo
-					Nodes    []*v4PullRequestCommit
-				} `graphql:"commits(first: 100, after: $cursor)"`
-			} `graphql:"pullRequest(number: $number)"`
-		} `graphql:"repository(owner: $owner, name: $name)"`
-	}
-	qvars := map[string]interface{}{
-		"owner":  githubv4.String(ghc.owner),
-		"name":   githubv4.String(ghc.repo),
-		"number": githubv4.Int(ghc.number),
-		"cursor": (*githubv4.String)(nil),
-	}
-
-	commits := []*v4PullRequestCommit{}
-	for {
-		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
-			return nil, errors.Wrap(err, "failed to load commits")
-		}
-		commits = append(commits, q.Repository.PullRequest.Commits.Nodes...)
-		if !q.Repository.PullRequest.Commits.PageInfo.UpdateCursor(qvars, "cursor") {
-			break
-		}
-	}
 	return commits, nil
 }
 

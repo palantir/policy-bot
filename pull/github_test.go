@@ -119,7 +119,7 @@ func TestCommits(t *testing.T) {
 	rp := &ResponsePlayer{}
 	dataRule := rp.AddRule(
 		GraphQLNodePrefixMatcher("repository.pullRequest.commits"),
-		"testdata/responses/pull_commits.yml",
+		"testdata/responses/pull_reviews_comments.yml",
 	)
 
 	ctx := makeContext(t, rp, nil, nil)
@@ -205,7 +205,7 @@ func TestReviews(t *testing.T) {
 func TestNoReviews(t *testing.T) {
 	rp := &ResponsePlayer{}
 	dataRule := rp.AddRule(
-		GraphQLNodePrefixMatcher("repository.pullRequest.reviews"),
+		GraphQLNodePrefixMatcher("repository.pullRequest.commits"),
 		"testdata/responses/pull_no_reviews.yml",
 	)
 
@@ -560,7 +560,7 @@ func TestPushedAt(t *testing.T) {
 	rp := &ResponsePlayer{}
 	commitsRule := rp.AddRule(
 		GraphQLNodePrefixMatcher("repository.pullRequest.commits"),
-		"testdata/responses/pull_commits.yml",
+		"testdata/responses/pull_reviews_comments.yml",
 	)
 	statusRuleA6F := rp.AddRule(
 		ExactPathMatcher("/repos/testorg/testrepo/commits/a6f3f69b64eaafece5a0d854eb4af11c0d64394c/statuses"),
