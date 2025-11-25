@@ -991,12 +991,12 @@ func (ghc *GitHubContext) loadPagedData() error {
 				Commits struct {
 					PageInfo v4PageInfo
 					Nodes    []*v4PullRequestCommit
-				} `graphql:"commits(first: 50, after: $commitCursor)"`
+				} `graphql:"commits(first: 80, after: $commitCursor)"`
 
 				Comments struct {
 					PageInfo v4PageInfo
 					Nodes    []v4IssueComment
-				} `graphql:"comments(first: 50, after: $commentCursor)"`
+				} `graphql:"comments(first: 100, after: $commentCursor)"`
 
 				Reviews struct {
 					PageInfo v4PageInfo
@@ -1018,6 +1018,7 @@ func (ghc *GitHubContext) loadPagedData() error {
 	rawCommits := []*v4PullRequestCommit{}
 	comments := []*Comment{}
 	reviews := []*Review{}
+
 	for {
 		complete := 0
 		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
