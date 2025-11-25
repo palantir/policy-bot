@@ -99,18 +99,22 @@ func (a *Actors) IsActor(ctx context.Context, prctx pull.Context, user string) (
 		}
 	}
 
-	userPerm, err := prctx.CollaboratorPermission(user)
-	if err != nil {
-		return false, err
-	}
-	if userPerm == pull.PermissionNone {
-		return false, nil
-	}
+	permissions := a.GetPermissions()
+	if len(permissions) > 0 {
+		userPerm, err := prctx.CollaboratorPermission(user)
+		if err != nil {
+			return false, err
+		}
+		if userPerm == pull.PermissionNone {
+			return false, nil
+		}
 
-	for _, p := range a.GetPermissions() {
-		if userPerm >= p {
-			return true, nil
+		for _, p := range permissions {
+			if userPerm >= p {
+				return true, nil
+			}
 		}
 	}
+
 	return false, nil
 }
