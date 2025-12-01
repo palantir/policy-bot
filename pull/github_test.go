@@ -368,6 +368,34 @@ func TestIsTeamMember(t *testing.T) {
 	assert.Equal(t, 1, yesRule1.Count, "cached membership was not used")
 }
 
+func TestMixedCommitCommentReviewPaging(t *testing.T) {
+	rp := &ResponsePlayer{}
+	rp.AddRule(
+		ExactPathMatcher("/repos/testorg/testrepo/pulls/123"),
+		"testdata/responses/pull.yml",
+	)
+	dataRule := rp.AddRule(
+		GraphQLNodePrefixMatcher("repository.pullRequest"),
+		"testdata/responses/pull_commits_comments_reviews.yml",
+	)
+
+	ctx := makeContext(t, rp, nil, nil)
+
+	commits, err := ctx.Commits()
+	require.NoError(t, err)
+
+	comments, err := ctx.Comments()
+	require.NoError(t, err)
+
+	reviews, err := ctx.Reviews()
+	require.NoError(t, err)
+
+	assert.Equal(t, 2, dataRule.Count, "too many requests were made loading paged data")
+	assert.Len(t, commits, 3, "incorrect number of commits")
+	assert.Len(t, comments, 4, "incorrect number of comments")
+	assert.Len(t, reviews, 3, "incorrect number of reviews")
+}
+
 func TestIsOrgMember(t *testing.T) {
 	rp := &ResponsePlayer{}
 	yesRule := rp.AddRule(
