@@ -1,5 +1,6 @@
+# derived from pull_commits_comments_reviews.yml
 - status: 200
-  body: | 
+  body: |
     {
       "errors": [],
       "data": {
@@ -7,8 +8,8 @@
           "pullRequest": {
             "commits": {
               "pageInfo": {
-                "endCursor": "3",
-                "hasNextPage": false
+                "endCursor": "2",
+                "hasNextPage": true
               },
               "nodes": [
                 {
@@ -54,7 +55,60 @@
                       ]
                     }
                   }
+                }
+              ]
+            },
+            "comments": {
+              "pageInfo": {
+                "endCursor": "2",
+                "hasNextPage": true
+              },
+              "nodes": [
+                {
+                  "author": {
+                    "__typename": "User",
+                    "login": "bkeyes"
+                  },
+                  "body": ":+1:",
+                  "createdAt": "2018-06-27T20:28:22Z",
+                  "lastEditedAt": "2018-06-27T20:28:22Z"
                 },
+                {
+                  "author": {
+                    "__typename": "User",
+                    "login": "mhaypenny"
+                  },
+                  "body": "I comment!",
+                  "createdAt": "2018-06-27T20:28:52Z",
+                  "lastEditedAt": "2018-06-27T20:28:52Z"
+                }
+              ]
+            },
+            "reviews": {
+              "pageInfo": {
+                "endCursor": null,
+                "hasNextPage": true
+              },
+              "nodes": [
+              ]
+            }
+          }
+        }
+      }
+    }
+- status: 200
+  body: |
+    {
+      "errors": [],
+      "data": {
+        "repository": {
+          "pullRequest": {
+            "commits": {
+              "pageInfo": {
+                "endCursor": null,
+                "hasNextPage": false
+              },
+              "nodes": [
                 {
                   "commit": {
                     "oid": "e05fcae367230ee709313dd2720da527d178ce43",
@@ -90,6 +144,23 @@
                       "wasSignedByGitHub": false
                     }
                   }
+                }
+              ]
+            },
+            "comments": {
+              "pageInfo": {
+                "endCursor": null,
+                "hasNextPage": false
+              },
+              "nodes": [
+                {
+                  "author": {
+                    "__typename": "Bot",
+                    "login": "bulldozer"
+                  },
+                  "body": "I merge!",
+                  "createdAt": "2018-06-27T20:29:22Z",
+                  "lastEditedAt": "2018-06-27T20:29:22Z"
                 }
               ]
             },

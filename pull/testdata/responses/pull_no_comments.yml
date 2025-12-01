@@ -1,3 +1,4 @@
+# derived from pull_commits_comments_reviews.yml
 - status: 200
   body: |
     {
@@ -7,8 +8,8 @@
           "pullRequest": {
             "commits": {
               "pageInfo": {
-                "endCursor": "3",
-                "hasNextPage": false
+                "endCursor": "2",
+                "hasNextPage": true
               },
               "nodes": [
                 {
@@ -54,7 +55,51 @@
                       ]
                     }
                   }
-                },
+                }
+              ]
+            },
+            "comments": {
+              "pageInfo": {
+                "endCursor": null,
+                "hasNextPage": false
+              },
+              "nodes": [
+              ]
+            },
+            "reviews": {
+              "pageInfo": {
+                "endCursor": "2",
+                "hasNextPage": true
+              },
+              "nodes": [
+                {
+                  "author": {
+                    "login": "mhaypenny"
+                  },
+                  "state": "CHANGES_REQUESTED",
+                  "body": "",
+                  "submittedAt": "2018-06-27T20:33:26Z",
+                  "lastEditedAt": "2018-06-27T20:33:26Z"
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+- status: 200
+  body: |
+    {
+      "errors": [],
+      "data": {
+        "repository": {
+          "pullRequest": {
+            "commits": {
+              "pageInfo": {
+                "endCursor": null,
+                "hasNextPage": false
+              },
+              "nodes": [
                 {
                   "commit": {
                     "oid": "e05fcae367230ee709313dd2720da527d178ce43",
@@ -99,6 +144,23 @@
                 "hasNextPage": false
               },
               "nodes": [
+              ]
+            },
+            "reviews": {
+              "pageInfo": {
+                "endCursor": null,
+                "hasNextPage": false
+              },
+              "nodes": [
+                {
+                  "author": {
+                    "login": "bkeyes"
+                  },
+                  "state": "APPROVED",
+                  "body": "the body",
+                  "submittedAt": "2018-06-27T20:33:27Z",
+                  "lastEditedAt": "2018-06-27T20:33:27Z"
+                }
               ]
             }
           }

@@ -119,7 +119,7 @@ func TestCommits(t *testing.T) {
 	rp := &ResponsePlayer{}
 	dataRule := rp.AddRule(
 		GraphQLNodePrefixMatcher("repository.pullRequest.commits"),
-		"testdata/responses/pull_reviews_comments.yml",
+		"testdata/responses/pull_commits_comments_reviews.yml",
 	)
 
 	ctx := makeContext(t, rp, nil, nil)
@@ -162,7 +162,7 @@ func TestReviews(t *testing.T) {
 	rp := &ResponsePlayer{}
 	dataRule := rp.AddRule(
 		GraphQLNodePrefixMatcher("repository.pullRequest.reviews"),
-		"testdata/responses/pull_reviews.yml",
+		"testdata/responses/pull_commits_comments_reviews.yml",
 	)
 
 	ctx := makeContext(t, rp, nil, nil)
@@ -205,7 +205,7 @@ func TestReviews(t *testing.T) {
 func TestNoReviews(t *testing.T) {
 	rp := &ResponsePlayer{}
 	dataRule := rp.AddRule(
-		GraphQLNodePrefixMatcher("repository.pullRequest.commits"),
+		GraphQLNodePrefixMatcher("repository.pullRequest.reviews"),
 		"testdata/responses/pull_no_reviews.yml",
 	)
 
@@ -214,13 +214,14 @@ func TestNoReviews(t *testing.T) {
 	reviews, err := ctx.Reviews()
 	require.NoError(t, err)
 	require.Empty(t, reviews, "incorrect number of reviews")
+	assert.Equal(t, 2, dataRule.Count, "incorrect number of queries")
 
 	// verify that the review list is cached
 	reviews, err = ctx.Reviews()
 	require.NoError(t, err)
 
 	assert.Empty(t, reviews, "incorrect number of reviews")
-	assert.Equal(t, 1, dataRule.Count, "cached reviews were not used")
+	assert.Equal(t, 2, dataRule.Count, "cached reviews were not used")
 }
 
 func TestBody(t *testing.T) {
@@ -248,7 +249,7 @@ func TestComments(t *testing.T) {
 	rp := &ResponsePlayer{}
 	dataRule := rp.AddRule(
 		GraphQLNodePrefixMatcher("repository.pullRequest.comments"),
-		"testdata/responses/pull_comments.yml",
+		"testdata/responses/pull_commits_comments_reviews.yml",
 	)
 
 	ctx := makeContext(t, rp, nil, nil)
@@ -256,8 +257,8 @@ func TestComments(t *testing.T) {
 	comments, err := ctx.Comments()
 	require.NoError(t, err)
 
-	require.Len(t, comments, 3, "incorrect number of comments")
-	assert.Equal(t, 2, dataRule.Count, "no http request was made")
+	require.Len(t, comments, 4, "incorrect number of comments")
+	assert.Equal(t, 2, dataRule.Count, "incorrect number of queries")
 
 	expectedTime, err := time.Parse(time.RFC3339, "2018-06-27T20:28:22Z")
 	assert.NoError(t, err)
@@ -267,21 +268,26 @@ func TestComments(t *testing.T) {
 	assert.Equal(t, expectedTime, comments[0].LastEditedAt)
 	assert.Equal(t, ":+1:", comments[0].Body)
 
-	assert.Equal(t, "bulldozer[bot]", comments[1].Author)
-	assert.Equal(t, expectedTime.Add(time.Minute), comments[1].CreatedAt)
-	assert.Equal(t, expectedTime.Add(time.Minute), comments[1].LastEditedAt)
-	assert.Equal(t, "I merge!", comments[1].Body)
+	assert.Equal(t, "mhaypenny", comments[1].Author)
+	assert.Equal(t, expectedTime.Add(30*time.Second), comments[1].CreatedAt)
+	assert.Equal(t, expectedTime.Add(30*time.Second), comments[1].LastEditedAt)
+	assert.Equal(t, "I comment!", comments[1].Body)
 
-	assert.Equal(t, "jgiannuzzi", comments[2].Author)
-	assert.Equal(t, expectedTime.Add(10*time.Minute), comments[2].CreatedAt)
-	assert.Equal(t, expectedTime.Add(10*time.Minute), comments[2].LastEditedAt)
-	assert.Equal(t, "A review comment", comments[2].Body)
+	assert.Equal(t, "bulldozer[bot]", comments[2].Author)
+	assert.Equal(t, expectedTime.Add(time.Minute), comments[2].CreatedAt)
+	assert.Equal(t, expectedTime.Add(time.Minute), comments[2].LastEditedAt)
+	assert.Equal(t, "I merge!", comments[2].Body)
+
+	assert.Equal(t, "jgiannuzzi", comments[3].Author)
+	assert.Equal(t, expectedTime.Add(10*time.Minute), comments[3].CreatedAt)
+	assert.Equal(t, expectedTime.Add(10*time.Minute), comments[3].LastEditedAt)
+	assert.Equal(t, "A review comment", comments[3].Body)
 
 	// verify that the commit list is cached
 	comments, err = ctx.Comments()
 	require.NoError(t, err)
 
-	require.Len(t, comments, 3, "incorrect number of comments")
+	require.Len(t, comments, 4, "incorrect number of comments")
 	assert.Equal(t, 2, dataRule.Count, "cached comments were not used")
 }
 
@@ -297,13 +303,14 @@ func TestNoComments(t *testing.T) {
 	comments, err := ctx.Comments()
 	require.NoError(t, err)
 	require.Empty(t, comments, "incorrect number of comments")
+	assert.Equal(t, 2, dataRule.Count, "incorrect number of queries")
 
 	// verify that the commit list is cached
 	comments, err = ctx.Comments()
 	require.NoError(t, err)
 
 	assert.Empty(t, comments, "incorrect number of comments")
-	assert.Equal(t, 1, dataRule.Count, "cached comments were not used")
+	assert.Equal(t, 2, dataRule.Count, "cached comments were not used")
 }
 
 func TestIsTeamMember(t *testing.T) {
@@ -359,30 +366,6 @@ func TestIsTeamMember(t *testing.T) {
 
 	assert.True(t, isMember, "user is not a member")
 	assert.Equal(t, 1, yesRule1.Count, "cached membership was not used")
-}
-
-func TestMixedReviewCommentPaging(t *testing.T) {
-	rp := &ResponsePlayer{}
-	rp.AddRule(
-		ExactPathMatcher("/repos/testorg/testrepo/pulls/123"),
-		"testdata/responses/pull.yml",
-	)
-	dataRule := rp.AddRule(
-		GraphQLNodePrefixMatcher("repository.pullRequest"),
-		"testdata/responses/pull_reviews_comments.yml",
-	)
-
-	ctx := makeContext(t, rp, nil, nil)
-
-	comments, err := ctx.Comments()
-	require.NoError(t, err)
-
-	reviews, err := ctx.Reviews()
-	require.NoError(t, err)
-
-	assert.Equal(t, 2, dataRule.Count, "cached values were not used")
-	assert.Len(t, comments, 3, "incorrect number of comments")
-	assert.Len(t, reviews, 3, "incorrect number of reviews")
 }
 
 func TestIsOrgMember(t *testing.T) {
@@ -560,7 +543,7 @@ func TestPushedAt(t *testing.T) {
 	rp := &ResponsePlayer{}
 	commitsRule := rp.AddRule(
 		GraphQLNodePrefixMatcher("repository.pullRequest.commits"),
-		"testdata/responses/pull_reviews_comments.yml",
+		"testdata/responses/pull_commits_comments_reviews.yml",
 	)
 	statusRuleA6F := rp.AddRule(
 		ExactPathMatcher("/repos/testorg/testrepo/commits/a6f3f69b64eaafece5a0d854eb4af11c0d64394c/statuses"),

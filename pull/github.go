@@ -983,8 +983,13 @@ func (ghc *GitHubContext) Labels() ([]string, error) {
 }
 
 func (ghc *GitHubContext) loadPagedData() error {
-	// this is a minor optimization: make max(c,r) requests instead of c+r
-	// checked that the GraphQL query has cost 1: setting all page sizes to 100 will result in cost 2, which defeats the cost saving
+	// This query is tuned to use a single GraphQL rate limit point per
+	// execution. For most PRs, this means loading all commits, comments, and
+	// reviews in one request with the minimal possible cost.
+	//
+	// Before adjusting any of the page sizes or returned properties, verify
+	// that the query cost does not increase. For example, setting all of the
+	// page sizes to 100 increases the query cost to 2 as of 2025-11-25.
 	var q struct {
 		Repository struct {
 			PullRequest struct {
