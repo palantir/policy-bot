@@ -15,7 +15,7 @@
 package cmd
 
 import (
-	"io/ioutil"
+	"io/fs"
 	"os"
 
 	"github.com/palantir/policy-bot/policy"
@@ -24,44 +24,27 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var policyBotPolicy struct {
+var validateCmdConfig struct {
 	Path string
 }
 
-var PolicyBotValidationCmd = &cobra.Command{
+var ValidationCmd = &cobra.Command{
 	Use:   "validate",
-	Short: "Runs validation of policy-bot policy.",
-	Long:  "Runs valdation of a policy-bot policy yaml file.",
+	Short: "Validates the syntax and structure of a policy file.",
+	Long:  "Validates the YAML syntax and logical structure of a local policy file. It does not support remote policy references.",
 
-	RunE: policyBotValidationCmd,
+	RunE: validationCmd,
 }
 
-func readPolicyBotPolicy(cfgFile string) ([]byte, error) {
-	fi, err := os.Stat(cfgFile)
-	if os.IsNotExist(err) {
-		return nil, errors.Wrapf(err, "policy file does not exist: %s", cfgFile)
+func validationCmd(cmd *cobra.Command, args []string) error {
+	policyData, err := os.ReadFile(validateCmdConfig.Path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return errors.Errorf("policy file does not exist: %s", validateCmdConfig.Path)
 	}
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed fetching policy file: %s", cfgFile)
-	}
-	if !fi.Mode().IsRegular() {
-		return nil, errors.New("policy file is not a regular file: " + cfgFile)
+		return errors.Wrapf(err, "failed to read policy file: %s", validateCmdConfig.Path)
 	}
 
-	var bytes []byte
-	bytes, err = ioutil.ReadFile(cfgFile)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed reading policy file: %s", cfgFile)
-	}
-
-	return bytes, nil
-}
-
-func policyBotValidationCmd(cmd *cobra.Command, args []string) error {
-	policyData, err := readPolicyBotPolicy(policyBotPolicy.Path)
-	if err != nil {
-		return errors.Wrapf(err, "failed to read policy file")
-	}
 	var policyConfig policy.Config
 	if err := yaml.UnmarshalStrict(policyData, &policyConfig); err != nil {
 		return errors.Wrapf(err, "failed to parse policy from yaml file")
@@ -73,7 +56,7 @@ func policyBotValidationCmd(cmd *cobra.Command, args []string) error {
 }
 
 func init() {
-	RootCmd.AddCommand(PolicyBotValidationCmd)
+	RootCmd.AddCommand(ValidationCmd)
 
-	PolicyBotValidationCmd.Flags().StringVarP(&policyBotPolicy.Path, "policy", "p", ".policy.yml", "policy file for policy-bot")
+	ValidationCmd.Flags().StringVarP(&validateCmdConfig.Path, "policy", "p", ".policy.yml", "path to the policy file to validate")
 }

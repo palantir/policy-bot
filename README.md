@@ -853,6 +853,12 @@ curl: (22) The requested URL returned error: 422
 {"message":"failed to parse approval policy: failed to parse subpolicies for 'and': policy references undefined rule 'the devtools team has approved', allowed values: [the devtools team has]","version":"1.12.5"}
 ```
 
+The `policy-bot` binary also includes a `validate` subcomand that can validate local policy files without running a server instance:
+
+```sh
+policy-bot validate -p path/to/policy.yml
+```
+
 #### Simulation API
 
 It can be useful to simulate how Policy Bot would evaluate a pull request if certain conditions were changed. For example: adding a review from a specific user or group, or adjusting the base branch.

@@ -15,7 +15,7 @@
 package cmd
 
 import (
-	"io/ioutil"
+	"io/fs"
 	"os"
 
 	"github.com/palantir/policy-bot/server"
@@ -36,19 +36,10 @@ var ServerCmd = &cobra.Command{
 }
 
 func readServerConfig(cfgFile string) (*server.Config, error) {
-	fi, err := os.Stat(cfgFile)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed fetching server config file: %s", cfgFile)
+	bytes, err := os.ReadFile(cfgFile)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, errors.Errorf("server config file does not exist: %s", cfgFile)
 	}
-	if os.IsNotExist(err) {
-		return nil, errors.Wrapf(err, "server config file does not exist: %s", cfgFile)
-	}
-	if !fi.Mode().IsRegular() {
-		return nil, errors.New("server config file is not a regular file: " + cfgFile)
-	}
-
-	var bytes []byte
-	bytes, err = ioutil.ReadFile(cfgFile)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed reading server config file: %s", cfgFile)
 	}
