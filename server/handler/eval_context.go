@@ -205,12 +205,12 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 		return
 	}
 
-	if err := PostStatus(ctx, ec.Client, owner, repo, sha, &status); err != nil {
+	if err := PostStatus(ctx, ec.Client, owner, repo, sha, status); err != nil {
 		logger.Err(err).Msg("Failed to post repo status")
 	}
 	if ec.Options.PostInsecureStatusChecks {
 		status.Context = github.Ptr(ec.Options.StatusCheckContext)
-		if err := PostStatus(ctx, ec.Client, owner, repo, sha, &status); err != nil {
+		if err := PostStatus(ctx, ec.Client, owner, repo, sha, status); err != nil {
 			logger.Err(err).Msg("Failed to post insecure repo status")
 		}
 	}

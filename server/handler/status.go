@@ -90,7 +90,7 @@ func (h *Status) processOwn(ctx context.Context, event github.StatusEvent) error
 	// unlike in other code, use a single context here because we want to
 	// replace a forged context with a failure, not post a general status
 	// if multiple contexts are forged, we will handle multiple events
-	status := &github.RepoStatus{
+	status := github.RepoStatus{
 		Context:     event.Context,
 		State:       github.String("failure"),
 		Description: &desc,

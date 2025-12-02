@@ -68,7 +68,7 @@ func (h *MergeGroup) Handle(ctx context.Context, eventType, devlieryID string, p
 	contextWithBranch := fmt.Sprintf("%s: %s", h.PullOpts.StatusCheckContext, baseBranch)
 	state := "success"
 	message := fmt.Sprintf("%s previously approved original pull request.", h.AppName)
-	status := &github.RepoStatus{
+	status := github.RepoStatus{
 		Context:     &contextWithBranch,
 		State:       &state,
 		Description: &message,

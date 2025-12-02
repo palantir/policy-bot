@@ -43,7 +43,7 @@ type Base struct {
 }
 
 // PostStatus posts a GitHub commit status with consistent logging.
-func PostStatus(ctx context.Context, client *github.Client, owner, repo, ref string, status *github.RepoStatus) error {
+func PostStatus(ctx context.Context, client *github.Client, owner, repo, ref string, status github.RepoStatus) error {
 	zerolog.Ctx(ctx).Info().Msgf("Setting %q status on %s to %s: %s", status.GetContext(), ref, status.GetState(), status.GetDescription())
 	_, _, err := client.Repositories.CreateStatus(ctx, owner, repo, ref, status)
 	return errors.WithStack(err)
