@@ -1153,3 +1153,294 @@ func runFileTests(t *testing.T, p Predicate, cases []FileTestCase) {
 		})
 	}
 }
+
+func TestChangedFilesGlob(t *testing.T) {
+	p := &ChangedFiles{
+		Globs: []common.Glob{
+			common.Glob("app/**/*.go"),
+			common.Glob("server/*.go"),
+		},
+		IgnoreGlobs: []common.Glob{
+			common.Glob("**/special.go"),
+		},
+	}
+
+	runFileTests(t, p, []FileTestCase{
+		{
+			"empty",
+			[]*pull.File{},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{},
+				ConditionsMap: map[string][]string{
+					"path patterns":  {"app/**/*.go", "server/*.go"},
+					"while ignoring": {"**/special.go"},
+				},
+			},
+		},
+		{
+			"recursiveMatch",
+			[]*pull.File{
+				{
+					Filename: "app/utils/helper.go",
+					Status:   pull.FileAdded,
+				},
+				{
+					Filename: "server/api.go",
+					Status:   pull.FileModified,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{"app/utils/helper.go"},
+				ConditionsMap: map[string][]string{
+					"path patterns":  {"app/**/*.go", "server/*.go"},
+					"while ignoring": {"**/special.go"},
+				},
+			},
+		},
+		{
+			"wildcardMatch",
+			[]*pull.File{
+				{
+					Filename: "server/handler.go",
+					Status:   pull.FileAdded,
+				},
+				{
+					Filename: "model/user.go",
+					Status:   pull.FileModified,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{"server/handler.go"},
+				ConditionsMap: map[string][]string{
+					"path patterns":  {"app/**/*.go", "server/*.go"},
+					"while ignoring": {"**/special.go"},
+				},
+			},
+		},
+		{
+			"ignoreGlob",
+			[]*pull.File{
+				{
+					Filename: "app/utils/special.go",
+					Status:   pull.FileAdded,
+				},
+				{
+					Filename: "server/special.go",
+					Status:   pull.FileModified,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"app/utils/special.go", "server/special.go"},
+				ConditionsMap: map[string][]string{
+					"path patterns":  {"app/**/*.go", "server/*.go"},
+					"while ignoring": {"**/special.go"},
+				},
+			},
+		},
+		{
+			"noMatch",
+			[]*pull.File{
+				{
+					Filename: "model/order.go",
+					Status:   pull.FileDeleted,
+				},
+				{
+					Filename: "docs/readme.md",
+					Status:   pull.FileModified,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"model/order.go", "docs/readme.md"},
+				ConditionsMap: map[string][]string{
+					"path patterns":  {"app/**/*.go", "server/*.go"},
+					"while ignoring": {"**/special.go"},
+				},
+			},
+		},
+	})
+}
+
+func TestOnlyChangedFilesGlob(t *testing.T) {
+	p := &OnlyChangedFiles{
+		Globs: []common.Glob{
+			common.Glob("src/**"),
+		},
+	}
+
+	runFileTests(t, p, []FileTestCase{
+		{
+			"allMatch",
+			[]*pull.File{
+				{
+					Filename: "src/main.go",
+					Status:   pull.FileAdded,
+				},
+				{
+					Filename: "src/utils/helper.go",
+					Status:   pull.FileModified,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"src/main.go", "src/utils/helper.go"},
+				ConditionValues: []string{"src/**"},
+			},
+		},
+		{
+			"someMatch",
+			[]*pull.File{
+				{
+					Filename: "src/main.go",
+					Status:   pull.FileAdded,
+				},
+				{
+					Filename: "docs/readme.md",
+					Status:   pull.FileModified,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"docs/readme.md"},
+				ConditionValues: []string{"src/**"},
+			},
+		},
+	})
+}
+
+func TestFileAddedGlob(t *testing.T) {
+	p := &FileAdded{
+		Globs: []common.Glob{
+			common.Glob("app/**/*.go"),
+			common.Glob("server/*.go"),
+		},
+	}
+
+	runFileTests(t, p, []FileTestCase{
+		{
+			"matchRecursive",
+			[]*pull.File{
+				{
+					Filename: "app/utils/helper.go",
+					Status:   pull.FileAdded,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"app/utils/helper.go"},
+				ConditionValues: []string{"app/**/*.go", "server/*.go"},
+			},
+		},
+		{
+			"matchWildcard",
+			[]*pull.File{
+				{
+					Filename: "server/api.go",
+					Status:   pull.FileAdded,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"server/api.go"},
+				ConditionValues: []string{"app/**/*.go", "server/*.go"},
+			},
+		},
+		{
+			"noMatch",
+			[]*pull.File{
+				{
+					Filename: "model/user.go",
+					Status:   pull.FileAdded,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"model/user.go"},
+				ConditionValues: []string{"app/**/*.go", "server/*.go"},
+			},
+		},
+		{
+			"modifiedNotCounted",
+			[]*pull.File{
+				{
+					Filename: "app/client.go",
+					Status:   pull.FileModified,
+				},
+			},
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{},
+				ConditionValues: []string{"app/**/*.go", "server/*.go"},
+			},
+		},
+	})
+}
+
+func TestModifiedLinesGlob(t *testing.T) {
+	p := &ModifiedLines{
+		Additions: ComparisonExpr{Op: OpGreaterThan, Value: 10},
+		Files: ModifiedLinesFileFilter{
+			IncludeGlobs: []common.Glob{
+				common.Glob("**/*.go"),
+			},
+			ExcludeGlobs: []common.Glob{
+				common.Glob("vendor/**"),
+			},
+		},
+	}
+
+	runFileTests(t, p, []FileTestCase{
+		{
+			"matchIncluded",
+			[]*pull.File{
+				{Filename: "app/main.go", Additions: 15},
+				{Filename: "server/handler.go", Additions: 5},
+			},
+			&common.PredicateResult{
+				Satisfied: true,
+				Values:    []string{"+20"},
+				ConditionsMap: map[string][]string{
+					"the modification conditions": {"added lines > 10"},
+					"in files matching":           {"**/*.go"},
+					"excluding files matching":    {"vendor/**"},
+				},
+			},
+		},
+		{
+			"excludeVendor",
+			[]*pull.File{
+				{Filename: "vendor/dep.go", Additions: 100},
+				{Filename: "app/main.go", Additions: 5},
+			},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"+5"},
+				ConditionsMap: map[string][]string{
+					"the modification conditions": {"added lines > 10"},
+					"in files matching":           {"**/*.go"},
+					"excluding files matching":    {"vendor/**"},
+				},
+			},
+		},
+		{
+			"excludeNonGoFiles",
+			[]*pull.File{
+				{Filename: "readme.md", Additions: 100},
+				{Filename: "app/main.go", Additions: 5},
+			},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"+5"},
+				ConditionsMap: map[string][]string{
+					"the modification conditions": {"added lines > 10"},
+					"in files matching":           {"**/*.go"},
+					"excluding files matching":    {"vendor/**"},
+				},
+			},
+		},
+	})
+}

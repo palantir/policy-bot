@@ -1,4 +1,4 @@
-// Copyright 2021 Palantir Technologies, Inc.
+// Copyright 2025 Palantir Technologies, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,26 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package predicate
+package common
 
 import (
-	"github.com/palantir/policy-bot/policy/common"
+	"github.com/bmatcuk/doublestar/v4"
 )
 
-func anyMatches(re []common.Regexp, s string) bool {
-	for _, r := range re {
-		if r.Matches(s) {
-			return true
-		}
-	}
-	return false
-}
+type Glob string
 
-func anyGlobMatches(patterns []common.Glob, s string) bool {
-	for _, p := range patterns {
-		if p.Matches(s) {
-			return true
-		}
+func (g Glob) Matches(s string) bool {
+	match, err := doublestar.Match(string(g), s)
+	if err != nil {
+		return false
 	}
-	return false
+	return match
 }

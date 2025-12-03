@@ -25,24 +25,29 @@ import (
 	"github.com/pkg/errors"
 )
 
-func getPathStrings(patterns []common.Regexp) []string {
+func getPathStrings(re []common.Regexp, globs []common.Glob) []string {
 	var paths []string
-	for _, r := range patterns {
+	for _, r := range re {
 		paths = append(paths, r.String())
+	}
+	for _, g := range globs {
+		paths = append(paths, string(g))
 	}
 	return paths
 }
 
 type ChangedFiles struct {
 	Paths       []common.Regexp `yaml:"paths,omitempty"`
+	Globs       []common.Glob   `yaml:"globs,omitempty"`
 	IgnorePaths []common.Regexp `yaml:"ignore,omitempty"`
+	IgnoreGlobs []common.Glob   `yaml:"ignore_globs,omitempty"`
 }
 
 var _ Predicate = &ChangedFiles{}
 
 func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
-	paths := getPathStrings(pred.Paths)
-	ignorePaths := getPathStrings(pred.IgnorePaths)
+	paths := getPathStrings(pred.Paths, pred.Globs)
+	ignorePaths := getPathStrings(pred.IgnorePaths, pred.IgnoreGlobs)
 
 	predicateResult := common.PredicateResult{
 		ValuePhrase:     "changed files",
@@ -64,11 +69,11 @@ func (pred *ChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (*co
 
 		changedFiles = append(changedFiles, f.Filename)
 
-		if anyMatches(pred.IgnorePaths, f.Filename) {
+		if anyMatches(pred.IgnorePaths, f.Filename) || anyGlobMatches(pred.IgnoreGlobs, f.Filename) {
 			continue
 		}
 
-		if anyMatches(pred.Paths, f.Filename) {
+		if anyMatches(pred.Paths, f.Filename) || anyGlobMatches(pred.Globs, f.Filename) {
 			predicateResult.Values = []string{f.Filename}
 			predicateResult.Description = f.Filename + " was changed"
 			predicateResult.Satisfied = true
@@ -88,12 +93,13 @@ func (pred *ChangedFiles) Trigger() common.Trigger {
 
 type OnlyChangedFiles struct {
 	Paths []common.Regexp `yaml:"paths,omitempty"`
+	Globs []common.Glob   `yaml:"globs,omitempty"`
 }
 
 var _ Predicate = &OnlyChangedFiles{}
 
 func (pred *OnlyChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
-	paths := getPathStrings(pred.Paths)
+	paths := getPathStrings(pred.Paths, pred.Globs)
 
 	predicateResult := common.PredicateResult{
 		ValuePhrase:     "changed files",
@@ -112,7 +118,7 @@ func (pred *OnlyChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) 
 
 		changedFiles = append(changedFiles, f.Filename)
 
-		if anyMatches(pred.Paths, f.Filename) {
+		if anyMatches(pred.Paths, f.Filename) || anyGlobMatches(pred.Globs, f.Filename) {
 			continue
 		}
 		predicateResult.Values = []string{f.Filename}
@@ -140,7 +146,9 @@ func (pred *OnlyChangedFiles) Trigger() common.Trigger {
 
 type NoChangedFiles struct {
 	Paths       []common.Regexp `yaml:"paths,omitempty"`
+	Globs       []common.Glob   `yaml:"globs,omitempty"`
 	IgnorePaths []common.Regexp `yaml:"ignore,omitempty"`
+	IgnoreGlobs []common.Glob   `yaml:"ignore_globs,omitempty"`
 }
 
 var _ Predicate = &NoChangedFiles{}
@@ -148,7 +156,9 @@ var _ Predicate = &NoChangedFiles{}
 func (pred *NoChangedFiles) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
 	changedFiles := ChangedFiles{
 		Paths:       pred.Paths,
+		Globs:       pred.Globs,
 		IgnorePaths: pred.IgnorePaths,
+		IgnoreGlobs: pred.IgnoreGlobs,
 	}
 
 	changedFilesPredicateResult, err := changedFiles.Evaluate(ctx, prctx)
@@ -179,13 +189,14 @@ func (pred *NoChangedFiles) Trigger() common.Trigger {
 }
 
 type FileAdded struct {
-	Paths []common.Regexp `yaml:"paths"`
+	Paths []common.Regexp `yaml:"paths,omitempty"`
+	Globs []common.Glob   `yaml:"globs,omitempty"`
 }
 
 var _ Predicate = &FileAdded{}
 
 func (pred *FileAdded) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
-	paths := getPathStrings(pred.Paths)
+	paths := getPathStrings(pred.Paths, pred.Globs)
 	predicateResult := common.PredicateResult{
 		Satisfied:       false,
 		ValuePhrase:     "added files",
@@ -204,7 +215,7 @@ func (pred *FileAdded) Evaluate(ctx context.Context, prctx pull.Context) (*commo
 		if f.Status == pull.FileAdded {
 			addedFiles = append(addedFiles, f.Filename)
 
-			if anyMatches(pred.Paths, f.Filename) {
+			if anyMatches(pred.Paths, f.Filename) || anyGlobMatches(pred.Globs, f.Filename) {
 				predicateResult.Satisfied = true
 				predicateResult.Values = []string{f.Filename}
 				predicateResult.Description = f.Filename + " was added"
@@ -223,13 +234,14 @@ func (pred *FileAdded) Trigger() common.Trigger {
 }
 
 type FileNotAdded struct {
-	Paths []common.Regexp `yaml:"paths"`
+	Paths []common.Regexp `yaml:"paths,omitempty"`
+	Globs []common.Glob   `yaml:"globs,omitempty"`
 }
 
 var _ Predicate = &FileNotAdded{}
 
 func (pred *FileNotAdded) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
-	paths := getPathStrings(pred.Paths)
+	paths := getPathStrings(pred.Paths, pred.Globs)
 
 	predicateResult := common.PredicateResult{
 		Satisfied:         true,
@@ -250,7 +262,7 @@ func (pred *FileNotAdded) Evaluate(ctx context.Context, prctx pull.Context) (*co
 		if f.Status == pull.FileAdded {
 			addedFiles = append(addedFiles, f.Filename)
 
-			if anyMatches(pred.Paths, f.Filename) {
+			if anyMatches(pred.Paths, f.Filename) || anyGlobMatches(pred.Globs, f.Filename) {
 				predicateResult.Satisfied = false
 				predicateResult.Values = []string{f.Filename}
 				predicateResult.Description = f.Filename + " was added"
@@ -269,13 +281,14 @@ func (pred *FileNotAdded) Trigger() common.Trigger {
 }
 
 type FileDeleted struct {
-	Paths []common.Regexp `yaml:"paths"`
+	Paths []common.Regexp `yaml:"paths,omitempty"`
+	Globs []common.Glob   `yaml:"globs,omitempty"`
 }
 
 var _ Predicate = &FileDeleted{}
 
 func (pred *FileDeleted) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
-	paths := getPathStrings(pred.Paths)
+	paths := getPathStrings(pred.Paths, pred.Globs)
 
 	predicateResult := common.PredicateResult{
 		Satisfied:       false,
@@ -295,7 +308,7 @@ func (pred *FileDeleted) Evaluate(ctx context.Context, prctx pull.Context) (*com
 		if f.Status == pull.FileDeleted {
 			deletedFiles = append(deletedFiles, f.Filename)
 
-			if anyMatches(pred.Paths, f.Filename) {
+			if anyMatches(pred.Paths, f.Filename) || anyGlobMatches(pred.Globs, f.Filename) {
 				predicateResult.Satisfied = true
 				predicateResult.Values = []string{f.Filename}
 				predicateResult.Description = f.Filename + " was deleted"
@@ -314,13 +327,14 @@ func (pred *FileDeleted) Trigger() common.Trigger {
 }
 
 type FileNotDeleted struct {
-	Paths []common.Regexp `yaml:"paths"`
+	Paths []common.Regexp `yaml:"paths,omitempty"`
+	Globs []common.Glob   `yaml:"globs,omitempty"`
 }
 
 var _ Predicate = &FileNotDeleted{}
 
 func (pred *FileNotDeleted) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
-	paths := getPathStrings(pred.Paths)
+	paths := getPathStrings(pred.Paths, pred.Globs)
 	predicateResult := common.PredicateResult{
 		Satisfied:         true,
 		ValuePhrase:       "deleted files",
@@ -340,7 +354,7 @@ func (pred *FileNotDeleted) Evaluate(ctx context.Context, prctx pull.Context) (*
 		if f.Status == pull.FileDeleted {
 			deletedFiles = append(deletedFiles, f.Filename)
 
-			if anyMatches(pred.Paths, f.Filename) {
+			if anyMatches(pred.Paths, f.Filename) || anyGlobMatches(pred.Globs, f.Filename) {
 				predicateResult.Satisfied = false
 				predicateResult.Values = []string{f.Filename}
 				predicateResult.Description = f.Filename + " was deleted"
@@ -366,19 +380,21 @@ type ModifiedLines struct {
 }
 
 type ModifiedLinesFileFilter struct {
-	Include []common.Regexp `yaml:"include,omitempty"`
-	Exclude []common.Regexp `yaml:"exclude,omitempty"`
+	Include      []common.Regexp `yaml:"include,omitempty"`
+	IncludeGlobs []common.Glob   `yaml:"include_globs,omitempty"`
+	Exclude      []common.Regexp `yaml:"exclude,omitempty"`
+	ExcludeGlobs []common.Glob   `yaml:"exclude_globs,omitempty"`
 }
 
 func (ff ModifiedLinesFileFilter) IsZero() bool {
-	return len(ff.Include) == 0 && len(ff.Exclude) == 0
+	return len(ff.Include) == 0 && len(ff.IncludeGlobs) == 0 && len(ff.Exclude) == 0 && len(ff.ExcludeGlobs) == 0
 }
 
 func (ff ModifiedLinesFileFilter) MatchesFile(filename string) bool {
-	if len(ff.Exclude) > 0 && anyMatches(ff.Exclude, filename) {
+	if (len(ff.Exclude) > 0 || len(ff.ExcludeGlobs) > 0) && (anyMatches(ff.Exclude, filename) || anyGlobMatches(ff.ExcludeGlobs, filename)) {
 		return false
 	}
-	if len(ff.Include) > 0 && !anyMatches(ff.Include, filename) {
+	if (len(ff.Include) > 0 || len(ff.IncludeGlobs) > 0) && !(anyMatches(ff.Include, filename) || anyGlobMatches(ff.IncludeGlobs, filename)) {
 		return false
 	}
 	return true
@@ -497,11 +513,11 @@ func (pred *ModifiedLines) Evaluate(ctx context.Context, prctx pull.Context) (*c
 		deletions += int64(f.Deletions)
 	}
 
-	if len(pred.Files.Include) > 0 {
-		predicateResult.ConditionsMap["in files matching"] = getPathStrings(pred.Files.Include)
+	if len(pred.Files.Include) > 0 || len(pred.Files.IncludeGlobs) > 0 {
+		predicateResult.ConditionsMap["in files matching"] = getPathStrings(pred.Files.Include, pred.Files.IncludeGlobs)
 	}
-	if len(pred.Files.Exclude) > 0 {
-		predicateResult.ConditionsMap["excluding files matching"] = getPathStrings(pred.Files.Exclude)
+	if len(pred.Files.Exclude) > 0 || len(pred.Files.ExcludeGlobs) > 0 {
+		predicateResult.ConditionsMap["excluding files matching"] = getPathStrings(pred.Files.Exclude, pred.Files.ExcludeGlobs)
 	}
 
 	const conditionKey = "the modification conditions"
