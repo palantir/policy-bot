@@ -1198,20 +1198,26 @@ To configure `policy-bot` as a GitHub App, set these options in GitHub:
   - Set **Webhook secret**: A random string that matches the value of the
     `github.app.webhook_secret` property in the server configuration
 
-The app requires these permissions:
+The app requires these **repository** permissions:
 
 | Permission | Access | Reason |
 | ---------- | ------ | ------ |
-| Actions| Read-only | Read workflow run events for the `has_workflow_result` predicate |
-| Repository contents | Read-only | Read configuration and commit metadata |
+| Actions | Read-only | Read workflow run events for the `has_workflow_result` predicate |
+| Administration | Read-only | Read repository collaborators and permissions |
 | Checks | Read-only | Read check run results |
-| Repository administration | Read-only | Read admin team(s) membership |
+| Commit statuses | Read & write | Post commit statuses |
+| Contents | Read-only | Read policy files and commit metadata |
+| Custom properties | Read-only | Read properties for the `custom_property_*` predicates |
 | Issues | Read-only | Read pull request comments |
 | Merge Queues | Read-only | Read repository merge queues |
-| Repository metadata | Read-only | Basic repository data |
+| Metadata | Read-only | Access basic repository data |
 | Pull requests | Read & write | Receive pull request events, read metadata. Assign reviewers |
-| Commit status | Read & write | Post commit statuses |
-| Organization members | Read-only | Determine organization and team membership |
+
+The app also requires these **organization** permissions:
+
+| Permission | Access | Reason |
+| ---------- | ------ | ------ |
+| Members | Read-only | Determine organization and team membership |
 
 The app should be subscribed to these events:
 
