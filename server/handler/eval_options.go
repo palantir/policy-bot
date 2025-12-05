@@ -246,8 +246,12 @@ func setStringPtrFromEnv[T ~string](key, prefix string, value **T) bool {
 func setStringListFromEnv[T ~string](key, prefix string, value *[]T) bool {
 	if v, ok := os.LookupEnv(prefix + key); ok {
 		var items []T
-		for _, item := range strings.Split(v, ",") {
-			items = append(items, T(item))
+		if v != "" {
+			for _, item := range strings.Split(v, ",") {
+				items = append(items, T(item))
+			}
+		} else {
+			items = []T{} // set to an empty value requires a non-nil slice
 		}
 		*value = items
 		return true
@@ -263,11 +267,15 @@ type textUnmarshallerPtr[T any] interface {
 func setListFromEnv[T any, PT textUnmarshallerPtr[T]](key, prefix string, value *[]T) bool {
 	if v, ok := os.LookupEnv(prefix + key); ok {
 		var items []T
-		for _, item := range strings.Split(v, ",") {
-			var t T
-			if err := PT(&t).UnmarshalText([]byte(item)); err == nil {
-				items = append(items, t)
+		if v != "" {
+			for _, item := range strings.Split(v, ",") {
+				var t T
+				if err := PT(&t).UnmarshalText([]byte(item)); err == nil {
+					items = append(items, t)
+				}
 			}
+		} else {
+			items = []T{} // set to an empty value requires a non-nil slice
 		}
 		*value = items
 		return true

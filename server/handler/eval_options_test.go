@@ -155,6 +155,18 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 				}
 			},
 		},
+		"ApprovalDefaults.Options.IgnoreCommitsBy.Users_Empty": {
+			Env: map[string]string{"PEO_APPROVAL_DEFAULTS_OPTIONS_IGNORE_COMMITS_BY_USERS": ""},
+			SetExpected: func(opts *PullEvaluationOptions) {
+				opts.ApprovalDefaults = &approval.Defaults{
+					Options: &approval.Options{
+						IgnoreCommitsBy: &common.Actors{
+							Users: []string{},
+						},
+					},
+				}
+			},
+		},
 		"ApprovalDefaults.Options.IgnoreCommitsBy.Teams": {
 			Env: map[string]string{"PEO_APPROVAL_DEFAULTS_OPTIONS_IGNORE_COMMITS_BY_TEAMS": "org/bots,org/ci"},
 			SetExpected: func(opts *PullEvaluationOptions) {
@@ -162,6 +174,18 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 					Options: &approval.Options{
 						IgnoreCommitsBy: &common.Actors{
 							Teams: []string{"org/bots", "org/ci"},
+						},
+					},
+				}
+			},
+		},
+		"ApprovalDefaults.Options.IgnoreCommitsBy.Teams_Empty": {
+			Env: map[string]string{"PEO_APPROVAL_DEFAULTS_OPTIONS_IGNORE_COMMITS_BY_TEAMS": ""},
+			SetExpected: func(opts *PullEvaluationOptions) {
+				opts.ApprovalDefaults = &approval.Defaults{
+					Options: &approval.Options{
+						IgnoreCommitsBy: &common.Actors{
+							Teams: []string{},
 						},
 					},
 				}
@@ -179,6 +203,18 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 				}
 			},
 		},
+		"ApprovalDefaults.Options.IgnoreCommitsBy.Organizations_Empty": {
+			Env: map[string]string{"PEO_APPROVAL_DEFAULTS_OPTIONS_IGNORE_COMMITS_BY_ORGANIZATIONS": ""},
+			SetExpected: func(opts *PullEvaluationOptions) {
+				opts.ApprovalDefaults = &approval.Defaults{
+					Options: &approval.Options{
+						IgnoreCommitsBy: &common.Actors{
+							Organizations: []string{},
+						},
+					},
+				}
+			},
+		},
 		"ApprovalDefaults.Options.IgnoreCommitsBy.Permissions": {
 			Env: map[string]string{"PEO_APPROVAL_DEFAULTS_OPTIONS_IGNORE_COMMITS_BY_PERMISSIONS": "admin,write"},
 			SetExpected: func(opts *PullEvaluationOptions) {
@@ -186,6 +222,18 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 					Options: &approval.Options{
 						IgnoreCommitsBy: &common.Actors{
 							Permissions: []pull.Permission{pull.PermissionAdmin, pull.PermissionWrite},
+						},
+					},
+				}
+			},
+		},
+		"ApprovalDefaults.Options.IgnoreCommitsBy.Permissions_Empty": {
+			Env: map[string]string{"PEO_APPROVAL_DEFAULTS_OPTIONS_IGNORE_COMMITS_BY_PERMISSIONS": ""},
+			SetExpected: func(opts *PullEvaluationOptions) {
+				opts.ApprovalDefaults = &approval.Defaults{
+					Options: &approval.Options{
+						IgnoreCommitsBy: &common.Actors{
+							Permissions: []pull.Permission{},
 						},
 					},
 				}
@@ -239,6 +287,18 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 				}
 			},
 		},
+		"ApprovalDefaults.Options.Methods.Comments_Empty": {
+			Env: map[string]string{"PEO_APPROVAL_DEFAULTS_OPTIONS_METHODS_COMMENTS": ""},
+			SetExpected: func(opts *PullEvaluationOptions) {
+				opts.ApprovalDefaults = &approval.Defaults{
+					Options: &approval.Options{
+						Methods: &common.Methods{
+							Comments: []string{},
+						},
+					},
+				}
+			},
+		},
 		"ApprovalDefaults.Options.Methods.CommentPatterns": {
 			Env: map[string]string{"PEO_APPROVAL_DEFAULTS_OPTIONS_METHODS_COMMENT_PATTERNS": "^looks good,^approved by"},
 			SetExpected: func(opts *PullEvaluationOptions) {
@@ -249,6 +309,18 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 								common.NewCompiledRegexp(regexp.MustCompile("^looks good")),
 								common.NewCompiledRegexp(regexp.MustCompile("^approved by")),
 							},
+						},
+					},
+				}
+			},
+		},
+		"ApprovalDefaults.Options.Methods.CommentPatterns_Empty": {
+			Env: map[string]string{"PEO_APPROVAL_DEFAULTS_OPTIONS_METHODS_COMMENT_PATTERNS": ""},
+			SetExpected: func(opts *PullEvaluationOptions) {
+				opts.ApprovalDefaults = &approval.Defaults{
+					Options: &approval.Options{
+						Methods: &common.Methods{
+							CommentPatterns: []common.Regexp{},
 						},
 					},
 				}
@@ -281,6 +353,18 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 				}
 			},
 		},
+		"ApprovalDefaults.Options.Methods.GithubReviewCommentPatterns_Empty": {
+			Env: map[string]string{"PEO_APPROVAL_DEFAULTS_OPTIONS_METHODS_GITHUB_REVIEW_COMMENT_PATTERNS": ""},
+			SetExpected: func(opts *PullEvaluationOptions) {
+				opts.ApprovalDefaults = &approval.Defaults{
+					Options: &approval.Options{
+						Methods: &common.Methods{
+							GithubReviewCommentPatterns: []common.Regexp{},
+						},
+					},
+				}
+			},
+		},
 		"ApprovalDefaults.Options.Methods.BodyPatterns": {
 			Env: map[string]string{"PEO_APPROVAL_DEFAULTS_OPTIONS_METHODS_BODY_PATTERNS": "(?m)^Approved-By:,(?m)^Signed-Off-By:"},
 			SetExpected: func(opts *PullEvaluationOptions) {
@@ -291,6 +375,18 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 								common.NewCompiledRegexp(regexp.MustCompile("(?m)^Approved-By:")),
 								common.NewCompiledRegexp(regexp.MustCompile("(?m)^Signed-Off-By:")),
 							},
+						},
+					},
+				}
+			},
+		},
+		"ApprovalDefaults.Options.Methods.BodyPatterns_Empty": {
+			Env: map[string]string{"PEO_APPROVAL_DEFAULTS_OPTIONS_METHODS_BODY_PATTERNS": ""},
+			SetExpected: func(opts *PullEvaluationOptions) {
+				opts.ApprovalDefaults = &approval.Defaults{
+					Options: &approval.Options{
+						Methods: &common.Methods{
+							BodyPatterns: []common.Regexp{},
 						},
 					},
 				}
