@@ -234,6 +234,8 @@ func (a *aggregator) count(name string, value int64, tags []string, cardinality 
 	}
 	a.countsM.RUnlock()
 
+	metric := newCountMetric(name, value, tags, resolvedCardinality)
+
 	a.countsM.Lock()
 	// Check if another goroutines hasn't created the value betwen the RUnlock and 'Lock'
 	if count, found := a.counts[context]; found {
@@ -242,7 +244,7 @@ func (a *aggregator) count(name string, value int64, tags []string, cardinality 
 		return nil
 	}
 
-	a.counts[context] = newCountMetric(name, value, tags, resolvedCardinality)
+	a.counts[context] = metric
 	a.countsM.Unlock()
 	return nil
 }
@@ -283,6 +285,8 @@ func (a *aggregator) set(name string, value string, tags []string, cardinality C
 	}
 	a.setsM.RUnlock()
 
+	metric := newSetMetric(name, value, tags, resolvedCardinality)
+
 	a.setsM.Lock()
 	// Check if another goroutines hasn't created the value betwen the 'RUnlock' and 'Lock'
 	if set, found := a.sets[context]; found {
@@ -290,7 +294,7 @@ func (a *aggregator) set(name string, value string, tags []string, cardinality C
 		a.setsM.Unlock()
 		return nil
 	}
-	a.sets[context] = newSetMetric(name, value, tags, resolvedCardinality)
+	a.sets[context] = metric
 	a.setsM.Unlock()
 	return nil
 }
