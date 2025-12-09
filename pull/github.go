@@ -18,6 +18,7 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/go-github/v79/github"
@@ -594,18 +595,38 @@ func (ghc *GitHubContext) RepositoryCollaborators() ([]*Collaborator, error) {
 			return nil, err
 		}
 
-		teamMembership := make(map[string][]string)
-		for team := range teamPerms {
-			// List full membership instead of testing each collaborator under
-			// the assumption that (teams * members) is much less than the
-			// total number of collaborators, which include those from the org
-			members, err := ghc.TeamMembers(ghc.owner + "/" + team)
-			if err != nil {
-				return nil, err
-			}
+		// Fetch team memberships in parallel. List full membership instead of
+		// testing each collaborator under the assumption that (teams * members)
+		// is much less than the total number of collaborators.
+		type teamResult struct {
+			team    string
+			members []string
+			err     error
+		}
+		resultCh := make(chan teamResult, len(teamPerms))
+		sem := make(chan struct{}, 20)
 
-			for _, member := range members {
-				teamMembership[member] = append(teamMembership[member], team)
+		var wg sync.WaitGroup
+		for team := range teamPerms {
+			wg.Add(1)
+			go func(team string) {
+				defer wg.Done()
+				sem <- struct{}{}
+				defer func() { <-sem }()
+				members, err := ghc.TeamMembers(ghc.owner + "/" + team)
+				resultCh <- teamResult{team: team, members: members, err: err}
+			}(team)
+		}
+		wg.Wait()
+		close(resultCh)
+
+		teamMembership := make(map[string][]string)
+		for result := range resultCh {
+			if result.err != nil {
+				return nil, result.err
+			}
+			for _, member := range result.members {
+				teamMembership[member] = append(teamMembership[member], result.team)
 			}
 		}
 

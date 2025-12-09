@@ -17,6 +17,7 @@ package pull
 import (
 	"context"
 	"strings"
+	"sync"
 
 	"github.com/google/go-github/v79/github"
 	"github.com/pkg/errors"
@@ -26,6 +27,7 @@ type GitHubMembershipContext struct {
 	ctx    context.Context
 	client *github.Client
 
+	mu          sync.Mutex
 	membership  map[string]bool
 	orgMembers  map[string][]string
 	teamMembers map[string][]string
@@ -61,7 +63,9 @@ func (mc *GitHubMembershipContext) IsTeamMember(team, user string) (bool, error)
 		return false, err
 	}
 
+	mc.mu.Lock()
 	isMember, ok := mc.membership[key]
+	mc.mu.Unlock()
 	if ok {
 		return isMember, nil
 	}
@@ -72,7 +76,9 @@ func (mc *GitHubMembershipContext) IsTeamMember(team, user string) (bool, error)
 	}
 
 	isMember = membership != nil && membership.GetState() == "active"
+	mc.mu.Lock()
 	mc.membership[key] = isMember
+	mc.mu.Unlock()
 
 	return isMember, nil
 }
@@ -80,7 +86,9 @@ func (mc *GitHubMembershipContext) IsTeamMember(team, user string) (bool, error)
 func (mc *GitHubMembershipContext) IsOrgMember(org, user string) (bool, error) {
 	key := membershipKey(org, user)
 
+	mc.mu.Lock()
 	isMember, ok := mc.membership[key]
+	mc.mu.Unlock()
 	if ok {
 		return isMember, nil
 	}
@@ -90,69 +98,87 @@ func (mc *GitHubMembershipContext) IsOrgMember(org, user string) (bool, error) {
 		return false, errors.Wrap(err, "failed to get organization membership")
 	}
 
+	mc.mu.Lock()
 	mc.membership[key] = isMember
+	mc.mu.Unlock()
 	return isMember, nil
 }
 
 func (mc *GitHubMembershipContext) OrganizationMembers(org string) ([]string, error) {
+	mc.mu.Lock()
 	members, ok := mc.orgMembers[org]
-	if !ok {
-		opt := &github.ListMembersOptions{
-			ListOptions: github.ListOptions{
-				PerPage: 100,
-			},
-		}
-
-		for {
-			users, resp, err := mc.client.Organizations.ListMembers(mc.ctx, org, opt)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to list members of org %s page %d", org, opt.Page)
-			}
-			for _, u := range users {
-				members = append(members, u.GetLogin())
-				// And cache these values for later lookups
-				mc.membership[membershipKey(org, u.GetLogin())] = true
-			}
-			if resp.NextPage == 0 {
-				break
-			}
-			opt.Page = resp.NextPage
-		}
-		mc.orgMembers[org] = members
+	mc.mu.Unlock()
+	if ok {
+		return members, nil
 	}
+
+	opt := &github.ListMembersOptions{
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+		},
+	}
+
+	for {
+		users, resp, err := mc.client.Organizations.ListMembers(mc.ctx, org, opt)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to list members of org %s page %d", org, opt.Page)
+		}
+		for _, u := range users {
+			members = append(members, u.GetLogin())
+		}
+		if resp.NextPage == 0 {
+			break
+		}
+		opt.Page = resp.NextPage
+	}
+
+	mc.mu.Lock()
+	mc.orgMembers[org] = members
+	for _, m := range members {
+		mc.membership[membershipKey(org, m)] = true
+	}
+	mc.mu.Unlock()
 	return members, nil
 }
 
 func (mc *GitHubMembershipContext) TeamMembers(team string) ([]string, error) {
+	mc.mu.Lock()
 	members, ok := mc.teamMembers[team]
-	if !ok {
-		opt := &github.TeamListTeamMembersOptions{
-			ListOptions: github.ListOptions{
-				PerPage: 100,
-			},
-		}
-
-		org, slug, err := splitTeam(team)
-		if err != nil {
-			return nil, err
-		}
-
-		for {
-			users, resp, err := mc.client.Teams.ListTeamMembersBySlug(mc.ctx, org, slug, opt)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to list team %s members page %d", team, opt.Page)
-			}
-			for _, u := range users {
-				members = append(members, u.GetLogin())
-				// And cache these values for later lookups
-				mc.membership[membershipKey(team, u.GetLogin())] = true
-			}
-			if resp.NextPage == 0 {
-				break
-			}
-			opt.Page = resp.NextPage
-		}
-		mc.teamMembers[team] = members
+	mc.mu.Unlock()
+	if ok {
+		return members, nil
 	}
+
+	opt := &github.TeamListTeamMembersOptions{
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+		},
+	}
+
+	org, slug, err := splitTeam(team)
+	if err != nil {
+		return nil, err
+	}
+
+	for {
+		users, resp, err := mc.client.Teams.ListTeamMembersBySlug(mc.ctx, org, slug, opt)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to list team %s members page %d", team, opt.Page)
+		}
+		for _, u := range users {
+			members = append(members, u.GetLogin())
+		}
+		if resp.NextPage == 0 {
+			break
+		}
+		opt.Page = resp.NextPage
+	}
+
+	mc.mu.Lock()
+	mc.teamMembers[team] = members
+	for _, m := range members {
+		mc.membership[membershipKey(team, m)] = true
+	}
+	mc.mu.Unlock()
 	return members, nil
 }

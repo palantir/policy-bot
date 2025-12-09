@@ -17,11 +17,13 @@ package handler
 import (
 	"net/http"
 	"slices"
+	"sync"
 
 	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/approval"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 )
 
 type DetailsReviewers struct {
@@ -70,49 +72,13 @@ func (h *DetailsReviewers) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		return h.renderEmptyReviewers(w, r)
 	}
 
-	var reviewers []string
-	var incomplete bool
-
-	// Add direct users
-	reviewers = append(reviewers, requires.Actors.Users...)
-
-	// Add organization members
-	for _, org := range requires.Actors.Organizations {
-		members, err := prctx.OrganizationMembers(org)
-		if err != nil {
-			logger.Warn().Err(err).Str("organization", org).Msg("Error listing organization members, reviewers will be incomplete")
-			incomplete = true
-		} else {
-			reviewers = append(reviewers, members...)
-		}
-	}
-
-	// Add team members
-	for _, team := range requires.Actors.Teams {
-		members, err := prctx.TeamMembers(team)
-		if err != nil {
-			logger.Warn().Err(err).Str("team", team).Msg("Error listing team members, reviewers will be incomplete")
-			incomplete = true
-		} else {
-			reviewers = append(reviewers, members...)
-		}
-	}
-
-	// Add reviewers with permissions
-	perms := requires.Actors.GetPermissions()
-	if len(perms) > 0 {
-		userCollaborators, err := prctx.RepositoryCollaborators()
-		if err != nil {
-			logger.Warn().Err(err).Msg("Error listing user collaborators, reviewers will be incomplete")
-			incomplete = true
-		} else {
-			for _, user := range userCollaborators {
-				if userHasReviewerPermission(user, perms) {
-					reviewers = append(reviewers, user.Name)
-				}
-			}
-		}
-	}
+	reviewers := append([]string{}, requires.Actors.Users...)
+	orgMembers, teamMembers, collaborators, incomplete := fetchReviewerSources(
+		prctx, logger, requires.Actors.Organizations, requires.Actors.Teams, requires.Actors.GetPermissions(),
+	)
+	reviewers = append(reviewers, orgMembers...)
+	reviewers = append(reviewers, teamMembers...)
+	reviewers = append(reviewers, collaborators...)
 
 	// Order the reviewers and remove any duplicates
 	slices.Sort(reviewers)
@@ -122,6 +88,81 @@ func (h *DetailsReviewers) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		Reviewers:  reviewers,
 		Incomplete: incomplete,
 	})
+}
+
+// fetchReviewerSources fetches organization members, team members, and collaborators
+// in parallel. Returns members from each source and whether any errors occurred.
+func fetchReviewerSources(
+	prctx pull.Context,
+	logger zerolog.Logger,
+	orgs []string,
+	teams []string,
+	perms []pull.Permission,
+) (orgMembers, teamMembers, collaborators []string, incomplete bool) {
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	sem := make(chan struct{}, 20)
+
+	for _, org := range orgs {
+		wg.Add(1)
+		go func(org string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			members, err := prctx.OrganizationMembers(org)
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil {
+				logger.Warn().Err(err).Str("organization", org).Msg("Error listing organization members, reviewers will be incomplete")
+				incomplete = true
+			} else {
+				orgMembers = append(orgMembers, members...)
+			}
+		}(org)
+	}
+
+	for _, team := range teams {
+		wg.Add(1)
+		go func(team string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			members, err := prctx.TeamMembers(team)
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil {
+				logger.Warn().Err(err).Str("team", team).Msg("Error listing team members, reviewers will be incomplete")
+				incomplete = true
+			} else {
+				teamMembers = append(teamMembers, members...)
+			}
+		}(team)
+	}
+
+	if len(perms) > 0 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			userCollaborators, err := prctx.RepositoryCollaborators()
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil {
+				logger.Warn().Err(err).Msg("Error listing user collaborators, reviewers will be incomplete")
+				incomplete = true
+			} else {
+				for _, user := range userCollaborators {
+					if userHasReviewerPermission(user, perms) {
+						collaborators = append(collaborators, user.Name)
+					}
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+	return
 }
 
 func (h *DetailsReviewers) renderEmptyReviewers(w http.ResponseWriter, r *http.Request) error {
