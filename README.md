@@ -1174,6 +1174,20 @@ issue by using the `ignore_commits_by` option in combination with the
 other than GitHub. It is also safe to run multiple instances of the server,
 making it a good fit for container schedulers like Nomad or Kubernetes.
 
+### Helm Chart (Experimental)
+
+A Helm chart is available in the `chart/` directory for deploying policy-bot to
+Kubernetes. This chart is currently **experimental** and may change in future
+releases.
+
+```bash
+helm install policy-bot ./chart -f values.yaml
+```
+
+See `chart/values.yaml` for all available configuration options.
+
+### Docker and Binary
+
 We provide both a Docker container and a binary distribution of the server:
 
 - Binaries: https://github.com/palantir/policy-bot/releases
