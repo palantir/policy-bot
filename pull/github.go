@@ -496,7 +496,7 @@ func (ghc *GitHubContext) Reviews() ([]*Review, error) {
 	return ghc.reviews, nil
 }
 
-func (ghc *GitHubContext) RepositoryCollaborators() ([]*Collaborator, error) {
+func (ghc *GitHubContext) RepositoryCollaborators(minPermission ...Permission) ([]*Collaborator, error) {
 	if ghc.collaborators == nil {
 		// For reviewer assignment, we need to figure out how each collaborator
 		// gets permissions on the repository. We _should_ be able to do this
@@ -516,77 +516,93 @@ func (ghc *GitHubContext) RepositoryCollaborators() ([]*Collaborator, error) {
 		// should only be used when assigning user reviewers, in which case
 		// almost all of the calls would have been made anyway.
 
-		var q struct {
-			Repository struct {
-				DirectCollaborators struct {
-					PageInfo v4PageInfo
-					Edges    []struct {
-						Permission string
-					}
-					Nodes []v4Actor
-				} `graphql:"direct: collaborators(affiliation: DIRECT, first: 50, after: $directCursor)"`
-				AllCollaborators struct {
-					PageInfo v4PageInfo
-					Edges    []struct {
-						Permission string
-					}
-					Nodes []v4Actor
-				} `graphql:"all: collaborators(affiliation: ALL, first: 50, after: $allCursor)"`
-			} `graphql:"repository(owner: $owner, name: $name)"`
-		}
-		qvars := map[string]interface{}{
-			"owner":        githubv4.String(ghc.owner),
-			"name":         githubv4.String(ghc.repo),
-			"directCursor": (*githubv4.String)(nil),
-			"allCursor":    (*githubv4.String)(nil),
+		// Determine if we should filter by permission
+		var filterPermission string
+		if len(minPermission) > 0 && minPermission[0] > PermissionNone {
+			// Convert Permission to GitHub API string
+			switch minPermission[0] {
+			case PermissionRead:
+				filterPermission = "pull"
+			case PermissionTriage:
+				filterPermission = "triage"
+			case PermissionWrite:
+				filterPermission = "push"
+			case PermissionMaintain:
+				filterPermission = "maintain"
+			case PermissionAdmin:
+				filterPermission = "admin"
+			}
 		}
 
+		// Helper function to parse user permissions
+		parseUserPermission := func(perms map[string]bool) Permission {
+			if perms["admin"] {
+				return PermissionAdmin
+			} else if perms["maintain"] {
+				return PermissionMaintain
+			} else if perms["push"] {
+				return PermissionWrite
+			} else if perms["triage"] {
+				return PermissionTriage
+			} else if perms["pull"] {
+				return PermissionRead
+			}
+			return PermissionNone
+		}
+
+		// Fetch direct collaborators (never filtered - needed for ViaRepo calculation)
 		directPerms := make(map[string]Permission)
-
-		var collaborators []*Collaborator
+		directOpts := &github.ListCollaboratorsOptions{
+			Affiliation: "direct",
+			ListOptions: github.ListOptions{PerPage: 100},
+		}
 		for {
-			complete := 0
-			if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
-				return nil, errors.Wrap(err, "failed to load repository collaborators")
+			users, resp, err := ghc.client.Repositories.ListCollaborators(ghc.ctx, ghc.owner, ghc.repo, directOpts)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to load direct repository collaborators")
 			}
 
-			for i, u := range q.Repository.DirectCollaborators.Nodes {
-				edge := q.Repository.DirectCollaborators.Edges[i]
-				name := u.GetV3Login()
-
-				p, err := ParsePermission(edge.Permission)
-				if err != nil {
-					return nil, errors.Wrapf(err, "%s", name)
-				}
-				directPerms[name] = p
-			}
-			if !q.Repository.DirectCollaborators.PageInfo.UpdateCursor(qvars, "directCursor") {
-				complete++
+			for _, u := range users {
+				name := u.GetLogin()
+				perm := parseUserPermission(u.GetPermissions())
+				directPerms[name] = perm
 			}
 
-			for i, u := range q.Repository.AllCollaborators.Nodes {
-				edge := q.Repository.AllCollaborators.Edges[i]
-				name := u.GetV3Login()
+			if resp.NextPage == 0 {
+				break
+			}
+			directOpts.Page = resp.NextPage
+		}
 
-				p, err := ParsePermission(edge.Permission)
-				if err != nil {
-					return nil, errors.Wrapf(err, "%s", name)
-				}
+		// Fetch all collaborators (optionally filtered by permission)
+		var collaborators []*Collaborator
+		allOpts := &github.ListCollaboratorsOptions{
+			Affiliation: "all",
+			Permission:  filterPermission, // This will be empty string if no filter
+			ListOptions: github.ListOptions{PerPage: 100},
+		}
+		for {
+			users, resp, err := ghc.client.Repositories.ListCollaborators(ghc.ctx, ghc.owner, ghc.repo, allOpts)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to load all repository collaborators")
+			}
+
+			for _, u := range users {
+				name := u.GetLogin()
+				perm := parseUserPermission(u.GetPermissions())
 
 				collaborators = append(collaborators, &Collaborator{
 					Name: name,
 					Permissions: []CollaboratorPermission{
-						{Permission: p},
+						{Permission: perm},
 					},
 				})
 			}
-			if !q.Repository.AllCollaborators.PageInfo.UpdateCursor(qvars, "allCursor") {
-				complete++
-			}
 
-			if complete == 2 {
+			if resp.NextPage == 0 {
 				break
 			}
+			allOpts.Page = resp.NextPage
 		}
 
 		teamPerms, err := ghc.Teams()

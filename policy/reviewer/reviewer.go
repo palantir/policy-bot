@@ -241,7 +241,25 @@ func selectUserReviewers(ctx context.Context, prctx pull.Context, selection *Sel
 		}
 	}
 
-	collaborators, err := prctx.RepositoryCollaborators()
+	// Get minimum permission if specified in the rule
+	var minPerm pull.Permission
+	if len(result.ReviewRequestRule.Permissions) > 0 {
+		// Find the minimum permission from the rule
+		minPerm = result.ReviewRequestRule.Permissions[0]
+		for _, p := range result.ReviewRequestRule.Permissions {
+			if p < minPerm {
+				minPerm = p
+			}
+		}
+	}
+
+	// Fetch collaborators, optionally filtered by minimum permission
+	var collaborators []*pull.Collaborator
+	if minPerm > pull.PermissionNone {
+		collaborators, err = prctx.RepositoryCollaborators(minPerm)
+	} else {
+		collaborators, err = prctx.RepositoryCollaborators()
+	}
 	if err != nil {
 		return errors.Wrap(err, "failed to list repository collaborators")
 	}

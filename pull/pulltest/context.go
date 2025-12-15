@@ -194,10 +194,12 @@ func (c *Context) CollaboratorPermission(user string) (pull.Permission, error) {
 	return pull.PermissionNone, nil
 }
 
-func (c *Context) RepositoryCollaborators() ([]*pull.Collaborator, error) {
+func (c *Context) RepositoryCollaborators(minPermission ...pull.Permission) ([]*pull.Collaborator, error) {
 	if c.CollaboratorsError != nil {
 		return nil, c.CollaboratorsError
 	}
+	// For testing, we don't filter - just return all collaborators
+	// Tests can set up CollaboratorsValue with the expected filtered result if needed
 	return c.CollaboratorsValue, nil
 }
 
