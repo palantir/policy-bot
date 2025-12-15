@@ -1,0 +1,200 @@
+# Default values for policy-bot.
+# This is a YAML-formatted file.
+
+# -- Number of replicas to deploy
+replicaCount: 1
+
+image:
+  # -- Docker image repository
+  repository: palantirtechnologies/policy-bot
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+  # -- Overrides the image tag whose default is the chart appVersion
+  tag: ""
+
+# -- Image pull secrets for private registries
+imagePullSecrets: []
+
+# -- Override the name of the chart
+nameOverride: ""
+
+# -- Override the full name of the chart
+fullnameOverride: ""
+
+serviceAccount:
+  # -- Specifies whether a service account should be created
+  create: true
+  # -- Annotations to add to the service account
+  annotations: {}
+  # -- The name of the service account to use
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# -- Pod annotations
+podAnnotations: {}
+
+# -- Pod security context
+podSecurityContext: {}
+
+# -- Container security context
+securityContext:
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  # -- Service type
+  type: ClusterIP
+  # -- Service port
+  port: 8080
+  # -- Service annotations
+  annotations: {}
+
+ingress:
+  # -- Enable ingress
+  enabled: false
+  # -- Ingress class name
+  className: ""
+  # -- Ingress annotations (use for cert-manager: cert-manager.io/cluster-issuer: "letsencrypt-prod")
+  annotations: {}
+  # -- Ingress hosts configuration
+  hosts:
+    - host: policy-bot.local
+      paths:
+        - path: /
+          pathType: Prefix
+  # TLS configuration (3 options):
+  # Option 1: Provide cert/key directly, chart creates the secret
+  # Option 2: Reference an existing secret via existingSecret
+  # Option 3: Use cert-manager by adding annotation above and leave false
+  tls:
+    # -- Enable TLS
+    enabled: false
+    # -- Base64 encoded TLS certificate (Option 1)
+    certificate: ""
+    # -- Base64 encoded TLS private key (Option 1)
+    privateKey: ""
+    # -- Name of existing TLS secret (Option 2)
+    existingSecret: ""
+    # -- Hostname for TLS (defaults to first ingress host)
+    host: ""
+
+# -- Resource requests and limits
+resources: {}
+  # limits:
+  #   cpu: 500m
+  #   memory: 256Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+# -- Node selector for pod assignment
+nodeSelector: {}
+
+# -- Tolerations for pod assignment
+tolerations: []
+
+# -- Affinity rules for pod assignment
+affinity: {}
+
+# Policy-bot specific configuration
+config:
+  server:
+    # -- Server listen address
+    address: "0.0.0.0"
+    # -- Server port
+    port: 8080
+    # -- Public URL for the server (used for OAuth callbacks and links)
+    publicUrl: ""
+
+  logging:
+    # -- Use human-readable text logs instead of JSON
+    text: false
+    # -- Log level (debug, info, warn, error)
+    level: info
+
+  cache:
+    # -- Maximum cache size
+    maxSize: "50MB"
+
+  workers:
+    # -- Number of webhook processing workers
+    workers: 10
+    # -- Queue size for webhook events
+    queueSize: 100
+    # -- Timeout for GitHub API requests
+    githubTimeout: 10s
+
+  github:
+    # -- GitHub web URL (for GitHub Enterprise, change to your instance URL)
+    webUrl: "https://github.com"
+    # -- GitHub REST API URL
+    v3ApiUrl: "https://api.github.com"
+    # -- GitHub GraphQL API URL
+    v4ApiUrl: "https://api.github.com/graphql"
+
+  options:
+    # -- Path to policy file in repositories
+    policyPath: ".policy.yml"
+    # -- Shared repository name for organization-wide policies
+    sharedRepository: ".github"
+    # -- Path to policy file in shared repository
+    sharedPolicyPath: "policy.yml"
+    # -- Context name for status checks
+    statusCheckContext: "policy-bot"
+    # -- Expand required reviewers to individual users
+    expandRequiredReviewers: false
+    # -- Force use of shared policy for all repositories
+    forceSharedPolicy: false
+
+  # Datadog metrics (optional)
+  datadog:
+    enabled: false
+    address: "127.0.0.1:8125"
+    interval: "10s"
+    tags: []
+
+  # Prometheus metrics (optional)
+  prometheus:
+    enabled: false
+    histogramQuantiles: [0.5, 0.95]
+    timerQuantiles: [0.5, 0.95]
+    labels: {}
+
+# Secrets configuration
+secrets:
+  # -- Create a Kubernetes Secret for sensitive values
+  create: true
+  # -- Name of an existing secret to use (if create is false)
+  existingSecret: ""
+
+  github:
+    # -- GitHub App integration ID
+    integrationId: ""
+    # -- GitHub App webhook secret
+    webhookSecret: ""
+    # -- GitHub App private key (PEM format)
+    privateKey: ""
+
+  oauth:
+    # -- OAuth client ID
+    clientId: ""
+    # -- OAuth client secret
+    clientSecret: ""
+
+  session:
+    # -- Session signing key
+    key: ""
+
+# -- Additional environment variables
+extraEnv: []
+
+# -- Additional volumes
+extraVolumes: []
+
+# -- Additional volume mounts
+extraVolumeMounts: []
