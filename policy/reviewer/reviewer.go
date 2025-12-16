@@ -123,7 +123,7 @@ func selectRandomUsers(n int, users []string, r *rand.Rand) []string {
 }
 
 func selectTeamMembers(prctx pull.Context, allTeams []string) (map[string][]string, error) {
-	var allTeamsMembers = make(map[string][]string)
+	allTeamsMembers := make(map[string][]string)
 	for _, team := range allTeams {
 		teamMembers, err := prctx.TeamMembers(team)
 		if err != nil {
@@ -241,19 +241,16 @@ func selectUserReviewers(ctx context.Context, prctx pull.Context, selection *Sel
 		}
 	}
 
-	var minPerm pull.Permission
+	var collaborators []*pull.Collaborator
+	var err error
 	if len(result.ReviewRequestRule.Permissions) > 0 {
-		// Find the minimum permission from the rule
-		minPerm = result.ReviewRequestRule.Permissions[0]
+		// If available, using a minimum required permissions we can filter collaborators to speed up selection
+		minPerm := result.ReviewRequestRule.Permissions[0]
 		for _, p := range result.ReviewRequestRule.Permissions {
 			if p < minPerm {
 				minPerm = p
 			}
 		}
-	}
-
-	var collaborators []*pull.Collaborator
-	if minPerm > pull.PermissionNone {
 		collaborators, err = prctx.RepositoryCollaborators(minPerm)
 	} else {
 		collaborators, err = prctx.RepositoryCollaborators()
