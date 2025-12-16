@@ -112,10 +112,9 @@ type Context interface {
 	IsDraft() bool
 
 	// RepositoryCollaborators returns the repository collaborators.
-	// An optional minimum permission level can be provided to filter collaborators.
-	// If provided, only collaborators with at least that permission level will be returned.
-	// This can significantly improve performance by reducing API calls.
-	RepositoryCollaborators(minPermission ...Permission) ([]*Collaborator, error)
+	// Filters to collaborators with at least the specified permission level.
+	// Filtering by permission can significantly improve performance.
+	RepositoryCollaborators(minPermission Permission) ([]*Collaborator, error)
 
 	// CollaboratorPermission returns the permission level of user on the repository.
 	CollaboratorPermission(user string) (Permission, error)

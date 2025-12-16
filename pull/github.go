@@ -496,16 +496,16 @@ func (ghc *GitHubContext) Reviews() ([]*Review, error) {
 	return ghc.reviews, nil
 }
 
-func (ghc *GitHubContext) RepositoryCollaborators(minPermission ...Permission) ([]*Collaborator, error) {
+func (ghc *GitHubContext) RepositoryCollaborators(minPermission Permission) ([]*Collaborator, error) {
 	if ghc.collaborators == nil {
 		// Query for all collaborators and direct collaborators, then join that
 		// information with team permissions to determine how each user gets
 		// their repository access (via direct assignment, team, or org membership).
 
 		var filterPermission string
-		if len(minPermission) > 0 && minPermission[0] > PermissionNone {
+		if minPermission > PermissionNone {
 			// Convert Permission to GitHub API string
-			switch minPermission[0] {
+			switch minPermission {
 			case PermissionRead:
 				filterPermission = "pull"
 			case PermissionTriage:

@@ -492,6 +492,20 @@ func TestCollaboratorPermission(t *testing.T) {
 func TestRepositoryCollaborators(t *testing.T) {
 	rp := &ResponsePlayer{}
 	rp.AddRule(
+		PathAndQueryMatcher{
+			Path:  "/repos/testorg/testrepo/collaborators",
+			Query: url.Values{"affiliation": []string{"direct"}, "per_page": []string{"100"}},
+		},
+		"testdata/responses/repo_collaborators_direct.yml",
+	)
+	rp.AddRule(
+		PathAndQueryMatcher{
+			Path:  "/repos/testorg/testrepo/collaborators",
+			Query: url.Values{"affiliation": []string{"all"}, "per_page": []string{"100"}},
+		},
+		"testdata/responses/repo_collaborators_all.yml",
+	)
+	rp.AddRule(
 		ExactPathMatcher("/repos/testorg/testrepo/teams"),
 		"testdata/responses/repo_teams.yml",
 	)
@@ -503,14 +517,10 @@ func TestRepositoryCollaborators(t *testing.T) {
 		ExactPathMatcher("/orgs/testorg/teams/admins/members"),
 		"testdata/responses/repo_team_members_admins.yml",
 	)
-	rp.AddRule(
-		GraphQLNodePrefixMatcher("repository.collaborators"),
-		"testdata/responses/repo_collaborators.yml",
-	)
 
 	ctx := makeContext(t, rp, nil, nil)
 
-	collaborators, err := ctx.RepositoryCollaborators()
+	collaborators, err := ctx.RepositoryCollaborators(PermissionNone)
 	require.NoError(t, err)
 
 	require.Len(t, collaborators, 8, "incorrect number of collaborators")
@@ -776,4 +786,28 @@ func (c *MockGlobalCache) GetPushedAt(repoID int64, sha string) (time.Time, bool
 
 func (c *MockGlobalCache) SetPushedAt(repoID int64, sha string, t time.Time) {
 	c.PushedAt[fmt.Sprintf("%d:%s", repoID, sha)] = t
+}
+
+// PathAndQueryMatcher matches both path and query parameters
+type PathAndQueryMatcher struct {
+	Path  string
+	Query url.Values
+}
+
+func (m PathAndQueryMatcher) Matches(r *http.Request, body []byte) bool {
+	if r.URL.Path != m.Path {
+		return false
+	}
+	for key, expectedValues := range m.Query {
+		actualValues := r.URL.Query()[key]
+		if len(actualValues) != len(expectedValues) {
+			return false
+		}
+		for i, expectedValue := range expectedValues {
+			if actualValues[i] != expectedValue {
+				return false
+			}
+		}
+	}
+	return true
 }

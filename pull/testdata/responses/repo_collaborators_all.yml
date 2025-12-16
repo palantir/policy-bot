@@ -1,0 +1,84 @@
+- status: 200
+  body: |
+    [
+      {
+        "login": "direct-admin",
+        "permissions": {
+          "pull": true,
+          "triage": true,
+          "push": true,
+          "maintain": true,
+          "admin": true
+        }
+      },
+      {
+        "login": "direct-triage",
+        "permissions": {
+          "pull": true,
+          "triage": true,
+          "push": false,
+          "maintain": false,
+          "admin": false
+        }
+      },
+      {
+        "login": "direct-write-team-maintain",
+        "permissions": {
+          "pull": true,
+          "triage": true,
+          "push": true,
+          "maintain": true,
+          "admin": false
+        }
+      },
+      {
+        "login": "org-owner",
+        "permissions": {
+          "pull": true,
+          "triage": true,
+          "push": true,
+          "maintain": true,
+          "admin": true
+        }
+      },
+      {
+        "login": "org-owner-team-maintain",
+        "permissions": {
+          "pull": true,
+          "triage": true,
+          "push": true,
+          "maintain": true,
+          "admin": true
+        }
+      },
+      {
+        "login": "org-read",
+        "permissions": {
+          "pull": true,
+          "triage": false,
+          "push": false,
+          "maintain": false,
+          "admin": false
+        }
+      },
+      {
+        "login": "team-admin",
+        "permissions": {
+          "pull": true,
+          "triage": true,
+          "push": true,
+          "maintain": true,
+          "admin": true
+        }
+      },
+      {
+        "login": "team-maintain",
+        "permissions": {
+          "pull": true,
+          "triage": true,
+          "push": true,
+          "maintain": true,
+          "admin": false
+        }
+      }
+    ]
