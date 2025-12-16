@@ -242,9 +242,12 @@ func selectUserReviewers(ctx context.Context, prctx pull.Context, selection *Sel
 	}
 
 	minPerm := pull.PermissionNone
-	for _, p := range result.ReviewRequestRule.Permissions {
-		if p < minPerm {
-			minPerm = p
+	if len(result.ReviewRequestRule.Permissions) > 0 {
+		minPerm = result.ReviewRequestRule.Permissions[0]
+		for _, p := range result.ReviewRequestRule.Permissions {
+			if p < minPerm {
+				minPerm = p
+			}
 		}
 	}
 	collaborators, err := prctx.RepositoryCollaborators(minPerm)
