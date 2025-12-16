@@ -65,7 +65,18 @@ Create the name of the secret to use
 Create the name of the configmap
 */}}
 {{- define "policy-bot.configMapName" -}}
+{{- if .Values.config.create }}
 {{- include "policy-bot.fullname" . }}-config
+{{- else }}
+{{- required "A valid .Values.config.existingConfigMap is required when config.create is false" .Values.config.existingConfigMap }}
+{{- end }}
+{{- end }}
+
+{{/*
+Return the config key name
+*/}}
+{{- define "policy-bot.configKey" -}}
+{{- .Values.config.key | default "policy-bot.yml" }}
 {{- end }}
 
 {{/*
@@ -104,4 +115,15 @@ Return the image name
 {{- define "policy-bot.image" -}}
 {{- $tag := .Values.image.tag | default .Chart.AppVersion }}
 {{- printf "%s:%s" .Values.image.repository $tag }}
+{{- end }}
+
+{{/*
+Create the name of the service account to use
+*/}}
+{{- define "policy-bot.serviceAccountName" -}}
+{{- if .Values.serviceAccount.create }}
+{{- default (include "policy-bot.fullname" .) .Values.serviceAccount.name }}
+{{- else }}
+{{- default "default" .Values.serviceAccount.name }}
+{{- end }}
 {{- end }}

@@ -1,3 +1,4 @@
+{{- if .Values.config.create }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -56,28 +57,16 @@ data:
       expand_required_reviewers: {{ .Values.config.options.expandRequiredReviewers }}
       force_shared_policy: {{ .Values.config.options.forceSharedPolicy }}
 
-    {{- if .Values.config.datadog.enabled }}
-    # Datadog metrics configuration
-    datadog:
-      address: {{ .Values.config.datadog.address | quote }}
-      interval: {{ .Values.config.datadog.interval | quote }}
-      {{- if .Values.config.datadog.tags }}
-      tags:
-        {{- range .Values.config.datadog.tags }}
-        - {{ . | quote }}
-        {{- end }}
-      {{- end }}
-    {{- end }}
-
-    {{- if .Values.config.prometheus.enabled }}
-    # Prometheus metrics configuration
+    {{- if .Values.config.metrics.quantiles.enabled }}
+    # Prometheus metrics quantile configuration (optional)
     prometheus:
-      histogram_quantiles: {{ .Values.config.prometheus.histogramQuantiles | toJson }}
-      timer_quantiles: {{ .Values.config.prometheus.timerQuantiles | toJson }}
-      {{- if .Values.config.prometheus.labels }}
+      histogram_quantiles: {{ .Values.config.metrics.quantiles.histogram | toJson }}
+      timer_quantiles: {{ .Values.config.metrics.quantiles.timer | toJson }}
+      {{- if .Values.config.metrics.labels }}
       labels:
-        {{- range $key, $value := .Values.config.prometheus.labels }}
+        {{- range $key, $value := .Values.config.metrics.labels }}
         {{ $key }}: {{ $value | quote }}
         {{- end }}
       {{- end }}
     {{- end }}
+{{- end }}

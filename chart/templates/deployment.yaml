@@ -23,6 +23,8 @@ spec:
       labels:
         {{- include "policy-bot.selectorLabels" . | nindent 8 }}
     spec:
+      serviceAccountName: {{ include "policy-bot.serviceAccountName" . }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -98,7 +100,7 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /secrets/policy-bot.yml
-              subPath: policy-bot.yml
+              subPath: {{ include "policy-bot.configKey" . }}
               readOnly: true
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}

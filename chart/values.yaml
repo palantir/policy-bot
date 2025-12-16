@@ -1,191 +1,235 @@
 # Default values for policy-bot.
 # This is a YAML-formatted file.
+# See README.md for detailed documentation.
 
-# -- Number of replicas to deploy
-replicaCount: 1
+## @section Deployment Settings
 
+## @param replicaCount Number of replicas to deploy. policy-bot is stateless and safe to run multiple instances.
+replicaCount: 2
+
+## @param image.repository Docker image repository
+## @param image.pullPolicy Image pull policy (Always, IfNotPresent, Never)
+## @param image.tag Overrides the image tag whose default is the chart appVersion
 image:
-  # -- Docker image repository
   repository: palantirtechnologies/policy-bot
-  # -- Image pull policy
   pullPolicy: IfNotPresent
-  # -- Overrides the image tag whose default is the chart appVersion
   tag: ""
 
-# -- Image pull secrets for private registries
+## @param imagePullSecrets Image pull secrets for private registries
 imagePullSecrets: []
 
-# -- Override the name of the chart
+## @param nameOverride Override the name of the chart (used in resource names)
 nameOverride: ""
 
-# -- Override the full name of the chart
+## @param fullnameOverride Override the full name of the chart (used in resource names)
 fullnameOverride: ""
 
-# -- Pod annotations
+## @section Service Account
+
+## @param serviceAccount.create Create a service account for the deployment
+## @param serviceAccount.name Name of the service account (defaults to fullname)
+## @param serviceAccount.annotations Annotations to add to the service account (e.g., for IAM roles)
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+## @section Pod Settings
+
+## @param podAnnotations Additional annotations to add to pods
 podAnnotations: {}
 
-# -- Pod security context
+## @param podSecurityContext Pod-level security context
 podSecurityContext: {}
 
-# -- Container security context
+## @param securityContext.readOnlyRootFilesystem Prevents container from writing to filesystem
+## @param securityContext.runAsNonRoot Ensures container doesn't run as root
+## @param securityContext.runAsUser Runs as non-privileged user (UID 1000)
+## @param securityContext.runAsGroup Runs as non-privileged group (GID 1000)
+## @param securityContext.allowPrivilegeEscalation Prevents gaining additional privileges
+## @param securityContext.capabilities.drop Linux capabilities to drop
+## @param securityContext.seccompProfile.type Seccomp profile type
 securityContext:
   readOnlyRootFilesystem: true
   runAsNonRoot: true
   runAsUser: 1000
+  runAsGroup: 1000
   allowPrivilegeEscalation: false
   capabilities:
     drop:
       - ALL
+  seccompProfile:
+    type: RuntimeDefault
 
+## @param terminationGracePeriodSeconds Time to allow for graceful shutdown
+terminationGracePeriodSeconds: 60
+
+## @param resources.limits.memory Memory limit
+## @param resources.requests.cpu CPU request
+## @param resources.requests.memory Memory request
+resources:
+  limits:
+    memory: 2048Mi
+  requests:
+    cpu: 100m
+    memory: 2048Mi
+
+## @param nodeSelector Node selector for pod assignment
+nodeSelector: {}
+
+## @param tolerations Tolerations for pod assignment
+tolerations: []
+
+## @param affinity Affinity rules for pod assignment
+affinity: {}
+
+## @section Service Settings
+
+## @param service.type Service type (ClusterIP, NodePort, LoadBalancer)
+## @param service.port Service port
+## @param service.annotations Additional service annotations
 service:
-  # -- Service type
   type: ClusterIP
-  # -- Service port
   port: 8080
-  # -- Service annotations
   annotations: {}
 
+## @section Ingress Settings
+
+## @param ingress.enabled Enable ingress resource creation
+## @param ingress.className Ingress class name (e.g., nginx, traefik, alb)
+## @param ingress.annotations Ingress annotations. Use for cert-manager or nginx config.
+## @param ingress.hosts[0].host Hostname for the ingress
+## @param ingress.hosts[0].paths[0].path Path for the ingress
+## @param ingress.hosts[0].paths[0].pathType Path type (Prefix, Exact, ImplementationSpecific)
+## @param ingress.tls.enabled Enable TLS termination at ingress
+## @param ingress.tls.certificate Base64 encoded TLS certificate (Option 1: provide directly)
+## @param ingress.tls.privateKey Base64 encoded TLS private key (Option 1: provide directly)
+## @param ingress.tls.existingSecret Name of existing TLS secret (Option 2: use existing)
+## @param ingress.tls.host Hostname for TLS certificate (defaults to first ingress host)
 ingress:
-  # -- Enable ingress
   enabled: false
-  # -- Ingress class name
   className: ""
-  # -- Ingress annotations (use for cert-manager: cert-manager.io/cluster-issuer: "letsencrypt-prod")
   annotations: {}
-  # -- Ingress hosts configuration
   hosts:
     - host: policy-bot.local
       paths:
         - path: /
           pathType: Prefix
-  # TLS configuration (3 options):
-  # Option 1: Provide cert/key directly, chart creates the secret
-  # Option 2: Reference an existing secret via existingSecret
-  # Option 3: Use cert-manager by adding annotation above and leave false
+  # TLS configuration:
+  # Option 1: Provide cert/key directly (set enabled=true, provide certificate and privateKey)
+  # Option 2: Reference existing Secret (set enabled=true, provide existingSecret)
+  # Option 3: Use cert-manager (add cert-manager.io/cluster-issuer annotation, enabled can be false)
   tls:
-    # -- Enable TLS
     enabled: false
-    # -- Base64 encoded TLS certificate (Option 1)
     certificate: ""
-    # -- Base64 encoded TLS private key (Option 1)
     privateKey: ""
-    # -- Name of existing TLS secret (Option 2)
     existingSecret: ""
-    # -- Hostname for TLS (defaults to first ingress host)
     host: ""
 
-# -- Resource requests and limits
-resources: {}
-  # limits:
-  #   cpu: 500m
-  #   memory: 256Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
+## @section Policy-bot Configuration
 
-# -- Node selector for pod assignment
-nodeSelector: {}
-
-# -- Tolerations for pod assignment
-tolerations: []
-
-# -- Affinity rules for pod assignment
-affinity: {}
-
-# Policy-bot specific configuration
+## @param config.create Create a ConfigMap for the config file
+## @param config.existingConfigMap Name of existing ConfigMap to use (when create is false)
+## @param config.key Key in existing ConfigMap containing the config file
 config:
+  create: true
+  existingConfigMap: ""
+  key: "policy-bot.yml"
+
+  ## @param config.server.address Server listen address
+  ## @param config.server.port Server port. The container and service will use this port.
+  ## @param config.server.publicUrl Public URL for OAuth callbacks and links. Auto-detected from ingress if empty.
   server:
-    # -- Server listen address
     address: "0.0.0.0"
-    # -- Server port
     port: 8080
-    # -- Public URL for the server (used for OAuth callbacks and links)
     publicUrl: ""
 
+  ## @param config.logging.text Use human-readable text logs instead of JSON
+  ## @param config.logging.level Log level (debug, info, warn, error)
   logging:
-    # -- Use human-readable text logs instead of JSON
     text: false
-    # -- Log level (debug, info, warn, error)
     level: info
 
+  ## @param config.cache.maxSize Maximum size for the in-memory cache (e.g., 50MB)
   cache:
-    # -- Maximum cache size
     maxSize: "50MB"
 
+  ## @param config.workers.workers Number of workers processing webhook events
+  ## @param config.workers.queueSize Queue size for buffering incoming webhook events
+  ## @param config.workers.githubTimeout Timeout for GitHub API requests (e.g., 10s, 1m)
   workers:
-    # -- Number of webhook processing workers
     workers: 10
-    # -- Queue size for webhook events
     queueSize: 100
-    # -- Timeout for GitHub API requests
     githubTimeout: 10s
 
+  ## @param config.github.webUrl GitHub web URL. For GitHub Enterprise, use your instance URL.
+  ## @param config.github.v3ApiUrl GitHub REST API (v3) URL
+  ## @param config.github.v4ApiUrl GitHub GraphQL API (v4) URL
   github:
-    # -- GitHub web URL (for GitHub Enterprise, change to your instance URL)
     webUrl: "https://github.com"
-    # -- GitHub REST API URL
     v3ApiUrl: "https://api.github.com"
-    # -- GitHub GraphQL API URL
     v4ApiUrl: "https://api.github.com/graphql"
 
+  ## @param config.options.policyPath Path to policy file in repositories
+  ## @param config.options.sharedRepository Shared repository name for organization-wide policies
+  ## @param config.options.sharedPolicyPath Path to policy file in shared repository
+  ## @param config.options.statusCheckContext Context name for status checks on pull requests
+  ## @param config.options.expandRequiredReviewers Expand required reviewers to show individual users
+  ## @param config.options.forceSharedPolicy Force use of shared policy for all repositories
   options:
-    # -- Path to policy file in repositories
     policyPath: ".policy.yml"
-    # -- Shared repository name for organization-wide policies
     sharedRepository: ".github"
-    # -- Path to policy file in shared repository
     sharedPolicyPath: "policy.yml"
-    # -- Context name for status checks
     statusCheckContext: "policy-bot"
-    # -- Expand required reviewers to individual users
     expandRequiredReviewers: false
-    # -- Force use of shared policy for all repositories
     forceSharedPolicy: false
 
-  # Datadog metrics (optional)
-  datadog:
-    enabled: false
-    address: "127.0.0.1:8125"
-    interval: "10s"
-    tags: []
-
-  # Prometheus metrics (optional)
-  prometheus:
-    enabled: false
-    histogramQuantiles: [0.5, 0.95]
-    timerQuantiles: [0.5, 0.95]
+  ## Prometheus metrics are always available at /api/metrics.
+  ## These settings allow customizing quantile tracking (optional).
+  ## @param config.metrics.quantiles.enabled Enable custom quantile configuration
+  ## @param config.metrics.quantiles.histogram [array] Histogram quantiles to track
+  ## @param config.metrics.quantiles.timer [array] Timer quantiles to track
+  ## @param config.metrics.labels [object] Additional labels to add to metrics
+  metrics:
+    quantiles:
+      enabled: false
+      histogram: [0.5, 0.95]
+      timer: [0.5, 0.95]
     labels: {}
 
-# Secrets configuration
+## @section Secrets Configuration
+
+## @param secrets.create Create a Kubernetes Secret for sensitive values
+## @param secrets.existingSecret Name of existing Secret to use (when create is false)
 secrets:
-  # -- Create a Kubernetes Secret for sensitive values
   create: true
-  # -- Name of an existing secret to use (if create is false)
   existingSecret: ""
 
+  ## @param secrets.github.integrationId GitHub App ID (Integration ID)
+  ## @param secrets.github.webhookSecret Webhook secret configured in your GitHub App
+  ## @param secrets.github.privateKey GitHub App private key in PEM format
   github:
-    # -- GitHub App integration ID
     integrationId: ""
-    # -- GitHub App webhook secret
     webhookSecret: ""
-    # -- GitHub App private key (PEM format)
     privateKey: ""
 
+  ## @param secrets.oauth.clientId OAuth Client ID from your GitHub App
+  ## @param secrets.oauth.clientSecret OAuth Client Secret from your GitHub App
   oauth:
-    # -- OAuth client ID
     clientId: ""
-    # -- OAuth client secret
     clientSecret: ""
 
+  ## @param secrets.session.key Session signing key for encrypting user sessions
   session:
-    # -- Session signing key
     key: ""
 
-# -- Additional environment variables
+## @section Additional Configuration
+
+## @param extraEnv Additional environment variables to add to the container
 extraEnv: []
 
-# -- Additional volumes
+## @param extraVolumes Additional volumes to add to the pod
 extraVolumes: []
 
-# -- Additional volume mounts
+## @param extraVolumeMounts Additional volume mounts to add to the container
 extraVolumeMounts: []
