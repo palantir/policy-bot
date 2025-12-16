@@ -40,8 +40,6 @@ spec:
             - --config
             - /secrets/policy-bot.yml
           env:
-            - name: POLICYBOT_PUBLIC_URL
-              value: {{ include "policy-bot.publicUrl" . | quote }}
             - name: GITHUB_APP_INTEGRATION_ID
               valueFrom:
                 secretKeyRef:
