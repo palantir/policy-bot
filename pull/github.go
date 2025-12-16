@@ -511,7 +511,6 @@ func (ghc *GitHubContext) RepositoryCollaborators(minPermission Permission) ([]*
 		}
 		filterPermission := permissionToGitHub[minPermission]
 
-		// Fetch direct collaborators - filtered to determine ViaRepo flag
 		directPerms := make(map[string]Permission)
 		directOpts := &github.ListCollaboratorsOptions{
 			Affiliation: "direct",
@@ -534,7 +533,6 @@ func (ghc *GitHubContext) RepositoryCollaborators(minPermission Permission) ([]*
 			directOpts.Page = resp.NextPage
 		}
 
-		// Fetch all collaborators
 		var collaborators []*Collaborator
 		allOpts := &github.ListCollaboratorsOptions{
 			Affiliation: "all",
@@ -582,7 +580,6 @@ func (ghc *GitHubContext) RepositoryCollaborators(minPermission Permission) ([]*
 		fillPermissions := func(c *Collaborator) {
 			overall := c.Permissions[0].Permission
 
-			// Check if user has direct repo permissions
 			if dp, ok := directPerms[c.Name]; ok {
 				if dp >= overall {
 					c.Permissions[0].ViaRepo = true
@@ -593,7 +590,6 @@ func (ghc *GitHubContext) RepositoryCollaborators(minPermission Permission) ([]*
 					})
 				}
 			}
-			// Note: If user is not in directPerms when filter is applied, ViaRepo remains false
 
 			for _, team := range teamMembership[c.Name] {
 				tp := teamPerms[team]
