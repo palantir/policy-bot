@@ -502,37 +502,14 @@ func (ghc *GitHubContext) RepositoryCollaborators(minPermission Permission) ([]*
 		// information with team permissions to determine how each user gets
 		// their repository access (via direct assignment, team, or org membership).
 
-		var filterPermission string
-		if minPermission > PermissionNone {
-			// Convert Permission to GitHub API string
-			switch minPermission {
-			case PermissionRead:
-				filterPermission = "pull"
-			case PermissionTriage:
-				filterPermission = "triage"
-			case PermissionWrite:
-				filterPermission = "push"
-			case PermissionMaintain:
-				filterPermission = "maintain"
-			case PermissionAdmin:
-				filterPermission = "admin"
-			}
+		permissionToGitHub := map[Permission]string{
+			PermissionRead:     "pull",
+			PermissionTriage:   "triage",
+			PermissionWrite:    "push",
+			PermissionMaintain: "maintain",
+			PermissionAdmin:    "admin",
 		}
-
-		parseUserPermission := func(perms map[string]bool) Permission {
-			if perms["admin"] {
-				return PermissionAdmin
-			} else if perms["maintain"] {
-				return PermissionMaintain
-			} else if perms["push"] {
-				return PermissionWrite
-			} else if perms["triage"] {
-				return PermissionTriage
-			} else if perms["pull"] {
-				return PermissionRead
-			}
-			return PermissionNone
-		}
+		filterPermission := permissionToGitHub[minPermission]
 
 		// Fetch direct collaborators - filtered to determine ViaRepo flag
 		directPerms := make(map[string]Permission)
@@ -548,9 +525,7 @@ func (ghc *GitHubContext) RepositoryCollaborators(minPermission Permission) ([]*
 			}
 
 			for _, u := range users {
-				name := u.GetLogin()
-				perm := parseUserPermission(u.GetPermissions())
-				directPerms[name] = perm
+				directPerms[u.GetLogin()] = ParsePermissionMap(u.GetPermissions())
 			}
 
 			if resp.NextPage == 0 {
@@ -573,13 +548,10 @@ func (ghc *GitHubContext) RepositoryCollaborators(minPermission Permission) ([]*
 			}
 
 			for _, u := range users {
-				name := u.GetLogin()
-				perm := parseUserPermission(u.GetPermissions())
-
 				collaborators = append(collaborators, &Collaborator{
-					Name: name,
+					Name: u.GetLogin(),
 					Permissions: []CollaboratorPermission{
-						{Permission: perm},
+						{Permission: ParsePermissionMap(u.GetPermissions())},
 					},
 				})
 			}
