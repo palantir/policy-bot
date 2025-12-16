@@ -498,25 +498,10 @@ func (ghc *GitHubContext) Reviews() ([]*Review, error) {
 
 func (ghc *GitHubContext) RepositoryCollaborators(minPermission ...Permission) ([]*Collaborator, error) {
 	if ghc.collaborators == nil {
-		// For reviewer assignment, we need to figure out how each collaborator
-		// gets permissions on the repository. We _should_ be able to do this
-		// by examining the permission sources for each collaborator, but this
-		// API is innaccurate as of 2021-05-06. Specifically:
-		//
-		//   - Organization permissions are not reported correctly
-		//   - Triage/Maintain permissions are not supported
-		//   - Organization owners have both org and repo sources
-		//
-		// But even if this API was correct, it is not available to GitHub App
-		// integrations at this time.
-		//
-		// Instead, query for all collaborators and direct collaborators, then
-		// join that information with team permissions and membership to
-		// produce the final list of collaborators. This is expensive, but
-		// should only be used when assigning user reviewers, in which case
-		// almost all of the calls would have been made anyway.
+		// Query for all collaborators and direct collaborators, then join that
+		// information with team permissions to determine how each user gets
+		// their repository access (via direct assignment, team, or org membership).
 
-		// Determine if we should filter by permission
 		var filterPermission string
 		if len(minPermission) > 0 && minPermission[0] > PermissionNone {
 			// Convert Permission to GitHub API string
@@ -534,7 +519,6 @@ func (ghc *GitHubContext) RepositoryCollaborators(minPermission ...Permission) (
 			}
 		}
 
-		// Helper function to parse user permissions
 		parseUserPermission := func(perms map[string]bool) Permission {
 			if perms["admin"] {
 				return PermissionAdmin
@@ -550,10 +534,11 @@ func (ghc *GitHubContext) RepositoryCollaborators(minPermission ...Permission) (
 			return PermissionNone
 		}
 
-		// Fetch direct collaborators (never filtered - needed for ViaRepo calculation)
+		// Fetch direct collaborators - filtered to determine ViaRepo flag
 		directPerms := make(map[string]Permission)
 		directOpts := &github.ListCollaboratorsOptions{
 			Affiliation: "direct",
+			Permission:  filterPermission,
 			ListOptions: github.ListOptions{PerPage: 100},
 		}
 		for {
@@ -574,11 +559,11 @@ func (ghc *GitHubContext) RepositoryCollaborators(minPermission ...Permission) (
 			directOpts.Page = resp.NextPage
 		}
 
-		// Fetch all collaborators (optionally filtered by permission)
+		// Fetch all collaborators
 		var collaborators []*Collaborator
 		allOpts := &github.ListCollaboratorsOptions{
 			Affiliation: "all",
-			Permission:  filterPermission, // This will be empty string if no filter
+			Permission:  filterPermission,
 			ListOptions: github.ListOptions{PerPage: 100},
 		}
 		for {
@@ -612,9 +597,6 @@ func (ghc *GitHubContext) RepositoryCollaborators(minPermission ...Permission) (
 
 		teamMembership := make(map[string][]string)
 		for team := range teamPerms {
-			// List full membership instead of testing each collaborator under
-			// the assumption that (teams * members) is much less than the
-			// total number of collaborators, which include those from the org
 			members, err := ghc.TeamMembers(ghc.owner + "/" + team)
 			if err != nil {
 				return nil, err
@@ -626,8 +608,9 @@ func (ghc *GitHubContext) RepositoryCollaborators(minPermission ...Permission) (
 		}
 
 		fillPermissions := func(c *Collaborator) {
-			overall := c.Permissions[0].Permission // from above, every collaborator has at least one permission
+			overall := c.Permissions[0].Permission
 
+			// Check if user has direct repo permissions
 			if dp, ok := directPerms[c.Name]; ok {
 				if dp >= overall {
 					c.Permissions[0].ViaRepo = true
@@ -638,6 +621,7 @@ func (ghc *GitHubContext) RepositoryCollaborators(minPermission ...Permission) (
 					})
 				}
 			}
+			// Note: If user is not in directPerms when filter is applied, ViaRepo remains false
 
 			for _, team := range teamMembership[c.Name] {
 				tp := teamPerms[team]
@@ -655,6 +639,7 @@ func (ghc *GitHubContext) RepositoryCollaborators(minPermission ...Permission) (
 		for _, c := range collaborators {
 			fillPermissions(c)
 		}
+
 		ghc.collaborators = collaborators
 	}
 	return ghc.collaborators, nil

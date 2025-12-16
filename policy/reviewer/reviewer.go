@@ -241,7 +241,6 @@ func selectUserReviewers(ctx context.Context, prctx pull.Context, selection *Sel
 		}
 	}
 
-	// Get minimum permission if specified in the rule
 	var minPerm pull.Permission
 	if len(result.ReviewRequestRule.Permissions) > 0 {
 		// Find the minimum permission from the rule
@@ -253,7 +252,6 @@ func selectUserReviewers(ctx context.Context, prctx pull.Context, selection *Sel
 		}
 	}
 
-	// Fetch collaborators, optionally filtered by minimum permission
 	var collaborators []*pull.Collaborator
 	if minPerm > pull.PermissionNone {
 		collaborators, err = prctx.RepositoryCollaborators(minPerm)
