@@ -498,9 +498,23 @@ func (ghc *GitHubContext) Reviews() ([]*Review, error) {
 
 func (ghc *GitHubContext) RepositoryCollaborators(minPermission Permission) ([]*Collaborator, error) {
 	if ghc.collaborators == nil {
-		// Query for all collaborators and direct collaborators, then join that
-		// information with team permissions to determine how each user gets
-		// their repository access (via direct assignment, team, or org membership).
+		// For reviewer assignment, we need to figure out how each collaborator
+		// gets permissions on the repository. We _should_ be able to do this
+		// by examining the permission sources for each collaborator, but this
+		// API is inaccurate as of 2021-05-06. Specifically:
+		//
+		//   - Organization permissions are not reported correctly
+		//   - Triage/Maintain permissions are not supported
+		//   - Organization owners have both org and repo sources
+		//
+		// But even if this API was correct, it is not available to GitHub App
+		// integrations at this time.
+		//
+		// Instead, query for all collaborators and direct collaborators, then
+		// join that information with team permissions and membership to
+		// produce the final list of collaborators. This is expensive, but
+		// should only be used when assigning user reviewers, in which case
+		// almost all of the calls would have been made anyway.
 
 		permissionToGitHub := map[Permission]string{
 			PermissionRead:     "pull",
