@@ -100,7 +100,12 @@ func (h *DetailsReviewers) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 
 	perms := requires.Actors.GetPermissions()
 	if len(perms) > 0 {
-		minPerm := perms[len(perms)-1] // Permissions are sorted high to low, so last is minimum
+		minPerm := perms[0]
+		for _, p := range perms {
+			if p < minPerm {
+				minPerm = p
+			}
+		}
 		userCollaborators, err := prctx.RepositoryCollaborators(minPerm)
 		if err != nil {
 			logger.Warn().Err(err).Msg("Error listing user collaborators, reviewers will be incomplete")
