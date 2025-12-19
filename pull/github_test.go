@@ -787,27 +787,3 @@ func (c *MockGlobalCache) GetPushedAt(repoID int64, sha string) (time.Time, bool
 func (c *MockGlobalCache) SetPushedAt(repoID int64, sha string, t time.Time) {
 	c.PushedAt[fmt.Sprintf("%d:%s", repoID, sha)] = t
 }
-
-// PathAndQueryMatcher matches both path and query parameters
-type PathAndQueryMatcher struct {
-	Path  string
-	Query url.Values
-}
-
-func (m PathAndQueryMatcher) Matches(r *http.Request, body []byte) bool {
-	if r.URL.Path != m.Path {
-		return false
-	}
-	for key, expectedValues := range m.Query {
-		actualValues := r.URL.Query()[key]
-		if len(actualValues) != len(expectedValues) {
-			return false
-		}
-		for i, expectedValue := range expectedValues {
-			if actualValues[i] != expectedValue {
-				return false
-			}
-		}
-	}
-	return true
-}

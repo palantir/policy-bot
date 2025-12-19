@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -32,6 +33,30 @@ type ExactPathMatcher string
 
 func (m ExactPathMatcher) Matches(r *http.Request, body []byte) bool {
 	return r.URL.Path == string(m)
+}
+
+// PathAndQueryMatcher matches both path and query parameters
+type PathAndQueryMatcher struct {
+	Path  string
+	Query url.Values
+}
+
+func (m PathAndQueryMatcher) Matches(r *http.Request, body []byte) bool {
+	if r.URL.Path != m.Path {
+		return false
+	}
+	for key, expectedValues := range m.Query {
+		actualValues := r.URL.Query()[key]
+		if len(actualValues) != len(expectedValues) {
+			return false
+		}
+		for i, expectedValue := range expectedValues {
+			if actualValues[i] != expectedValue {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 type Rule struct {
