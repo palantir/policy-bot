@@ -583,7 +583,7 @@ func (ghc *GitHubContext) RepositoryCollaborators(minPermission Permission) ([]*
 		}
 
 		fillPermissions := func(c *Collaborator) {
-			overall := c.Permissions[0].Permission
+			overall := c.Permissions[0].Permission // from above, every collaborator has at least one permission
 
 			if dp, ok := directPerms[c.Name]; ok {
 				if dp >= overall {
