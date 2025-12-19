@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -47,13 +48,8 @@ func (m PathAndQueryMatcher) Matches(r *http.Request, body []byte) bool {
 	}
 	for key, expectedValues := range m.Query {
 		actualValues := r.URL.Query()[key]
-		if len(actualValues) != len(expectedValues) {
+		if !slices.Equal(actualValues, expectedValues) {
 			return false
-		}
-		for i, expectedValue := range expectedValues {
-			if actualValues[i] != expectedValue {
-				return false
-			}
 		}
 	}
 	return true

@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"slices"
 	"sort"
 
 	"github.com/palantir/policy-bot/policy/common"
@@ -243,12 +244,7 @@ func selectUserReviewers(ctx context.Context, prctx pull.Context, selection *Sel
 
 	minPerm := pull.PermissionNone
 	if len(result.ReviewRequestRule.Permissions) > 0 {
-		minPerm = result.ReviewRequestRule.Permissions[0]
-		for _, p := range result.ReviewRequestRule.Permissions {
-			if p < minPerm {
-				minPerm = p
-			}
-		}
+		minPerm = slices.Min(result.ReviewRequestRule.Permissions)
 	}
 	collaborators, err := prctx.RepositoryCollaborators(minPerm)
 	if err != nil {
