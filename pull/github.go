@@ -516,19 +516,10 @@ func (ghc *GitHubContext) RepositoryCollaborators(minPermission Permission) ([]*
 		// should only be used when assigning user reviewers, in which case
 		// almost all of the calls would have been made anyway.
 
-		permissionToGitHub := map[Permission]string{
-			PermissionRead:     "pull",
-			PermissionTriage:   "triage",
-			PermissionWrite:    "push",
-			PermissionMaintain: "maintain",
-			PermissionAdmin:    "admin",
-		}
-		filterPermission := permissionToGitHub[minPermission]
-
 		directPerms := make(map[string]Permission)
 		directOpts := &github.ListCollaboratorsOptions{
 			Affiliation: "direct",
-			Permission:  filterPermission,
+			Permission:  minPermission.GitHubString(),
 			ListOptions: github.ListOptions{PerPage: 100},
 		}
 		for {
@@ -550,7 +541,7 @@ func (ghc *GitHubContext) RepositoryCollaborators(minPermission Permission) ([]*
 		var collaborators []*Collaborator
 		allOpts := &github.ListCollaboratorsOptions{
 			Affiliation: "all",
-			Permission:  filterPermission,
+			Permission:  minPermission.GitHubString(),
 			ListOptions: github.ListOptions{PerPage: 100},
 		}
 		for {

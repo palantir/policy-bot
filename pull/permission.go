@@ -70,6 +70,25 @@ func (p Permission) String() string {
 	return fmt.Sprintf("unknown(%d)", p)
 }
 
+// GitHubString returns the permission string as used in the GitHub API
+func (p Permission) GitHubString() string {
+	switch p {
+	case PermissionNone:
+		return ""
+	case PermissionRead:
+		return "pull"
+	case PermissionTriage:
+		return "triage"
+	case PermissionWrite:
+		return "push"
+	case PermissionMaintain:
+		return "maintain"
+	case PermissionAdmin:
+		return "admin"
+	}
+	return ""
+}
+
 func (p Permission) MarshalText() ([]byte, error) {
 	return []byte(p.String()), nil
 }
