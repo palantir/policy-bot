@@ -136,7 +136,7 @@ type GitHubContext struct {
 	comments                   []*Comment
 	reviews                    []*Review
 	reviewers                  []*Reviewer
-	collaborators              []*Collaborator
+	collaborators              map[Permission][]*Collaborator
 	permissions                map[string]Permission
 	teams                      map[string]Permission
 	statuses                   map[string]string
@@ -498,124 +498,130 @@ func (ghc *GitHubContext) Reviews() ([]*Review, error) {
 
 func (ghc *GitHubContext) RepositoryCollaborators(minPermission Permission) ([]*Collaborator, error) {
 	if ghc.collaborators == nil {
-		// For reviewer assignment, we need to figure out how each collaborator
-		// gets permissions on the repository. We _should_ be able to do this
-		// by examining the permission sources for each collaborator, but this
-		// API is inaccurate as of 2021-05-06. Specifically:
-		//
-		//   - Organization permissions are not reported correctly
-		//   - Triage/Maintain permissions are not supported
-		//   - Organization owners have both org and repo sources
-		//
-		// But even if this API was correct, it is not available to GitHub App
-		// integrations at this time.
-		//
-		// Instead, query for all collaborators and direct collaborators, then
-		// join that information with team permissions and membership to
-		// produce the final list of collaborators. This is expensive, but
-		// should only be used when assigning user reviewers, in which case
-		// almost all of the calls would have been made anyway.
+		ghc.collaborators = make(map[Permission][]*Collaborator)
+	}
 
-		directPerms := make(map[string]Permission)
-		directOpts := &github.ListCollaboratorsOptions{
-			Affiliation: "direct",
-			Permission:  minPermission.GitHubString(),
-			ListOptions: github.ListOptions{PerPage: 100},
-		}
-		for {
-			users, resp, err := ghc.client.Repositories.ListCollaborators(ghc.ctx, ghc.owner, ghc.repo, directOpts)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to load direct repository collaborators")
-			}
+	if cached, ok := ghc.collaborators[minPermission]; ok {
+		return cached, nil
+	}
 
-			for _, u := range users {
-				directPerms[u.GetLogin()] = ParsePermissionMap(u.GetPermissions())
-			}
+	// For reviewer assignment, we need to figure out how each collaborator
+	// gets permissions on the repository. We _should_ be able to do this
+	// by examining the permission sources for each collaborator, but this
+	// API is inaccurate as of 2021-05-06. Specifically:
+	//
+	//   - Organization permissions are not reported correctly
+	//   - Triage/Maintain permissions are not supported
+	//   - Organization owners have both org and repo sources
+	//
+	// But even if this API was correct, it is not available to GitHub App
+	// integrations at this time.
+	//
+	// Instead, query for all collaborators and direct collaborators, then
+	// join that information with team permissions and membership to
+	// produce the final list of collaborators. This is expensive, but
+	// should only be used when assigning user reviewers, in which case
+	// almost all of the calls would have been made anyway.
 
-			if resp.NextPage == 0 {
-				break
-			}
-			directOpts.Page = resp.NextPage
+	directPerms := make(map[string]Permission)
+	directOpts := &github.ListCollaboratorsOptions{
+		Affiliation: "direct",
+		Permission:  minPermission.GitHubString(),
+		ListOptions: github.ListOptions{PerPage: 100},
+	}
+	for {
+		users, resp, err := ghc.client.Repositories.ListCollaborators(ghc.ctx, ghc.owner, ghc.repo, directOpts)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to load direct repository collaborators")
 		}
 
-		var collaborators []*Collaborator
-		allOpts := &github.ListCollaboratorsOptions{
-			Affiliation: "all",
-			Permission:  minPermission.GitHubString(),
-			ListOptions: github.ListOptions{PerPage: 100},
-		}
-		for {
-			users, resp, err := ghc.client.Repositories.ListCollaborators(ghc.ctx, ghc.owner, ghc.repo, allOpts)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to load all repository collaborators")
-			}
-
-			for _, u := range users {
-				collaborators = append(collaborators, &Collaborator{
-					Name: u.GetLogin(),
-					Permissions: []CollaboratorPermission{
-						{Permission: ParsePermissionMap(u.GetPermissions())},
-					},
-				})
-			}
-
-			if resp.NextPage == 0 {
-				break
-			}
-			allOpts.Page = resp.NextPage
+		for _, u := range users {
+			directPerms[u.GetLogin()] = ParsePermissionMap(u.GetPermissions())
 		}
 
-		teamPerms, err := ghc.Teams()
+		if resp.NextPage == 0 {
+			break
+		}
+		directOpts.Page = resp.NextPage
+	}
+
+	var collaborators []*Collaborator
+	allOpts := &github.ListCollaboratorsOptions{
+		Affiliation: "all",
+		Permission:  minPermission.GitHubString(),
+		ListOptions: github.ListOptions{PerPage: 100},
+	}
+	for {
+		users, resp, err := ghc.client.Repositories.ListCollaborators(ghc.ctx, ghc.owner, ghc.repo, allOpts)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to load all repository collaborators")
+		}
+
+		for _, u := range users {
+			collaborators = append(collaborators, &Collaborator{
+				Name: u.GetLogin(),
+				Permissions: []CollaboratorPermission{
+					{Permission: ParsePermissionMap(u.GetPermissions())},
+				},
+			})
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+		allOpts.Page = resp.NextPage
+	}
+
+	teamPerms, err := ghc.Teams()
+	if err != nil {
+		return nil, err
+	}
+
+	teamMembership := make(map[string][]string)
+	for team := range teamPerms {
+		members, err := ghc.TeamMembers(ghc.owner + "/" + team)
 		if err != nil {
 			return nil, err
 		}
 
-		teamMembership := make(map[string][]string)
-		for team := range teamPerms {
-			members, err := ghc.TeamMembers(ghc.owner + "/" + team)
-			if err != nil {
-				return nil, err
-			}
-
-			for _, member := range members {
-				teamMembership[member] = append(teamMembership[member], team)
-			}
+		for _, member := range members {
+			teamMembership[member] = append(teamMembership[member], team)
 		}
-
-		fillPermissions := func(c *Collaborator) {
-			overall := c.Permissions[0].Permission // from above, every collaborator has at least one permission
-
-			if dp, ok := directPerms[c.Name]; ok {
-				if dp >= overall {
-					c.Permissions[0].ViaRepo = true
-				} else if dp > PermissionNone {
-					c.Permissions = append(c.Permissions, CollaboratorPermission{
-						Permission: dp,
-						ViaRepo:    true,
-					})
-				}
-			}
-
-			for _, team := range teamMembership[c.Name] {
-				tp := teamPerms[team]
-				if tp >= overall {
-					c.Permissions[0].ViaRepo = true
-				} else if tp > PermissionNone {
-					c.Permissions = append(c.Permissions, CollaboratorPermission{
-						Permission: tp,
-						ViaRepo:    true,
-					})
-				}
-			}
-		}
-
-		for _, c := range collaborators {
-			fillPermissions(c)
-		}
-
-		ghc.collaborators = collaborators
 	}
-	return ghc.collaborators, nil
+
+	fillPermissions := func(c *Collaborator) {
+		overall := c.Permissions[0].Permission // from above, every collaborator has at least one permission
+
+		if dp, ok := directPerms[c.Name]; ok {
+			if dp >= overall {
+				c.Permissions[0].ViaRepo = true
+			} else if dp > PermissionNone {
+				c.Permissions = append(c.Permissions, CollaboratorPermission{
+					Permission: dp,
+					ViaRepo:    true,
+				})
+			}
+		}
+
+		for _, team := range teamMembership[c.Name] {
+			tp := teamPerms[team]
+			if tp >= overall {
+				c.Permissions[0].ViaRepo = true
+			} else if tp > PermissionNone {
+				c.Permissions = append(c.Permissions, CollaboratorPermission{
+					Permission: tp,
+					ViaRepo:    true,
+				})
+			}
+		}
+	}
+
+	for _, c := range collaborators {
+		fillPermissions(c)
+	}
+
+	ghc.collaborators[minPermission] = collaborators
+	return ghc.collaborators[minPermission], nil
 }
 
 func (ghc *GitHubContext) CollaboratorPermission(user string) (Permission, error) {
