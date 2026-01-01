@@ -9,7 +9,7 @@
     "build:production": "NODE_ENV=production webpack build"
   },
   "devDependencies": {
-    "autoprefixer": "^10.4.22",
+    "autoprefixer": "^10.4.23",
     "css-loader": "^7.1.2",
     "cssnano": "^7.1",
     "mini-css-extract-plugin": "^2.9.4",
