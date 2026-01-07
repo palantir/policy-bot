@@ -73,6 +73,32 @@ func (a *Actors) GetPermissions() []pull.Permission {
 // IsActor returns true if the given user satisfies at least one of the
 // conditions in this structure.
 func (a *Actors) IsActor(ctx context.Context, prctx pull.Context, user string) (bool, error) {
+	permissions := a.GetPermissions()
+	if len(permissions) > 0 {
+		userPerm, err := prctx.CollaboratorPermission(user)
+		if err != nil {
+			return false, errors.Wrap(err, "failed to get collaborator permission")
+		}
+		if userPerm == pull.PermissionNone {
+			return false, nil
+		}
+
+		satisfiesPermissions := false
+		for _, p := range permissions {
+			if userPerm >= p {
+				satisfiesPermissions = true
+				break
+			}
+		}
+		if !satisfiesPermissions {
+			return false, nil
+		}
+
+		if len(a.Users)+len(a.Teams)+len(a.Organizations) == 0 {
+			return true, nil
+		}
+	}
+
 	for _, u := range a.Users {
 		if user == u {
 			return true, nil
@@ -96,23 +122,6 @@ func (a *Actors) IsActor(ctx context.Context, prctx pull.Context, user string) (
 		}
 		if member {
 			return true, nil
-		}
-	}
-
-	permissions := a.GetPermissions()
-	if len(permissions) > 0 {
-		userPerm, err := prctx.CollaboratorPermission(user)
-		if err != nil {
-			return false, err
-		}
-		if userPerm == pull.PermissionNone {
-			return false, nil
-		}
-
-		for _, p := range permissions {
-			if userPerm >= p {
-				return true, nil
-			}
 		}
 	}
 

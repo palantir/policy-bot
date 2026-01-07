@@ -113,6 +113,24 @@ func TestIsActor(t *testing.T) {
 		assertActor(t, a, "jstrawnickel")
 		assertNotActor(t, a, "ttest")
 	})
+
+	t.Run("identityAndPermissions", func(t *testing.T) {
+		prctx.TeamMemberships["lowpermuser"] = []string{"cool-org/team1"}
+		prctx.CollaboratorsValue = append(prctx.CollaboratorsValue, &pull.Collaborator{
+			Name: "lowpermuser",
+			Permissions: []pull.CollaboratorPermission{
+				{Permission: pull.PermissionRead},
+			},
+		})
+
+		a := &Actors{
+			Teams:       []string{"cool-org/team1"},
+			Permissions: []pull.Permission{pull.PermissionWrite},
+		}
+
+		assertNotActor(t, a, "lowpermuser")
+		assertActor(t, a, "mhaypenny")
+	})
 }
 
 func TestIsEmpty(t *testing.T) {
