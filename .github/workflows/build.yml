@@ -49,6 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      packages: write
 
     env:
       GOPATH: /home/runner/go
@@ -115,19 +116,45 @@ jobs:
     #
 
     - name: Login to Docker Hub
-      if: ${{ github.event_name == 'push' || github.event_name == 'release' }}
+      if: ${{ (github.event_name == 'push' || github.event_name == 'release') && secrets.DOCKERHUB_USERNAME != '' }}
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
     - name: Push snapshot image to Docker Hub
-      if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' }}
+      if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' && secrets.DOCKERHUB_USERNAME != '' }}
       run: ./godelw docker push --tags=snapshot
 
     - name: Push release image to Docker Hub
-      if: ${{ github.event_name == 'release' }}
+      if: ${{ github.event_name == 'release' && secrets.DOCKERHUB_USERNAME != '' }}
       run: ./godelw docker push --tags=latest,version
+
+    - name: Login to GHCR
+      if: ${{ github.event_name == 'push' || github.event_name == 'release' }}
+      uses: docker/login-action@v3
+      continue-on-error: true
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Push snapshot image to GHCR
+      if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' }}
+      continue-on-error: true
+      run: |
+        docker tag palantirtechnologies/policy-bot:snapshot ghcr.io/${{ github.repository }}:snapshot
+        docker push ghcr.io/${{ github.repository }}:snapshot
+
+    - name: Push release image to GHCR
+      if: ${{ github.event_name == 'release' }}
+      continue-on-error: true
+      run: |
+        VERSION="${GITHUB_REF#refs/tags/}"
+        docker tag palantirtechnologies/policy-bot:latest ghcr.io/${{ github.repository }}:latest
+        docker tag palantirtechnologies/policy-bot:${VERSION} ghcr.io/${{ github.repository }}:${VERSION}
+        docker push ghcr.io/${{ github.repository }}:latest
+        docker push ghcr.io/${{ github.repository }}:${VERSION}
 
     - name: Publish release assets
       if: ${{ github.event_name == 'release' }}
