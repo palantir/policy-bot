@@ -80,6 +80,9 @@ type Context struct {
 	RepositoryCustomPropertiesValue map[string]pull.CustomProperty
 	RepositoryCustomPropertiesError error
 
+	CodeownersValue *pull.CodeownersResult
+	CodeownersError error
+
 	Draft bool
 }
 
@@ -272,6 +275,10 @@ func (c *Context) Labels() ([]string, error) {
 
 func (c *Context) RepositoryCustomProperties() (map[string]pull.CustomProperty, error) {
 	return c.RepositoryCustomPropertiesValue, c.RepositoryCustomPropertiesError
+}
+
+func (c *Context) Codeowners() (*pull.CodeownersResult, error) {
+	return c.CodeownersValue, c.CodeownersError
 }
 
 // assert that the test object implements the full interface

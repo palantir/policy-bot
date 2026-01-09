@@ -115,6 +115,99 @@ func TestIsActor(t *testing.T) {
 	})
 }
 
+func TestIsActorCodeowners(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("user codeowner", func(t *testing.T) {
+		prctx := &pulltest.Context{
+			CodeownersValue: &pull.CodeownersResult{
+				Owners: map[string][]string{
+					"src/main.go": {"@mhaypenny", "@other-user"},
+				},
+			},
+		}
+
+		a := &Actors{Codeowners: true}
+
+		isActor, err := a.IsActor(ctx, prctx, "mhaypenny")
+		require.NoError(t, err)
+		assert.True(t, isActor, "codeowner should be an actor")
+
+		isActor, err = a.IsActor(ctx, prctx, "other-user")
+		require.NoError(t, err)
+		assert.True(t, isActor, "codeowner should be an actor")
+
+		isActor, err = a.IsActor(ctx, prctx, "random-user")
+		require.NoError(t, err)
+		assert.False(t, isActor, "non-codeowner should not be an actor")
+	})
+
+	t.Run("team codeowner", func(t *testing.T) {
+		prctx := &pulltest.Context{
+			TeamMemberships: map[string][]string{
+				"team-member": {"myorg/my-team"},
+			},
+			CodeownersValue: &pull.CodeownersResult{
+				Owners: map[string][]string{
+					"src/main.go": {"@myorg/my-team"},
+				},
+			},
+		}
+
+		a := &Actors{Codeowners: true}
+
+		isActor, err := a.IsActor(ctx, prctx, "team-member")
+		require.NoError(t, err)
+		assert.True(t, isActor, "team member should be an actor")
+
+		isActor, err = a.IsActor(ctx, prctx, "non-member")
+		require.NoError(t, err)
+		assert.False(t, isActor, "non-team-member should not be an actor")
+	})
+
+	t.Run("no codeowners file", func(t *testing.T) {
+		prctx := &pulltest.Context{
+			CodeownersValue: nil,
+		}
+
+		a := &Actors{Codeowners: true}
+
+		isActor, err := a.IsActor(ctx, prctx, "anyone")
+		require.NoError(t, err)
+		assert.False(t, isActor, "should not be an actor when no CODEOWNERS file")
+	})
+
+	t.Run("empty owners for file", func(t *testing.T) {
+		prctx := &pulltest.Context{
+			CodeownersValue: &pull.CodeownersResult{
+				Owners: map[string][]string{},
+			},
+		}
+
+		a := &Actors{Codeowners: true}
+
+		isActor, err := a.IsActor(ctx, prctx, "anyone")
+		require.NoError(t, err)
+		assert.False(t, isActor, "should not be an actor when no owners defined")
+	})
+
+	t.Run("codeowners disabled", func(t *testing.T) {
+		prctx := &pulltest.Context{
+			CodeownersValue: &pull.CodeownersResult{
+				Owners: map[string][]string{
+					"src/main.go": {"@mhaypenny"},
+				},
+			},
+		}
+
+		a := &Actors{Codeowners: false}
+
+		isActor, err := a.IsActor(ctx, prctx, "mhaypenny")
+		require.NoError(t, err)
+		assert.False(t, isActor, "should not be an actor when codeowners is disabled")
+	})
+}
+
 func TestIsEmpty(t *testing.T) {
 	a := &Actors{}
 	assert.True(t, a.IsZero(), "Actors struct was not empty")
@@ -126,6 +219,9 @@ func TestIsEmpty(t *testing.T) {
 	assert.False(t, a.IsZero(), "Actors struct was empty")
 
 	a = &Actors{Organizations: []string{"org"}}
+	assert.False(t, a.IsZero(), "Actors struct was empty")
+
+	a = &Actors{Codeowners: true}
 	assert.False(t, a.IsZero(), "Actors struct was empty")
 
 	a = nil

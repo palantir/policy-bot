@@ -17,6 +17,7 @@ package reviewer
 import (
 	"context"
 	"fmt"
+	"maps"
 	"math/rand"
 	"slices"
 	"sort"
@@ -103,7 +104,7 @@ func selectRandomUsers(n int, users []string, r *rand.Rand) []string {
 	}
 
 	selected := make(map[int]bool)
-	for i := 0; i < n; i++ {
+	for range n {
 		j := 0
 		for {
 			// Upper bound the number of attempts to uniquely select random users to n*5
@@ -123,17 +124,25 @@ func selectRandomUsers(n int, users []string, r *rand.Rand) []string {
 	return selections
 }
 
-func selectTeamMembers(prctx pull.Context, allTeams []string) (map[string][]string, error) {
-	allTeamsMembers := make(map[string][]string)
-	for _, team := range allTeams {
-		teamMembers, err := prctx.TeamMembers(team)
+func selectTeamMembers(prctx pull.Context, teams []string) (map[string][]string, error) {
+	teamMembers := make(map[string][]string)
+	for _, team := range teams {
+		members, err := prctx.TeamMembers(team)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get member listing for team %s", team)
 		}
-		allTeamsMembers[team] = teamMembers
+		teamMembers[team] = members
 	}
+	return teamMembers, nil
+}
 
-	return allTeamsMembers, nil
+// addTeamMembersToSet adds all members from the given teams to the user set.
+func addTeamMembersToSet(teamMembers map[string][]string, userSet map[string]struct{}) {
+	for _, members := range teamMembers {
+		for _, user := range members {
+			userSet[user] = struct{}{}
+		}
+	}
 }
 
 func selectOrgMembers(prctx pull.Context, allOrgs []string) ([]string, error) {
@@ -220,14 +229,11 @@ func selectUserReviewers(ctx context.Context, prctx pull.Context, selection *Sel
 
 	if len(result.ReviewRequestRule.Teams) > 0 {
 		logger.Debug().Msg("Selecting from teams for review")
-		teamsToUsers, err := selectTeamMembers(prctx, result.ReviewRequestRule.Teams)
+		teamMembers, err := selectTeamMembers(prctx, result.ReviewRequestRule.Teams)
 		if err != nil {
 			logger.Warn().Err(err).Msgf("failed to get member listing for teams, skipping team member selection")
-		}
-		for _, users := range teamsToUsers {
-			for _, user := range users {
-				allUsers[user] = struct{}{}
-			}
+		} else {
+			addTeamMembersToSet(teamMembers, allUsers)
 		}
 	}
 
@@ -239,6 +245,26 @@ func selectUserReviewers(ctx context.Context, prctx pull.Context, selection *Sel
 		}
 		for _, user := range orgMembers {
 			allUsers[user] = struct{}{}
+		}
+	}
+
+	if result.ReviewRequestRule.Codeowners {
+		logger.Debug().Msg("Selecting from codeowners for review")
+		codeownerUsers, codeownerTeams, err := selectCodeowners(prctx)
+		if err != nil {
+			logger.Warn().Err(err).Msg("failed to get codeowners, skipping codeowner selection")
+		} else {
+			for _, user := range codeownerUsers {
+				allUsers[user] = struct{}{}
+			}
+			if len(codeownerTeams) > 0 {
+				teamMembers, err := selectTeamMembers(prctx, codeownerTeams)
+				if err != nil {
+					logger.Warn().Err(err).Msg("failed to get codeowner team members, skipping team member selection")
+				} else {
+					addTeamMembersToSet(teamMembers, allUsers)
+				}
+			}
 		}
 	}
 
@@ -284,19 +310,39 @@ func selectUserReviewers(ctx context.Context, prctx pull.Context, selection *Sel
 }
 
 func requestsTeam(r *common.Result, team string) bool {
-	for _, t := range r.ReviewRequestRule.Teams {
-		if t == team {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(r.ReviewRequestRule.Teams, team)
 }
 
 func requestsPermission(r *common.Result, perm pull.Permission) bool {
-	for _, p := range r.ReviewRequestRule.Permissions {
-		if p == perm {
-			return true
+	return slices.Contains(r.ReviewRequestRule.Permissions, perm)
+}
+
+// selectCodeowners returns the users and teams that are codeowners of the
+// changed files in the pull request.
+func selectCodeowners(prctx pull.Context) ([]string, []string, error) {
+	co, err := prctx.Codeowners()
+	if err != nil {
+		return nil, nil, err
+	}
+	if co == nil {
+		return nil, nil, nil
+	}
+
+	userSet := make(map[string]struct{})
+	teamSet := make(map[string]struct{})
+
+	for _, owner := range co.AllOwners() {
+		ownerType, name := pull.ParseCodeowner(owner)
+		switch ownerType {
+		case "user":
+			userSet[name] = struct{}{}
+		case "team":
+			teamSet[name] = struct{}{}
 		}
 	}
-	return false
+
+	users := slices.Sorted(maps.Keys(userSet))
+	teams := slices.Sorted(maps.Keys(teamSet))
+
+	return users, teams, nil
 }
