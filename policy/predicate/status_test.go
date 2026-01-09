@@ -163,7 +163,7 @@ func TestHasSuccessfulStatus(t *testing.T) {
 			nameSuffix:        "skipped allowed",
 			predicate:         hasStatusSkippedOk,
 			testCases:         okOnlyIfSkippedAllowed,
-			overrideSatisfied: github.Bool(true),
+			overrideSatisfied: github.Ptr(true),
 		},
 	}
 

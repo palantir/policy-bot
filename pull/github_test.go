@@ -444,11 +444,11 @@ func TestCrossRepoBranches(t *testing.T) {
 	// change the source repo to a forked repo
 	crossRepoPr := defaultTestPR()
 	crossRepoPr.Head.Repo = &github.Repository{
-		ID: github.Int64(12345),
+		ID: github.Ptr(int64(12345)),
 		Owner: &github.User{
-			Login: github.String("testorg2"),
+			Login: github.Ptr("testorg2"),
 		},
-		Name: github.String("testrepofork"),
+		Name: github.Ptr("testrepofork"),
 	}
 
 	ctx := makeContext(t, rp, crossRepoPr, nil)
@@ -736,36 +736,36 @@ func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest, gc Gl
 
 func defaultTestPR() *github.PullRequest {
 	return &github.PullRequest{
-		Title:     github.String("test title"),
-		State:     github.String("open"),
-		Number:    github.Int(123),
+		Title:     github.Ptr("test title"),
+		State:     github.Ptr("open"),
+		Number:    github.Ptr(123),
 		CreatedAt: &github.Timestamp{Time: time.Date(2020, 9, 30, 17, 42, 10, 0, time.UTC)},
-		Draft:     github.Bool(false),
+		Draft:     github.Ptr(false),
 		User: &github.User{
-			Login: github.String("mhaypenny"),
+			Login: github.Ptr("mhaypenny"),
 		},
 		Head: &github.PullRequestBranch{
-			Ref: github.String("test-branch"),
-			SHA: github.String("e05fcae367230ee709313dd2720da527d178ce43"),
+			Ref: github.Ptr("test-branch"),
+			SHA: github.Ptr("e05fcae367230ee709313dd2720da527d178ce43"),
 			Repo: &github.Repository{
-				ID: github.Int64(1234),
+				ID: github.Ptr(int64(1234)),
 				Owner: &github.User{
-					Login: github.String("testorg"),
+					Login: github.Ptr("testorg"),
 				},
-				Name: github.String("testrepo"),
+				Name: github.Ptr("testrepo"),
 			},
 		},
 		Base: &github.PullRequestBranch{
-			Ref: github.String("develop"),
+			Ref: github.Ptr("develop"),
 			Repo: &github.Repository{
-				ID: github.Int64(1234),
+				ID: github.Ptr(int64(1234)),
 				Owner: &github.User{
-					Login: github.String("testorg"),
+					Login: github.Ptr("testorg"),
 				},
-				Name: github.String("testrepo"),
+				Name: github.Ptr("testrepo"),
 			},
 		},
-		ChangedFiles: github.Int(1),
+		ChangedFiles: github.Ptr(1),
 	}
 }
 
