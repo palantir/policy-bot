@@ -1,0 +1,39 @@
+name: goimports
+
+on:
+  push:
+    branches: [develop]
+    tags-ignore:
+      - '**'
+
+  pull_request:
+
+jobs:
+  goimports:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Set Go version
+      id: go_version
+      run: |
+        GO_VERSION=$(sed -E -n '/^go / s/^go ([0-9]+\.[0-9]+)(\.[0-9]+)?$/\1/p' < go.mod)
+        echo "version=${GO_VERSION}" >> $GITHUB_OUTPUT
+
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: ${{ steps.go_version.outputs.version }}
+
+    - name: Install goimports
+      run: go install golang.org/x/tools/cmd/goimports@latest
+
+    - name: Check imports
+      run: |
+        UNFORMATTED=$(goimports -l . | grep -v '^vendor/' || true)
+        if [ -n "$UNFORMATTED" ]; then
+          echo "The following files have import formatting issues:"
+          echo "$UNFORMATTED"
+          exit 1
+        fi
