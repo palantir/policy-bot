@@ -23,6 +23,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/alexedwards/scs"
 	"github.com/bluekeyes/hatpear"

@@ -51,6 +51,12 @@ github.com/google/go-querystring/query
 # github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 ## explicit
 github.com/gregjones/httpcache
+# github.com/h2non/gock v1.2.0
+## explicit; go 1.13
+github.com/h2non/gock
+# github.com/h2non/parth v0.0.0-20190131123155-b4df798d6542
+## explicit
+github.com/h2non/parth
 # github.com/hashicorp/golang-lru v1.0.2
 ## explicit; go 1.12
 github.com/hashicorp/golang-lru

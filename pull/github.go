@@ -940,7 +940,8 @@ func (ghc *GitHubContext) LatestWorkflowRuns() (map[string][]string, error) {
 		}
 	}
 
-	return workflowRuns, nil
+	ghc.workflowRuns = workflowRuns
+	return ghc.workflowRuns, nil
 }
 
 func (ghc *GitHubContext) Labels() ([]string, error) {
