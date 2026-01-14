@@ -18,6 +18,7 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/go-github/v81/github"
@@ -144,6 +145,18 @@ type GitHubContext struct {
 	pushedAt                   map[string]time.Time
 	workflowRuns               map[string][]string
 	repositoryCustomProperties map[string]CustomProperty
+
+	codeownersResult *CodeownersResult
+	codeownersLoaded bool
+	codeownersErr    error
+
+	// sync.Once fields for thread-safe lazy loading
+	pagedDataOnce    sync.Once
+	pagedDataErr     error
+	workflowRunsOnce sync.Once
+	workflowRunsErr  error
+	changedFilesOnce sync.Once
+	changedFilesErr  error
 }
 
 // NewGitHubContext creates a new pull.Context that makes GitHub requests to
@@ -182,6 +195,15 @@ func NewGitHubContext(
 		number: loc.Number,
 		pr:     pr,
 	}, nil
+}
+
+// Prefetch starts background fetches for commonly needed data.
+// Call this early to overlap API calls with other work.
+// Results are cached, so subsequent calls to the data methods return immediately.
+func (ghc *GitHubContext) Prefetch() {
+	go func() { _, _ = ghc.ChangedFiles() }()
+	go func() { _ = ghc.loadPagedData() }()
+	go func() { _, _ = ghc.LatestWorkflowRuns() }()
 }
 
 func (ghc *GitHubContext) EvaluationTimestamp() time.Time {
@@ -306,12 +328,13 @@ func (ghc *GitHubContext) Branches() (base string, head string) {
 }
 
 func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
-	// Check if changed files exceeds the limit
-	if ghc.pr.ChangedFiles > MaxPullRequestFiles {
-		return nil, errors.Errorf("number of changed files (%d) exceeds limit (%d)", ghc.pr.ChangedFiles, MaxPullRequestFiles)
-	}
+	ghc.changedFilesOnce.Do(func() {
+		// Check if changed files exceeds the limit
+		if ghc.pr.ChangedFiles > MaxPullRequestFiles {
+			ghc.changedFilesErr = errors.Errorf("number of changed files (%d) exceeds limit (%d)", ghc.pr.ChangedFiles, MaxPullRequestFiles)
+			return
+		}
 
-	if ghc.files == nil {
 		opt := github.ListOptions{
 			PerPage: 100,
 		}
@@ -320,7 +343,8 @@ func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
 		for {
 			files, res, err := ghc.client.PullRequests.ListFiles(ghc.ctx, ghc.owner, ghc.repo, ghc.number, &opt)
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to list pull request files")
+				ghc.changedFilesErr = errors.Wrap(err, "failed to list pull request files")
+				return
 			}
 			allFiles = append(allFiles, files...)
 			if res.NextPage == 0 {
@@ -358,17 +382,13 @@ func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
 				Deletions: f.GetDeletions(),
 			})
 		}
-	}
-
-	return ghc.files, nil
+	})
+	return ghc.files, ghc.changedFilesErr
 }
 
 func (ghc *GitHubContext) Commits() ([]*Commit, error) {
-	if ghc.commits == nil {
-		err := ghc.loadPagedData()
-		if err != nil {
-			return nil, err
-		}
+	if err := ghc.loadPagedData(); err != nil {
+		return nil, err
 	}
 	if len(ghc.commits) >= MaxPullRequestCommits {
 		return nil, errors.Errorf("too many commits in pull request, maximum is %d", MaxPullRequestCommits)
@@ -479,19 +499,15 @@ func (ghc *GitHubContext) nextChildCommit(sha string) (*Commit, error) {
 }
 
 func (ghc *GitHubContext) Comments() ([]*Comment, error) {
-	if ghc.comments == nil {
-		if err := ghc.loadPagedData(); err != nil {
-			return nil, err
-		}
+	if err := ghc.loadPagedData(); err != nil {
+		return nil, err
 	}
 	return ghc.comments, nil
 }
 
 func (ghc *GitHubContext) Reviews() ([]*Review, error) {
-	if ghc.reviews == nil {
-		if err := ghc.loadPagedData(); err != nil {
-			return nil, err
-		}
+	if err := ghc.loadPagedData(); err != nil {
+		return nil, err
 	}
 	return ghc.reviews, nil
 }
@@ -858,90 +874,89 @@ func (ghc *GitHubContext) getCheckStatuses() (map[string]string, error) {
 }
 
 func (ghc *GitHubContext) LatestWorkflowRuns() (map[string][]string, error) {
-	if ghc.workflowRuns != nil {
-		return ghc.workflowRuns, nil
-	}
-
-	opt := &github.ListWorkflowRunsOptions{
-		ExcludePullRequests: true,
-		HeadSHA:             ghc.HeadSHA(),
-		ListOptions: github.ListOptions{
-			PerPage: 100,
-			Page:    0,
-		},
-	}
-
-	// The same workflow file can be triggered multiple times. For example:
-	//
-	// on:
-	//  pull_request:
-	//    types:
-	//      - opened
-	//      - synchronize
-	//      - edited
-	//  push:
-	//
-	// Within a single event type, we will take the latest result. For example,
-	// for a `pull_request` event:
-	//
-	// If the workflow passes for the `opened` event, yet fails for `edited`
-	// then we would consider the workflow passed initially, and then failed if
-	// the user makes an edit to the PR that causes the workflow to run and fail.
-	// This is because the failure came later and it's what GitHub will show on
-	// the UI as the result of this workflow.
-	//
-	// If a workflow is triggered by multiple event types (`pull_request` and
-	// `push` in the above example), we will apply the same logic to each event
-	// type separately. Effectively this means that each one of the types, if
-	// triggered, will have to match the policy separately. Assuming allowed
-	// conclusions of `success`, here this would mean that both the
-	// `pull_request` and `push` events would have to pass, if triggered, for
-	// the workflow to be considered successful.
-	runsWithDate := make(map[string]map[string]*github.WorkflowRun)
-	for {
-		runs, resp, err := ghc.client.Actions.ListRepositoryWorkflowRuns(ghc.ctx, ghc.owner, ghc.repo, opt)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get workflow runs for page %d", opt.Page)
+	ghc.workflowRunsOnce.Do(func() {
+		opt := &github.ListWorkflowRunsOptions{
+			ExcludePullRequests: true,
+			HeadSHA:             ghc.HeadSHA(),
+			ListOptions: github.ListOptions{
+				PerPage: 100,
+				Page:    0,
+			},
 		}
 
-		for _, run := range runs.WorkflowRuns {
-			if run.GetStatus() != "completed" {
-				continue
+		// The same workflow file can be triggered multiple times. For example:
+		//
+		// on:
+		//  pull_request:
+		//    types:
+		//      - opened
+		//      - synchronize
+		//      - edited
+		//  push:
+		//
+		// Within a single event type, we will take the latest result. For example,
+		// for a `pull_request` event:
+		//
+		// If the workflow passes for the `opened` event, yet fails for `edited`
+		// then we would consider the workflow passed initially, and then failed if
+		// the user makes an edit to the PR that causes the workflow to run and fail.
+		// This is because the failure came later and it's what GitHub will show on
+		// the UI as the result of this workflow.
+		//
+		// If a workflow is triggered by multiple event types (`pull_request` and
+		// `push` in the above example), we will apply the same logic to each event
+		// type separately. Effectively this means that each one of the types, if
+		// triggered, will have to match the policy separately. Assuming allowed
+		// conclusions of `success`, here this would mean that both the
+		// `pull_request` and `push` events would have to pass, if triggered, for
+		// the workflow to be considered successful.
+		runsWithDate := make(map[string]map[string]*github.WorkflowRun)
+		for {
+			runs, resp, err := ghc.client.Actions.ListRepositoryWorkflowRuns(ghc.ctx, ghc.owner, ghc.repo, opt)
+			if err != nil {
+				ghc.workflowRunsErr = errors.Wrapf(err, "failed to get workflow runs for page %d", opt.Page)
+				return
 			}
 
-			eventName := run.GetEvent()
+			for _, run := range runs.WorkflowRuns {
+				if run.GetStatus() != "completed" {
+					continue
+				}
 
-			previousRuns := runsWithDate[*run.Path]
-			if previousRuns == nil {
-				previousRuns = make(map[string]*github.WorkflowRun)
-				runsWithDate[*run.Path] = previousRuns
+				eventName := run.GetEvent()
+
+				previousRuns := runsWithDate[*run.Path]
+				if previousRuns == nil {
+					previousRuns = make(map[string]*github.WorkflowRun)
+					runsWithDate[*run.Path] = previousRuns
+				}
+
+				previousRun := previousRuns[eventName]
+
+				// This is an older run than one we've already saw, so ignore it.
+				if previousRun != nil && run.GetUpdatedAt().Before(previousRun.GetUpdatedAt().Time) {
+					continue
+				}
+
+				previousRuns[eventName] = run
 			}
 
-			previousRun := previousRuns[eventName]
-
-			// This is an older run than one we've already saw, so ignore it.
-			if previousRun != nil && run.GetUpdatedAt().Before(previousRun.GetUpdatedAt().Time) {
-				continue
+			if resp.NextPage == 0 {
+				break
 			}
+			opt.Page = resp.NextPage
+		}
+		workflowRuns := make(map[string][]string, len(runsWithDate))
 
-			previousRuns[eventName] = run
+		for path, eventRuns := range runsWithDate {
+			for _, run := range eventRuns {
+				workflowRuns[path] = append(workflowRuns[path], run.GetConclusion())
+			}
 		}
 
-		if resp.NextPage == 0 {
-			break
-		}
-		opt.Page = resp.NextPage
-	}
-	workflowRuns := make(map[string][]string, len(runsWithDate))
-
-	for path, eventRuns := range runsWithDate {
-		for _, run := range eventRuns {
-			workflowRuns[path] = append(workflowRuns[path], run.GetConclusion())
-		}
-	}
-
-	ghc.workflowRuns = workflowRuns
-	return ghc.workflowRuns, nil
+		ghc.workflowRuns = workflowRuns
+	})
+	return ghc.workflowRuns, ghc.workflowRunsErr
 }
 
 func (ghc *GitHubContext) Labels() ([]string, error) {
@@ -971,86 +986,70 @@ func (ghc *GitHubContext) loadPagedData() error {
 	// Before adjusting any of the page sizes or returned properties, verify
 	// that the query cost does not increase. For example, setting all of the
 	// page sizes to 100 increases the query cost to 2 as of 2025-11-25.
-	var q struct {
-		Repository struct {
-			PullRequest struct {
-				Commits struct {
-					PageInfo v4PageInfo
-					Nodes    []*v4PullRequestCommit
-				} `graphql:"commits(first: 80, after: $commitCursor)"`
+	ghc.pagedDataOnce.Do(func() {
+		var q v4PagedDataQuery
+		qvars := map[string]interface{}{
+			"owner":  githubv4.String(ghc.owner),
+			"name":   githubv4.String(ghc.repo),
+			"number": githubv4.Int(ghc.number),
 
-				Comments struct {
-					PageInfo v4PageInfo
-					Nodes    []v4IssueComment
-				} `graphql:"comments(first: 100, after: $commentCursor)"`
-
-				Reviews struct {
-					PageInfo v4PageInfo
-					Nodes    []v4PullRequestReview
-				} `graphql:"reviews(first: 50, after: $reviewCursor, states: [APPROVED, CHANGES_REQUESTED, COMMENTED])"`
-			} `graphql:"pullRequest(number: $number)"`
-		} `graphql:"repository(owner: $owner, name: $name)"`
-	}
-	qvars := map[string]interface{}{
-		"owner":  githubv4.String(ghc.owner),
-		"name":   githubv4.String(ghc.repo),
-		"number": githubv4.Int(ghc.number),
-
-		"commitCursor":  (*githubv4.String)(nil),
-		"commentCursor": (*githubv4.String)(nil),
-		"reviewCursor":  (*githubv4.String)(nil),
-	}
-
-	rawCommits := []*v4PullRequestCommit{}
-	comments := []*Comment{}
-	reviews := []*Review{}
-
-	for {
-		complete := 0
-		if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
-			return errors.Wrap(err, "failed to load pull request data")
+			"commitCursor":  (*githubv4.String)(nil),
+			"commentCursor": (*githubv4.String)(nil),
+			"reviewCursor":  (*githubv4.String)(nil),
 		}
 
-		rawCommits = append(rawCommits, q.Repository.PullRequest.Commits.Nodes...)
-		if !q.Repository.PullRequest.Commits.PageInfo.UpdateCursor(qvars, "commitCursor") {
-			complete++
-		}
+		rawCommits := []*v4PullRequestCommit{}
+		comments := []*Comment{}
+		reviews := []*Review{}
 
-		for _, c := range q.Repository.PullRequest.Comments.Nodes {
-			comments = append(comments, c.ToComment())
-		}
-		if !q.Repository.PullRequest.Comments.PageInfo.UpdateCursor(qvars, "commentCursor") {
-			complete++
-		}
+		for {
+			complete := 0
+			if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
+				ghc.pagedDataErr = errors.Wrap(err, "failed to load pull request data")
+				return
+			}
 
-		for _, r := range q.Repository.PullRequest.Reviews.Nodes {
-			switch r.State {
-			case "COMMENTED":
-				comments = append(comments, r.ToComment())
-				fallthrough
-			case "APPROVED", "CHANGES_REQUESTED":
-				reviews = append(reviews, r.ToReview())
+			rawCommits = append(rawCommits, q.Repository.PullRequest.Commits.Nodes...)
+			if !q.Repository.PullRequest.Commits.PageInfo.UpdateCursor(qvars, "commitCursor") {
+				complete++
+			}
+
+			for _, c := range q.Repository.PullRequest.Comments.Nodes {
+				comments = append(comments, c.ToComment())
+			}
+			if !q.Repository.PullRequest.Comments.PageInfo.UpdateCursor(qvars, "commentCursor") {
+				complete++
+			}
+
+			for _, r := range q.Repository.PullRequest.Reviews.Nodes {
+				switch r.State {
+				case "COMMENTED":
+					comments = append(comments, r.ToComment())
+					fallthrough
+				case "APPROVED", "CHANGES_REQUESTED":
+					reviews = append(reviews, r.ToReview())
+				}
+			}
+			if !q.Repository.PullRequest.Reviews.PageInfo.UpdateCursor(qvars, "reviewCursor") {
+				complete++
+			}
+
+			if complete == 3 {
+				break
 			}
 		}
-		if !q.Repository.PullRequest.Reviews.PageInfo.UpdateCursor(qvars, "reviewCursor") {
-			complete++
+
+		ghc.comments = comments
+		ghc.reviews = reviews
+
+		var err error
+		ghc.commits, err = ghc.processCommits(rawCommits)
+		if err != nil {
+			ghc.pagedDataErr = errors.Wrap(err, "failed to process commits")
+			return
 		}
-
-		if complete == 3 {
-			break
-		}
-	}
-
-	ghc.comments = comments
-	ghc.reviews = reviews
-
-	var err error
-	ghc.commits, err = ghc.processCommits(rawCommits)
-	if err != nil {
-		return errors.Wrap(err, "failed to process commits")
-	}
-
-	return nil
+	})
+	return ghc.pagedDataErr
 }
 
 func (ghc *GitHubContext) processCommits(rawCommits []*v4PullRequestCommit) ([]*Commit, error) {
@@ -1141,6 +1140,28 @@ func (pi v4PageInfo) UpdateCursor(vars map[string]interface{}, name string) bool
 		vars[name] = githubv4.NewString(*pi.EndCursor)
 	}
 	return false
+}
+
+// v4PagedDataQuery is used by loadPagedData to fetch commits, comments, and reviews.
+type v4PagedDataQuery struct {
+	Repository struct {
+		PullRequest struct {
+			Commits struct {
+				PageInfo v4PageInfo
+				Nodes    []*v4PullRequestCommit
+			} `graphql:"commits(first: 80, after: $commitCursor)"`
+
+			Comments struct {
+				PageInfo v4PageInfo
+				Nodes    []v4IssueComment
+			} `graphql:"comments(first: 100, after: $commentCursor)"`
+
+			Reviews struct {
+				PageInfo v4PageInfo
+				Nodes    []v4PullRequestReview
+			} `graphql:"reviews(first: 50, after: $reviewCursor, states: [APPROVED, CHANGES_REQUESTED, COMMENTED])"`
+		} `graphql:"pullRequest(number: $number)"`
+	} `graphql:"repository(owner: $owner, name: $name)"`
 }
 
 type v4PullRequestReview struct {

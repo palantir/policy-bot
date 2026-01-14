@@ -161,7 +161,11 @@ func New(c *Config) (*Server, error) {
 	basePolicyHandler := handler.Base{
 		ClientCreator: cc,
 		BaseConfig:    &c.Server,
-		Installations: githubapp.NewInstallationsService(appClient),
+		Installations: githubapp.NewCachingInstallationsService(
+			githubapp.NewInstallationsService(appClient),
+			5*time.Minute,  // expiry - installation ID rarely changes
+			time.Minute,    // cleanup interval
+		),
 		GlobalCache:   globalCache,
 
 		PullOpts: &c.Options,
