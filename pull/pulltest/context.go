@@ -211,11 +211,7 @@ func (c *Context) OrganizationMembers(org string) ([]string, error) {
 	inverted := make(map[string][]string)
 	for user, orgs := range c.OrgMemberships {
 		for _, o := range orgs {
-			if _, ok := inverted[o]; ok {
-				inverted[o] = append(inverted[o], user)
-			} else {
-				inverted[o] = []string{user}
-			}
+			inverted[o] = append(inverted[o], user)
 		}
 	}
 
@@ -231,11 +227,7 @@ func (c *Context) TeamMembers(team string) ([]string, error) {
 
 	for user, teams := range c.TeamMemberships {
 		for _, t := range teams {
-			if _, ok := inverted[t]; ok {
-				inverted[t] = append(inverted[t], user)
-			} else {
-				inverted[t] = []string{user}
-			}
+			inverted[t] = append(inverted[t], user)
 		}
 	}
 

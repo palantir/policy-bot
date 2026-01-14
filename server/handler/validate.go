@@ -16,7 +16,7 @@ package handler
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/palantir/go-baseapp/baseapp"
@@ -40,7 +40,7 @@ func Validate() http.Handler {
 		logger.Info().Msg("Attempting to validate policy file")
 		check := ValidateCheck{Version: version.GetVersion()}
 
-		requestPolicy, err := ioutil.ReadAll(r.Body)
+		requestPolicy, err := io.ReadAll(r.Body)
 		if err != nil {
 			check.Message = "Unable to read policy file buffer"
 			baseapp.WriteJSON(w, http.StatusInternalServerError, &check)
@@ -63,7 +63,6 @@ func Validate() http.Handler {
 
 		check.Message = fmt.Sprintf("Policy is invalid. '%s'.", localStrErr)
 		baseapp.WriteJSON(w, http.StatusUnprocessableEntity, &check)
-		return
 	})
 }
 

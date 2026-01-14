@@ -107,10 +107,7 @@ func (pred *HasValidSignaturesBy) Evaluate(ctx context.Context, prctx pull.Conte
 		commitHashes = append(commitHashes, c.SHA)
 	}
 
-	var signerList []string
-
 	for signer := range signers {
-		signerList = append(signerList, signer)
 		member, err := pred.IsActor(ctx, prctx, signer)
 		if err != nil {
 			return nil, err
