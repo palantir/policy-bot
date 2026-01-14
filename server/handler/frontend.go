@@ -30,6 +30,8 @@ import (
 	"github.com/bluekeyes/templatetree"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/pkg/errors"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 const (
@@ -91,7 +93,7 @@ func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatet
 				}
 				return path.Join(basePath, "static", r)
 			},
-			"titlecase": strings.Title,
+			"titlecase": cases.Title(language.English).String,
 			"sortByStatus": func(results []*common.Result) []*common.Result {
 				r := make([]*common.Result, len(results))
 				copy(r, results)
@@ -173,9 +175,7 @@ func getMethods(result *common.Result) map[string][]string {
 	)
 
 	patternInfo := make(map[string][]string)
-	for _, comment := range result.Methods.GetComments() {
-		patternInfo[commentKey] = append(patternInfo[commentKey], comment)
-	}
+	patternInfo[commentKey] = append(patternInfo[commentKey], result.Methods.GetComments()...)
 	for _, commentPattern := range result.Methods.GetCommentPatterns() {
 		patternInfo[commentPatternKey] = append(patternInfo[commentPatternKey], commentPattern.String())
 	}
