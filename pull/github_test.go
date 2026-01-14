@@ -684,6 +684,13 @@ func TestLatestWorkflowRuns(t *testing.T) {
 	assert.ElementsMatch(t, runs[".github/workflows/b.yml"], []string{"failure"}, "incorrect conclusion for workflow run b")
 	assert.ElementsMatch(t, runs[".github/workflows/c.yml"], []string{"cancelled"}, "incorrect conclusion for workflow run c")
 	assert.Equal(t, 2, runsRule.Count, "incorrect http request count")
+
+	// verify that workflow runs are cached
+	runs, err = ctx.LatestWorkflowRuns()
+	require.NoError(t, err)
+
+	assert.Len(t, runs, 3, "incorrect number of workflow runs")
+	assert.Equal(t, 2, runsRule.Count, "incorrect http request count")
 }
 
 func TestLatestStatuses(t *testing.T) {
