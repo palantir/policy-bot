@@ -1038,18 +1038,14 @@ func (ghc *GitHubContext) loadCodeowners() (*codeowners.Codeowners, error) {
 	baseRef := ghc.pr.BaseRefOID
 	repoID := ghc.pr.BaseRepository.DatabaseID
 
+	// Check cache for parsed CODEOWNERS content
 	if gc := ghc.globalCache; gc != nil {
-		if cachedPath, ok := gc.GetCodeownersPath(repoID, baseRef); ok {
-			co, err := ghc.fetchCodeowners(cachedPath, baseRef)
-			if err != nil {
-				return nil, err
-			}
-			if co != nil {
-				return co, nil
-			}
+		if co, ok := gc.GetCodeowners(repoID, baseRef); ok {
+			return co, nil
 		}
 	}
 
+	// Search standard locations for CODEOWNERS file
 	for _, path := range codeownersLocations {
 		co, err := ghc.fetchCodeowners(path, baseRef)
 		if err != nil {
@@ -1059,7 +1055,7 @@ func (ghc *GitHubContext) loadCodeowners() (*codeowners.Codeowners, error) {
 			continue
 		}
 		if gc := ghc.globalCache; gc != nil {
-			gc.SetCodeownersPath(repoID, baseRef, path)
+			gc.SetCodeowners(repoID, baseRef, co)
 		}
 		return co, nil
 	}

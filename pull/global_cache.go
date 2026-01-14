@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hairyhenderson/go-codeowners"
 	lru "github.com/hashicorp/golang-lru"
 )
 
@@ -30,33 +31,33 @@ type GlobalCache interface {
 	GetPushedAt(repoID int64, sha string) (time.Time, bool)
 	SetPushedAt(repoID int64, sha string, t time.Time)
 
-	// GetCodeownersPath returns the cached CODEOWNERS file path for a repository
-	// at a specific base branch commit. Caching the path avoids repeated 404
-	// requests when checking standard CODEOWNERS locations.
-	GetCodeownersPath(repoID int64, baseRefOID string) (string, bool)
-	SetCodeownersPath(repoID int64, baseRefOID string, path string)
+	// GetCodeowners returns the cached parsed CODEOWNERS for a repository at a
+	// specific base branch commit. Since commit SHAs are immutable, caching the
+	// parsed content is safe and avoids repeated HTTP requests.
+	GetCodeowners(repoID int64, baseRefOID string) (*codeowners.Codeowners, bool)
+	SetCodeowners(repoID int64, baseRefOID string, co *codeowners.Codeowners)
 }
 
 // LRUGlobalCache is a GlobalCache where each data type is stored in a separate
 // LRU cache. This prevents frequently used data of one type from evicting less
 // frequently used data of a different type.
 type LRUGlobalCache struct {
-	pushedAt       *lru.Cache
-	codeownersPath *lru.Cache
+	pushedAt   *lru.Cache
+	codeowners *lru.Cache
 }
 
-func NewLRUGlobalCache(pushedAtSize, codeownersPathSize int) (*LRUGlobalCache, error) {
+func NewLRUGlobalCache(pushedAtSize, codeownersSize int) (*LRUGlobalCache, error) {
 	pushedAt, err := lru.New(pushedAtSize)
 	if err != nil {
 		return nil, err
 	}
-	codeownersPath, err := lru.New(codeownersPathSize)
+	codeowners, err := lru.New(codeownersSize)
 	if err != nil {
 		return nil, err
 	}
 	return &LRUGlobalCache{
-		pushedAt:       pushedAt,
-		codeownersPath: codeownersPath,
+		pushedAt:   pushedAt,
+		codeowners: codeowners,
 	}, nil
 }
 
@@ -73,17 +74,17 @@ func (c *LRUGlobalCache) SetPushedAt(repoID int64, sha string, t time.Time) {
 	c.pushedAt.Add(cacheKey(repoID, sha), t)
 }
 
-func (c *LRUGlobalCache) GetCodeownersPath(repoID int64, baseRefOID string) (string, bool) {
-	if val, ok := c.codeownersPath.Get(cacheKey(repoID, baseRefOID)); ok {
-		if path, ok := val.(string); ok {
-			return path, true
+func (c *LRUGlobalCache) GetCodeowners(repoID int64, baseRefOID string) (*codeowners.Codeowners, bool) {
+	if val, ok := c.codeowners.Get(cacheKey(repoID, baseRefOID)); ok {
+		if co, ok := val.(*codeowners.Codeowners); ok {
+			return co, true
 		}
 	}
-	return "", false
+	return nil, false
 }
 
-func (c *LRUGlobalCache) SetCodeownersPath(repoID int64, baseRefOID string, path string) {
-	c.codeownersPath.Add(cacheKey(repoID, baseRefOID), path)
+func (c *LRUGlobalCache) SetCodeowners(repoID int64, baseRefOID string, co *codeowners.Codeowners) {
+	c.codeowners.Add(cacheKey(repoID, baseRefOID), co)
 }
 
 func cacheKey(repoID int64, identifier string) string {
