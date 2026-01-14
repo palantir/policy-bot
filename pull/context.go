@@ -15,6 +15,7 @@
 package pull
 
 import (
+	"strings"
 	"time"
 )
 
@@ -137,6 +138,10 @@ type Context interface {
 
 	// Labels returns a list of labels applied on the Pull Request
 	Labels() ([]string, error)
+
+	// Codeowners returns the codeowners for files changed in this pull request.
+	// Returns nil if no CODEOWNERS file exists in the repository.
+	Codeowners() (*CodeownersResult, error)
 }
 
 type FileStatus int
@@ -266,4 +271,45 @@ type Body struct {
 type CustomProperty struct {
 	String *string
 	Array  []string
+}
+
+// CodeownersResult contains the owners for each changed file in a pull request.
+type CodeownersResult struct {
+	// Owners maps file paths to their owners. Owners are in the format
+	// "@username" for users or "@org/team" for teams.
+	Owners map[string][]string
+}
+
+// AllOwners returns a deduplicated list of all owners across all files.
+func (c *CodeownersResult) AllOwners() []string {
+	if c == nil {
+		return nil
+	}
+
+	ownerSet := make(map[string]struct{})
+	for _, fileOwners := range c.Owners {
+		for _, owner := range fileOwners {
+			ownerSet[owner] = struct{}{}
+		}
+	}
+
+	owners := make([]string, 0, len(ownerSet))
+	for owner := range ownerSet {
+		owners = append(owners, owner)
+	}
+	return owners
+}
+
+// ParseCodeowner parses a CODEOWNERS owner string and returns whether it's
+// a user or team, along with the normalized name (without @ prefix).
+// Examples:
+//
+//	"@username" -> ("user", "username")
+//	"@org/team-name" -> ("team", "org/team-name")
+func ParseCodeowner(owner string) (ownerType string, name string) {
+	owner = strings.TrimPrefix(owner, "@")
+	if strings.Contains(owner, "/") {
+		return "team", owner
+	}
+	return "user", owner
 }

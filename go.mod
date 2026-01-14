@@ -11,6 +11,7 @@ require (
 	github.com/google/go-github/v81 v81.0.0
 	github.com/google/go-querystring v1.2.0
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
+	github.com/hairyhenderson/go-codeowners v0.7.0
 	github.com/hashicorp/golang-lru v1.0.2
 	github.com/palantir/go-baseapp v0.6.0
 	github.com/palantir/go-githubapp v0.40.0

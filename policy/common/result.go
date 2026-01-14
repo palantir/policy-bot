@@ -54,6 +54,7 @@ type ReviewRequestRule struct {
 	Users          []string
 	Organizations  []string
 	Permissions    []pull.Permission
+	Codeowners     bool
 	RequiredCount  int
 	RequestedCount int
 

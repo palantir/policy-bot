@@ -151,6 +151,7 @@ func (r *Rule) getReviewRequestRule() *common.ReviewRequestRule {
 		Teams:          r.Requires.Actors.Teams,
 		Organizations:  r.Requires.Actors.Organizations,
 		Permissions:    r.Requires.Actors.GetPermissions(),
+		Codeowners:     r.Requires.Actors.Codeowners,
 		RequiredCount:  r.Requires.Count,
 		RequestedCount: requestedCount,
 		Mode:           mode,

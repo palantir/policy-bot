@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/google/go-github/v81/github"
+	"github.com/hairyhenderson/go-codeowners"
 	"github.com/pkg/errors"
 	"github.com/shurcooL/githubv4"
 )
@@ -144,6 +145,10 @@ type GitHubContext struct {
 	pushedAt                   map[string]time.Time
 	workflowRuns               map[string][]string
 	repositoryCustomProperties map[string]CustomProperty
+
+	codeownersResult *CodeownersResult
+	codeownersLoaded bool
+	codeownersErr    error
 }
 
 // NewGitHubContext creates a new pull.Context that makes GitHub requests to
@@ -960,6 +965,85 @@ func (ghc *GitHubContext) Labels() ([]string, error) {
 		ghc.labels = labels
 	}
 	return ghc.labels, nil
+}
+
+// codeownersLocations are the standard locations for CODEOWNERS files
+// as documented by GitHub.
+var codeownersLocations = []string{
+	".github/CODEOWNERS",
+	"CODEOWNERS",
+	"docs/CODEOWNERS",
+}
+
+func (ghc *GitHubContext) Codeowners() (*CodeownersResult, error) {
+	if ghc.codeownersLoaded {
+		return ghc.codeownersResult, ghc.codeownersErr
+	}
+	ghc.codeownersLoaded = true
+
+	// Try to fetch CODEOWNERS from standard locations
+	var co *codeowners.Codeowners
+	for _, path := range codeownersLocations {
+		content, exists, err := ghc.getFileContent(path)
+		if err != nil {
+			ghc.codeownersErr = errors.Wrapf(err, "failed to fetch %s", path)
+			return nil, ghc.codeownersErr
+		}
+		if !exists {
+			continue
+		}
+
+		co, err = codeowners.FromReader(strings.NewReader(content), "")
+		if err != nil {
+			ghc.codeownersErr = errors.Wrapf(err, "failed to parse %s", path)
+			return nil, ghc.codeownersErr
+		}
+		break
+	}
+
+	// No CODEOWNERS file found
+	if co == nil {
+		return nil, nil
+	}
+
+	// Get changed files and compute owners for each
+	files, err := ghc.ChangedFiles()
+	if err != nil {
+		ghc.codeownersErr = errors.Wrap(err, "failed to get changed files for codeowners")
+		return nil, ghc.codeownersErr
+	}
+
+	result := &CodeownersResult{
+		Owners: make(map[string][]string),
+	}
+	for _, f := range files {
+		owners := co.Owners(f.Filename)
+		if len(owners) > 0 {
+			result.Owners[f.Filename] = owners
+		}
+	}
+
+	ghc.codeownersResult = result
+	return result, nil
+}
+
+func (ghc *GitHubContext) getFileContent(path string) (string, bool, error) {
+	file, _, _, err := ghc.client.Repositories.GetContents(
+		ghc.ctx, ghc.owner, ghc.repo, path,
+		&github.RepositoryContentGetOptions{Ref: ghc.pr.HeadRefOID},
+	)
+	if err != nil {
+		if isNotFound(err) {
+			return "", false, nil
+		}
+		return "", false, err
+	}
+
+	content, err := file.GetContent()
+	if err != nil {
+		return "", false, err
+	}
+	return content, true, nil
 }
 
 func (ghc *GitHubContext) loadPagedData() error {
