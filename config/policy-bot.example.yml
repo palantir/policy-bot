@@ -44,6 +44,20 @@ logging:
 #   timer_quantiles: [0.5, 0.95]
 #   labels:
 #     environment: production
+#
+# Options for OpenTelemetry tracing. When enabled, the server exports traces
+# to an OTLP-compatible collector (e.g., Jaeger, Grafana Tempo).
+#
+# The exporter is configured via standard OTEL environment variables:
+#   - OTEL_TRACES_EXPORTER: Exporter type (otlp, none). Default: otlp
+#   - OTEL_EXPORTER_OTLP_ENDPOINT: Collector endpoint. Default: http://localhost:4317
+#   - OTEL_EXPORTER_OTLP_PROTOCOL: Protocol (grpc or http/protobuf). Default: grpc
+#
+# otel:
+#   # Enable OpenTelemetry tracing. Can also be set by POLICYBOT_OTEL_ENABLED.
+#   enabled: true
+#   # Service name in traces. Can also be set by OTEL_SERVICE_NAME.
+#   service_name: policy-bot
 
 # Options for the GitHub response cache. When the cache reaches max_size, the
 # oldest entries are evicted. Size properties can use any format supported by

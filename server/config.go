@@ -44,6 +44,7 @@ type Config struct {
 	Datadog    datadog.Config                `yaml:"datadog"`
 	Prometheus prometheus.Config             `yaml:"prometheus"`
 	Workers    WorkerConfig                  `yaml:"workers"`
+	OTEL       OTELConfig                    `yaml:"otel"`
 }
 
 type LoggingConfig struct {
@@ -84,6 +85,27 @@ type SessionsConfig struct {
 	Lifetime string `yaml:"lifetime"`
 }
 
+// OTELConfig configures OpenTelemetry tracing.
+type OTELConfig struct {
+	// Enabled controls whether OpenTelemetry tracing is active.
+	Enabled bool `yaml:"enabled"`
+
+	// ServiceName is the name used to identify this service in traces.
+	// Defaults to "policy-bot" if not specified.
+	ServiceName string `yaml:"service_name"`
+}
+
+func (c *OTELConfig) SetValuesFromEnv(prefix string) {
+	if v, ok := os.LookupEnv(prefix + "OTEL_ENABLED"); ok {
+		if b, err := strconv.ParseBool(v); err == nil {
+			c.Enabled = b
+		}
+	}
+	if v, ok := os.LookupEnv("OTEL_SERVICE_NAME"); ok && c.ServiceName == "" {
+		c.ServiceName = v
+	}
+}
+
 func ParseConfig(bytes []byte) (*Config, error) {
 	var c Config
 	if err := yaml.UnmarshalStrict(bytes, &c); err != nil {
@@ -99,6 +121,7 @@ func ParseConfig(bytes []byte) (*Config, error) {
 	c.Server.SetValuesFromEnv(envPrefix)
 	c.Logging.SetValuesFromEnv(envPrefix)
 	c.Github.SetValuesFromEnv("")
+	c.OTEL.SetValuesFromEnv(envPrefix)
 
 	if v, ok := os.LookupEnv(envPrefix + "SESSIONS_KEY"); ok {
 		c.Sessions.Key = v

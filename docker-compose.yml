@@ -1,0 +1,15 @@
+services:
+  jaeger:
+    image: cr.jaegertracing.io/jaegertracing/jaeger:2.14.0
+    container_name: jaeger
+    ports:
+      # Jaeger UI
+      - "16686:16686"
+      # OTLP gRPC receiver
+      - "4317:4317"
+      # OTLP HTTP receiver
+      - "4318:4318"
+      # Sampling strategies
+      - "5778:5778"
+      # Zipkin receiver
+      - "9411:9411"
