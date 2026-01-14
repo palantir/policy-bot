@@ -136,7 +136,7 @@ func (h *Details) getStateIfAllowed(w http.ResponseWriter, r *http.Request) *Det
 		return nil
 	}
 
-	client, err := h.ClientCreator.NewInstallationClient(installation.ID)
+	client, err := h.NewInstallationClient(installation.ID)
 	if err != nil {
 		hatpear.Store(r, errors.Wrap(err, "failed to create github client"))
 		return nil
