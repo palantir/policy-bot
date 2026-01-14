@@ -23,6 +23,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/alexedwards/scs"
 	"github.com/bluekeyes/hatpear"
@@ -141,9 +142,31 @@ func (h *Details) getStateIfAllowed(w http.ResponseWriter, r *http.Request) *Det
 		return nil
 	}
 
-	user, hasPermission, err := checkUserPermissions(h.Sessions, r, client, owner, repo)
-	if err != nil {
-		hatpear.Store(r, err)
+	// Fetch permission and PR in parallel since both only depend on client.
+	var (
+		user          string
+		hasPermission bool
+		permErr       error
+
+		pr    *github.PullRequest
+		prErr error
+	)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		user, hasPermission, permErr = checkUserPermissions(h.Sessions, r, client, owner, repo)
+	}()
+	go func() {
+		defer wg.Done()
+		pr, _, prErr = client.PullRequests.Get(ctx, owner, repo, number)
+	}()
+	wg.Wait()
+
+	// Handle permission result
+	if permErr != nil {
+		hatpear.Store(r, permErr)
 		return nil
 	}
 	if !hasPermission {
@@ -151,12 +174,12 @@ func (h *Details) getStateIfAllowed(w http.ResponseWriter, r *http.Request) *Det
 		return nil
 	}
 
-	pr, _, err := client.PullRequests.Get(ctx, owner, repo, number)
-	if err != nil {
-		if isNotFound(err) {
+	// Handle PR result
+	if prErr != nil {
+		if isNotFound(prErr) {
 			h.render404(w, owner, repo, number)
 		} else {
-			hatpear.Store(r, errors.Wrap(err, "failed to get pull request"))
+			hatpear.Store(r, errors.Wrap(prErr, "failed to get pull request"))
 		}
 		return nil
 	}

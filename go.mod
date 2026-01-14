@@ -11,7 +11,7 @@ require (
 	github.com/google/go-github/v81 v81.0.0
 	github.com/google/go-querystring v1.2.0
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
-	github.com/hairyhenderson/go-codeowners v0.7.0
+	github.com/h2non/gock v1.2.0
 	github.com/hashicorp/golang-lru v1.0.2
 	github.com/palantir/go-baseapp v0.6.0
 	github.com/palantir/go-githubapp v0.40.0
@@ -23,7 +23,6 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/vektah/gqlparser v1.3.1
 	goji.io v2.0.2+incompatible
-	golang.org/x/text v0.33.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -36,6 +35,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/google/go-github/v75 v75.0.0 // indirect
+	github.com/h2non/parth v0.0.0-20190131123155-b4df798d6542 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
@@ -52,7 +52,7 @@ require (
 	github.com/shurcooL/graphql v0.0.0-20230722043721-ed46e5a46466 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
-	golang.org/x/crypto v0.46.0 // indirect
+	golang.org/x/crypto v0.47.0 // indirect
 	golang.org/x/oauth2 v0.34.0 // indirect
 	golang.org/x/sys v0.40.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
