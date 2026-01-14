@@ -51,13 +51,13 @@ func NewLRUGlobalCache(pushedAtSize, codeownersSize int) (*LRUGlobalCache, error
 	if err != nil {
 		return nil, err
 	}
-	codeowners, err := lru.New(codeownersSize)
+	codeownersCache, err := lru.New(codeownersSize)
 	if err != nil {
 		return nil, err
 	}
 	return &LRUGlobalCache{
 		pushedAt:   pushedAt,
-		codeowners: codeowners,
+		codeowners: codeownersCache,
 	}, nil
 }
 
