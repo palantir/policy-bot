@@ -171,10 +171,10 @@ func New(c *Config) (*Server, error) {
 		BaseConfig:    &c.Server,
 		Installations: githubapp.NewCachingInstallationsService(
 			githubapp.NewInstallationsService(appClient),
-			5*time.Minute,  // expiry - installation ID rarely changes
-			time.Minute,    // cleanup interval
+			5*time.Minute, // expiry - installation ID rarely changes
+			time.Minute,   // cleanup interval
 		),
-		GlobalCache:   globalCache,
+		GlobalCache: globalCache,
 
 		PullOpts: &c.Options,
 		ConfigFetcher: &handler.ConfigFetcher{
