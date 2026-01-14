@@ -758,6 +758,99 @@ func TestLatestStatuses(t *testing.T) {
 	assert.Equal(t, statuses["check-run-b"], "failure", "incorrect conclusion for 'check-run-b' status")
 }
 
+func TestCodeownersUsesBaseBranch(t *testing.T) {
+	rp := &ResponsePlayer{}
+	addCodeownersRules(rp)
+
+	codeownersRule := rp.AddRule(
+		codeownersMatcher("CODEOWNERS"),
+		"testdata/responses/codeowners.yml",
+	)
+	rp.AddRule(
+		ExactPathMatcher("/repos/testorg/testrepo/pulls/123/files"),
+		"testdata/responses/pull_files.yml",
+	)
+
+	ctx := makeContext(t, rp, nil, nil)
+	result, err := ctx.Codeowners()
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	assert.Equal(t, 1, codeownersRule.Count, "CODEOWNERS should be fetched from base branch")
+}
+
+func TestCodeownersLocationCache(t *testing.T) {
+	const (
+		testRepoID   = int64(1234)
+		testBaseSHA  = "abc123def456789"
+		expectedPath = "CODEOWNERS"
+	)
+
+	t.Run("cache miss populates cache", func(t *testing.T) {
+		rp := &ResponsePlayer{}
+		addCodeownersRules(rp)
+
+		rp.AddRule(
+			codeownersMatcher(expectedPath),
+			"testdata/responses/codeowners.yml",
+		)
+		rp.AddRule(
+			ExactPathMatcher("/repos/testorg/testrepo/pulls/123/files"),
+			"testdata/responses/pull_files.yml",
+		)
+
+		gc := NewMockGlobalCache()
+		ctx := makeContext(t, rp, nil, gc)
+
+		_, err := ctx.Codeowners()
+		require.NoError(t, err)
+
+		path, ok := gc.GetCodeownersPath(testRepoID, testBaseSHA)
+		assert.True(t, ok, "cache should be populated")
+		assert.Equal(t, expectedPath, path)
+	})
+
+	t.Run("cache hit skips 404s", func(t *testing.T) {
+		rp := &ResponsePlayer{}
+
+		codeownersRule := rp.AddRule(
+			codeownersMatcher(expectedPath),
+			"testdata/responses/codeowners.yml",
+		)
+		rp.AddRule(
+			ExactPathMatcher("/repos/testorg/testrepo/pulls/123/files"),
+			"testdata/responses/pull_files.yml",
+		)
+
+		gc := NewMockGlobalCache()
+		gc.SetCodeownersPath(testRepoID, testBaseSHA, expectedPath)
+
+		ctx := makeContext(t, rp, nil, gc)
+		_, err := ctx.Codeowners()
+		require.NoError(t, err)
+
+		assert.Equal(t, 1, codeownersRule.Count, "should only fetch from cached path")
+	})
+}
+
+// addCodeownersRules adds the standard 404 responses for CODEOWNERS paths that
+// don't exist, which is needed when testing the CODEOWNERS lookup fallback behavior.
+func addCodeownersRules(rp *ResponsePlayer) {
+	rp.AddRule(
+		codeownersMatcher(".github/CODEOWNERS"),
+		"testdata/responses/not_found.yml",
+	)
+}
+
+// codeownersMatcher creates a PathAndQueryMatcher for CODEOWNERS file lookups
+// using the default test base branch SHA.
+func codeownersMatcher(path string) PathAndQueryMatcher {
+	return PathAndQueryMatcher{
+		Path:  "/repos/testorg/testrepo/contents/" + path,
+		Query: url.Values{"ref": []string{"abc123def456789"}},
+	}
+}
+
 func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest, gc GlobalCache) Context {
 	ctx := context.Background()
 	client := github.NewClient(&http.Client{Transport: rp})
@@ -805,6 +898,7 @@ func defaultTestPR() *github.PullRequest {
 		},
 		Base: &github.PullRequestBranch{
 			Ref: github.Ptr("develop"),
+			SHA: github.Ptr("abc123def456789"),
 			Repo: &github.Repository{
 				ID: github.Ptr(int64(1234)),
 				Owner: &github.User{
@@ -818,20 +912,35 @@ func defaultTestPR() *github.PullRequest {
 }
 
 type MockGlobalCache struct {
-	PushedAt map[string]time.Time
+	PushedAt       map[string]time.Time
+	CodeownersPath map[string]string
 }
 
 func NewMockGlobalCache() *MockGlobalCache {
 	return &MockGlobalCache{
-		PushedAt: make(map[string]time.Time),
+		PushedAt:       make(map[string]time.Time),
+		CodeownersPath: make(map[string]string),
 	}
 }
 
+func mockCacheKey(repoID int64, ref string) string {
+	return fmt.Sprintf("%d:%s", repoID, ref)
+}
+
 func (c *MockGlobalCache) GetPushedAt(repoID int64, sha string) (time.Time, bool) {
-	t, ok := c.PushedAt[fmt.Sprintf("%d:%s", repoID, sha)]
+	t, ok := c.PushedAt[mockCacheKey(repoID, sha)]
 	return t, ok
 }
 
 func (c *MockGlobalCache) SetPushedAt(repoID int64, sha string, t time.Time) {
-	c.PushedAt[fmt.Sprintf("%d:%s", repoID, sha)] = t
+	c.PushedAt[mockCacheKey(repoID, sha)] = t
+}
+
+func (c *MockGlobalCache) GetCodeownersPath(repoID int64, baseRefOID string) (string, bool) {
+	path, ok := c.CodeownersPath[mockCacheKey(repoID, baseRefOID)]
+	return path, ok
+}
+
+func (c *MockGlobalCache) SetCodeownersPath(repoID int64, baseRefOID string, path string) {
+	c.CodeownersPath[mockCacheKey(repoID, baseRefOID)] = path
 }

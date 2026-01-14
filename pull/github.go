@@ -109,6 +109,7 @@ func (loc Locator) toV4(ctx context.Context, client *githubv4.Client) (*v4PullRe
 	v4.HeadRepository.Name = loc.Value.GetHead().GetRepo().GetName()
 	v4.HeadRepository.Owner.Login = loc.Value.GetHead().GetRepo().GetOwner().GetLogin()
 	v4.BaseRefName = loc.Value.GetBase().GetRef()
+	v4.BaseRefOID = loc.Value.GetBase().GetSHA()
 	v4.BaseRepository.DatabaseID = loc.Value.GetBase().GetRepo().GetID()
 	v4.IsDraft = loc.Value.GetDraft()
 	v4.ChangedFiles = loc.Value.GetChangedFiles()
@@ -997,36 +998,24 @@ func (ghc *GitHubContext) Codeowners() (*CodeownersResult, error) {
 	}
 	ghc.codeownersLoaded = true
 
-	// Try to fetch CODEOWNERS from standard locations
-	var co *codeowners.Codeowners
-	for _, path := range codeownersLocations {
-		content, exists, err := ghc.getFileContent(path)
-		if err != nil {
-			ghc.codeownersErr = errors.Wrapf(err, "failed to fetch %s", path)
-			return nil, ghc.codeownersErr
-		}
-		if !exists {
-			continue
-		}
+	result, err := ghc.loadCodeownersResult()
+	ghc.codeownersResult = result
+	ghc.codeownersErr = err
+	return result, err
+}
 
-		co, err = codeowners.FromReader(strings.NewReader(content), "")
-		if err != nil {
-			ghc.codeownersErr = errors.Wrapf(err, "failed to parse %s", path)
-			return nil, ghc.codeownersErr
-		}
-		break
+func (ghc *GitHubContext) loadCodeownersResult() (*CodeownersResult, error) {
+	co, err := ghc.loadCodeowners()
+	if err != nil {
+		return nil, err
 	}
-
-	// No CODEOWNERS file found
 	if co == nil {
 		return nil, nil
 	}
 
-	// Get changed files and compute owners for each
 	files, err := ghc.ChangedFiles()
 	if err != nil {
-		ghc.codeownersErr = errors.Wrap(err, "failed to get changed files for codeowners")
-		return nil, ghc.codeownersErr
+		return nil, errors.Wrap(err, "failed to get changed files for codeowners")
 	}
 
 	result := &CodeownersResult{
@@ -1038,15 +1027,68 @@ func (ghc *GitHubContext) Codeowners() (*CodeownersResult, error) {
 			result.Owners[f.Filename] = owners
 		}
 	}
-
-	ghc.codeownersResult = result
 	return result, nil
 }
 
-func (ghc *GitHubContext) getFileContent(path string) (string, bool, error) {
+// loadCodeowners attempts to load the CODEOWNERS file from the base branch.
+// It uses the base branch ref to prevent PRs from modifying their own approval
+// requirements by changing CODEOWNERS in the PR. Returns nil if no CODEOWNERS
+// file exists.
+func (ghc *GitHubContext) loadCodeowners() (*codeowners.Codeowners, error) {
+	baseRef := ghc.pr.BaseRefOID
+	repoID := ghc.pr.BaseRepository.DatabaseID
+
+	if gc := ghc.globalCache; gc != nil {
+		if cachedPath, ok := gc.GetCodeownersPath(repoID, baseRef); ok {
+			co, err := ghc.fetchCodeowners(cachedPath, baseRef)
+			if err != nil {
+				return nil, err
+			}
+			if co != nil {
+				return co, nil
+			}
+		}
+	}
+
+	for _, path := range codeownersLocations {
+		co, err := ghc.fetchCodeowners(path, baseRef)
+		if err != nil {
+			return nil, err
+		}
+		if co == nil {
+			continue
+		}
+		if gc := ghc.globalCache; gc != nil {
+			gc.SetCodeownersPath(repoID, baseRef, path)
+		}
+		return co, nil
+	}
+
+	return nil, nil
+}
+
+// fetchCodeowners retrieves and parses a CODEOWNERS file at the given path and ref.
+// Returns nil without error if the file does not exist.
+func (ghc *GitHubContext) fetchCodeowners(path, ref string) (*codeowners.Codeowners, error) {
+	content, exists, err := ghc.getFileContent(path, ref)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to fetch %s", path)
+	}
+	if !exists {
+		return nil, nil
+	}
+
+	co, err := codeowners.FromReader(strings.NewReader(content), "")
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse %s", path)
+	}
+	return co, nil
+}
+
+func (ghc *GitHubContext) getFileContent(path, ref string) (string, bool, error) {
 	file, _, _, err := ghc.client.Repositories.GetContents(
 		ghc.ctx, ghc.owner, ghc.repo, path,
-		&github.RepositoryContentGetOptions{Ref: ghc.pr.HeadRefOID},
+		&github.RepositoryContentGetOptions{Ref: ref},
 	)
 	if err != nil {
 		if isNotFound(err) {
@@ -1198,6 +1240,7 @@ type v4PullRequest struct {
 	}
 
 	BaseRefName    string
+	BaseRefOID     string
 	BaseRepository struct {
 		DatabaseID int64
 	}

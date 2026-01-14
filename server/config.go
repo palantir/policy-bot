@@ -72,6 +72,11 @@ type CachingConfig struct {
 	// The size of the global cache for commit push times. Each entry uses
 	// roughly 100 bytes of memory.
 	PushedAtSize int `yaml:"pushed_at_size"`
+
+	// The size of the global cache for CODEOWNERS file paths. This caches
+	// which CODEOWNERS location exists for a repository at a given base
+	// branch commit to avoid unnecessary 404 requests.
+	CodeownersPathSize int `yaml:"codeowners_path_size"`
 }
 
 type WorkerConfig struct {

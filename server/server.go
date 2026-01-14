@@ -48,8 +48,9 @@ const (
 	DefaultWebhookWorkers   = 10
 	DefaultWebhookQueueSize = 100
 
-	DefaultHTTPCacheSize     = 50 * datasize.MB
-	DefaultPushedAtCacheSize = 100_000
+	DefaultHTTPCacheSize          = 50 * datasize.MB
+	DefaultPushedAtCacheSize      = 100_000
+	DefaultCodeownersPathCacheSize = 10_000
 )
 
 type Server struct {
@@ -151,7 +152,12 @@ func New(c *Config) (*Server, error) {
 		pushedAtSize = DefaultPushedAtCacheSize
 	}
 
-	globalCache, err := pull.NewLRUGlobalCache(pushedAtSize)
+	codeownersPathSize := c.Cache.CodeownersPathSize
+	if codeownersPathSize == 0 {
+		codeownersPathSize = DefaultCodeownersPathCacheSize
+	}
+
+	globalCache, err := pull.NewLRUGlobalCache(pushedAtSize, codeownersPathSize)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to initialize global cache")
 	}

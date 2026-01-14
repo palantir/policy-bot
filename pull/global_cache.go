@@ -26,27 +26,42 @@ import (
 // stale due to external changes and should only expire to prevent the cache
 // from becoming infinitely large.
 type GlobalCache interface {
+	// GetPushedAt returns the cached push timestamp for a commit.
 	GetPushedAt(repoID int64, sha string) (time.Time, bool)
 	SetPushedAt(repoID int64, sha string, t time.Time)
+
+	// GetCodeownersPath returns the cached CODEOWNERS file path for a repository
+	// at a specific base branch commit. Caching the path avoids repeated 404
+	// requests when checking standard CODEOWNERS locations.
+	GetCodeownersPath(repoID int64, baseRefOID string) (string, bool)
+	SetCodeownersPath(repoID int64, baseRefOID string, path string)
 }
 
 // LRUGlobalCache is a GlobalCache where each data type is stored in a separate
 // LRU cache. This prevents frequently used data of one type from evicting less
 // frequently used data of a different type.
 type LRUGlobalCache struct {
-	pushedAt *lru.Cache
+	pushedAt       *lru.Cache
+	codeownersPath *lru.Cache
 }
 
-func NewLRUGlobalCache(pushedAtSize int) (*LRUGlobalCache, error) {
+func NewLRUGlobalCache(pushedAtSize, codeownersPathSize int) (*LRUGlobalCache, error) {
 	pushedAt, err := lru.New(pushedAtSize)
 	if err != nil {
 		return nil, err
 	}
-	return &LRUGlobalCache{pushedAt: pushedAt}, nil
+	codeownersPath, err := lru.New(codeownersPathSize)
+	if err != nil {
+		return nil, err
+	}
+	return &LRUGlobalCache{
+		pushedAt:       pushedAt,
+		codeownersPath: codeownersPath,
+	}, nil
 }
 
 func (c *LRUGlobalCache) GetPushedAt(repoID int64, sha string) (time.Time, bool) {
-	if val, ok := c.pushedAt.Get(pushedAtKey(repoID, sha)); ok {
+	if val, ok := c.pushedAt.Get(cacheKey(repoID, sha)); ok {
 		if t, ok := val.(time.Time); ok {
 			return t, true
 		}
@@ -55,9 +70,22 @@ func (c *LRUGlobalCache) GetPushedAt(repoID int64, sha string) (time.Time, bool)
 }
 
 func (c *LRUGlobalCache) SetPushedAt(repoID int64, sha string, t time.Time) {
-	c.pushedAt.Add(pushedAtKey(repoID, sha), t)
+	c.pushedAt.Add(cacheKey(repoID, sha), t)
 }
 
-func pushedAtKey(repoID int64, sha string) string {
-	return fmt.Sprintf("%d:%s", repoID, sha)
+func (c *LRUGlobalCache) GetCodeownersPath(repoID int64, baseRefOID string) (string, bool) {
+	if val, ok := c.codeownersPath.Get(cacheKey(repoID, baseRefOID)); ok {
+		if path, ok := val.(string); ok {
+			return path, true
+		}
+	}
+	return "", false
+}
+
+func (c *LRUGlobalCache) SetCodeownersPath(repoID int64, baseRefOID string, path string) {
+	c.codeownersPath.Add(cacheKey(repoID, baseRefOID), path)
+}
+
+func cacheKey(repoID int64, identifier string) string {
+	return fmt.Sprintf("%d:%s", repoID, identifier)
 }

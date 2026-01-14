@@ -1,0 +1,11 @@
+- status: 200
+  body: |
+    {
+      "name": "CODEOWNERS",
+      "path": "CODEOWNERS",
+      "sha": "abc123",
+      "size": 19,
+      "type": "file",
+      "content": "KiAgQHRlc3RvcmcvdGVhbTEK",
+      "encoding": "base64"
+    }
