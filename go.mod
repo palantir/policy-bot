@@ -11,6 +11,7 @@ require (
 	github.com/google/go-github/v81 v81.0.0
 	github.com/google/go-querystring v1.2.0
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
+	github.com/h2non/gock v1.2.0
 	github.com/hashicorp/golang-lru v1.0.2
 	github.com/palantir/go-baseapp v0.6.0
 	github.com/palantir/go-githubapp v0.40.0
@@ -34,6 +35,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/google/go-github/v75 v75.0.0 // indirect
+	github.com/h2non/parth v0.0.0-20190131123155-b4df798d6542 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect

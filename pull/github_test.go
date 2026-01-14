@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/google/go-github/v81/github"
+	"github.com/h2non/gock"
 	"github.com/shurcooL/githubv4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -684,6 +685,53 @@ func TestLatestWorkflowRuns(t *testing.T) {
 	assert.ElementsMatch(t, runs[".github/workflows/b.yml"], []string{"failure"}, "incorrect conclusion for workflow run b")
 	assert.ElementsMatch(t, runs[".github/workflows/c.yml"], []string{"cancelled"}, "incorrect conclusion for workflow run c")
 	assert.Equal(t, 2, runsRule.Count, "incorrect http request count")
+}
+
+func TestLatestWorkflowRunsCaching(t *testing.T) {
+	defer gock.Off()
+
+	pr := defaultTestPR()
+
+	// Mock the workflow runs endpoint - Times(1) means only 1 call allowed
+	// If caching doesn't work, the second call will fail with "gock: cannot match any request"
+	gock.New("http://github.localhost").
+		Get("/repos/testorg/testrepo/actions/runs").
+		Times(1).
+		Reply(200).
+		JSON(map[string]interface{}{
+			"total_count":   0,
+			"workflow_runs": []interface{}{},
+		})
+
+	// Use gock's default transport
+	httpClient := &http.Client{Transport: gock.DefaultTransport}
+
+	ctx := context.Background()
+	client := github.NewClient(httpClient)
+	base, _ := url.Parse("http://github.localhost/")
+	client.BaseURL = base
+
+	v4client := githubv4.NewClient(httpClient)
+	mbrCtx := NewGitHubMembershipContext(ctx, client)
+
+	prctx, err := NewGitHubContext(ctx, mbrCtx, nil, client, v4client, Locator{
+		Owner:  pr.GetBase().GetRepo().GetOwner().GetLogin(),
+		Repo:   pr.GetBase().GetRepo().GetName(),
+		Number: pr.GetNumber(),
+		Value:  pr,
+	})
+	require.NoError(t, err)
+
+	// First call - should hit the API (consumes the mock)
+	runs1, err := prctx.LatestWorkflowRuns()
+	require.NoError(t, err)
+
+	// Second call - should use cache, NOT hit API again
+	// If caching doesn't work, this will fail with "gock: cannot match any request"
+	runs2, err := prctx.LatestWorkflowRuns()
+	require.NoError(t, err, "second call should use cache, not hit API")
+
+	assert.Equal(t, runs1, runs2, "cached result should match first result")
 }
 
 func TestLatestStatuses(t *testing.T) {

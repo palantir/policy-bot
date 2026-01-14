@@ -75,6 +75,12 @@ func (b *Base) NewEvalContext(ctx context.Context, installationID int64, loc pul
 		return nil, err
 	}
 
+	// Start background fetches for commonly needed data
+	// This overlaps API calls with the config fetch below
+	if ghctx, ok := prctx.(*pull.GitHubContext); ok {
+		ghctx.Prefetch()
+	}
+
 	baseBranch, _ := prctx.Branches()
 	owner := prctx.RepositoryOwner()
 	repository := prctx.RepositoryName()
