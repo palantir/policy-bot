@@ -74,6 +74,7 @@ github.com/munnerz/goautoneg
 github.com/palantir/go-baseapp/appmetrics/emitter/datadog
 github.com/palantir/go-baseapp/appmetrics/emitter/prometheus
 github.com/palantir/go-baseapp/baseapp
+github.com/palantir/go-baseapp/baseapp/datadog
 github.com/palantir/go-baseapp/pkg/errfmt
 # github.com/palantir/go-githubapp v0.40.0
 ## explicit; go 1.25.0
