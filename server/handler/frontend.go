@@ -91,7 +91,12 @@ func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatet
 				}
 				return path.Join(basePath, "static", r)
 			},
-			"titlecase": strings.Title,
+			"toFirstUpper": func(s string) string {
+				if s == "" {
+					return ""
+				}
+				return strings.ToUpper(s[:1]) + s[1:]
+			},
 			"sortByStatus": func(results []*common.Result) []*common.Result {
 				r := make([]*common.Result, len(results))
 				copy(r, results)
