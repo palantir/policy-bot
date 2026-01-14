@@ -142,59 +142,47 @@ func (h *Details) getStateIfAllowed(w http.ResponseWriter, r *http.Request) *Det
 		return nil
 	}
 
-	// Fetch permission and PR in parallel since both only depend on client
-	type permResult struct {
+	// Fetch permission and PR in parallel since both only depend on client.
+	var (
 		user          string
 		hasPermission bool
-		err           error
-	}
-	type prResult struct {
-		pr  *github.PullRequest
-		err error
-	}
+		permErr       error
+
+		pr    *github.PullRequest
+		prErr error
+	)
 
 	var wg sync.WaitGroup
-	permCh := make(chan permResult, 1)
-	prCh := make(chan prResult, 1)
-
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		user, hasPermission, err := checkUserPermissions(h.Sessions, r, client, owner, repo)
-		permCh <- permResult{user, hasPermission, err}
+		user, hasPermission, permErr = checkUserPermissions(h.Sessions, r, client, owner, repo)
 	}()
 	go func() {
 		defer wg.Done()
-		pr, _, err := client.PullRequests.Get(ctx, owner, repo, number)
-		prCh <- prResult{pr, err}
+		pr, _, prErr = client.PullRequests.Get(ctx, owner, repo, number)
 	}()
 	wg.Wait()
 
-	perm := <-permCh
-	prRes := <-prCh
-
 	// Handle permission result
-	if perm.err != nil {
-		hatpear.Store(r, perm.err)
+	if permErr != nil {
+		hatpear.Store(r, permErr)
 		return nil
 	}
-	if !perm.hasPermission {
+	if !hasPermission {
 		h.render404(w, owner, repo, number)
 		return nil
 	}
 
 	// Handle PR result
-	if prRes.err != nil {
-		if isNotFound(prRes.err) {
+	if prErr != nil {
+		if isNotFound(prErr) {
 			h.render404(w, owner, repo, number)
 		} else {
-			hatpear.Store(r, errors.Wrap(prRes.err, "failed to get pull request"))
+			hatpear.Store(r, errors.Wrap(prErr, "failed to get pull request"))
 		}
 		return nil
 	}
-
-	user := perm.user
-	pr := prRes.pr
 
 	ctx, logger := h.PreparePRContext(ctx, installation.ID, pr)
 	evalCtx, err := h.NewEvalContext(ctx, installation.ID, pull.Locator{
