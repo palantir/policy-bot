@@ -695,4 +695,3 @@ func (r *Rule) isApprovedByCodeownerGroups(
 
 	return satisfiedCount == len(results), approvers, results, nil
 }
-
