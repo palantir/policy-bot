@@ -50,21 +50,23 @@ func (c *Context) filterIgnoredComments(prCtx pull.Context, comments []*pull.Com
 		return comments, nil
 	}
 
-	var filteredComments []*pull.Comment
+	var filtered []*pull.Comment
 	for _, comment := range comments {
-		isActor, err := c.options.IgnoreComments.IsActor(c.ctx, prCtx, comment.Author)
-		if err != nil {
-			return nil, err
-		}
-
-		if isActor {
+		if comment.Author == nil {
+			filtered = append(filtered, comment)
 			continue
 		}
 
-		filteredComments = append(filteredComments, comment)
+		isIgnored, err := c.options.IgnoreComments.IsActor(c.ctx, prCtx, comment.Author.Login)
+		if err != nil {
+			return nil, err
+		}
+		if !isIgnored {
+			filtered = append(filtered, comment)
+		}
 	}
 
-	return filteredComments, nil
+	return filtered, nil
 }
 
 func (c *Context) addApprovalComment(comments []*pull.Comment) []*pull.Comment {
@@ -96,21 +98,23 @@ func (c *Context) filterIgnoredReviews(prCtx pull.Context, reviews []*pull.Revie
 		return reviews, nil
 	}
 
-	var filteredReviews []*pull.Review
+	var filtered []*pull.Review
 	for _, review := range reviews {
-		isActor, err := c.options.IgnoreReviews.IsActor(c.ctx, prCtx, review.Author)
-		if err != nil {
-			return nil, err
-		}
-
-		if isActor {
+		if review.Author == nil {
+			filtered = append(filtered, review)
 			continue
 		}
 
-		filteredReviews = append(filteredReviews, review)
+		isIgnored, err := c.options.IgnoreReviews.IsActor(c.ctx, prCtx, review.Author.Login)
+		if err != nil {
+			return nil, err
+		}
+		if !isIgnored {
+			filtered = append(filtered, review)
+		}
 	}
 
-	return filteredReviews, nil
+	return filtered, nil
 }
 
 func (c *Context) addApprovalReview(reviews []*pull.Review) []*pull.Review {

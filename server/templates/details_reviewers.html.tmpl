@@ -1,12 +1,21 @@
 {{/* templatetree:extends page.html.tmpl */}}
-{{define "title"}}{{.PullRequest.GetBase.GetRepo.GetFullName}}#{{.PullRequest.GetNumber}} - Reviewers | PolicyBot{{end}}
+{{define "title"}}{{if .PullRequest}}{{.PullRequest.GetBase.GetRepo.GetFullName}}#{{.PullRequest.GetNumber}} - Reviewers | {{end}}PolicyBot{{end}}
 {{define "body"}}
-<ul class="list-disc list-outside pl-6">
-  {{- range .Reviewers}}
-  <li><a href="{{ githubURL . }}">{{.}}</a></li>
-  {{- else}}
-  <li>No reviewers found</li>
+{{- if .Groups}}
+  {{- range .Groups}}
+  <div class="mb-2">
+    <div class="font-semibold text-sm mb-1">{{.Name}}:</div>
+    <div class="flex flex-wrap gap-x-2 gap-y-1 mt-3">
+      {{- range .Reviewers -}}
+        {{- template "component/actor" . -}}
+      {{- end}}
+    </div>
+  </div>
   {{- end}}
-</ul>
-{{if .Incomplete}}<p class="mt-2 px-2 py-1 italic text-xs text-red3 text-center border border-red3 rounded">Due to an error, the reviewer list may be incomplete</p>{{end}}
+{{- else}}
+  <p>No reviewers found</p>
+{{- end}}
+{{if .Incomplete}}
+<p class="mt-2 px-2 py-1 italic text-xs text-red3 text-center border border-red3 rounded">Due to an error, the reviewer list may be incomplete</p>
+{{end}}
 {{end}}

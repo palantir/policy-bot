@@ -51,49 +51,49 @@ func TestIsApproved(t *testing.T) {
 				Body:         "/no-platform",
 				CreatedAt:    now.Add(10 * time.Second),
 				LastEditedAt: now.Add(20 * time.Second),
-				Author:       "body-editor",
+				Author:       pull.NewAuthor("body-editor"),
 			},
 			CommentsValue: []*pull.Comment{
 				{
 					CreatedAt:    now.Add(10 * time.Second),
 					LastEditedAt: time.Time{},
-					Author:       "other-user",
+					Author:       pull.NewAuthor("other-user"),
 					Body:         "Why did you do this?",
 				},
 				{
 					CreatedAt:    now.Add(20 * time.Second),
 					LastEditedAt: time.Time{},
-					Author:       "comment-approver",
+					Author:       pull.NewAuthor("comment-approver"),
 					Body:         "LGTM :+1: :shipit:",
 				},
 				{
 					CreatedAt:    now.Add(30 * time.Second),
 					LastEditedAt: time.Time{},
-					Author:       "disapprover",
+					Author:       pull.NewAuthor("disapprover"),
 					Body:         "I don't like things! :-1:",
 				},
 				{
 					CreatedAt:    now.Add(40 * time.Second),
 					LastEditedAt: time.Time{},
-					Author:       "mhaypenny",
+					Author:       pull.NewAuthor("mhaypenny"),
 					Body:         ":+1: my stuff is cool",
 				},
 				{
 					CreatedAt:    now.Add(50 * time.Second),
 					LastEditedAt: time.Time{},
-					Author:       "contributor-author",
+					Author:       pull.NewAuthor("contributor-author"),
 					Body:         ":+1: I added to this PR",
 				},
 				{
 					CreatedAt:    now.Add(60 * time.Second),
 					LastEditedAt: time.Time{},
-					Author:       "contributor-committer",
+					Author:       pull.NewAuthor("contributor-committer"),
 					Body:         ":+1: I also added to this PR",
 				},
 				{
 					CreatedAt:    now.Add(70 * time.Second),
 					LastEditedAt: now.Add(71 * time.Second),
-					Author:       "comment-editor",
+					Author:       pull.NewAuthor("comment-editor"),
 					Body:         "LGTM :+1: :shipit:",
 				},
 			},
@@ -101,21 +101,21 @@ func TestIsApproved(t *testing.T) {
 				{
 					CreatedAt:    now.Add(70 * time.Second),
 					LastEditedAt: time.Time{},
-					Author:       "disapprover",
+					Author:       pull.NewAuthor("disapprover"),
 					State:        pull.ReviewChangesRequested,
 					Body:         "I _really_ don't like things!",
 				},
 				{
 					CreatedAt:    now.Add(80 * time.Second),
 					LastEditedAt: time.Time{},
-					Author:       "review-approver",
+					Author:       pull.NewAuthor("review-approver"),
 					State:        pull.ReviewApproved,
 					Body:         "I LIKE THIS",
 				},
 				{
 					CreatedAt:    now.Add(90 * time.Second),
 					LastEditedAt: now.Add(91 * time.Second),
-					Author:       "review-comment-editor",
+					Author:       pull.NewAuthor("review-comment-editor"),
 					State:        pull.ReviewApproved,
 					Body:         "I LIKE THIS",
 				},
@@ -517,7 +517,7 @@ func TestIsApproved(t *testing.T) {
 		})
 		prctx.CommentsValue = append(prctx.CommentsValue, &pull.Comment{
 			CreatedAt: now.Add(100 * time.Second),
-			Author:    "merge-committer",
+			Author:    pull.NewAuthor("merge-committer"),
 			Body:      ":+1:",
 		})
 
@@ -1011,4 +1011,372 @@ func TestSortCommits(t *testing.T) {
 			assert.Equal(t, test.ExpectedOrder, actual, "incorrect commit order")
 		})
 	}
+}
+
+func TestCodeownerGroupApproval(t *testing.T) {
+	logger := zerolog.New(os.Stdout)
+	ctx := logger.WithContext(context.Background())
+
+	now := time.Now()
+
+	t.Run("allGroupsApprovedBySingleReviewer", func(t *testing.T) {
+		// Single reviewer is member of both team-a and team-c, satisfying both groups
+		prctx := &pulltest.Context{
+			AuthorValue: "author",
+			TeamMemberships: map[string][]string{
+				"reviewer1": {"org/team-a", "org/team-c"},
+			},
+			ReviewsValue: []*pull.Review{
+				{Author: pull.NewAuthor("reviewer1"), State: pull.ReviewApproved, CreatedAt: now},
+			},
+			CommitsValue: []*pull.Commit{
+				{SHA: "abc123", Author: "author"},
+			},
+			HeadSHAValue: "abc123",
+			CodeownersValue: &pull.CodeownersResult{
+				Owners: map[string][]string{
+					"a/file.go": {"@org/team-a"},
+					"c/file.go": {"@org/team-c"},
+				},
+			},
+		}
+
+		r := &Rule{
+			Options: Options{
+				Methods: DefaultMethods(),
+			},
+			Requires: Requires{
+				Actors: common.Actors{Codeowners: true},
+			},
+		}
+
+		candidates, _, err := r.FilteredCandidates(ctx, prctx)
+		require.NoError(t, err)
+
+		approved, result, err := r.IsApproved(ctx, prctx, candidates)
+		require.NoError(t, err)
+		assert.True(t, approved)
+		assert.Len(t, result.OwnershipGroups, 2)
+		for _, g := range result.OwnershipGroups {
+			assert.True(t, g.Satisfied, "group %s should be satisfied", g.Key)
+		}
+	})
+
+	t.Run("partialGroupApproval", func(t *testing.T) {
+		// reviewer1 is only in team-a, so team-b group is not satisfied
+		prctx := &pulltest.Context{
+			AuthorValue: "author",
+			TeamMemberships: map[string][]string{
+				"reviewer1": {"org/team-a"},
+			},
+			ReviewsValue: []*pull.Review{
+				{Author: pull.NewAuthor("reviewer1"), State: pull.ReviewApproved, CreatedAt: now},
+			},
+			CommitsValue: []*pull.Commit{
+				{SHA: "abc123", Author: "author"},
+			},
+			HeadSHAValue: "abc123",
+			CodeownersValue: &pull.CodeownersResult{
+				Owners: map[string][]string{
+					"a/file.go": {"@org/team-a"},
+					"b/file.go": {"@org/team-b"},
+				},
+			},
+		}
+
+		r := &Rule{
+			Options: Options{
+				Methods: DefaultMethods(),
+			},
+			Requires: Requires{
+				Actors: common.Actors{Codeowners: true},
+			},
+		}
+
+		candidates, _, err := r.FilteredCandidates(ctx, prctx)
+		require.NoError(t, err)
+
+		approved, result, err := r.IsApproved(ctx, prctx, candidates)
+		require.NoError(t, err)
+		assert.False(t, approved)
+		assert.Len(t, result.OwnershipGroups, 2)
+
+		// Check which group is satisfied
+		groupByKey := make(map[string]common.OwnershipGroupResult)
+		for _, g := range result.OwnershipGroups {
+			groupByKey[g.Key] = g
+		}
+		assert.True(t, groupByKey["@org/team-a"].Satisfied)
+		assert.False(t, groupByKey["@org/team-b"].Satisfied)
+	})
+
+	t.Run("multipleReviewersSatisfyAllGroups", func(t *testing.T) {
+		// Two reviewers, each covering different groups
+		prctx := &pulltest.Context{
+			AuthorValue: "author",
+			TeamMemberships: map[string][]string{
+				"reviewer1": {"org/team-a"},
+				"reviewer2": {"org/team-b", "org/team-c"},
+			},
+			ReviewsValue: []*pull.Review{
+				{Author: pull.NewAuthor("reviewer1"), State: pull.ReviewApproved, CreatedAt: now},
+				{Author: pull.NewAuthor("reviewer2"), State: pull.ReviewApproved, CreatedAt: now.Add(time.Second)},
+			},
+			CommitsValue: []*pull.Commit{
+				{SHA: "abc123", Author: "author"},
+			},
+			HeadSHAValue: "abc123",
+			CodeownersValue: &pull.CodeownersResult{
+				Owners: map[string][]string{
+					"a/file.go": {"@org/team-a"},
+					"b/file.go": {"@org/team-b"},
+					"c/file.go": {"@org/team-c"},
+				},
+			},
+		}
+
+		r := &Rule{
+			Options: Options{
+				Methods: DefaultMethods(),
+			},
+			Requires: Requires{
+				Actors: common.Actors{Codeowners: true},
+			},
+		}
+
+		candidates, _, err := r.FilteredCandidates(ctx, prctx)
+		require.NoError(t, err)
+
+		approved, result, err := r.IsApproved(ctx, prctx, candidates)
+		require.NoError(t, err)
+		assert.True(t, approved)
+		assert.Len(t, result.OwnershipGroups, 3)
+		for _, g := range result.OwnershipGroups {
+			assert.True(t, g.Satisfied, "group %s should be satisfied", g.Key)
+		}
+	})
+
+	t.Run("userCodeownerApproval", func(t *testing.T) {
+		// Direct user codeowner (not team)
+		prctx := &pulltest.Context{
+			AuthorValue: "author",
+			ReviewsValue: []*pull.Review{
+				{Author: pull.NewAuthor("johndoe"), State: pull.ReviewApproved, CreatedAt: now},
+			},
+			CommitsValue: []*pull.Commit{
+				{SHA: "abc123", Author: "author"},
+			},
+			HeadSHAValue: "abc123",
+			CodeownersValue: &pull.CodeownersResult{
+				Owners: map[string][]string{
+					"file.go": {"@johndoe"},
+				},
+			},
+		}
+
+		r := &Rule{
+			Options: Options{
+				Methods: DefaultMethods(),
+			},
+			Requires: Requires{
+				Actors: common.Actors{Codeowners: true},
+			},
+		}
+
+		candidates, _, err := r.FilteredCandidates(ctx, prctx)
+		require.NoError(t, err)
+
+		approved, result, err := r.IsApproved(ctx, prctx, candidates)
+		require.NoError(t, err)
+		assert.True(t, approved)
+		assert.Len(t, result.OwnershipGroups, 1)
+		assert.True(t, result.OwnershipGroups[0].Satisfied)
+		assert.Contains(t, result.OwnershipGroups[0].Approvers, "johndoe")
+	})
+
+	t.Run("noCodeownersFile", func(t *testing.T) {
+		// No CODEOWNERS file - should pass (no codeowner requirements)
+		prctx := &pulltest.Context{
+			AuthorValue:     "author",
+			CodeownersValue: nil, // No CODEOWNERS file
+			CommitsValue: []*pull.Commit{
+				{SHA: "abc123", Author: "author"},
+			},
+			HeadSHAValue: "abc123",
+		}
+
+		r := &Rule{
+			Options: Options{
+				Methods: DefaultMethods(),
+			},
+			Requires: Requires{
+				Actors: common.Actors{Codeowners: true},
+			},
+		}
+
+		candidates, _, err := r.FilteredCandidates(ctx, prctx)
+		require.NoError(t, err)
+
+		approved, result, err := r.IsApproved(ctx, prctx, candidates)
+		require.NoError(t, err)
+		assert.True(t, approved)
+		assert.Empty(t, result.OwnershipGroups)
+	})
+
+	t.Run("authorCannotApproveOwnGroup", func(t *testing.T) {
+		// Author is a codeowner but shouldn't be able to approve (default behavior)
+		prctx := &pulltest.Context{
+			AuthorValue: "johndoe",
+			TeamMemberships: map[string][]string{
+				"johndoe": {"org/team-a"},
+			},
+			ReviewsValue: []*pull.Review{
+				{Author: pull.NewAuthor("johndoe"), State: pull.ReviewApproved, CreatedAt: now},
+			},
+			CommitsValue: []*pull.Commit{
+				{SHA: "abc123", Author: "johndoe"},
+			},
+			HeadSHAValue: "abc123",
+			CodeownersValue: &pull.CodeownersResult{
+				Owners: map[string][]string{
+					"a/file.go": {"@org/team-a"},
+				},
+			},
+		}
+
+		r := &Rule{
+			Options: Options{
+				Methods:     DefaultMethods(),
+				AllowAuthor: ptr(false),
+			},
+			Requires: Requires{
+				Actors: common.Actors{Codeowners: true},
+			},
+		}
+
+		candidates, _, err := r.FilteredCandidates(ctx, prctx)
+		require.NoError(t, err)
+
+		approved, result, err := r.IsApproved(ctx, prctx, candidates)
+		require.NoError(t, err)
+		assert.False(t, approved)
+		assert.Len(t, result.OwnershipGroups, 1)
+		assert.False(t, result.OwnershipGroups[0].Satisfied)
+	})
+
+	t.Run("filesWithSameOwnersGroupedTogether", func(t *testing.T) {
+		// Multiple files with the same owner should be in one group
+		prctx := &pulltest.Context{
+			AuthorValue: "author",
+			TeamMemberships: map[string][]string{
+				"reviewer1": {"org/team-a"},
+			},
+			ReviewsValue: []*pull.Review{
+				{Author: pull.NewAuthor("reviewer1"), State: pull.ReviewApproved, CreatedAt: now},
+			},
+			CommitsValue: []*pull.Commit{
+				{SHA: "abc123", Author: "author"},
+			},
+			HeadSHAValue: "abc123",
+			CodeownersValue: &pull.CodeownersResult{
+				Owners: map[string][]string{
+					"a/file1.go": {"@org/team-a"},
+					"a/file2.go": {"@org/team-a"},
+					"a/file3.go": {"@org/team-a"},
+				},
+			},
+		}
+
+		r := &Rule{
+			Options: Options{
+				Methods: DefaultMethods(),
+			},
+			Requires: Requires{
+				Actors: common.Actors{Codeowners: true},
+			},
+		}
+
+		candidates, _, err := r.FilteredCandidates(ctx, prctx)
+		require.NoError(t, err)
+
+		approved, result, err := r.IsApproved(ctx, prctx, candidates)
+		require.NoError(t, err)
+		assert.True(t, approved)
+		assert.Len(t, result.OwnershipGroups, 1) // All files in one group
+		assert.Len(t, result.OwnershipGroups[0].Files, 3)
+	})
+
+	t.Run("statusDescriptionShowsOwnershipGroups", func(t *testing.T) {
+		// Test status description for pending with ownership groups
+		prctx := &pulltest.Context{
+			AuthorValue: "author",
+			TeamMemberships: map[string][]string{
+				"reviewer1": {"org/team-a"},
+			},
+			ReviewsValue: []*pull.Review{
+				{Author: pull.NewAuthor("reviewer1"), State: pull.ReviewApproved, CreatedAt: now},
+			},
+			CommitsValue: []*pull.Commit{
+				{SHA: "abc123", Author: "author"},
+			},
+			HeadSHAValue: "abc123",
+			CodeownersValue: &pull.CodeownersResult{
+				Owners: map[string][]string{
+					"a/file.go": {"@org/team-a"},
+					"b/file.go": {"@org/team-b"},
+					"c/file.go": {"@org/team-c"},
+				},
+			},
+		}
+
+		r := &Rule{
+			Options: Options{
+				Methods: DefaultMethods(),
+			},
+			Requires: Requires{
+				Actors: common.Actors{Codeowners: true},
+			},
+		}
+
+		result := r.Evaluate(ctx, prctx)
+		assert.Equal(t, common.StatusPending, result.Status)
+		assert.Contains(t, result.StatusDescription, "1/3 ownership groups covered")
+	})
+
+	t.Run("statusDescriptionShowsApprovedWithGroups", func(t *testing.T) {
+		// Test status description for approved with ownership groups
+		prctx := &pulltest.Context{
+			AuthorValue: "author",
+			TeamMemberships: map[string][]string{
+				"reviewer1": {"org/team-a", "org/team-b"},
+			},
+			ReviewsValue: []*pull.Review{
+				{Author: pull.NewAuthor("reviewer1"), State: pull.ReviewApproved, CreatedAt: now},
+			},
+			CommitsValue: []*pull.Commit{
+				{SHA: "abc123", Author: "author"},
+			},
+			HeadSHAValue: "abc123",
+			CodeownersValue: &pull.CodeownersResult{
+				Owners: map[string][]string{
+					"a/file.go": {"@org/team-a"},
+					"b/file.go": {"@org/team-b"},
+				},
+			},
+		}
+
+		r := &Rule{
+			Options: Options{
+				Methods: DefaultMethods(),
+			},
+			Requires: Requires{
+				Actors: common.Actors{Codeowners: true},
+			},
+		}
+
+		result := r.Evaluate(ctx, prctx)
+		assert.Equal(t, common.StatusApproved, result.Status)
+		assert.Contains(t, result.StatusDescription, "Approved by reviewer1")
+		assert.Contains(t, result.StatusDescription, "2 ownership groups")
+	})
 }

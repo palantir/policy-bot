@@ -196,16 +196,16 @@ func (p *Policy) IsDisapproved(ctx context.Context, prctx pull.Context) (disappr
 	// someone disapproved, but nobody has revoked
 	case revoker == nil:
 		disapproved = true
-		msg = fmt.Sprintf("Disapproved by %s", disapprover.User)
+		msg = fmt.Sprintf("Disapproved by %s", disapprover.User())
 
 	// the new disapproval appears after a revocation
 	case disapprover.CreatedAt.After(revoker.CreatedAt):
 		disapproved = true
-		msg = fmt.Sprintf("Disapproved by %s", disapprover.User)
+		msg = fmt.Sprintf("Disapproved by %s", disapprover.User())
 
 	// a disapproval has been revoked
 	default:
-		msg = fmt.Sprintf("Disapproval revoked by %s", revoker.User)
+		msg = fmt.Sprintf("Disapproval revoked by %s", revoker.User())
 	}
 	return
 }
@@ -235,13 +235,13 @@ func (p *Policy) filter(ctx context.Context, prctx pull.Context, candidates []*c
 
 	var filtered []*common.Candidate
 	for _, c := range candidates {
-		ok, err := p.Requires.IsActor(ctx, prctx, c.User)
+		ok, err := p.Requires.IsActor(ctx, prctx, c.User())
 		if err != nil {
 			return nil, errors.WithMessage(err, "failed to check candidate status")
 		}
 
 		if !ok {
-			log.Debug().Str("user", c.User).Msg("ignoring disapproval/revocation by non-whitelisted user")
+			log.Debug().Str("user", c.User()).Msg("ignoring disapproval/revocation by non-whitelisted user")
 			continue
 		}
 

@@ -36,50 +36,50 @@ func TestCandidates(t *testing.T) {
 			{
 				CreatedAt: now.Add(0 * time.Minute),
 				Body:      "I like to comment!",
-				Author:    "rrandom",
+				Author:    pull.NewAuthor("rrandom"),
 			},
 			{
 				CreatedAt: now.Add(2 * time.Minute),
 				Body:      "Looks good to me :+1:",
-				Author:    "mhaypenny",
+				Author:    pull.NewAuthor("mhaypenny"),
 			},
 			{
 				CreatedAt: now.Add(4 * time.Minute),
 				Body:      ":lgtm:",
-				Author:    "ttest",
+				Author:    pull.NewAuthor("ttest"),
 			},
 			{
 				CreatedAt: now.Add(8 * time.Minute),
 				Body:      "I approve this, because it looks good to me.",
-				Author:    "wstrawmoney",
+				Author:    pull.NewAuthor("wstrawmoney"),
 			},
 		},
 		ReviewsValue: []*pull.Review{
 			{
 				CreatedAt: now.Add(1 * time.Minute),
-				Author:    "rrandom",
+				Author:    pull.NewAuthor("rrandom"),
 				State:     pull.ReviewCommented,
 			},
 			{
 				CreatedAt: now.Add(3 * time.Minute),
-				Author:    "mhaypenny",
+				Author:    pull.NewAuthor("mhaypenny"),
 				State:     pull.ReviewChangesRequested,
 				Body:      "pr needs work",
 			},
 			{
 				CreatedAt: now.Add(5 * time.Minute),
-				Author:    "ttest",
+				Author:    pull.NewAuthor("ttest"),
 				State:     pull.ReviewApproved,
 			},
 			{
 				CreatedAt: now.Add(7 * time.Minute),
-				Author:    "santaclaus",
+				Author:    pull.NewAuthor("santaclaus"),
 				Body:      "nice",
 				State:     pull.ReviewApproved,
 			},
 			{
 				CreatedAt: now.Add(9 * time.Minute),
-				Author:    "dasherdancer",
+				Author:    pull.NewAuthor("dasherdancer"),
 				Body:      "nIcE",
 				State:     pull.ReviewApproved,
 			},
@@ -97,8 +97,8 @@ func TestCandidates(t *testing.T) {
 		sort.Sort(CandidatesByCreationTime(cs))
 
 		require.Len(t, cs, 2, "incorrect number of candidates found")
-		assert.Equal(t, "mhaypenny", cs[0].User)
-		assert.Equal(t, "ttest", cs[1].User)
+		assert.Equal(t, "mhaypenny", cs[0].User())
+		assert.Equal(t, "ttest", cs[1].User())
 	})
 
 	t.Run("commentPatterns", func(t *testing.T) {
@@ -114,7 +114,7 @@ func TestCandidates(t *testing.T) {
 		sort.Sort(CandidatesByCreationTime(cs))
 
 		require.Len(t, cs, 1, "incorrect number of candidates found")
-		assert.Equal(t, "mhaypenny", cs[0].User)
+		assert.Equal(t, "mhaypenny", cs[0].User())
 	})
 
 	t.Run("githubReviewCommentPatterns", func(t *testing.T) {
@@ -133,8 +133,8 @@ func TestCandidates(t *testing.T) {
 		sort.Sort(CandidatesByCreationTime(cs))
 
 		require.Len(t, cs, 2, "incorrect number of candidates found")
-		assert.Equal(t, "santaclaus", cs[0].User)
-		assert.Equal(t, "dasherdancer", cs[1].User)
+		assert.Equal(t, "santaclaus", cs[0].User())
+		assert.Equal(t, "dasherdancer", cs[1].User())
 	})
 
 	t.Run("reviews", func(t *testing.T) {
@@ -150,7 +150,7 @@ func TestCandidates(t *testing.T) {
 		sort.Sort(CandidatesByCreationTime(cs))
 
 		require.Len(t, cs, 1, "incorrect number of candidates found")
-		assert.Equal(t, "mhaypenny", cs[0].User)
+		assert.Equal(t, "mhaypenny", cs[0].User())
 	})
 
 	t.Run("deduplicate", func(t *testing.T) {
@@ -167,29 +167,29 @@ func TestCandidates(t *testing.T) {
 		sort.Sort(CandidatesByCreationTime(cs))
 
 		require.Len(t, cs, 4, "incorrect number of candidates found")
-		assert.Equal(t, "mhaypenny", cs[0].User)
-		assert.Equal(t, "ttest", cs[1].User)
-		assert.Equal(t, "santaclaus", cs[2].User)
-		assert.Equal(t, "dasherdancer", cs[3].User)
+		assert.Equal(t, "mhaypenny", cs[0].User())
+		assert.Equal(t, "ttest", cs[1].User())
+		assert.Equal(t, "santaclaus", cs[2].User())
+		assert.Equal(t, "dasherdancer", cs[3].User())
 	})
 }
 
 func TestCandidatesByCreationTime(t *testing.T) {
 	cs := []*Candidate{
 		{
-			User:      "c",
+			Author:    pull.NewAuthor("c"),
 			CreatedAt: time.Date(2018, 6, 29, 12, 0, 0, 0, time.UTC),
 		},
 		{
-			User:      "a",
+			Author:    pull.NewAuthor("a"),
 			CreatedAt: time.Date(2018, 6, 28, 0, 0, 0, 0, time.UTC),
 		},
 		{
-			User:      "d",
+			Author:    pull.NewAuthor("d"),
 			CreatedAt: time.Date(2018, 6, 29, 14, 0, 0, 0, time.UTC),
 		},
 		{
-			User:      "b",
+			Author:    pull.NewAuthor("b"),
 			CreatedAt: time.Date(2018, 6, 29, 10, 0, 0, 0, time.UTC),
 		},
 	}
@@ -197,7 +197,7 @@ func TestCandidatesByCreationTime(t *testing.T) {
 	sort.Sort(CandidatesByCreationTime(cs))
 
 	for i, u := range []string{"a", "b", "c", "d"} {
-		assert.Equalf(t, u, cs[i].User, "candidate at position %d is incorrect", i)
+		assert.Equalf(t, u, cs[i].User(), "candidate at position %d is incorrect", i)
 	}
 }
 

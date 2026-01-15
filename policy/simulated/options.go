@@ -88,7 +88,7 @@ func (c *Comment) toPullComment() *pull.Comment {
 	return &pull.Comment{
 		CreatedAt:    *c.CreatedAt,
 		LastEditedAt: *c.LastEditedAt,
-		Author:       c.Author,
+		Author:       pull.NewAuthor(c.Author),
 		Body:         c.Body,
 	}
 }
@@ -125,7 +125,7 @@ func (r *Review) toPullReview() *pull.Review {
 		SHA:          r.SHA,
 		CreatedAt:    *r.CreatedAt,
 		LastEditedAt: *r.LastEditedAt,
-		Author:       r.Author,
+		Author:       pull.NewAuthor(r.Author),
 		State:        pull.ReviewState(r.State),
 		Body:         r.Body,
 		Teams:        r.Teams,

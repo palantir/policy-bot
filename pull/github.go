@@ -16,8 +16,11 @@ package pull
 
 import (
 	"context"
+	"maps"
 	"net/http"
+	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/go-github/v81/github"
@@ -86,7 +89,7 @@ func (loc Locator) toV4(ctx context.Context, client *githubv4.Client) (*v4PullRe
 				PullRequest v4PullRequest `graphql:"pullRequest(number: $number)"`
 			} `graphql:"repository(owner: $owner, name: $name)"`
 		}
-		qvars := map[string]interface{}{
+		qvars := map[string]any{
 			"owner":  githubv4.String(loc.Owner),
 			"name":   githubv4.String(loc.Repo),
 			"number": githubv4.Int(loc.Number),
@@ -256,7 +259,7 @@ func (ghc *GitHubContext) Body() (*Body, error) {
 			PullRequest v4PullRequestWithEditedAt `graphql:"pullRequest(number: $number)"`
 		} `graphql:"repository(owner: $owner, name: $name)"`
 	}
-	qvars := map[string]interface{}{
+	qvars := map[string]any{
 		"owner":  githubv4.String(ghc.owner),
 		"name":   githubv4.String(ghc.repo),
 		"number": githubv4.Int(ghc.number),
@@ -269,7 +272,7 @@ func (ghc *GitHubContext) Body() (*Body, error) {
 	return &Body{
 		Body:         graphqlResponse.Body,
 		CreatedAt:    graphqlResponse.CreatedAt,
-		Author:       graphqlResponse.Author.GetV3Login(),
+		Author:       graphqlResponse.Author.ToAuthor(),
 		LastEditedAt: graphqlResponse.LastEditedAt,
 	}, nil
 }
@@ -474,10 +477,8 @@ func (ghc *GitHubContext) nextChildCommit(sha string) (*Commit, error) {
 	}
 
 	for _, c := range commits {
-		for _, parentSHA := range c.Parents {
-			if sha == parentSHA {
-				return c, nil
-			}
+		if slices.Contains(c.Parents, sha) {
+			return c, nil
 		}
 	}
 	return nil, nil
@@ -582,16 +583,32 @@ func (ghc *GitHubContext) RepositoryCollaborators(minPermission Permission) ([]*
 		return nil, err
 	}
 
+	// Fetch team members in parallel
 	teamMembership := make(map[string][]string)
-	for team := range teamPerms {
-		members, err := ghc.TeamMembers(ghc.owner + "/" + team)
-		if err != nil {
-			return nil, err
-		}
+	var membershipMu sync.Mutex
+	var membershipWg sync.WaitGroup
+	var membershipErr error
+	var errOnce sync.Once
 
-		for _, member := range members {
-			teamMembership[member] = append(teamMembership[member], team)
-		}
+	for team := range teamPerms {
+		membershipWg.Go(func() {
+			members, err := ghc.TeamMembers(ghc.owner + "/" + team)
+			if err != nil {
+				errOnce.Do(func() { membershipErr = err })
+				return
+			}
+			membershipMu.Lock()
+			for _, member := range members {
+				teamMembership[member] = append(teamMembership[member], team)
+			}
+			membershipMu.Unlock()
+		})
+	}
+
+	membershipWg.Wait()
+
+	if membershipErr != nil {
+		return nil, membershipErr
 	}
 
 	fillPermissions := func(c *Collaborator) {
@@ -650,7 +667,7 @@ func (ghc *GitHubContext) CollaboratorPermission(user string) (Permission, error
 			} `graphql:"collaborators(query: $user, first: 100, after: $cursor)"`
 		} `graphql:"repository(owner: $owner, name: $name)"`
 	}
-	qvars := map[string]interface{}{
+	qvars := map[string]any{
 		"owner":  githubv4.String(ghc.owner),
 		"name":   githubv4.String(ghc.repo),
 		"user":   githubv4.String(user),
@@ -722,7 +739,7 @@ func (ghc *GitHubContext) loadRequestedReviewers() error {
 			} `graphql:"pullRequest(number: $number)"`
 		} `graphql:"repository(owner: $owner, name: $name)"`
 	}
-	qvars := map[string]interface{}{
+	qvars := map[string]any{
 		"owner":  githubv4.String(ghc.owner),
 		"name":   githubv4.String(ghc.repo),
 		"number": githubv4.Int(ghc.number),
@@ -797,9 +814,7 @@ func (ghc *GitHubContext) LatestStatuses() (map[string]string, error) {
 			return nil, err
 		}
 
-		for k, v := range checkStatuses {
-			statuses[k] = v
-		}
+		maps.Copy(statuses, checkStatuses)
 
 		ghc.statuses = statuses
 	}
@@ -981,24 +996,11 @@ func (ghc *GitHubContext) Codeowners() (*CodeownersResult, error) {
 	}
 	ghc.codeownersLoaded = true
 
-	// Try to fetch CODEOWNERS from standard locations
-	var co *codeowners.Codeowners
-	for _, path := range codeownersLocations {
-		content, exists, err := ghc.getFileContent(path)
-		if err != nil {
-			ghc.codeownersErr = errors.Wrapf(err, "failed to fetch %s", path)
-			return nil, ghc.codeownersErr
-		}
-		if !exists {
-			continue
-		}
-
-		co, err = codeowners.FromReader(strings.NewReader(content), "")
-		if err != nil {
-			ghc.codeownersErr = errors.Wrapf(err, "failed to parse %s", path)
-			return nil, ghc.codeownersErr
-		}
-		break
+	// Load CODEOWNERS from the base branch (not the PR head) for security
+	co, err := ghc.loadCodeowners()
+	if err != nil {
+		ghc.codeownersErr = err
+		return nil, ghc.codeownersErr
 	}
 
 	// No CODEOWNERS file found
@@ -1020,6 +1022,8 @@ func (ghc *GitHubContext) Codeowners() (*CodeownersResult, error) {
 		owners := co.Owners(f.Filename)
 		if len(owners) > 0 {
 			result.Owners[f.Filename] = owners
+		} else {
+			result.OrphanFiles = append(result.OrphanFiles, f.Filename)
 		}
 	}
 
@@ -1027,10 +1031,74 @@ func (ghc *GitHubContext) Codeowners() (*CodeownersResult, error) {
 	return result, nil
 }
 
-func (ghc *GitHubContext) getFileContent(path string) (string, bool, error) {
+// loadCodeowners attempts to load the CODEOWNERS file from the base branch.
+// It uses the base branch ref to prevent PRs from modifying their own approval
+// requirements by changing CODEOWNERS in the PR. Returns nil if no CODEOWNERS
+// file exists.
+func (ghc *GitHubContext) loadCodeowners() (*codeowners.Codeowners, error) {
+	baseRef := ghc.pr.BaseRefOID
+	repoID := ghc.pr.BaseRepository.DatabaseID
+
+	// Check cache for parsed CODEOWNERS content
+	if gc := ghc.globalCache; gc != nil {
+		if co, ok := gc.GetCodeowners(repoID, baseRef); ok {
+			return co, nil
+		}
+	}
+
+	type codeownersFetchResult struct {
+		co  *codeowners.Codeowners
+		err error
+	}
+	results := make([]codeownersFetchResult, len(codeownersLocations))
+	var wg sync.WaitGroup
+
+	for i, path := range codeownersLocations {
+		wg.Go(func() {
+			co, err := ghc.fetchCodeowners(path, baseRef)
+			results[i] = codeownersFetchResult{co: co, err: err}
+		})
+	}
+	wg.Wait()
+
+	// Return first result by priority order (check errors and results together)
+	for _, r := range results {
+		if r.err != nil {
+			return nil, r.err
+		}
+		if r.co != nil {
+			if gc := ghc.globalCache; gc != nil {
+				gc.SetCodeowners(repoID, baseRef, r.co)
+			}
+			return r.co, nil
+		}
+	}
+
+	return nil, nil
+}
+
+// fetchCodeowners retrieves and parses a CODEOWNERS file at the given path and ref.
+// Returns nil without error if the file does not exist.
+func (ghc *GitHubContext) fetchCodeowners(path, ref string) (*codeowners.Codeowners, error) {
+	content, exists, err := ghc.getFileContent(path, ref)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to fetch %s", path)
+	}
+	if !exists {
+		return nil, nil
+	}
+
+	co, err := codeowners.FromReader(strings.NewReader(content), "")
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse %s", path)
+	}
+	return co, nil
+}
+
+func (ghc *GitHubContext) getFileContent(path, ref string) (string, bool, error) {
 	file, _, _, err := ghc.client.Repositories.GetContents(
 		ghc.ctx, ghc.owner, ghc.repo, path,
-		&github.RepositoryContentGetOptions{Ref: ghc.pr.HeadRefOID},
+		&github.RepositoryContentGetOptions{Ref: ref},
 	)
 	if err != nil {
 		if isNotFound(err) {
@@ -1074,7 +1142,7 @@ func (ghc *GitHubContext) loadPagedData() error {
 			} `graphql:"pullRequest(number: $number)"`
 		} `graphql:"repository(owner: $owner, name: $name)"`
 	}
-	qvars := map[string]interface{}{
+	qvars := map[string]any{
 		"owner":  githubv4.String(ghc.owner),
 		"name":   githubv4.String(ghc.repo),
 		"number": githubv4.Int(ghc.number),
@@ -1197,6 +1265,7 @@ type v4PullRequest struct {
 		Owner v4Actor
 	}
 
+	BaseRefOID     string
 	BaseRefName    string
 	BaseRepository struct {
 		DatabaseID int64
@@ -1212,7 +1281,7 @@ type v4PageInfo struct {
 
 // UpdateCursor modifies the named cursor value in the the query variable map
 // and returns true if there are additional pages.
-func (pi v4PageInfo) UpdateCursor(vars map[string]interface{}, name string) bool {
+func (pi v4PageInfo) UpdateCursor(vars map[string]any, name string) bool {
 	if pi.HasNextPage && pi.EndCursor != nil {
 		vars[name] = githubv4.NewString(*pi.EndCursor)
 		return true
@@ -1257,7 +1326,7 @@ func (r *v4PullRequestReview) ToReview() *Review {
 		ID:           r.ID,
 		CreatedAt:    r.SubmittedAt,
 		LastEditedAt: r.LastEditedAt,
-		Author:       r.Author.GetV3Login(),
+		Author:       r.Author.ToAuthor(),
 		State:        ReviewState(strings.ToLower(r.State)),
 		Body:         r.Body,
 		SHA:          r.Commit.OID,
@@ -1269,7 +1338,7 @@ func (r *v4PullRequestReview) ToComment() *Comment {
 	return &Comment{
 		CreatedAt:    r.SubmittedAt,
 		LastEditedAt: r.LastEditedAt,
-		Author:       r.Author.GetV3Login(),
+		Author:       r.Author.ToAuthor(),
 		Body:         r.Body,
 	}
 }
@@ -1285,7 +1354,7 @@ func (c *v4IssueComment) ToComment() *Comment {
 	return &Comment{
 		CreatedAt:    c.CreatedAt,
 		LastEditedAt: c.LastEditedAt,
-		Author:       c.Author.GetV3Login(),
+		Author:       c.Author.ToAuthor(),
 		Body:         c.Body,
 	}
 }
@@ -1353,8 +1422,9 @@ type v4Team struct {
 }
 
 type v4Actor struct {
-	Type  string `graphql:"__typename"`
-	Login string
+	Type      string `graphql:"__typename"`
+	Login     string
+	AvatarURL string `graphql:"avatarUrl"`
 }
 
 // GetV3Login returns a V3-compatible login string. These login strings contain
@@ -1367,6 +1437,25 @@ func (a *v4Actor) GetV3Login() string {
 		return a.Login + "[bot]"
 	}
 	return a.Login
+}
+
+// GetAvatarURL returns the actor's avatar URL.
+func (a *v4Actor) GetAvatarURL() string {
+	if a == nil {
+		return ""
+	}
+	return a.AvatarURL
+}
+
+// ToAuthor converts the actor to an Author struct.
+func (a *v4Actor) ToAuthor() *Author {
+	if a == nil {
+		return nil
+	}
+	return &Author{
+		Login:     a.GetV3Login(),
+		AvatarURL: a.AvatarURL,
+	}
 }
 
 type v4GitActor struct {

@@ -101,9 +101,17 @@ const (
 type Candidate struct {
 	Type         CandidateType
 	ReviewID     string
-	User         string
+	Author       *pull.Author
 	CreatedAt    time.Time
 	LastEditedAt time.Time
+}
+
+// User returns the author's login for backward compatibility.
+func (c *Candidate) User() string {
+	if c.Author == nil {
+		return ""
+	}
+	return c.Author.Login
 }
 
 type CandidatesByCreationTime []*Candidate
@@ -131,7 +139,7 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 			if m.CommentMatches(c.Body) {
 				candidates = append(candidates, &Candidate{
 					Type:         CommentCandidate,
-					User:         c.Author,
+					Author:       c.Author,
 					CreatedAt:    c.CreatedAt,
 					LastEditedAt: c.LastEditedAt,
 				})
@@ -146,7 +154,7 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 		}
 		if m.BodyMatches(prBody.Body) {
 			candidates = append(candidates, &Candidate{
-				User:         prBody.Author,
+				Author:       prBody.Author,
 				CreatedAt:    prBody.CreatedAt,
 				LastEditedAt: prBody.LastEditedAt,
 			})
@@ -166,7 +174,7 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 						candidates = append(candidates, &Candidate{
 							Type:         ReviewCandidate,
 							ReviewID:     r.ID,
-							User:         r.Author,
+							Author:       r.Author,
 							CreatedAt:    r.CreatedAt,
 							LastEditedAt: r.LastEditedAt,
 						})
@@ -175,7 +183,7 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 					candidates = append(candidates, &Candidate{
 						Type:         ReviewCandidate,
 						ReviewID:     r.ID,
-						User:         r.Author,
+						Author:       r.Author,
 						CreatedAt:    r.CreatedAt,
 						LastEditedAt: r.LastEditedAt,
 					})
@@ -190,9 +198,9 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 func deduplicateCandidates(all []*Candidate) []*Candidate {
 	users := make(map[string]*Candidate)
 	for _, c := range all {
-		last, ok := users[c.User]
+		last, ok := users[c.User()]
 		if !ok || last.CreatedAt.Before(c.CreatedAt) {
-			users[c.User] = c
+			users[c.User()] = c
 		}
 	}
 

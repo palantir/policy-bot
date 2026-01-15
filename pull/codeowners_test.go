@@ -118,3 +118,137 @@ func TestCodeownersResultAllOwners(t *testing.T) {
 		assert.Equal(t, []string{"@user1"}, owners)
 	})
 }
+
+func TestCodeownersResultOwnershipGroups(t *testing.T) {
+	t.Run("nil result", func(t *testing.T) {
+		var result *CodeownersResult
+		groups := result.OwnershipGroups()
+		assert.Nil(t, groups)
+	})
+
+	t.Run("empty owners", func(t *testing.T) {
+		result := &CodeownersResult{
+			Owners: map[string][]string{},
+		}
+		groups := result.OwnershipGroups()
+		assert.Nil(t, groups)
+	})
+
+	t.Run("single file single owner", func(t *testing.T) {
+		result := &CodeownersResult{
+			Owners: map[string][]string{
+				"file.go": {"@team-a"},
+			},
+		}
+		groups := result.OwnershipGroups()
+		assert.Len(t, groups, 1)
+		assert.Equal(t, "@team-a", groups[0].Key)
+		assert.Equal(t, []string{"@team-a"}, groups[0].Owners)
+		assert.Equal(t, []string{"file.go"}, groups[0].Files)
+	})
+
+	t.Run("multiple files same owner grouped together", func(t *testing.T) {
+		result := &CodeownersResult{
+			Owners: map[string][]string{
+				"a/file1.go": {"@team-a"},
+				"a/file2.go": {"@team-a"},
+				"a/file3.go": {"@team-a"},
+			},
+		}
+		groups := result.OwnershipGroups()
+		assert.Len(t, groups, 1)
+		assert.Equal(t, "@team-a", groups[0].Key)
+		assert.Equal(t, []string{"@team-a"}, groups[0].Owners)
+		assert.Equal(t, []string{"a/file1.go", "a/file2.go", "a/file3.go"}, groups[0].Files)
+	})
+
+	t.Run("multiple distinct ownership groups", func(t *testing.T) {
+		result := &CodeownersResult{
+			Owners: map[string][]string{
+				"a/file.go": {"@team-a"},
+				"b/file.go": {"@team-b"},
+				"c/file.go": {"@team-c"},
+			},
+		}
+		groups := result.OwnershipGroups()
+		assert.Len(t, groups, 3)
+
+		// Groups should be sorted by key
+		assert.Equal(t, "@team-a", groups[0].Key)
+		assert.Equal(t, "@team-b", groups[1].Key)
+		assert.Equal(t, "@team-c", groups[2].Key)
+	})
+
+	t.Run("owner order independent grouping", func(t *testing.T) {
+		// Files with the same owners but listed in different order
+		// should be grouped together
+		result := &CodeownersResult{
+			Owners: map[string][]string{
+				"file1.go": {"@user1", "@user2"},
+				"file2.go": {"@user2", "@user1"},
+			},
+		}
+		groups := result.OwnershipGroups()
+		assert.Len(t, groups, 1)
+		assert.Equal(t, "@user1,@user2", groups[0].Key)
+		assert.Equal(t, []string{"@user1", "@user2"}, groups[0].Owners)
+		assert.Equal(t, []string{"file1.go", "file2.go"}, groups[0].Files)
+	})
+
+	t.Run("mixed single and multiple owners", func(t *testing.T) {
+		result := &CodeownersResult{
+			Owners: map[string][]string{
+				"a/file.go":   {"@team-a"},
+				"b/file.go":   {"@team-b", "@team-c"},
+				"ab/file.go":  {"@team-a", "@team-b"},
+				"ab/file2.go": {"@team-b", "@team-a"}, // Same as above, different order
+			},
+		}
+		groups := result.OwnershipGroups()
+		assert.Len(t, groups, 3)
+
+		// Find each group by key
+		groupByKey := make(map[string]OwnershipGroup)
+		for _, g := range groups {
+			groupByKey[g.Key] = g
+		}
+
+		// Single owner group
+		assert.Equal(t, []string{"a/file.go"}, groupByKey["@team-a"].Files)
+
+		// Two owners group (@team-a, @team-b) - files should be grouped
+		abGroup := groupByKey["@team-a,@team-b"]
+		assert.Equal(t, []string{"@team-a", "@team-b"}, abGroup.Owners)
+		assert.Equal(t, []string{"ab/file.go", "ab/file2.go"}, abGroup.Files)
+
+		// Two owners group (@team-b, @team-c)
+		bcGroup := groupByKey["@team-b,@team-c"]
+		assert.Equal(t, []string{"@team-b", "@team-c"}, bcGroup.Owners)
+		assert.Equal(t, []string{"b/file.go"}, bcGroup.Files)
+	})
+
+	t.Run("files with empty owners are skipped", func(t *testing.T) {
+		result := &CodeownersResult{
+			Owners: map[string][]string{
+				"file1.go": {"@team-a"},
+				"file2.go": {},
+			},
+		}
+		groups := result.OwnershipGroups()
+		assert.Len(t, groups, 1)
+		assert.Equal(t, "@team-a", groups[0].Key)
+	})
+
+	t.Run("user and team owners mixed", func(t *testing.T) {
+		result := &CodeownersResult{
+			Owners: map[string][]string{
+				"file1.go": {"@johndoe", "@org/team-a"},
+				"file2.go": {"@org/team-a", "@johndoe"}, // Same owners, different order
+			},
+		}
+		groups := result.OwnershipGroups()
+		assert.Len(t, groups, 1)
+		assert.Equal(t, "@johndoe,@org/team-a", groups[0].Key)
+		assert.Equal(t, []string{"file1.go", "file2.go"}, groups[0].Files)
+	})
+}

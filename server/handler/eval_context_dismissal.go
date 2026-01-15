@@ -36,7 +36,7 @@ func (ec *EvalContext) dismissStaleReviewsForResult(ctx context.Context, result 
 		}
 		if !ec.Options.StrictReviewDismissal {
 			// Only dismiss reviews from users who are not currently approvers
-			if approvers[d.Candidate.User] {
+			if approvers[d.Candidate.User()] {
 				continue
 			}
 		}
@@ -73,7 +73,7 @@ func findAllApprovers(result *common.Result) map[string]bool {
 
 	if len(result.Children) == 0 && result.Error == nil {
 		for _, a := range result.Requires.Approvers {
-			approvers[a.User] = true
+			approvers[a.User()] = true
 		}
 	}
 	for _, c := range result.Children {
