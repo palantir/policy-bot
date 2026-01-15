@@ -38,39 +38,39 @@ func TestIsDisapproved(t *testing.T) {
 		TitleValue: "test: add disapproval predicate test",
 		CommentsValue: []*pull.Comment{
 			{
-				Author:    "disapprover-1",
+				Author:    pull.NewAuthor("disapprover-1"),
 				Body:      "me no like :-1:",
 				CreatedAt: date(0),
 			},
 			{
-				Author:    "disapprover-1",
+				Author:    pull.NewAuthor("disapprover-1"),
 				Body:      "nah, is fine :+1:",
 				CreatedAt: date(1),
 			},
 			{
-				Author:    "disapprover-2",
+				Author:    pull.NewAuthor("disapprover-2"),
 				Body:      "me also no like :-1:",
 				CreatedAt: date(2),
 			},
 			{
-				Author:    "disapprover-3",
+				Author:    pull.NewAuthor("disapprover-3"),
 				Body:      "and me :-1:",
 				CreatedAt: date(3),
 			},
 			{
-				Author:    "revoker-1",
+				Author:    pull.NewAuthor("revoker-1"),
 				Body:      "you all wrong :+1:",
 				CreatedAt: date(4),
 			},
 		},
 		ReviewsValue: []*pull.Review{
 			{
-				Author:    "disapprover-4",
+				Author:    pull.NewAuthor("disapprover-4"),
 				State:     pull.ReviewChangesRequested,
 				CreatedAt: date(5),
 			},
 			{
-				Author:    "revoker-2",
+				Author:    pull.NewAuthor("revoker-2"),
 				State:     pull.ReviewApproved,
 				CreatedAt: date(6),
 			},

@@ -77,6 +77,14 @@ type CachingConfig struct {
 	// the parsed CODEOWNERS file for a repository at a given base branch commit
 	// to avoid repeated HTTP requests.
 	CodeownersSize int `yaml:"codeowners_size"`
+
+	// The size of the global cache for team membership checks. Each entry
+	// caches the result of a team membership API call with a 5 minute TTL.
+	MembershipSize int `yaml:"membership_size"`
+
+	// The size of the global cache for team member lists. Each entry caches
+	// the full list of team members with metadata (avatars, URLs) with a 5 minute TTL.
+	TeamsSize int `yaml:"teams_size"`
 }
 
 type WorkerConfig struct {

@@ -22,6 +22,22 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 )
 
+const DefaultMembershipTTL = 5 * time.Minute
+
+// TeamMember represents a GitHub user with basic metadata
+type TeamMember struct {
+	Login     string
+	AvatarURL string
+	HTMLURL   string
+}
+
+// TeamInfo represents team metadata
+type TeamInfo struct {
+	ID      int64
+	Slug    string
+	HTMLURL string
+}
+
 // GlobalCache implementations provide a way to cache values that are safe to
 // cache at the application level. Values in the global cache should not become
 // stale due to external changes and should only expire to prevent the cache
@@ -36,6 +52,27 @@ type GlobalCache interface {
 	// parsed content is safe and avoids repeated HTTP requests.
 	GetCodeowners(repoID int64, baseRefOID string) (*codeowners.Codeowners, bool)
 	SetCodeowners(repoID int64, baseRefOID string, co *codeowners.Codeowners)
+
+	// GetTeamMembership returns cached team membership status.
+	// Returns (isMember, found). If found is false, the value is not in cache.
+	GetTeamMembership(team, user string) (bool, bool)
+	SetTeamMembership(team, user string, isMember bool)
+
+	// GetTeamMembers returns cached team members with metadata.
+	// Returns (members, info, found). If found is false, the value is not in cache.
+	GetTeamMembers(team string) ([]TeamMember, *TeamInfo, bool)
+	SetTeamMembers(team string, info *TeamInfo, members []TeamMember)
+}
+
+type membershipEntry struct {
+	isMember  bool
+	expiresAt time.Time
+}
+
+type teamMembersEntry struct {
+	info      *TeamInfo
+	members   []TeamMember
+	expiresAt time.Time
 }
 
 // LRUGlobalCache is a GlobalCache where each data type is stored in a separate
@@ -44,9 +81,12 @@ type GlobalCache interface {
 type LRUGlobalCache struct {
 	pushedAt   *lru.Cache
 	codeowners *lru.Cache
+	membership *lru.Cache
+	teams      *lru.Cache
+	memberTTL  time.Duration
 }
 
-func NewLRUGlobalCache(pushedAtSize, codeownersSize int) (*LRUGlobalCache, error) {
+func NewLRUGlobalCache(pushedAtSize, codeownersSize, membershipSize, teamsSize int) (*LRUGlobalCache, error) {
 	pushedAt, err := lru.New(pushedAtSize)
 	if err != nil {
 		return nil, err
@@ -55,9 +95,20 @@ func NewLRUGlobalCache(pushedAtSize, codeownersSize int) (*LRUGlobalCache, error
 	if err != nil {
 		return nil, err
 	}
+	membership, err := lru.New(membershipSize)
+	if err != nil {
+		return nil, err
+	}
+	teams, err := lru.New(teamsSize)
+	if err != nil {
+		return nil, err
+	}
 	return &LRUGlobalCache{
 		pushedAt:   pushedAt,
 		codeowners: codeownersCache,
+		membership: membership,
+		teams:      teams,
+		memberTTL:  DefaultMembershipTTL,
 	}, nil
 }
 
@@ -89,4 +140,47 @@ func (c *LRUGlobalCache) SetCodeowners(repoID int64, baseRefOID string, co *code
 
 func cacheKey(repoID int64, identifier string) string {
 	return fmt.Sprintf("%d:%s", repoID, identifier)
+}
+
+func (c *LRUGlobalCache) GetTeamMembership(team, user string) (bool, bool) {
+	key := team + ":" + user
+	if val, ok := c.membership.Get(key); ok {
+		if entry, ok := val.(membershipEntry); ok {
+			if time.Now().Before(entry.expiresAt) {
+				return entry.isMember, true
+			}
+			// Expired - remove and return not found
+			c.membership.Remove(key)
+		}
+	}
+	return false, false
+}
+
+func (c *LRUGlobalCache) SetTeamMembership(team, user string, isMember bool) {
+	key := team + ":" + user
+	c.membership.Add(key, membershipEntry{
+		isMember:  isMember,
+		expiresAt: time.Now().Add(c.memberTTL),
+	})
+}
+
+func (c *LRUGlobalCache) GetTeamMembers(team string) ([]TeamMember, *TeamInfo, bool) {
+	if val, ok := c.teams.Get(team); ok {
+		if entry, ok := val.(teamMembersEntry); ok {
+			if time.Now().Before(entry.expiresAt) {
+				return entry.members, entry.info, true
+			}
+			// Expired - remove and return not found
+			c.teams.Remove(team)
+		}
+	}
+	return nil, nil, false
+}
+
+func (c *LRUGlobalCache) SetTeamMembers(team string, info *TeamInfo, members []TeamMember) {
+	c.teams.Add(team, teamMembersEntry{
+		info:      info,
+		members:   members,
+		expiresAt: time.Now().Add(c.memberTTL),
+	})
 }

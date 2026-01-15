@@ -37,8 +37,8 @@ func TestComments(t *testing.T) {
 	}{
 		"ignore comments by user": {
 			Comments: []*pull.Comment{
-				{Author: "rrandom"},
-				{Author: "iignore"},
+				{Author: pull.NewAuthor("rrandom")},
+				{Author: pull.NewAuthor("iignore")},
 			},
 			ExpectedCommentAuthors: []string{"rrandom"},
 			Options: Options{
@@ -49,8 +49,8 @@ func TestComments(t *testing.T) {
 		},
 		"ignore comments by team membership": {
 			Comments: []*pull.Comment{
-				{Author: "rrandom"},
-				{Author: "iignore"},
+				{Author: pull.NewAuthor("rrandom")},
+				{Author: pull.NewAuthor("iignore")},
 			},
 			Options: Options{
 				IgnoreComments: &common.Actors{
@@ -64,8 +64,8 @@ func TestComments(t *testing.T) {
 		},
 		"ignore comments by org membership": {
 			Comments: []*pull.Comment{
-				{Author: "rrandom"},
-				{Author: "iignore"},
+				{Author: pull.NewAuthor("rrandom")},
+				{Author: pull.NewAuthor("iignore")},
 			},
 			Options: Options{
 				IgnoreComments: &common.Actors{
@@ -79,8 +79,8 @@ func TestComments(t *testing.T) {
 		},
 		"ignore comments by permission": {
 			Comments: []*pull.Comment{
-				{Author: "rrandom"},
-				{Author: "iignore"},
+				{Author: pull.NewAuthor("rrandom")},
+				{Author: pull.NewAuthor("iignore")},
 			},
 			Options: Options{
 				IgnoreComments: &common.Actors{
@@ -96,15 +96,15 @@ func TestComments(t *testing.T) {
 		},
 		"do not ignore any comments": {
 			Comments: []*pull.Comment{
-				{Author: "rrandom"},
-				{Author: "iignore"},
+				{Author: pull.NewAuthor("rrandom")},
+				{Author: pull.NewAuthor("iignore")},
 			},
 			ExpectedCommentAuthors: []string{"rrandom", "iignore"},
 		},
 		"add new comment by sperson": {
 			Comments: []*pull.Comment{
-				{Author: "rrandom"},
-				{Author: "iignore"},
+				{Author: pull.NewAuthor("rrandom")},
+				{Author: pull.NewAuthor("iignore")},
 			},
 			Options: Options{
 				AddComments: []Comment{
@@ -115,8 +115,8 @@ func TestComments(t *testing.T) {
 		},
 		"add new comment by sperson and ignore one from iignore": {
 			Comments: []*pull.Comment{
-				{Author: "rrandom"},
-				{Author: "iignore"},
+				{Author: pull.NewAuthor("rrandom")},
+				{Author: pull.NewAuthor("iignore")},
 			},
 			Options: Options{
 				AddComments: []Comment{
@@ -157,7 +157,9 @@ func TestComments(t *testing.T) {
 func getCommentAuthors(comments []*pull.Comment) []string {
 	var authors []string
 	for _, c := range comments {
-		authors = append(authors, c.Author)
+		if c.Author != nil {
+			authors = append(authors, c.Author.Login)
+		}
 	}
 
 	sort.Strings(authors)
@@ -176,8 +178,8 @@ func TestReviews(t *testing.T) {
 	}{
 		"ignore reviews by iignore": {
 			Reviews: []*pull.Review{
-				{Author: "rrandom"},
-				{Author: "iignore"},
+				{Author: pull.NewAuthor("rrandom")},
+				{Author: pull.NewAuthor("iignore")},
 			},
 			ExpectedReviewAuthors: []string{"rrandom"},
 			Options: Options{
@@ -188,8 +190,8 @@ func TestReviews(t *testing.T) {
 		},
 		"ignore reviews by team membership": {
 			Reviews: []*pull.Review{
-				{Author: "rrandom"},
-				{Author: "iignore"},
+				{Author: pull.NewAuthor("rrandom")},
+				{Author: pull.NewAuthor("iignore")},
 			},
 			Options: Options{
 				IgnoreReviews: &common.Actors{
@@ -203,8 +205,8 @@ func TestReviews(t *testing.T) {
 		},
 		"ignore reviews by org membership": {
 			Reviews: []*pull.Review{
-				{Author: "rrandom"},
-				{Author: "iignore"},
+				{Author: pull.NewAuthor("rrandom")},
+				{Author: pull.NewAuthor("iignore")},
 			},
 			Options: Options{
 				IgnoreReviews: &common.Actors{
@@ -218,8 +220,8 @@ func TestReviews(t *testing.T) {
 		},
 		"ignore reviews by permission": {
 			Reviews: []*pull.Review{
-				{Author: "rrandom"},
-				{Author: "iignore"},
+				{Author: pull.NewAuthor("rrandom")},
+				{Author: pull.NewAuthor("iignore")},
 			},
 			Options: Options{
 				IgnoreReviews: &common.Actors{
@@ -235,15 +237,15 @@ func TestReviews(t *testing.T) {
 		},
 		"do not ignore any reviews": {
 			Reviews: []*pull.Review{
-				{Author: "rrandom"},
-				{Author: "iignore"},
+				{Author: pull.NewAuthor("rrandom")},
+				{Author: pull.NewAuthor("iignore")},
 			},
 			ExpectedReviewAuthors: []string{"rrandom", "iignore"},
 		},
 		"add new review by sperson": {
 			Reviews: []*pull.Review{
-				{Author: "rrandom"},
-				{Author: "iignore"},
+				{Author: pull.NewAuthor("rrandom")},
+				{Author: pull.NewAuthor("iignore")},
 			},
 			Options: Options{
 				AddReviews: []Review{
@@ -254,8 +256,8 @@ func TestReviews(t *testing.T) {
 		},
 		"add new review by sperson and ignore one from iignore": {
 			Reviews: []*pull.Review{
-				{Author: "rrandom"},
-				{Author: "iignore"},
+				{Author: pull.NewAuthor("rrandom")},
+				{Author: pull.NewAuthor("iignore")},
 			},
 			Options: Options{
 				AddReviews: []Review{
@@ -295,8 +297,10 @@ func TestReviews(t *testing.T) {
 
 func getReviewAuthors(reviews []*pull.Review) []string {
 	var authors []string
-	for _, c := range reviews {
-		authors = append(authors, c.Author)
+	for _, r := range reviews {
+		if r.Author != nil {
+			authors = append(authors, r.Author.Login)
+		}
 	}
 
 	sort.Strings(authors)

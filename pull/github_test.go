@@ -179,19 +179,19 @@ func TestReviews(t *testing.T) {
 	expectedTime, err := time.Parse(time.RFC3339, "2018-06-27T20:33:26Z")
 	assert.NoError(t, err)
 
-	assert.Equal(t, "mhaypenny", reviews[0].Author)
+	assert.Equal(t, "mhaypenny", reviews[0].Author.Login)
 	assert.Equal(t, expectedTime, reviews[0].CreatedAt)
 	assert.Equal(t, expectedTime, reviews[0].LastEditedAt)
 	assert.Equal(t, ReviewChangesRequested, reviews[0].State)
 	assert.Equal(t, "", reviews[0].Body)
 
-	assert.Equal(t, "bkeyes", reviews[1].Author)
+	assert.Equal(t, "bkeyes", reviews[1].Author.Login)
 	assert.Equal(t, expectedTime.Add(time.Second), reviews[1].CreatedAt)
 	assert.Equal(t, expectedTime.Add(time.Second), reviews[1].LastEditedAt)
 	assert.Equal(t, ReviewApproved, reviews[1].State)
 	assert.Equal(t, "the body", reviews[1].Body)
 
-	assert.Equal(t, "jgiannuzzi", reviews[2].Author)
+	assert.Equal(t, "jgiannuzzi", reviews[2].Author.Login)
 	assert.Equal(t, expectedTime.Add(-4*time.Second).Add(5*time.Minute), reviews[2].CreatedAt)
 	assert.Equal(t, expectedTime.Add(-4*time.Second).Add(5*time.Minute), reviews[2].LastEditedAt)
 	assert.Equal(t, ReviewCommented, reviews[2].State)
@@ -243,7 +243,7 @@ func TestBody(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, "/no-platform", prBody.Body)
-	assert.Equal(t, "agirlnamedsophia", prBody.Author)
+	assert.Equal(t, "agirlnamedsophia", prBody.Author.Login)
 	assert.Equal(t, expectedTime, prBody.CreatedAt)
 	assert.Equal(t, expectedTime, prBody.LastEditedAt)
 }
@@ -266,22 +266,22 @@ func TestComments(t *testing.T) {
 	expectedTime, err := time.Parse(time.RFC3339, "2018-06-27T20:28:22Z")
 	assert.NoError(t, err)
 
-	assert.Equal(t, "bkeyes", comments[0].Author)
+	assert.Equal(t, "bkeyes", comments[0].Author.Login)
 	assert.Equal(t, expectedTime, comments[0].CreatedAt)
 	assert.Equal(t, expectedTime, comments[0].LastEditedAt)
 	assert.Equal(t, ":+1:", comments[0].Body)
 
-	assert.Equal(t, "mhaypenny", comments[1].Author)
+	assert.Equal(t, "mhaypenny", comments[1].Author.Login)
 	assert.Equal(t, expectedTime.Add(30*time.Second), comments[1].CreatedAt)
 	assert.Equal(t, expectedTime.Add(30*time.Second), comments[1].LastEditedAt)
 	assert.Equal(t, "I comment!", comments[1].Body)
 
-	assert.Equal(t, "bulldozer[bot]", comments[2].Author)
+	assert.Equal(t, "bulldozer[bot]", comments[2].Author.Login)
 	assert.Equal(t, expectedTime.Add(time.Minute), comments[2].CreatedAt)
 	assert.Equal(t, expectedTime.Add(time.Minute), comments[2].LastEditedAt)
 	assert.Equal(t, "I merge!", comments[2].Body)
 
-	assert.Equal(t, "jgiannuzzi", comments[3].Author)
+	assert.Equal(t, "jgiannuzzi", comments[3].Author.Login)
 	assert.Equal(t, expectedTime.Add(10*time.Minute), comments[3].CreatedAt)
 	assert.Equal(t, expectedTime.Add(10*time.Minute), comments[3].LastEditedAt)
 	assert.Equal(t, "A review comment", comments[3].Body)
@@ -714,7 +714,7 @@ func TestLatestWorkflowRunsCaching(t *testing.T) {
 	client.BaseURL = base
 
 	v4client := githubv4.NewClient(httpClient)
-	mbrCtx := NewGitHubMembershipContext(ctx, client)
+	mbrCtx := NewGitHubMembershipContext(ctx, client, nil)
 
 	prctx, err := NewGitHubContext(ctx, mbrCtx, nil, client, v4client, Locator{
 		Owner:  pr.GetBase().GetRepo().GetOwner().GetLogin(),
@@ -855,7 +855,7 @@ func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest, gc Gl
 	base, _ := url.Parse("http://github.localhost/")
 	client.BaseURL = base
 
-	mbrCtx := NewGitHubMembershipContext(ctx, client)
+	mbrCtx := NewGitHubMembershipContext(ctx, client, gc)
 	if pr == nil {
 		pr = defaultTestPR()
 	}
@@ -910,12 +910,27 @@ func defaultTestPR() *github.PullRequest {
 type MockGlobalCache struct {
 	PushedAt   map[string]time.Time
 	Codeowners map[string]*codeowners.Codeowners
+	Membership map[string]mockMembershipEntry
+	Teams      map[string]mockTeamMembersEntry
+}
+
+type mockTeamMembersEntry struct {
+	info      *TeamInfo
+	members   []TeamMember
+	expiresAt time.Time
+}
+
+type mockMembershipEntry struct {
+	isMember  bool
+	expiresAt time.Time
 }
 
 func NewMockGlobalCache() *MockGlobalCache {
 	return &MockGlobalCache{
 		PushedAt:   make(map[string]time.Time),
 		Codeowners: make(map[string]*codeowners.Codeowners),
+		Membership: make(map[string]mockMembershipEntry),
+		Teams:      make(map[string]mockTeamMembersEntry),
 	}
 }
 
@@ -939,4 +954,39 @@ func (c *MockGlobalCache) GetCodeowners(repoID int64, baseRefOID string) (*codeo
 
 func (c *MockGlobalCache) SetCodeowners(repoID int64, baseRefOID string, co *codeowners.Codeowners) {
 	c.Codeowners[mockCacheKey(repoID, baseRefOID)] = co
+}
+
+func (c *MockGlobalCache) GetTeamMembership(team, user string) (bool, bool) {
+	key := team + ":" + user
+	if entry, ok := c.Membership[key]; ok {
+		if time.Now().Before(entry.expiresAt) {
+			return entry.isMember, true
+		}
+	}
+	return false, false
+}
+
+func (c *MockGlobalCache) SetTeamMembership(team, user string, isMember bool) {
+	key := team + ":" + user
+	c.Membership[key] = mockMembershipEntry{
+		isMember:  isMember,
+		expiresAt: time.Now().Add(5 * time.Minute),
+	}
+}
+
+func (c *MockGlobalCache) GetTeamMembers(team string) ([]TeamMember, *TeamInfo, bool) {
+	if entry, ok := c.Teams[team]; ok {
+		if time.Now().Before(entry.expiresAt) {
+			return entry.members, entry.info, true
+		}
+	}
+	return nil, nil, false
+}
+
+func (c *MockGlobalCache) SetTeamMembers(team string, info *TeamInfo, members []TeamMember) {
+	c.Teams[team] = mockTeamMembersEntry{
+		info:      info,
+		members:   members,
+		expiresAt: time.Now().Add(5 * time.Minute),
+	}
 }

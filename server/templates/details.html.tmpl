@@ -67,7 +67,7 @@
 {{ $showReviewers := (and $root.ExpandRequiredReviewers (eq $s "pending")) }}
 <li class="node" data-status="{{$s}}" {{if not (eq $s $nextStatus)}}data-next-status="{{$nextStatus}}"{{end}}>
   <div class="bg-white p-2 shadow-sm max-w-lg status-stripe {{$s}}">
-    {{template "result-details" .}}
+    {{template "result-details" (args $root .)}}
     {{if (or (.PredicateResults) (hasActors .Requires) (hasActorsPermissions .Requires) (gt (len .Requires.Conditions) 0))}}
     <details
       class="bg-light-gray5 p-2 mt-2 text-sm"
@@ -94,7 +94,7 @@
           {{end}}
           {{if $hasActors }}
             <div class="pt-2">
-            {{template "result-approver-details" .}}
+            {{template "result-approver-details" (args $root .)}}
             </div>
             <div class="pt-2">
             {{template "result-methods-details" .}}
@@ -127,6 +127,8 @@
 {{end}}
 
 {{define "result-details"}}
+  {{ $root := index . 0 }}
+  {{with index . 1}}
   {{ $s := (or (and .Error "error") (.Status | print)) }}
   <p class="mb-2 flex items-center">
     <b class="font-bold">{{.Name}}</b>
@@ -135,7 +137,36 @@
   {{if (and .Description (ne $s "skipped"))}}
   <p class="mb-2 text-dark-gray3 text-sm">{{.Description}}</p>
   {{end}}
-  <p class="text-dark-gray3 text-sm">{{or .Error .StatusDescription}}</p>
+  {{if hasOwnershipGroups .Requires}}
+    {{template "ownership-groups" (args $root .Requires)}}
+  {{else}}
+    <p class="text-dark-gray3 text-sm">{{or .Error .StatusDescription}}</p>
+  {{end}}
+  {{end}}
+{{end}}
+
+{{define "ownership-groups"}}
+  {{ $root := index . 0 }}
+  {{with index . 1}}
+  <div class="ownership-groups">
+    {{range getEnrichedOwnershipGroups $root.PullContext .}}
+      {{$status := "pending"}}{{if .Satisfied}}{{$status = "approved"}}{{end}}
+      <div class="ownership-group">
+        <span class="status-dot {{$status}}"></span>
+        {{with index .Owners 0}}
+          {{- template "component/actor" . -}}
+        {{end}}
+        {{if .Satisfied}}
+          <span class="group-approvers">
+            ({{range $i, $a := .Approvers}}{{if $i}}, {{end -}}
+              {{- template "component/actor" $a -}}
+            {{- end}})
+          </span>
+        {{end}}
+      </div>
+    {{end}}
+  </div>
+  {{end}}
 {{end}}
 
 {{define "result-predicates-details"}}
@@ -194,8 +225,11 @@
 {{end}}
 
 {{define "result-approver-details"}}
+  {{ $root := index . 0 }}
+  {{with index . 1}}
   {{$hasActors := hasActors .Requires}}
   {{$hasPerms := hasActorsPermissions .Requires}}
+  {{$hasCodeowners := hasCodeowners .Requires}}
   {{if or $hasActors $hasPerms}}
     <b class="font-bold text-sm">{{template "result-reviews-count" .Requires}} from:</b>
     <dl class="my-2">
@@ -207,6 +241,31 @@
       </dd>
     {{end}}
     {{end}}
+    {{if $hasCodeowners}}
+      <dt>Codeowners:</dt>
+      <dd>
+        {{if $root.Codeowners}}
+          {{range $owner, $files := getCodeownersBreakdown $root.Codeowners}}
+            <div class="py-1">
+              <a class="font-mono text-sm-mono font-semibold" href={{codeownerLink $owner}}>{{$owner}}</a>
+              <ul class="list-disc list-outside pl-6">
+                {{range $files}}<li class="font-mono text-xs">{{.}}</li>{{end}}
+              </ul>
+            </div>
+          {{end}}
+          {{if $root.Codeowners.HasOrphanFiles}}
+            <div class="py-1 mt-2 border-t border-light-gray3">
+              <span class="font-semibold text-red3">No codeowners:</span>
+              <ul class="list-disc list-outside pl-6">
+                {{range $root.Codeowners.OrphanFiles}}<li class="font-mono text-xs">{{.}}</li>{{end}}
+              </ul>
+            </div>
+          {{end}}
+        {{else}}
+          <p class="text-xs italic py-2">Unable to load codeowners</p>
+        {{end}}
+      </dd>
+    {{end}}
     {{if $hasPerms}}
       <dt>Users with the permissions:</dt>
       <dd>
@@ -216,6 +275,7 @@
     </dl>
   {{else}}
     <b class="font-bold text-sm">{{template "result-reviews-count" .Requires}}</b>
+  {{end}}
   {{end}}
 {{end}}
 
