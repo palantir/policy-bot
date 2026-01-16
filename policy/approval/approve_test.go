@@ -1448,10 +1448,10 @@ func TestCodeownerGroupApproval(t *testing.T) {
 	for name, test := range sharedOwnershipTests {
 		t.Run(name, func(t *testing.T) {
 			prctx := &pulltest.Context{
-				AuthorValue:   "author",
-				CommitsValue:  []*pull.Commit{{SHA: "abc123", Author: "author"}},
-				HeadSHAValue:  "abc123",
-				ReviewsValue:  []*pull.Review{{Author: pull.NewAuthor(test.reviewer), State: pull.ReviewApproved, CreatedAt: now}},
+				AuthorValue:     "author",
+				CommitsValue:    []*pull.Commit{{SHA: "abc123", Author: "author"}},
+				HeadSHAValue:    "abc123",
+				ReviewsValue:    []*pull.Review{{Author: pull.NewAuthor(test.reviewer), State: pull.ReviewApproved, CreatedAt: now}},
 				CodeownersValue: &pull.CodeownersResult{Owners: test.owners},
 			}
 			if test.teamMemberships != nil {
