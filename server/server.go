@@ -118,7 +118,36 @@ func New(c *Config) (*Server, error) {
 		return nil, errors.Wrap(err, "invalid v4 API URL")
 	}
 
+	// Initialize OTEL metrics early so they can be used by GitHub client middleware
+	var metricsInstance *Metrics
+	if c.OTEL.Enabled {
+		metricsInstance, err = NewMetrics()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to initialize metrics")
+		}
+
+		// Register go-metrics collector to expose githubapp scheduler metrics
+		if promReg := otelProvider.PromRegistry(); promReg != nil {
+			promReg.MustRegister(NewGoMetricsCollector(base.Registry(), "policybot"))
+		}
+	}
+
 	userAgent := fmt.Sprintf("policy-bot/%s", version.GetVersion())
+
+	// Build client middleware list
+	clientMiddleware := []githubapp.ClientMiddleware{
+		ClientTracing(c.OTEL.Enabled),
+		githubapp.ClientLogging(
+			zerolog.DebugLevel,
+			githubapp.LogRequestBody("^"+v4URL.Path+"$"),
+		),
+	}
+
+	// Add OTEL metrics middleware for GitHub API requests
+	if metricsInstance != nil {
+		clientMiddleware = append(clientMiddleware, metricsInstance.ClientMetrics())
+	}
+
 	cc, err := githubapp.NewDefaultCachingClientCreator(
 		c.Github,
 		githubapp.WithClientUserAgent(userAgent),
@@ -126,14 +155,7 @@ func New(c *Config) (*Server, error) {
 		githubapp.WithClientCaching(true, func() httpcache.Cache {
 			return lrucache.New(maxSize, 0)
 		}),
-		githubapp.WithClientMiddleware(
-			ClientTracing(c.OTEL.Enabled),
-			githubapp.ClientLogging(
-				zerolog.DebugLevel,
-				githubapp.LogRequestBody("^"+v4URL.Path+"$"),
-			),
-			githubapp.ClientMetrics(base.Registry()),
-		),
+		githubapp.WithClientMiddleware(clientMiddleware...),
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to initialize client creator")
@@ -235,23 +257,37 @@ func New(c *Config) (*Server, error) {
 		base.Mux().Handle(pat.New(basePath+"/*"), mux)
 	}
 
+	// Add per-route latency metrics middleware
+	if metricsInstance != nil {
+		mux.Use(baseapp.AccessHandler(metricsInstance.RecordRequest))
+	}
+
 	// webhook route
-	mux.Handle(pat.Post(githubapp.DefaultWebhookRoute), dispatcher)
+	mux.Handle(TrackPattern(pat.Post(githubapp.DefaultWebhookRoute)), dispatcher)
 
 	simulateHandler := &handler.Simulate{
 		Base: basePolicyHandler,
 	}
 
 	// additional API routes
-	mux.Handle(pat.Get("/api/health"), handler.Health())
-	mux.Handle(pat.Get("/api/metrics"), handler.Metrics(base.Registry(), c.Prometheus))
-	mux.Handle(pat.Put("/api/validate"), handler.Validate())
-	mux.Handle(pat.Post("/api/simulate/:owner/:repo/:number"), hatpear.Try(simulateHandler))
+	mux.Handle(TrackPattern(pat.Get("/api/health")), handler.Health())
+	mux.Handle(TrackPattern(pat.Put("/api/validate")), handler.Validate())
+	mux.Handle(TrackPattern(pat.Post("/api/simulate/:owner/:repo/:number")), hatpear.Try(simulateHandler))
+
+	// Mount prometheus metrics endpoint (if OTEL is enabled)
+	if promHandler := otelProvider.PrometheusHandler(); promHandler != nil {
+		wrappedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			baseapp.IgnoreAll(r)
+			promHandler.ServeHTTP(w, r)
+		})
+		mux.Handle(TrackPattern(pat.Get("/api/metrics")), wrappedHandler) // legacy path
+		mux.Handle(TrackPattern(pat.Get("/metrics")), wrappedHandler)     // standard path
+	}
 
 	oauth2RedirectURL := *publicURL
 	oauth2RedirectURL.Path = basePath + oauth2.DefaultRoute
 
-	mux.Handle(pat.Get(oauth2.DefaultRoute), oauth2.NewHandler(
+	mux.Handle(TrackPattern(pat.Get(oauth2.DefaultRoute), oauth2.DefaultRoute), oauth2.NewHandler(
 		oauth2.GetConfig(c.Github, nil),
 		oauth2.WithStore(&oauth2.SessionStateStore{
 			Sessions: sessions,
@@ -261,9 +297,9 @@ func New(c *Config) (*Server, error) {
 	))
 
 	// additional client routes
-	mux.Handle(pat.Get("/favicon.ico"), http.RedirectHandler(basePath+"/static/img/favicon.ico", http.StatusFound))
-	mux.Handle(pat.Get("/static/*"), handler.Static(basePath+"/static/", &c.Files))
-	mux.Handle(pat.Get("/"), hatpear.Try(&handler.Index{
+	mux.Handle(TrackPattern(pat.Get("/favicon.ico")), http.RedirectHandler(basePath+"/static/img/favicon.ico", http.StatusFound))
+	mux.Handle(TrackPattern(pat.Get("/static/*")), handler.Static(basePath+"/static/", &c.Files))
+	mux.Handle(TrackPattern(pat.Get("/")), hatpear.Try(&handler.Index{
 		Base:         basePolicyHandler,
 		GithubConfig: &c.Github,
 		Templates:    templates,
@@ -275,13 +311,11 @@ func New(c *Config) (*Server, error) {
 		Templates: templates,
 	}
 
-	details := goji.SubMux()
-	details.Use(handler.RequireLogin(sessions, basePath))
-	details.Handle(pat.Get("/:owner/:repo/:number"), hatpear.Try(&detailsHandler))
-	details.Handle(pat.Get("/:owner/:repo/:number/reviewers"), hatpear.Try(&handler.DetailsReviewers{
+	requireLogin := handler.RequireLogin(sessions, basePath)
+	mux.Handle(TrackPattern(pat.Get("/details/:owner/:repo/:number")), requireLogin(hatpear.Try(&detailsHandler)))
+	mux.Handle(TrackPattern(pat.Get("/details/:owner/:repo/:number/reviewers")), requireLogin(hatpear.Try(&handler.DetailsReviewers{
 		Details: detailsHandler,
-	}))
-	mux.Handle(pat.New("/details/*"), details)
+	})))
 
 	// Wrap the base server handler with OTEL instrumentation if enabled
 	if c.OTEL.Enabled {

@@ -21,10 +21,15 @@ import (
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/policy-bot/version"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/exporters/autoexport"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
+	promexporter "go.opentelemetry.io/otel/exporters/prometheus"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/propagation"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
@@ -34,13 +39,32 @@ const (
 	defaultServiceName = "policy-bot"
 )
 
-// OTELProvider holds the tracer provider and provides shutdown functionality.
+// OTELProvider holds the tracer and meter providers and provides shutdown functionality.
 type OTELProvider struct {
 	tracerProvider *sdktrace.TracerProvider
+	meterProvider  *sdkmetric.MeterProvider
+	promRegistry   *prometheus.Registry
+	promHandler    http.Handler
 }
 
-// InitOTEL initializes OpenTelemetry with autoexport for trace exporting.
-// It returns an OTELProvider that should be used to call Shutdown when the server stops.
+// PrometheusHandler returns the HTTP handler for serving Prometheus metrics.
+func (p *OTELProvider) PrometheusHandler() http.Handler {
+	if p == nil {
+		return nil
+	}
+	return p.promHandler
+}
+
+// PromRegistry returns the Prometheus registry for registering additional collectors.
+func (p *OTELProvider) PromRegistry() *prometheus.Registry {
+	if p == nil {
+		return nil
+	}
+	return p.promRegistry
+}
+
+// InitOTEL initializes OpenTelemetry with autoexport for traces and Prometheus for metrics.
+// It returns an OTELProvider that includes a Prometheus HTTP handler for mounting on the main server.
 // If OTEL is disabled in config, it returns nil with no error.
 func InitOTEL(ctx context.Context, cfg *OTELConfig) (*OTELProvider, error) {
 	if !cfg.Enabled {
@@ -81,24 +105,67 @@ func InitOTEL(ctx context.Context, cfg *OTELConfig) (*OTELProvider, error) {
 	// Set as global tracer provider
 	otel.SetTracerProvider(tracerProvider)
 
+	// Create Prometheus registry and exporter for serving metrics on main server
+	promRegistry := prometheus.NewRegistry()
+	exporter, err := promexporter.New(
+		promexporter.WithRegisterer(promRegistry),
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create prometheus exporter")
+	}
+
+	// Create meter provider with prometheus exporter
+	meterProvider := sdkmetric.NewMeterProvider(
+		sdkmetric.WithReader(exporter),
+		sdkmetric.WithResource(res),
+	)
+
+	// Set as global meter provider
+	otel.SetMeterProvider(meterProvider)
+
 	// Set up propagator for distributed tracing context propagation
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
 		propagation.TraceContext{},
 		propagation.Baggage{},
 	))
 
+	// Create prometheus HTTP handler
+	promHandler := promhttp.HandlerFor(promRegistry, promhttp.HandlerOpts{})
+
 	return &OTELProvider{
 		tracerProvider: tracerProvider,
+		meterProvider:  meterProvider,
+		promRegistry:   promRegistry,
+		promHandler:    promHandler,
 	}, nil
 }
 
-// Shutdown gracefully shuts down the OTEL tracer provider.
-// It flushes any remaining spans before closing.
+// Shutdown gracefully shuts down the OTEL providers.
+// It flushes any remaining spans and metrics before closing.
 func (p *OTELProvider) Shutdown(ctx context.Context) error {
-	if p == nil || p.tracerProvider == nil {
+	if p == nil {
 		return nil
 	}
-	return p.tracerProvider.Shutdown(ctx)
+	var errs []error
+	if p.meterProvider != nil {
+		if err := p.meterProvider.Shutdown(ctx); err != nil {
+			errs = append(errs, errors.Wrap(err, "failed to shutdown meter provider"))
+		}
+	}
+	if p.tracerProvider != nil {
+		if err := p.tracerProvider.Shutdown(ctx); err != nil {
+			errs = append(errs, errors.Wrap(err, "failed to shutdown tracer provider"))
+		}
+	}
+	if len(errs) > 0 {
+		return errs[0]
+	}
+	return nil
+}
+
+// Meter returns a meter from the global meter provider for recording metrics.
+func Meter(name string) metric.Meter {
+	return otel.Meter(name)
 }
 
 // ClientTracing creates a githubapp.ClientMiddleware that instruments

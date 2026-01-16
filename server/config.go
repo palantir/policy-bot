@@ -21,7 +21,6 @@ import (
 
 	"github.com/c2h5oh/datasize"
 	"github.com/palantir/go-baseapp/appmetrics/emitter/datadog"
-	"github.com/palantir/go-baseapp/appmetrics/emitter/prometheus"
 	"github.com/palantir/go-baseapp/baseapp"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/policy-bot/server/handler"
@@ -34,17 +33,16 @@ const (
 )
 
 type Config struct {
-	Server     baseapp.HTTPConfig            `yaml:"server"`
-	Logging    LoggingConfig                 `yaml:"logging"`
-	Cache      CachingConfig                 `yaml:"cache"`
-	Github     githubapp.Config              `yaml:"github"`
-	Sessions   SessionsConfig                `yaml:"sessions"`
-	Options    handler.PullEvaluationOptions `yaml:"options"`
-	Files      handler.FilesConfig           `yaml:"files"`
-	Datadog    datadog.Config                `yaml:"datadog"`
-	Prometheus prometheus.Config             `yaml:"prometheus"`
-	Workers    WorkerConfig                  `yaml:"workers"`
-	OTEL       OTELConfig                    `yaml:"otel"`
+	Server   baseapp.HTTPConfig            `yaml:"server"`
+	Logging  LoggingConfig                 `yaml:"logging"`
+	Cache    CachingConfig                 `yaml:"cache"`
+	Github   githubapp.Config              `yaml:"github"`
+	Sessions SessionsConfig                `yaml:"sessions"`
+	Options  handler.PullEvaluationOptions `yaml:"options"`
+	Files    handler.FilesConfig           `yaml:"files"`
+	Datadog  datadog.Config                `yaml:"datadog"`
+	Workers  WorkerConfig                  `yaml:"workers"`
+	OTEL     OTELConfig                    `yaml:"otel"`
 }
 
 type LoggingConfig struct {
@@ -98,7 +96,7 @@ type SessionsConfig struct {
 	Lifetime string `yaml:"lifetime"`
 }
 
-// OTELConfig configures OpenTelemetry tracing.
+// OTELConfig configures OpenTelemetry tracing and metrics.
 type OTELConfig struct {
 	// Enabled controls whether OpenTelemetry tracing is active.
 	Enabled bool `yaml:"enabled"`
