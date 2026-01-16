@@ -251,4 +251,17 @@ func TestCodeownersResultOwnershipGroups(t *testing.T) {
 		assert.Equal(t, "@johndoe,@org/team-a", groups[0].Key)
 		assert.Equal(t, []string{"file1.go", "file2.go"}, groups[0].Files)
 	})
+
+	t.Run("shared ownership creates separate groups", func(t *testing.T) {
+		result := &CodeownersResult{
+			Owners: map[string][]string{
+				"foo/bar.go": {"@org/infrastructure", "@org/team-a"},
+				"baz.go":     {"@org/infrastructure"},
+			},
+		}
+		groups := result.OwnershipGroups()
+		assert.Len(t, groups, 2)
+		assert.Equal(t, "@org/infrastructure", groups[0].Key)
+		assert.Equal(t, "@org/infrastructure,@org/team-a", groups[1].Key)
+	})
 }

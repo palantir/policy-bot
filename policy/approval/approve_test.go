@@ -1379,4 +1379,97 @@ func TestCodeownerGroupApproval(t *testing.T) {
 		assert.Contains(t, result.StatusDescription, "Approved by reviewer1")
 		assert.Contains(t, result.StatusDescription, "2 ownership groups")
 	})
+
+	// Shared ownership tests - validates "ANY" semantics where a file has multiple
+	// owners and approval from any single owner should be sufficient
+	sharedOwnershipTests := map[string]struct {
+		reviewer        string
+		teamMemberships []string
+		owners          map[string][]string
+		expectApproved  bool
+		expectGroups    int
+	}{
+		"singleFileMultipleOwnersApprovedByFirstOwner": {
+			reviewer:        "reviewer1",
+			teamMemberships: []string{"org/infrastructure"},
+			owners:          map[string][]string{"foo/bar.go": {"@org/infrastructure", "@org/team-a"}},
+			expectApproved:  true,
+			expectGroups:    1,
+		},
+		"singleFileMultipleOwnersApprovedBySecondOwner": {
+			reviewer:        "reviewer1",
+			teamMemberships: []string{"org/team-a"},
+			owners:          map[string][]string{"foo/bar.go": {"@org/infrastructure", "@org/team-a"}},
+			expectApproved:  true,
+			expectGroups:    1,
+		},
+		"sharedOwnershipSingleApprover": {
+			reviewer:        "reviewer1",
+			teamMemberships: []string{"org/infrastructure"},
+			owners: map[string][]string{
+				"foo/bar.go": {"@org/infrastructure", "@org/team-a"},
+				"baz.go":     {"@org/infrastructure"},
+			},
+			expectApproved: true,
+			expectGroups:   2,
+		},
+		"sharedOwnershipPartialApprovalFails": {
+			reviewer:        "reviewer1",
+			teamMemberships: []string{"org/infrastructure"},
+			owners: map[string][]string{
+				"foo/bar.go": {"@org/infrastructure", "@org/team-a"},
+				"baz.go":     {"@org/team-b"},
+			},
+			expectApproved: false,
+			expectGroups:   2,
+		},
+		"sharedOwnershipDifferentCoOwners": {
+			reviewer:        "reviewer1",
+			teamMemberships: []string{"org/infrastructure"},
+			owners: map[string][]string{
+				"foo/bar.go": {"@org/infrastructure", "@org/team-a"},
+				"baz/qux.go": {"@org/infrastructure", "@org/team-b"},
+			},
+			expectApproved: true,
+			expectGroups:   2,
+		},
+		"sharedOwnershipWithUserAndTeam": {
+			reviewer:        "johndoe",
+			teamMemberships: nil,
+			owners: map[string][]string{
+				"foo/bar.go": {"@org/infrastructure", "@johndoe"},
+				"baz.go":     {"@johndoe"},
+			},
+			expectApproved: true,
+			expectGroups:   2,
+		},
+	}
+
+	for name, test := range sharedOwnershipTests {
+		t.Run(name, func(t *testing.T) {
+			prctx := &pulltest.Context{
+				AuthorValue:   "author",
+				CommitsValue:  []*pull.Commit{{SHA: "abc123", Author: "author"}},
+				HeadSHAValue:  "abc123",
+				ReviewsValue:  []*pull.Review{{Author: pull.NewAuthor(test.reviewer), State: pull.ReviewApproved, CreatedAt: now}},
+				CodeownersValue: &pull.CodeownersResult{Owners: test.owners},
+			}
+			if test.teamMemberships != nil {
+				prctx.TeamMemberships = map[string][]string{test.reviewer: test.teamMemberships}
+			}
+
+			r := &Rule{
+				Options:  Options{Methods: DefaultMethods()},
+				Requires: Requires{Actors: common.Actors{Codeowners: true}},
+			}
+
+			candidates, _, err := r.FilteredCandidates(ctx, prctx)
+			require.NoError(t, err)
+
+			approved, result, err := r.IsApproved(ctx, prctx, candidates)
+			require.NoError(t, err)
+			assert.Equal(t, test.expectApproved, approved)
+			assert.Len(t, result.OwnershipGroups, test.expectGroups)
+		})
+	}
 }
