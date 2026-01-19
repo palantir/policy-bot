@@ -241,9 +241,10 @@ description: "A rule that explains how to configure all of the features"
 # exist, the rule applies to every pull request.
 if:
   # "changed_files" is satisfied if any file in the pull request matches any
-  # regular expression in the "paths" list. If the "ignore" list is present,
-  # files in the pull request matching these regular expressions are ignored
-  # by this rule.
+  # regular expression in the "paths" list or any glob in the "globs" list. If
+  # the "ignore" list is present, files in the pull request matching these
+  # regular expressions are ignored by this rule. If the "ignore_globs" list is
+  # present, files matching those globs are ignored by this rule.
   #
   # Note: Double-quote strings must escape backslashes while single/plain do not.
   # See the Notes on YAML Syntax section of this README for more information.
@@ -251,35 +252,49 @@ if:
     paths:
       - "^config/.*$"
       - "^server/views/.*\\.tmpl$"
+    globs:
+      - "config/**"
+      - "server/views/**/*.tmpl"
     ignore:
       - "^config/special\\.file$"
+    ignore_globs:
+      - "config/**/special.file"
   
   # "no_changed_files" is the negation of "changed_files". This predicate is
   # satisfied if no file in the pull request matches any regular expression
-  # in the "paths" list. If the "ignore" list is present, files in the pull
-  # request matching these regular expressions are ignored by this rule.
+  # in the "paths" list or any glob in the "globs" list. If the "ignore" list
+  # is present, files in the pull request matching these regular expressions
+  # are ignored by this rule. If the "ignore_globs" list is present, files
+  # matching those globs are ignored by this rule.
   #
   # Note: Double-quote strings must escape backslashes while single/plain do not.
   # See the Notes on YAML Syntax section of this README for more information.
   no_changed_files:
     paths:
       - "^other-config/.*$"
+    globs:
+      - "other-config/**"
     ignore:
       - "^other-config/special\\.file$"
+    ignore_globs:
+      - "other-config/**/special.file"
 
   # "only_changed_files" is satisfied if all files changed by the pull request
-  # match at least one regular expression in the list.
+  # match at least one regular expression in the "paths" list or any glob in
+  # the "globs" list.
   #
   # Note: Double-quote strings must escape backslashes while single/plain do not.
   # See the Notes on YAML Syntax section of this README for more information.
   only_changed_files:
     paths:
       - "^config/.*$"
+    globs:
+      - "config/**"
 
-  # "file_added" is satisfied if any file matching any regular expression in the "paths"
-  # list has been added in the pull request, allowing enforcement of rules when
-  # specific types of files are added. If no matching files are added, the predicate
-  # fails.
+  # "file_added" is satisfied if any file matching any regular expression in the
+  # "paths" list or any glob in the "globs" list has been added in the pull
+  # request, allowing enforcement of rules when specific types of files are
+  # added. If no matching files are added, the predicate fails.
   #
   # Note: Double-quote strings must escape backslashes while single/plain do not.
   # See the Notes on YAML Syntax section of this README for more information.
@@ -287,23 +302,28 @@ if:
     paths:
       - "^config/.*\\.yaml$"
       - "^server/.*\\.go$"
+    globs:
+      - "config/**/*.yaml"
+      - "server/**/*.go"
 
   # "file_not_added" is the negation of "file_added". This predicate is
-  # satisfied if none of the files matching any regular expression
-  # in the "paths" list have been added in the pull request. If any matching file
-  # was added, the predicate fails, allowing rules to be skipped that depend on
-  # files not being added.
+  # satisfied if none of the files matching any regular expression in the
+  # "paths" list or any glob in the "globs" list have been added in the pull
+  # request. If any matching file was added, the predicate fails, allowing rules
+  # to be skipped that depend on files not being added.
   #
   # Note: Double-quote strings must escape backslashes while single/plain do not.
   # See the Notes on YAML Syntax section of this README for more information.
   file_not_added:
     paths:
       - "^deprecated/.*$"
+    globs:
+      - "deprecated/**"
 
-  # "file_deleted" is satisfied if any file matching any regular expression in the "paths"
-  # list has been deleted in the pull request, allowing enforcement of rules when
-  # specific types of files are deleted. If no matching files are deleted, the
-  # predicate fails.
+  # "file_deleted" is satisfied if any file matching any regular expression in
+  # the "paths" list or any glob in the "globs" list has been deleted in the
+  # pull request, allowing enforcement of rules when specific types of files
+  # are deleted. If no matching files are deleted, the predicate fails.
   #
   # Note: Double-quote strings must escape backslashes while single/plain do not.
   # See the Notes on YAML Syntax section of this README for more information.
@@ -311,18 +331,24 @@ if:
     paths:
       - "^legacy/.*\\.js$"
       - "^deprecated/.*\\.go$"
+    globs:
+      - "legacy/**/*.js"
+      - "deprecated/**/*.go"
 
   # "file_not_deleted" is the negation of "file_deleted". This predicate is
-  # satisfied if none of the files matching any regular expression
-  # in the "paths" list have been deleted in the pull request. If any matching file
-  # was deleted, the predicate fails, allowing rules that depend on the file's existence
-  # to be skipped.
+  # satisfied if none of the files matching any regular expression in the
+  # "paths" list or any glob in the "globs" list have been deleted in the pull
+  # request. If any matching file was deleted, the predicate fails, allowing
+  # rules that depend on the file's existence to be skipped.
   #
   # Note: Double-quote strings must escape backslashes while single/plain do not.
   # See the Notes on YAML Syntax section of this README for more information.
   file_not_deleted:
     paths:
       - "^\\.github/workflows/.*\\.ya?ml$"
+    globs:
+      - ".github/workflows/**/*.yml"
+      - ".github/workflows/**/*.yaml"
 
   # "has_author_in" is satisfied if the user who opened the pull request is in
   # the users list or belongs to any of the listed organizations or teams. The
