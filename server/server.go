@@ -128,7 +128,7 @@ func New(c *Config) (*Server, error) {
 
 		// Register go-metrics collector to expose githubapp scheduler metrics
 		if promReg := otelProvider.PromRegistry(); promReg != nil {
-			promReg.MustRegister(NewGoMetricsCollector(base.Registry(), "policybot"))
+			promReg.MustRegister(NewGoMetricsCollector(base.Registry(), ""))
 		}
 	}
 

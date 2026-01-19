@@ -93,7 +93,7 @@ func NewMetrics() (*Metrics, error) {
 
 	// HTTP Server metrics
 	m.requestsTotal, err = meter.Int64Counter(
-		"http.server.requests",
+		"policybot.http.server.requests",
 		metric.WithDescription("Total number of HTTP server requests"),
 		metric.WithUnit("{request}"),
 	)
@@ -102,7 +102,7 @@ func NewMetrics() (*Metrics, error) {
 	}
 
 	m.requestDuration, err = meter.Float64Histogram(
-		"http.server.request.duration",
+		"policybot.http.server.request.duration",
 		metric.WithDescription("HTTP server request duration by route"),
 		metric.WithUnit("s"),
 	)
@@ -112,7 +112,7 @@ func NewMetrics() (*Metrics, error) {
 
 	// System metrics - registered with callbacks
 	m.goroutines, err = meter.Int64ObservableGauge(
-		"process.runtime.goroutines",
+		"policybot.process.runtime.goroutines",
 		metric.WithDescription("Number of goroutines"),
 		metric.WithUnit("{goroutine}"),
 	)
@@ -121,7 +121,7 @@ func NewMetrics() (*Metrics, error) {
 	}
 
 	m.memoryUsed, err = meter.Int64ObservableGauge(
-		"process.runtime.memory.used",
+		"policybot.process.runtime.memory.used",
 		metric.WithDescription("Memory used by the process"),
 		metric.WithUnit("By"),
 	)
@@ -131,7 +131,7 @@ func NewMetrics() (*Metrics, error) {
 
 	// GitHub API metrics
 	m.githubRequests, err = meter.Int64Counter(
-		"github.api.requests",
+		"policybot.github.api.requests",
 		metric.WithDescription("Total number of GitHub API requests"),
 		metric.WithUnit("{request}"),
 	)
@@ -140,7 +140,7 @@ func NewMetrics() (*Metrics, error) {
 	}
 
 	m.githubRateLimit, err = meter.Int64ObservableGauge(
-		"github.api.rate_limit",
+		"policybot.github.api.rate_limit",
 		metric.WithDescription("GitHub API rate limit"),
 		metric.WithUnit("{request}"),
 	)
@@ -149,7 +149,7 @@ func NewMetrics() (*Metrics, error) {
 	}
 
 	m.githubRateRemaining, err = meter.Int64ObservableGauge(
-		"github.api.rate_remaining",
+		"policybot.github.api.rate_remaining",
 		metric.WithDescription("GitHub API rate limit remaining"),
 		metric.WithUnit("{request}"),
 	)
@@ -158,7 +158,7 @@ func NewMetrics() (*Metrics, error) {
 	}
 
 	m.githubRateUsed, err = meter.Int64ObservableGauge(
-		"github.api.rate_used",
+		"policybot.github.api.rate_used",
 		metric.WithDescription("GitHub API rate limit used"),
 		metric.WithUnit("{request}"),
 	)
@@ -168,7 +168,7 @@ func NewMetrics() (*Metrics, error) {
 
 	// Event queue metrics
 	m.eventQueueSize, err = meter.Int64ObservableGauge(
-		"github.event.queue_size",
+		"policybot.github.event.queue_size",
 		metric.WithDescription("Number of events in the queue"),
 		metric.WithUnit("{event}"),
 	)
@@ -177,7 +177,7 @@ func NewMetrics() (*Metrics, error) {
 	}
 
 	m.eventWorkers, err = meter.Int64ObservableGauge(
-		"github.event.workers",
+		"policybot.github.event.workers",
 		metric.WithDescription("Number of active event workers"),
 		metric.WithUnit("{worker}"),
 	)
@@ -186,7 +186,7 @@ func NewMetrics() (*Metrics, error) {
 	}
 
 	m.eventAge, err = meter.Float64Histogram(
-		"github.event.age",
+		"policybot.github.event.age",
 		metric.WithDescription("Age of events when processed"),
 		metric.WithUnit("s"),
 	)
@@ -195,7 +195,7 @@ func NewMetrics() (*Metrics, error) {
 	}
 
 	m.eventDropped, err = meter.Int64Counter(
-		"github.event.dropped",
+		"policybot.github.event.dropped",
 		metric.WithDescription("Number of dropped events"),
 		metric.WithUnit("{event}"),
 	)
