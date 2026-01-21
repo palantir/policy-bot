@@ -77,6 +77,12 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 				opts.PostInsecureStatusChecks = true
 			},
 		},
+		"PendingAsFailure": {
+			Env: map[string]string{"PEO_PENDING_AS_FAILURE": "true"},
+			SetExpected: func(opts *PullEvaluationOptions) {
+				opts.PendingAsFailure = true
+			},
+		},
 		"IgnoreEditedComments": {
 			Env: map[string]string{"PEO_IGNORE_EDITED_COMMENTS": "true"},
 			SetExpected: func(opts *PullEvaluationOptions) {

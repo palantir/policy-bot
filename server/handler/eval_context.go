@@ -145,7 +145,16 @@ func (ec *EvalContext) EvaluatePolicy(ctx context.Context, evaluator common.Eval
 	case common.StatusDisapproved:
 		statusState = "failure"
 	case common.StatusPending:
-		statusState = "pending"
+		// Policy-level setting takes precedence over server-level
+		pendingAsFailure := ec.Options.PendingAsFailure
+		if ec.Config.Config != nil && ec.Config.Config.PendingAsFailure != nil {
+			pendingAsFailure = *ec.Config.Config.PendingAsFailure
+		}
+		if pendingAsFailure {
+			statusState = "failure"
+		} else {
+			statusState = "pending"
+		}
 	case common.StatusSkipped:
 		statusState = "error"
 		statusDescription = "All rules were skipped. At least one rule must match."

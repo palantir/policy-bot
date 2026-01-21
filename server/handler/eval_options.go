@@ -60,6 +60,11 @@ type PullEvaluationOptions struct {
 	// context behaviour, and will be removed in 2.0
 	PostInsecureStatusChecks bool `yaml:"post_insecure_status_checks"`
 
+	// PendingAsFailure reports "failure" instead of "pending" for PRs that
+	// don't meet approval requirements. This is useful for tools like Kodiak
+	// that require definitive pass/fail status checks.
+	PendingAsFailure bool `yaml:"pending_as_failure"`
+
 	// IgnoreEditedComments enables ignoring comments that have been edited when evaluating approval rules.
 	// This provides a server-side option to ignore edited comments across all rules.
 	IgnoreEditedComments *bool `yaml:"ignore_edited_comments"`
@@ -118,6 +123,7 @@ func (p *PullEvaluationOptions) SetValuesFromEnv(prefix string) {
 	setBoolFromEnv("EXPAND_REQUIRED_REVIEWERS", prefix, &p.ExpandRequiredReviewers)
 	setBoolFromEnv("STRICT_REVIEW_DISMISSAL", prefix, &p.StrictReviewDismissal)
 	setBoolFromEnv("POST_INSECURE_STATUS_CHECKS", prefix, &p.PostInsecureStatusChecks)
+	setBoolFromEnv("PENDING_AS_FAILURE", prefix, &p.PendingAsFailure)
 	setBoolPtrFromEnv("IGNORE_EDITED_COMMENTS", prefix, &p.IgnoreEditedComments)
 
 	p.setApprovalDefaultsFromEnv(prefix + "APPROVAL_DEFAULTS_")

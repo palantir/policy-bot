@@ -38,6 +38,11 @@ type Config struct {
 	Policy           Policy             `yaml:"policy,omitempty"`
 	ApprovalDefaults *approval.Defaults `yaml:"approval_defaults,omitempty"`
 	ApprovalRules    []*approval.Rule   `yaml:"approval_rules,omitempty"`
+
+	// PendingAsFailure reports "failure" instead of "pending" for PRs that
+	// don't meet approval requirements. When set, this overrides the
+	// server-level setting.
+	PendingAsFailure *bool `yaml:"pending_as_failure,omitempty"`
 }
 
 type Policy struct {

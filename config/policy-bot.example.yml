@@ -148,6 +148,14 @@ sessions:
 #   # environment variable.
 #   force_shared_policy: false
 #
+#   # If true, report "failure" instead of "pending" for PRs that don't
+#   # meet approval requirements. Useful for tools like Kodiak that require
+#   # definitive pass/fail status checks. This can be overridden per-repo
+#   # by setting pending_as_failure in the .policy.yml file.
+#   # Can also be set by the POLICYBOT_OPTIONS_PENDING_AS_FAILURE
+#   # environment variable.
+#   pending_as_failure: false
+#
 #   # Default options to use for all appoval rules processed by the server.
 #   # Policies can override these values with their own defaults or in individual
 #   # rules. This is equivalent to the "approval_defaults" option in a policy and
