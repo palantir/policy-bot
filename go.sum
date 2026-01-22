@@ -14,8 +14,8 @@ github.com/bluekeyes/hatpear v0.1.2 h1:D5dz9W/W5YxKlmqn7hRJi218+yVkXylhs/R6Ns/jj
 github.com/bluekeyes/hatpear v0.1.2/go.mod h1:2bh+rl4wLhqzzL0hT7Q4SVGXIivrE8oKgH2WYM3ubt0=
 github.com/bluekeyes/templatetree v0.5.0 h1:bJ5W/D/SzB9GWzUG0G+Js8duOAwasE1vEWndxxQRoO0=
 github.com/bluekeyes/templatetree v0.5.0/go.mod h1:doLcw8f06r6e1+9R30QkqYeq6/dDwxeQAF0FHjiOrIs=
-github.com/bmatcuk/doublestar/v4 v4.9.1 h1:X8jg9rRZmJd4yRy7ZeNDRnM+T3ZfHv15JiBJ/avrEXE=
-github.com/bmatcuk/doublestar/v4 v4.9.1/go.mod h1:xBQ8jztBU6kakFMg+8WGxn0c6z1fTSPVIjEY1Wr7jzc=
+github.com/bmatcuk/doublestar/v4 v4.9.2 h1:b0mc6WyRSYLjzofB2v/0cuDUZ+MqoGyH3r0dVij35GI=
+github.com/bmatcuk/doublestar/v4 v4.9.2/go.mod h1:xBQ8jztBU6kakFMg+8WGxn0c6z1fTSPVIjEY1Wr7jzc=
 github.com/bradleyfalzon/ghinstallation/v2 v2.17.0 h1:SmbUK/GxpAspRjSQbB6ARvH+ArzlNzTtHydNyXUQ6zg=
 github.com/bradleyfalzon/ghinstallation/v2 v2.17.0/go.mod h1:vuD/xvJT9Y+ZVZRv4HQ42cMyPFIYqpc7AbB4Gvt/DlY=
 github.com/c2h5oh/datasize v0.0.0-20231215233829-aa82cc1e6500 h1:6lhrsTEnloDPXyeZBvSYvQf8u86jbKehZPVDDlkgDl4=
