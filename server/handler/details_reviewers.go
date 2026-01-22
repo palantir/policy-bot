@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"slices"
 
+	"github.com/google/go-github/v81/github"
 	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/approval"
 	"github.com/palantir/policy-bot/pull"
@@ -29,15 +30,12 @@ type DetailsReviewers struct {
 }
 
 type DetailsReviewersData struct {
-	Reviewers  []string
-	Incomplete bool
+	PullRequest *github.PullRequest
+	Reviewers   []string
+	Incomplete  bool
 }
 
 func (h *DetailsReviewers) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
-	if !h.PullOpts.ExpandRequiredReviewers {
-		return h.renderEmptyReviewers(w, r)
-	}
-
 	state := h.getStateIfAllowed(w, r)
 	if state == nil {
 		return nil
@@ -51,14 +49,17 @@ func (h *DetailsReviewers) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 	switch {
 	case config.LoadError != nil:
 		logger.Warn().Err(config.LoadError).Msgf("Error loading policy from %s, reviewers will be incomplete", config.Source)
-		return h.renderReviewers(w, r, DetailsReviewersData{Incomplete: true})
+		return h.renderReviewers(w, r, DetailsReviewersData{
+			PullRequest: state.PullRequest,
+			Incomplete:  true,
+		})
 
 	case config.Config == nil:
 		// The repository either has no policy or the policy was invalid. This
 		// should never happen in normal use, because the expected way to hit
 		// this endpoint requires viewing a valid details page first. Hitting
 		// this case means something unexpected is hitting the API directly.
-		return h.renderEmptyReviewers(w, r)
+		return h.renderReviewers(w, r, DetailsReviewersData{PullRequest: state.PullRequest})
 	}
 
 	ruleName := r.URL.Query().Get("rule")
@@ -67,7 +68,7 @@ func (h *DetailsReviewers) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 	if requires == nil || requires.Count == 0 || requires.Actors.IsZero() {
 		// If the rule does not exist, it does not require approval, or it has
 		// no actors specified, there's no need to list reviewers
-		return h.renderEmptyReviewers(w, r)
+		return h.renderReviewers(w, r, DetailsReviewersData{PullRequest: state.PullRequest})
 	}
 
 	var reviewers []string
@@ -119,13 +120,10 @@ func (h *DetailsReviewers) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 	reviewers = slices.Compact(reviewers)
 
 	return h.renderReviewers(w, r, DetailsReviewersData{
-		Reviewers:  reviewers,
-		Incomplete: incomplete,
+		PullRequest: state.PullRequest,
+		Reviewers:   reviewers,
+		Incomplete:  incomplete,
 	})
-}
-
-func (h *DetailsReviewers) renderEmptyReviewers(w http.ResponseWriter, r *http.Request) error {
-	return h.renderReviewers(w, r, DetailsReviewersData{})
 }
 
 func (h *DetailsReviewers) renderReviewers(w http.ResponseWriter, r *http.Request, data DetailsReviewersData) error {
