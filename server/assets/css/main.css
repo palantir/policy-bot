@@ -154,6 +154,26 @@ details summary > * {
 .status-stripe.skipped { @apply border-gray3; }
 .status-stripe.error { @apply border-red3; }
 
+.status-dot {
+  @apply inline-block w-2 h-2 rounded-full mr-1;
+  vertical-align: middle;
+}
+.status-dot.approved { @apply bg-green3; }
+.status-dot.pending { @apply bg-orange3; }
+
+.ownership-groups {
+  @apply flex flex-col gap-1 mt-2;
+}
+.ownership-group {
+  @apply flex items-center text-sm;
+}
+.ownership-group .group-owner {
+  @apply font-mono text-sm-mono;
+}
+.ownership-group .group-approvers {
+  @apply text-dark-gray3 ml-1;
+}
+
 .hero {
   @apply p-8 bg-dark-gray5;
   background-image:

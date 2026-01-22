@@ -29,6 +29,7 @@ import (
 
 	"github.com/bluekeyes/templatetree"
 	"github.com/palantir/policy-bot/policy/common"
+	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
 )
 
@@ -45,8 +46,10 @@ type FilesConfig struct {
 }
 
 type Membership struct {
-	Name string
-	Link string
+	Name      string // Secondary identifier or last-resort label
+	Username  string // Preferred visible label (e.g., "org/team-slug" or "username")
+	Link      string
+	AvatarURL string
 }
 
 func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatetree.Tree[*template.Template], error) {
@@ -108,7 +111,38 @@ func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatet
 				return r
 			},
 			"hasActors": func(requires common.RequiresResult) bool {
-				return len(requires.Actors.Users) > 0 || len(requires.Actors.Teams) > 0 || len(requires.Actors.Organizations) > 0
+				return len(requires.Actors.Users) > 0 ||
+					len(requires.Actors.Teams) > 0 ||
+					len(requires.Actors.Organizations) > 0 ||
+					requires.Actors.Codeowners
+			},
+			"hasCodeowners": func(requires common.RequiresResult) bool {
+				return requires.Actors.Codeowners
+			},
+			"hasOwnershipGroups": func(requires common.RequiresResult) bool {
+				return len(requires.OwnershipGroups) > 0
+			},
+			"getOwnershipGroups": func(requires common.RequiresResult) []common.OwnershipGroupResult {
+				return requires.OwnershipGroups
+			},
+			"getEnrichedOwnershipGroups": func(prctx pull.Context, requires common.RequiresResult) []EnrichedOwnershipGroup {
+				return getEnrichedOwnershipGroups(prctx, requires, githubURL)
+			},
+			"getCodeownersBreakdown": func(co *pull.CodeownersResult) map[string][]string {
+				if co == nil {
+					return nil
+				}
+				return co.OwnersByOwner()
+			},
+			"codeownerLink": func(owner string) string {
+				ownerType, name := pull.ParseCodeowner(owner)
+				if ownerType == "team" {
+					parts := strings.SplitN(name, "/", 2)
+					if len(parts) == 2 {
+						return githubURL + "/orgs/" + parts[0] + "/teams/" + parts[1]
+					}
+				}
+				return githubURL + "/" + name
 			},
 			"getMethods": func(results *common.Result) map[string][]string {
 				return getMethods(results)
@@ -209,15 +243,15 @@ func getActors(result *common.Result, githubURL string) map[string][]Membership 
 
 	membershipInfo := make(map[string][]Membership)
 	for _, org := range result.Requires.Actors.Organizations {
-		membershipInfo[orgKey] = append(membershipInfo[orgKey], Membership{Name: org, Link: githubURL + "/orgs/" + org + "/people"})
+		membershipInfo[orgKey] = append(membershipInfo[orgKey], Membership{Name: org, Username: org, Link: githubURL + "/orgs/" + org + "/people"})
 	}
 	for _, team := range result.Requires.Actors.Teams {
 		teamName := strings.Split(team, "/")
-		membershipInfo[teamKey] = append(membershipInfo[teamKey], Membership{Name: team, Link: githubURL + "/orgs/" + teamName[0] + "/teams/" + teamName[1] + "/members"})
+		membershipInfo[teamKey] = append(membershipInfo[teamKey], Membership{Name: team, Username: team, Link: githubURL + "/orgs/" + teamName[0] + "/teams/" + teamName[1] + "/members"})
 
 	}
 	for _, user := range result.Requires.Actors.Users {
-		membershipInfo[userKey] = append(membershipInfo[userKey], Membership{Name: user, Link: githubURL + "/" + user})
+		membershipInfo[userKey] = append(membershipInfo[userKey], Membership{Name: user, Username: user, Link: githubURL + "/" + user})
 	}
 	return membershipInfo
 }
@@ -229,4 +263,96 @@ func getPermissions(result *common.Result) []string {
 		permStrings = append(permStrings, perm.String())
 	}
 	return permStrings
+}
+
+// EnrichedOwnershipGroup contains enriched ownership group data for display.
+type EnrichedOwnershipGroup struct {
+	Key       string
+	Files     []string
+	Satisfied bool
+	Owners    []Membership
+	Approvers []Membership
+}
+
+func getEnrichedOwnershipGroups(prctx pull.Context, requires common.RequiresResult, githubURL string) []EnrichedOwnershipGroup {
+	approversByLogin := buildApproversMap(requires.Approvers)
+	teamInfoCache := make(map[string]*pull.TeamInfo)
+
+	result := make([]EnrichedOwnershipGroup, 0, len(requires.OwnershipGroups))
+	for _, group := range requires.OwnershipGroups {
+		enriched := EnrichedOwnershipGroup{
+			Key:       group.Key,
+			Files:     group.Files,
+			Satisfied: group.Satisfied,
+			Owners:    enrichOwners(group.Owners, githubURL, prctx, teamInfoCache),
+			Approvers: enrichApprovers(group.Approvers, approversByLogin, githubURL),
+		}
+		result = append(result, enriched)
+	}
+
+	return result
+}
+
+func buildApproversMap(approvers []*common.Candidate) map[string]*common.Candidate {
+	m := make(map[string]*common.Candidate, len(approvers))
+	for _, c := range approvers {
+		m[c.User()] = c
+	}
+	return m
+}
+
+func enrichOwners(owners []string, githubURL string, prctx pull.Context, teamInfoCache map[string]*pull.TeamInfo) []Membership {
+	result := make([]Membership, 0, len(owners))
+	for _, owner := range owners {
+		ownerType, name := pull.ParseCodeowner(owner)
+		m := Membership{Name: name, Username: name}
+
+		switch ownerType {
+		case "team":
+			parts := strings.Split(name, "/")
+			if len(parts) == 2 {
+				org, team := parts[0], parts[1]
+				m.Link = githubURL + "/orgs/" + org + "/teams/" + team
+				if prctx != nil {
+					info, ok := teamInfoCache[name]
+					if !ok {
+						info, _ = prctx.TeamInfo(name)
+						teamInfoCache[name] = info
+					}
+					if info != nil && info.ID != 0 {
+						m.AvatarURL = teamAvatarURL(info.ID)
+					}
+				}
+				if m.AvatarURL == "" {
+					m.AvatarURL = githubURL + "/" + org + ".png"
+				}
+			}
+		case "user":
+			m.Link = githubURL + "/" + name
+			m.AvatarURL = githubURL + "/" + name + ".png"
+		}
+
+		result = append(result, m)
+	}
+	return result
+}
+
+func teamAvatarURL(teamID int64) string {
+	return fmt.Sprintf("https://avatars.githubusercontent.com/t/%d?s=116&v=4", teamID)
+}
+
+func enrichApprovers(approverNames []string, approversByLogin map[string]*common.Candidate, githubURL string) []Membership {
+	result := make([]Membership, 0, len(approverNames))
+	for _, name := range approverNames {
+		m := Membership{
+			Name:     name,
+			Username: name,
+			Link:     githubURL + "/" + name,
+		}
+		if candidate, ok := approversByLogin[name]; ok && candidate.Author != nil {
+			m.AvatarURL = candidate.Author.AvatarURL
+		}
+		result = append(result, m)
+	}
+	return result
 }

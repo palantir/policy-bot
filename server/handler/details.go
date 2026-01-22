@@ -74,6 +74,8 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 
 		PullRequest *github.PullRequest
 		Result      *common.Result
+		Codeowners  *pull.CodeownersResult
+		PullContext pull.Context
 	}
 
 	data.BasePath = getBasePath(h.BaseConfig.PublicURL)
@@ -81,6 +83,7 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	data.PolicyURL = getPolicyURL(state.PullRequest, evalCtx.Config)
 	data.ExpandRequiredReviewers = h.PullOpts.ExpandRequiredReviewers
 	data.PullRequest = state.PullRequest
+	data.PullContext = evalCtx.PullContext
 
 	evaluator, err := evalCtx.ParseConfig(ctx, common.TriggerAll)
 	if err != nil {
@@ -100,6 +103,11 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 			data.IsTemporaryError = true
 		}
 		data.Error = err
+	}
+
+	// Fetch codeowners data for display in the UI
+	if evalCtx.PullContext != nil {
+		data.Codeowners, _ = evalCtx.PullContext.Codeowners()
 	}
 
 	// Intentionally skip evalCtx.RunPostEvaluateActions() for details

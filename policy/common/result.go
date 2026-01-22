@@ -54,6 +54,7 @@ type ReviewRequestRule struct {
 	Users          []string
 	Organizations  []string
 	Permissions    []pull.Permission
+	Codeowners     bool
 	RequiredCount  int
 	RequestedCount int
 
@@ -92,6 +93,29 @@ type RequiresResult struct {
 
 	// Conditions contains the results of all required conditions
 	Conditions []*PredicateResult
+
+	// OwnershipGroups contains the results for each codeowner group when
+	// codeowners approval is required. Each group must have at least one
+	// approver for the rule to pass.
+	OwnershipGroups []OwnershipGroupResult
+}
+
+// OwnershipGroupResult contains the approval status for a codeowner group.
+type OwnershipGroupResult struct {
+	// Key is a deterministic identifier for this ownership group.
+	Key string
+
+	// Owners contains the codeowners for this group (e.g., "@team-a", "@user1").
+	Owners []string
+
+	// Files contains the file paths that belong to this ownership group.
+	Files []string
+
+	// Satisfied is true if at least one approver is a member of this group.
+	Satisfied bool
+
+	// Approvers contains the usernames of approvers who are members of this group.
+	Approvers []string
 }
 
 type Dismissal struct {

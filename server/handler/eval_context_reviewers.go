@@ -104,10 +104,12 @@ func (ec *EvalContext) requestReviews(ctx context.Context, reqs []*common.Result
 	}
 	for _, r := range reviews {
 		if r.SHA == head {
-			reviewers = append(reviewers, &pull.Reviewer{
-				Type: pull.ReviewerUser,
-				Name: r.Author,
-			})
+			if r.Author != nil && r.Author.Login != "" {
+				reviewers = append(reviewers, &pull.Reviewer{
+					Type: pull.ReviewerUser,
+					Name: r.Author.Login,
+				})
+			}
 
 			for _, team := range r.Teams {
 				reviewers = append(reviewers, &pull.Reviewer{

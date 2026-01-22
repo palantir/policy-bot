@@ -80,6 +80,9 @@ type Context struct {
 	RepositoryCustomPropertiesValue map[string]pull.CustomProperty
 	RepositoryCustomPropertiesError error
 
+	CodeownersValue *pull.CodeownersResult
+	CodeownersError error
+
 	Draft bool
 }
 
@@ -242,6 +245,36 @@ func (c *Context) TeamMembers(team string) ([]string, error) {
 	return inverted[team], nil
 }
 
+func (c *Context) TeamMembersWithDetails(team string) ([]pull.TeamMember, error) {
+	if c.TeamMembershipError != nil {
+		return nil, c.TeamMembershipError
+	}
+
+	members, err := c.TeamMembers(team)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]pull.TeamMember, len(members))
+	for i, login := range members {
+		result[i] = pull.TeamMember{Login: login}
+	}
+	return result, nil
+}
+
+func (c *Context) TeamInfo(team string) (*pull.TeamInfo, error) {
+	if c.TeamMembershipError != nil {
+		return nil, c.TeamMembershipError
+	}
+
+	// Return basic team info from the team string
+	return &pull.TeamInfo{
+		ID:      0,
+		Slug:    team,
+		HTMLURL: "",
+	}, nil
+}
+
 func (c *Context) RequestedReviewers() ([]*pull.Reviewer, error) {
 	return c.RequestedReviewersValue, c.RequestedReviewersError
 }
@@ -272,6 +305,10 @@ func (c *Context) Labels() ([]string, error) {
 
 func (c *Context) RepositoryCustomProperties() (map[string]pull.CustomProperty, error) {
 	return c.RepositoryCustomPropertiesValue, c.RepositoryCustomPropertiesError
+}
+
+func (c *Context) Codeowners() (*pull.CodeownersResult, error) {
+	return c.CodeownersValue, c.CodeownersError
 }
 
 // assert that the test object implements the full interface

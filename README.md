@@ -657,6 +657,12 @@ requires:
   organizations: ["org1", "org2"]
   teams: ["org1/team1", "org2/team2"]
 
+  # If true, the codeowners of the changed files (as defined in the
+  # repository's CODEOWNERS file) are considered valid approvers. The
+  # CODEOWNERS file is read from .github/CODEOWNERS, CODEOWNERS, or
+  # docs/CODEOWNERS in the repository.
+  codeowners: true
+
   # A user must have at least the minimum permission in this list for their
   # approval to count for this rule. Valid permissions are "admin", "maintain",
   # "write", "triage", and "read".

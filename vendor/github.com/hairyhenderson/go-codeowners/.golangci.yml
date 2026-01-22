@@ -1,0 +1,66 @@
+linters-settings:
+  govet:
+    enable-all: true
+  gocyclo:
+    min-complexity: 10
+  dupl:
+    threshold: 100
+  goconst:
+    min-len: 2
+    min-occurrences: 4
+  lll:
+    line-length: 140
+  nolintlint:
+    allow-unused: false # report any unused nolint directives
+    require-explanation: false # don't require an explanation for nolint directives
+    require-specific: false # don't require nolint directives to be specific about which linter is being skipped
+
+linters:
+  disable-all: true
+  enable:
+    - asciicheck
+    - bodyclose
+    - copyloopvar
+    # - dogsled
+    - dupl
+    - errcheck
+    - exhaustive
+    - funlen
+    - gci
+    - gochecknoglobals
+    - gochecknoinits
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - godox
+    - gofmt
+    # - gofumpt
+    - goheader
+    - goimports
+    # - gomnd
+    - gomodguard
+    - goprintffuncname
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - lll
+    - misspell
+    - nakedret
+    - nestif
+    # - nlreturn
+    - noctx
+    - nolintlint
+    - prealloc
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - staticcheck
+    - stylecheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - whitespace
+    # - wsl

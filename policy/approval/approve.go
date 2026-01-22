@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/palantir/policy-bot/policy/common"
@@ -151,6 +152,7 @@ func (r *Rule) getReviewRequestRule() *common.ReviewRequestRule {
 		Teams:          r.Requires.Actors.Teams,
 		Organizations:  r.Requires.Actors.Organizations,
 		Permissions:    r.Requires.Actors.GetPermissions(),
+		Codeowners:     r.Requires.Actors.Codeowners,
 		RequiredCount:  r.Requires.Count,
 		RequestedCount: requestedCount,
 		Mode:           mode,
@@ -158,7 +160,7 @@ func (r *Rule) getReviewRequestRule() *common.ReviewRequestRule {
 }
 
 func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) (bool, common.RequiresResult, error) {
-	approvedByActors, approvers, err := r.isApprovedByActors(ctx, prctx, candidates)
+	approvedByActors, approvers, ownershipGroups, err := r.isApprovedByActors(ctx, prctx, candidates)
 	if err != nil {
 		return false, common.RequiresResult{}, err
 	}
@@ -169,20 +171,21 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context, candidates []
 	}
 
 	result := common.RequiresResult{
-		Count:      r.Requires.Count,
-		Actors:     r.Requires.Actors,
-		Approvers:  approvers,
-		Conditions: conditions,
+		Count:           r.Requires.Count,
+		Actors:          r.Requires.Actors,
+		Approvers:       approvers,
+		Conditions:      conditions,
+		OwnershipGroups: ownershipGroups,
 	}
 	return approvedByActors && approvedByConditions, result, nil
 }
 
-func (r *Rule) isApprovedByActors(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) (bool, []*common.Candidate, error) {
+func (r *Rule) isApprovedByActors(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) (bool, []*common.Candidate, []common.OwnershipGroupResult, error) {
 	log := zerolog.Ctx(ctx)
 
-	if r.Requires.Count <= 0 {
+	if r.Requires.Count <= 0 && !r.Requires.Actors.Codeowners {
 		log.Debug().Msg("rule requires no approvals")
-		return true, nil, nil
+		return true, nil, nil, nil
 	}
 
 	log.Debug().Msgf("found %d candidates for approval", len(candidates))
@@ -202,7 +205,7 @@ func (r *Rule) isApprovedByActors(ctx context.Context, prctx pull.Context, candi
 	if !r.Options.IsAllowContributor() && !r.Options.IsAllowNonAuthorContributor() {
 		commits, err := r.filteredCommits(ctx, prctx)
 		if err != nil {
-			return false, nil, err
+			return false, nil, nil, err
 		}
 
 		for _, c := range commits {
@@ -214,20 +217,25 @@ func (r *Rule) isApprovedByActors(ctx context.Context, prctx pull.Context, candi
 		}
 	}
 
+	// If codeowners is enabled, delegate to codeowner group logic
+	if r.Requires.Actors.Codeowners {
+		return r.isApprovedByCodeownerGroups(ctx, prctx, candidates, banned)
+	}
+
 	// filter real approvers using banned status and required membership
 	var approvers []*common.Candidate
 	for _, c := range candidates {
-		if banned[c.User] {
-			log.Debug().Str("user", c.User).Msg("rejecting approval by banned user")
+		if banned[c.User()] {
+			log.Debug().Str("user", c.User()).Msg("rejecting approval by banned user")
 			continue
 		}
 
-		isApprover, err := r.Requires.Actors.IsActor(ctx, prctx, c.User)
+		isApprover, err := r.Requires.Actors.IsActor(ctx, prctx, c.User())
 		if err != nil {
-			return false, nil, errors.Wrap(err, "failed to check candidate status")
+			return false, nil, nil, errors.Wrap(err, "failed to check candidate status")
 		}
 		if !isApprover {
-			log.Debug().Str("user", c.User).Msg("ignoring approval by non-required user")
+			log.Debug().Str("user", c.User()).Msg("ignoring approval by non-required user")
 			continue
 		}
 
@@ -235,7 +243,7 @@ func (r *Rule) isApprovedByActors(ctx context.Context, prctx pull.Context, candi
 	}
 
 	log.Debug().Msgf("found %d/%d required approvers", len(approvers), r.Requires.Count)
-	return len(approvers) >= r.Requires.Count, approvers, nil
+	return len(approvers) >= r.Requires.Count, approvers, nil, nil
 }
 
 func (r *Rule) isApprovedByConditions(ctx context.Context, prctx pull.Context) (bool, []*common.PredicateResult, error) {
@@ -268,7 +276,7 @@ func (r *Rule) isApprovedByConditions(ctx context.Context, prctx pull.Context) (
 // FilteredCandidates returns the potential approval candidates and any
 // candidates that should be dimissed due to rule options.
 func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*common.Candidate, []*common.Dismissal, error) {
-	if r.Requires.Count <= 0 {
+	if r.Requires.Count <= 0 && !r.Requires.Actors.Codeowners {
 		return nil, nil, nil
 	}
 
@@ -302,7 +310,7 @@ func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*c
 	return candidates, dismissals, nil
 }
 
-func (r *Rule) filterEditedCandidates(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) ([]*common.Candidate, []*common.Dismissal, error) {
+func (r *Rule) filterEditedCandidates(ctx context.Context, _ pull.Context, candidates []*common.Candidate) ([]*common.Candidate, []*common.Dismissal, error) {
 	log := zerolog.Ctx(ctx)
 
 	if !r.Options.IsIgnoreEditedComments() {
@@ -408,23 +416,27 @@ func (r *Rule) filteredCommits(ctx context.Context, prctx pull.Context) ([]*pull
 func statusDescription(approved bool, result common.RequiresResult, candidates []*common.Candidate) string {
 	hasActors := result.Count > 0
 	hasConditions := len(result.Conditions) > 0
+	hasOwnershipGroups := len(result.OwnershipGroups) > 0
 
 	if approved {
-		if !hasActors && !hasConditions {
+		if !hasActors && !hasConditions && !hasOwnershipGroups {
 			return "No approval required"
 		}
 
 		var desc strings.Builder
-		desc.WriteString("Approved by ")
-
-		for i, c := range result.Approvers {
-			if i > 0 {
-				desc.WriteString(", ")
+		if hasOwnershipGroups {
+			desc.WriteString(ownershipGroupsStatusDescription(result.OwnershipGroups))
+		} else {
+			desc.WriteString("Approved by ")
+			for i, c := range result.Approvers {
+				if i > 0 {
+					desc.WriteString(", ")
+				}
+				desc.WriteString(c.User())
 			}
-			desc.WriteString(c.User)
 		}
 		if hasConditions {
-			if hasActors {
+			if hasActors || hasOwnershipGroups {
 				desc.WriteString(" and ")
 			}
 			desc.WriteString("required conditions")
@@ -434,11 +446,13 @@ func statusDescription(approved bool, result common.RequiresResult, candidates [
 	}
 
 	var desc strings.Builder
-	if hasActors {
+	if hasOwnershipGroups {
+		desc.WriteString(ownershipGroupsStatusDescription(result.OwnershipGroups))
+	} else if hasActors {
 		fmt.Fprintf(&desc, "%d/%d required approvals", len(result.Approvers), result.Count)
 	}
 	if hasConditions {
-		if hasActors {
+		if hasActors || hasOwnershipGroups {
 			desc.WriteString(" and ")
 		}
 
@@ -450,10 +464,35 @@ func statusDescription(approved bool, result common.RequiresResult, candidates [
 		}
 		fmt.Fprintf(&desc, "%d/%d required conditions", successful, len(result.Conditions))
 	}
-	if disqualified := len(candidates) - len(result.Approvers); hasActors && disqualified > 0 {
+	if disqualified := len(candidates) - len(result.Approvers); hasActors && !hasOwnershipGroups && disqualified > 0 {
 		fmt.Fprintf(&desc, ". Ignored %s from disqualified users", numberOfApprovals(disqualified))
 	}
 	return desc.String()
+}
+
+func ownershipGroupsStatusDescription(groups []common.OwnershipGroupResult) string {
+	var satisfied int
+	approverSet := make(map[string]struct{})
+
+	for _, g := range groups {
+		if g.Satisfied {
+			satisfied++
+			for _, a := range g.Approvers {
+				approverSet[a] = struct{}{}
+			}
+		}
+	}
+
+	if satisfied < len(groups) {
+		return fmt.Sprintf("%d/%d ownership groups covered", satisfied, len(groups))
+	}
+
+	approvers := make([]string, 0, len(approverSet))
+	for a := range approverSet {
+		approvers = append(approvers, a)
+	}
+	sort.Strings(approvers)
+	return fmt.Sprintf("Approved by %s covering %d ownership groups", strings.Join(approvers, ", "), len(groups))
 }
 
 func isUpdateMerge(commits []*pull.Commit, c *pull.Commit) bool {
@@ -519,4 +558,140 @@ func sortCommits(commits []*pull.Commit, head string) []*pull.Commit {
 		head = c.Parents[0]
 	}
 	return ordered
+}
+
+// isApprovedByCodeownerGroups checks if all ownership groups have at least one
+// approved candidate. Returns true if all groups are satisfied, the list of
+// approvers, and the results for each ownership group.
+func (r *Rule) isApprovedByCodeownerGroups(
+	ctx context.Context,
+	prctx pull.Context,
+	candidates []*common.Candidate,
+	banned map[string]bool,
+) (bool, []*common.Candidate, []common.OwnershipGroupResult, error) {
+	log := zerolog.Ctx(ctx)
+
+	co, err := prctx.Codeowners()
+	if err != nil {
+		return false, nil, nil, errors.Wrap(err, "failed to get codeowners")
+	}
+	if co == nil {
+		// No CODEOWNERS file - no codeowner requirements
+		log.Debug().Msg("no CODEOWNERS file found, skipping codeowner group check")
+		return true, nil, nil, nil
+	}
+
+	groups := co.OwnershipGroups()
+	if len(groups) == 0 {
+		log.Debug().Msg("no ownership groups found, skipping codeowner group check")
+		return true, nil, nil, nil
+	}
+
+	log.Debug().Msgf("found %d ownership groups to satisfy", len(groups))
+
+	// Pre-filter candidates to exclude banned users
+	validCandidates := make([]*common.Candidate, 0, len(candidates))
+	for _, c := range candidates {
+		if !banned[c.User()] {
+			validCandidates = append(validCandidates, c)
+		}
+	}
+
+	// Collect all unique (team, user) pairs that need membership checks
+	type memberCheck struct {
+		team string
+		user string
+	}
+	checksNeeded := make(map[memberCheck]struct{})
+	for _, group := range groups {
+		for _, owner := range group.Owners {
+			ownerType, name := pull.ParseCodeowner(owner)
+			if ownerType == "team" {
+				for _, c := range validCandidates {
+					checksNeeded[memberCheck{team: name, user: c.User()}] = struct{}{}
+				}
+			}
+		}
+	}
+
+	// Run all team membership checks in parallel
+	membershipResults := make(map[memberCheck]bool)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(checksNeeded))
+
+	for check := range checksNeeded {
+		wg.Go(func() {
+			isMember, err := prctx.IsTeamMember(check.team, check.user)
+			if err != nil {
+				errChan <- errors.Wrapf(err, "failed to check team membership for %s in %s", check.user, check.team)
+				return
+			}
+			mu.Lock()
+			membershipResults[check] = isMember
+			mu.Unlock()
+		})
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	// Check for any errors
+	if err := <-errChan; err != nil {
+		return false, nil, nil, err
+	}
+
+	// Process results using the cached membership data
+	results := make([]common.OwnershipGroupResult, len(groups))
+	var approvers []*common.Candidate
+	approverSet := make(map[string]struct{})
+
+	for i, group := range groups {
+		results[i] = common.OwnershipGroupResult{
+			Key:    group.Key,
+			Owners: group.Owners,
+			Files:  group.Files,
+		}
+
+		for _, c := range validCandidates {
+			isMember := false
+			for _, owner := range group.Owners {
+				ownerType, name := pull.ParseCodeowner(owner)
+				switch ownerType {
+				case "user":
+					if strings.EqualFold(c.User(), name) {
+						isMember = true
+					}
+				case "team":
+					if membershipResults[memberCheck{team: name, user: c.User()}] {
+						isMember = true
+					}
+				}
+				if isMember {
+					break
+				}
+			}
+
+			if isMember {
+				results[i].Satisfied = true
+				results[i].Approvers = append(results[i].Approvers, c.User())
+				if _, exists := approverSet[c.User()]; !exists {
+					approvers = append(approvers, c)
+					approverSet[c.User()] = struct{}{}
+				}
+			}
+		}
+	}
+
+	// Count satisfied groups
+	satisfiedCount := 0
+	for _, result := range results {
+		if result.Satisfied {
+			satisfiedCount++
+		}
+	}
+
+	log.Debug().Msgf("%d/%d ownership groups satisfied", satisfiedCount, len(results))
+
+	return satisfiedCount == len(results), approvers, results, nil
 }

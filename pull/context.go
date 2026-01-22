@@ -15,6 +15,8 @@
 package pull
 
 import (
+	"sort"
+	"strings"
 	"time"
 )
 
@@ -30,6 +32,12 @@ type MembershipContext interface {
 
 	// TeamMembers returns the list of usernames in the given organization's team.
 	TeamMembers(team string) ([]string, error)
+
+	// TeamMembersWithDetails returns team members with full metadata (avatars, URLs).
+	TeamMembersWithDetails(team string) ([]TeamMember, error)
+
+	// TeamInfo returns team metadata for display purposes.
+	TeamInfo(team string) (*TeamInfo, error)
 
 	// OrganizationMembers returns the list of org member usernames in the given organization.
 	OrganizationMembers(org string) ([]string, error)
@@ -137,6 +145,10 @@ type Context interface {
 
 	// Labels returns a list of labels applied on the Pull Request
 	Labels() ([]string, error)
+
+	// Codeowners returns the codeowners for files changed in this pull request.
+	// Returns nil if no CODEOWNERS file exists in the repository.
+	Codeowners() (*CodeownersResult, error)
 }
 
 type FileStatus int
@@ -201,10 +213,21 @@ type Signature struct {
 	State          string
 }
 
+// Author represents a GitHub user who performed an action.
+type Author struct {
+	Login     string
+	AvatarURL string
+}
+
+// NewAuthor creates an Author with the given login. Useful for tests.
+func NewAuthor(login string) *Author {
+	return &Author{Login: login}
+}
+
 type Comment struct {
 	CreatedAt    time.Time
 	LastEditedAt time.Time
-	Author       string
+	Author       *Author
 	Body         string
 }
 
@@ -222,7 +245,7 @@ type Review struct {
 	ID           string
 	CreatedAt    time.Time
 	LastEditedAt time.Time
-	Author       string
+	Author       *Author
 	State        ReviewState
 	Body         string
 	SHA          string
@@ -259,11 +282,139 @@ type CollaboratorPermission struct {
 type Body struct {
 	Body         string
 	CreatedAt    time.Time
-	Author       string
+	Author       *Author
 	LastEditedAt time.Time
 }
 
 type CustomProperty struct {
 	String *string
 	Array  []string
+}
+
+// CodeownersResult contains the owners for each changed file in a pull request.
+type CodeownersResult struct {
+	// Owners maps file paths to their owners. Owners are in the format
+	// "@username" for users or "@org/team" for teams.
+	Owners map[string][]string
+
+	// OrphanFiles contains files that don't match any CODEOWNERS pattern.
+	OrphanFiles []string
+}
+
+// HasOrphanFiles returns true if there are files without codeowners.
+func (c *CodeownersResult) HasOrphanFiles() bool {
+	return c != nil && len(c.OrphanFiles) > 0
+}
+
+// AllOwners returns a deduplicated list of all owners across all files.
+func (c *CodeownersResult) AllOwners() []string {
+	if c == nil {
+		return nil
+	}
+
+	ownerSet := make(map[string]struct{})
+	for _, fileOwners := range c.Owners {
+		for _, owner := range fileOwners {
+			ownerSet[owner] = struct{}{}
+		}
+	}
+
+	owners := make([]string, 0, len(ownerSet))
+	for owner := range ownerSet {
+		owners = append(owners, owner)
+	}
+	return owners
+}
+
+// OwnersByOwner returns an inverted mapping of owner -> files.
+// This is useful for displaying which files each owner is responsible for.
+func (c *CodeownersResult) OwnersByOwner() map[string][]string {
+	if c == nil {
+		return nil
+	}
+
+	result := make(map[string][]string)
+	for file, owners := range c.Owners {
+		for _, owner := range owners {
+			result[owner] = append(result[owner], file)
+		}
+	}
+	return result
+}
+
+// ParseCodeowner parses a CODEOWNERS owner string and returns whether it's
+// a user or team, along with the normalized name (without @ prefix).
+// Examples:
+//
+//	"@username" -> ("user", "username")
+//	"@org/team-name" -> ("team", "org/team-name")
+func ParseCodeowner(owner string) (ownerType string, name string) {
+	owner = strings.TrimPrefix(owner, "@")
+	if strings.Contains(owner, "/") {
+		return "team", owner
+	}
+	return "user", owner
+}
+
+// OwnershipGroup represents a unique set of owners for one or more files.
+// Files with identical owner sets are grouped together.
+type OwnershipGroup struct {
+	// Key is a deterministic string representation of the sorted owner set,
+	// used for grouping files with identical owners.
+	Key string
+
+	// Owners contains the owners in this group (e.g., "@team-a", "@user1").
+	Owners []string
+
+	// Files contains the file paths that belong to this ownership group.
+	Files []string
+}
+
+// OwnershipGroups returns the unique ownership groups across all changed files.
+// Files with identical owner sets are grouped together. The groups are returned
+// in a deterministic order based on the sorted owner keys.
+func (c *CodeownersResult) OwnershipGroups() []OwnershipGroup {
+	if c == nil || len(c.Owners) == 0 {
+		return nil
+	}
+
+	// Group files by their sorted owner set
+	groupMap := make(map[string]*OwnershipGroup)
+
+	for file, owners := range c.Owners {
+		if len(owners) == 0 {
+			continue
+		}
+
+		// Create a deterministic key by sorting owners
+		sortedOwners := make([]string, len(owners))
+		copy(sortedOwners, owners)
+		sort.Strings(sortedOwners)
+		key := strings.Join(sortedOwners, ",")
+
+		if group, exists := groupMap[key]; exists {
+			group.Files = append(group.Files, file)
+		} else {
+			groupMap[key] = &OwnershipGroup{
+				Key:    key,
+				Owners: sortedOwners,
+				Files:  []string{file},
+			}
+		}
+	}
+
+	// Convert map to slice and sort for deterministic output
+	groups := make([]OwnershipGroup, 0, len(groupMap))
+	for _, group := range groupMap {
+		// Sort files within each group for deterministic output
+		sort.Strings(group.Files)
+		groups = append(groups, *group)
+	}
+
+	// Sort groups by key for deterministic output
+	sort.Slice(groups, func(i, j int) bool {
+		return groups[i].Key < groups[j].Key
+	})
+
+	return groups
 }

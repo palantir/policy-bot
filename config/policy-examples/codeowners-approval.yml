@@ -1,0 +1,13 @@
+# This policy requires at least one approval from a codeowner of the
+# changed files. Codeowners are determined from the repository's
+# CODEOWNERS file (.github/CODEOWNERS, CODEOWNERS, or docs/CODEOWNERS).
+
+policy:
+  approval:
+  - a codeowner has approved
+
+approval_rules:
+- name: a codeowner has approved
+  requires:
+    count: 1
+    codeowners: true

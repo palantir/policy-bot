@@ -17,6 +17,7 @@ package handler
 import (
 	"context"
 	"strings"
+	"sync"
 
 	"github.com/google/go-github/v81/github"
 	"github.com/palantir/go-githubapp/githubapp"
@@ -29,50 +30,65 @@ type CrossOrgMembershipContext struct {
 	lookupClient  *github.Client
 	installations githubapp.InstallationsService
 	clientCreator githubapp.ClientCreator
+	globalCache   pull.GlobalCache
 
-	mbrCtxs map[string]pull.MembershipContext
+	mbrCtxs sync.Map // map[string]pull.MembershipContext
 }
 
-func NewCrossOrgMembershipContext(ctx context.Context, client *github.Client, orgName string, installations githubapp.InstallationsService, clientCreator githubapp.ClientCreator) *CrossOrgMembershipContext {
+func NewCrossOrgMembershipContext(ctx context.Context, client *github.Client, orgName string, installations githubapp.InstallationsService, clientCreator githubapp.ClientCreator, globalCache pull.GlobalCache) *CrossOrgMembershipContext {
 	mbrCtx := &CrossOrgMembershipContext{
 		ctx:           ctx,
 		lookupClient:  client,
 		installations: installations,
 		clientCreator: clientCreator,
-		mbrCtxs:       make(map[string]pull.MembershipContext),
+		globalCache:   globalCache,
 	}
-	mbrCtx.mbrCtxs[orgName] = pull.NewGitHubMembershipContext(ctx, client)
+	mbrCtx.mbrCtxs.Store(orgName, pull.NewGitHubMembershipContext(ctx, client, globalCache))
 	return mbrCtx
 }
 
+func (c *CrossOrgMembershipContext) getCtxForTeam(team string) (pull.MembershipContext, error) {
+	return c.getCtxForOrg(strings.Split(team, "/")[0])
+}
+
 func (c *CrossOrgMembershipContext) getCtxForOrg(name string) (pull.MembershipContext, error) {
-	mbrCtx, ok := c.mbrCtxs[name]
-	if !ok {
-		org, _, err := c.lookupClient.Organizations.Get(c.ctx, name)
-		if err != nil {
-			return nil, errors.WithStack(err)
-		}
-
-		installation, err := c.installations.GetByOwner(c.ctx, org.GetLogin())
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to lookup installation ID for org '%s' or there is no such installation", name)
-		}
-
-		client, err := c.clientCreator.NewInstallationClient(installation.ID)
-		if err != nil {
-			return nil, err
-		}
-
-		mbrCtx = pull.NewGitHubMembershipContext(c.ctx, client)
-		c.mbrCtxs[name] = mbrCtx
+	if val, ok := c.mbrCtxs.Load(name); ok {
+		return val.(pull.MembershipContext), nil
 	}
 
-	return mbrCtx, nil
+	// Create a new membership context for this org
+	mbrCtx, err := c.createMembershipContext(name)
+	if err != nil {
+		return nil, err
+	}
+
+	// Use LoadOrStore to handle concurrent creation - if another goroutine
+	// already stored a context, use that one instead
+	actual, _ := c.mbrCtxs.LoadOrStore(name, mbrCtx)
+	return actual.(pull.MembershipContext), nil
+}
+
+func (c *CrossOrgMembershipContext) createMembershipContext(name string) (pull.MembershipContext, error) {
+	org, _, err := c.lookupClient.Organizations.Get(c.ctx, name)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	installation, err := c.installations.GetByOwner(c.ctx, org.GetLogin())
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to lookup installation ID for org '%s' or there is no such installation", name)
+	}
+
+	client, err := c.clientCreator.NewInstallationClient(installation.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return pull.NewGitHubMembershipContext(c.ctx, client, c.globalCache), nil
 }
 
 func (c *CrossOrgMembershipContext) IsTeamMember(team, user string) (bool, error) {
-	org := strings.Split(team, "/")[0]
-	mbrCtx, err := c.getCtxForOrg(org)
+	mbrCtx, err := c.getCtxForTeam(team)
 	if err != nil {
 		return false, err
 	}
@@ -96,10 +112,25 @@ func (c *CrossOrgMembershipContext) OrganizationMembers(org string) ([]string, e
 }
 
 func (c *CrossOrgMembershipContext) TeamMembers(team string) ([]string, error) {
-	org := strings.Split(team, "/")[0]
-	mbrCtx, err := c.getCtxForOrg(org)
+	mbrCtx, err := c.getCtxForTeam(team)
 	if err != nil {
 		return nil, err
 	}
 	return mbrCtx.TeamMembers(team)
+}
+
+func (c *CrossOrgMembershipContext) TeamMembersWithDetails(team string) ([]pull.TeamMember, error) {
+	mbrCtx, err := c.getCtxForTeam(team)
+	if err != nil {
+		return nil, err
+	}
+	return mbrCtx.TeamMembersWithDetails(team)
+}
+
+func (c *CrossOrgMembershipContext) TeamInfo(team string) (*pull.TeamInfo, error) {
+	mbrCtx, err := c.getCtxForTeam(team)
+	if err != nil {
+		return nil, err
+	}
+	return mbrCtx.TeamInfo(team)
 }
