@@ -53,8 +53,9 @@ const (
 )
 
 type Server struct {
-	config *Config
-	base   *baseapp.Server
+	config       *Config
+	base         *baseapp.Server
+	otelProvider *OTELProvider
 }
 
 // New instantiates a new Server.
@@ -93,6 +94,12 @@ func New(c *Config) (*Server, error) {
 		return nil, errors.Wrap(err, "failed to initialize base server")
 	}
 
+	// Initialize OpenTelemetry if enabled
+	otelProvider, err := InitOTEL(context.Background(), &c.OTEL)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to initialize OpenTelemetry")
+	}
+
 	maxSize := int64(DefaultHTTPCacheSize)
 	if c.Cache.MaxSize != 0 {
 		maxSize = int64(c.Cache.MaxSize)
@@ -117,6 +124,7 @@ func New(c *Config) (*Server, error) {
 			return lrucache.New(maxSize, 0)
 		}),
 		githubapp.WithClientMiddleware(
+			ClientTracing(c.OTEL.Enabled),
 			githubapp.ClientLogging(
 				zerolog.DebugLevel,
 				githubapp.LogRequestBody("^"+v4URL.Path+"$"),
@@ -272,14 +280,30 @@ func New(c *Config) (*Server, error) {
 
 	mux.Handle(pat.New("/details/*"), details)
 
+	// Wrap the base server handler with OTEL instrumentation if enabled
+	if c.OTEL.Enabled {
+		httpServer := base.HTTPServer()
+		httpServer.Handler = WrapHandler(httpServer.Handler, "policy-bot")
+	}
+
 	return &Server{
-		config: c,
-		base:   base,
+		config:       c,
+		base:         base,
+		otelProvider: otelProvider,
 	}, nil
 }
 
 // Start is blocking and long-running
 func (s *Server) Start() error {
+	// Ensure OTEL provider is shut down when server stops
+	if s.otelProvider != nil {
+		defer func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = s.otelProvider.Shutdown(ctx)
+		}()
+	}
+
 	if s.config.Datadog.Address != "" {
 		if err := datadog.StartEmitter(s.base, s.config.Datadog); err != nil {
 			return err
