@@ -9,7 +9,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/c2h5oh/datasize v0.0.0-20231215233829-aa82cc1e6500
 	github.com/die-net/lrucache v0.0.0-20240714232319-26322ba4bc23
-	github.com/google/go-github/v81 v81.0.0
+	github.com/google/go-github/v82 v82.0.0
 	github.com/google/go-querystring v1.2.0
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 	github.com/hashicorp/golang-lru v1.0.2
@@ -35,7 +35,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/google/go-github/v75 v75.0.0 // indirect
-	github.com/google/go-github/v82 v82.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
