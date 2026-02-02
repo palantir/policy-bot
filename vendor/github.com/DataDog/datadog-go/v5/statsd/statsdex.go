@@ -165,7 +165,7 @@ type metric struct {
 	rate            float64
 	timestamp       int64
 	originDetection bool
-	overrideCard    Cardinality
+	cardinality     Cardinality
 }
 
 type noClientErr string
@@ -300,6 +300,7 @@ type ClientEx struct {
 	errorOnBlockedChannel bool
 	errorHandler          ErrorHandler
 	originDetection       bool
+	defaultCardinality    Cardinality
 }
 
 // statsdTelemetry contains telemetry metrics about the client
@@ -477,8 +478,13 @@ func newWithWriter(w Transport, o *Options, writerName string) (*ClientEx, error
 	// external environment variable in case another client has enabled it and needs to access it.
 	initExternalEnv()
 
-	// Initializes the global tag cardinality with either the value passed in by the user or the value from the DD_CARDINALITY/DATADOG_CARDINALITY environment variable.
-	initTagCardinality(o.tagCardinality)
+	if o.tagCardinality != nil {
+		c.defaultCardinality = *o.tagCardinality
+	} else if card, ok := envTagCardinality(); ok {
+		c.defaultCardinality = card
+	} else {
+		c.defaultCardinality = CardinalityNotSet
+	}
 
 	initContainerID(o.containerID, fillInContainerID(o), isHostCgroupNamespace())
 	isUDS := writerName == writerNameUDS
@@ -519,7 +525,7 @@ func newWithWriter(w Transport, o *Options, writerName string) (*ClientEx, error
 	}
 
 	if o.aggregation || o.extendedAggregation || o.maxBufferedSamplesPerContext > 0 {
-		c.agg = newAggregator(&c, int64(o.maxBufferedSamplesPerContext))
+		c.agg = newAggregator(&c, int64(o.maxBufferedSamplesPerContext), o.aggregatorShardCount)
 		c.agg.start(o.aggregationFlushInterval)
 
 		if o.extendedAggregation {
@@ -679,7 +685,7 @@ func (c *ClientEx) sendBlocking(m metric) error {
 
 func (c *ClientEx) sendToAggregator(mType metricType, name string, value float64, tags []string, rate float64, f bufferedMetricSampleFunc, cardinality Cardinality) error {
 	if c.aggregatorMode == channelMode {
-		m := metric{metricType: mType, name: name, fvalue: value, tags: tags, rate: rate, overrideCard: cardinality}
+		m := metric{metricType: mType, name: name, fvalue: value, tags: tags, rate: rate, cardinality: cardinality}
 		select {
 		case c.aggExtended.inputMetrics <- m:
 		default:
@@ -703,13 +709,11 @@ func (c *ClientEx) Gauge(name string, value float64, tags []string, rate float64
 		return ErrNoClient
 	}
 	atomic.AddUint64(&c.telemetry.totalMetricsGauge, 1)
-
-	cardinality := parseTagCardinality(parameters)
-
+	cardinality := parameterCardinality(parameters, c.defaultCardinality)
 	if c.agg != nil {
 		return c.agg.gauge(name, value, tags, cardinality)
 	}
-	return c.send(metric{metricType: gauge, name: name, fvalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, originDetection: c.originDetection, overrideCard: cardinality})
+	return c.send(metric{metricType: gauge, name: name, fvalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, originDetection: c.originDetection, cardinality: cardinality})
 }
 
 // GaugeWithTimestamp measures the value of a metric at a given time.
@@ -728,8 +732,8 @@ func (c *ClientEx) GaugeWithTimestamp(name string, value float64, tags []string,
 	}
 
 	atomic.AddUint64(&c.telemetry.totalMetricsGauge, 1)
-	cardinality := parseTagCardinality(parameters)
-	return c.send(metric{metricType: gauge, name: name, fvalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, timestamp: timestamp.Unix(), originDetection: c.originDetection, overrideCard: cardinality})
+	cardinality := parameterCardinality(parameters, c.defaultCardinality)
+	return c.send(metric{metricType: gauge, name: name, fvalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, timestamp: timestamp.Unix(), originDetection: c.originDetection, cardinality: cardinality})
 }
 
 // Count tracks how many times something happened per second.
@@ -738,11 +742,11 @@ func (c *ClientEx) Count(name string, value int64, tags []string, rate float64, 
 		return ErrNoClient
 	}
 	atomic.AddUint64(&c.telemetry.totalMetricsCount, 1)
-	cardinality := parseTagCardinality(parameters)
+	cardinality := parameterCardinality(parameters, c.defaultCardinality)
 	if c.agg != nil {
 		return c.agg.count(name, value, tags, cardinality)
 	}
-	return c.send(metric{metricType: count, name: name, ivalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, originDetection: c.originDetection, overrideCard: cardinality})
+	return c.send(metric{metricType: count, name: name, ivalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, originDetection: c.originDetection, cardinality: cardinality})
 }
 
 // CountWithTimestamp tracks how many times something happened at the given second.
@@ -761,8 +765,8 @@ func (c *ClientEx) CountWithTimestamp(name string, value int64, tags []string, r
 	}
 
 	atomic.AddUint64(&c.telemetry.totalMetricsCount, 1)
-	cardinality := parseTagCardinality(parameters)
-	return c.send(metric{metricType: count, name: name, ivalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, timestamp: timestamp.Unix(), originDetection: c.originDetection, overrideCard: cardinality})
+	cardinality := parameterCardinality(parameters, c.defaultCardinality)
+	return c.send(metric{metricType: count, name: name, ivalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, timestamp: timestamp.Unix(), originDetection: c.originDetection, cardinality: cardinality})
 }
 
 // Histogram tracks the statistical distribution of a set of values on each host.
@@ -771,11 +775,11 @@ func (c *ClientEx) Histogram(name string, value float64, tags []string, rate flo
 		return ErrNoClient
 	}
 	atomic.AddUint64(&c.telemetry.totalMetricsHistogram, 1)
-	cardinality := parseTagCardinality(parameters)
+	cardinality := parameterCardinality(parameters, c.defaultCardinality)
 	if c.aggExtended != nil {
 		return c.sendToAggregator(histogram, name, value, tags, rate, c.aggExtended.histogram, cardinality)
 	}
-	return c.send(metric{metricType: histogram, name: name, fvalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, originDetection: c.originDetection, overrideCard: cardinality})
+	return c.send(metric{metricType: histogram, name: name, fvalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, originDetection: c.originDetection, cardinality: cardinality})
 }
 
 // Distribution tracks the statistical distribution of a set of values across your infrastructure.
@@ -784,11 +788,11 @@ func (c *ClientEx) Distribution(name string, value float64, tags []string, rate 
 		return ErrNoClient
 	}
 	atomic.AddUint64(&c.telemetry.totalMetricsDistribution, 1)
-	cardinality := parseTagCardinality(parameters)
+	cardinality := parameterCardinality(parameters, c.defaultCardinality)
 	if c.aggExtended != nil {
 		return c.sendToAggregator(distribution, name, value, tags, rate, c.aggExtended.distribution, cardinality)
 	}
-	return c.send(metric{metricType: distribution, name: name, fvalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, originDetection: c.originDetection, overrideCard: cardinality})
+	return c.send(metric{metricType: distribution, name: name, fvalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, originDetection: c.originDetection, cardinality: cardinality})
 }
 
 // Decr is just Count of -1
@@ -807,12 +811,11 @@ func (c *ClientEx) Set(name string, value string, tags []string, rate float64, p
 		return ErrNoClient
 	}
 	atomic.AddUint64(&c.telemetry.totalMetricsSet, 1)
-	cardinality := parseTagCardinality(parameters)
-
+	cardinality := parameterCardinality(parameters, c.defaultCardinality)
 	if c.agg != nil {
 		return c.agg.set(name, value, tags, cardinality)
 	}
-	return c.send(metric{metricType: set, name: name, svalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, originDetection: c.originDetection, overrideCard: cardinality})
+	return c.send(metric{metricType: set, name: name, svalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, originDetection: c.originDetection, cardinality: cardinality})
 }
 
 // Timing sends timing information, it is an alias for TimeInMilliseconds
@@ -827,11 +830,11 @@ func (c *ClientEx) TimeInMilliseconds(name string, value float64, tags []string,
 		return ErrNoClient
 	}
 	atomic.AddUint64(&c.telemetry.totalMetricsTiming, 1)
-	cardinality := parseTagCardinality(parameters)
+	cardinality := parameterCardinality(parameters, c.defaultCardinality)
 	if c.aggExtended != nil {
 		return c.sendToAggregator(timing, name, value, tags, rate, c.aggExtended.timing, cardinality)
 	}
-	return c.send(metric{metricType: timing, name: name, fvalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, originDetection: c.originDetection, overrideCard: cardinality})
+	return c.send(metric{metricType: timing, name: name, fvalue: value, tags: tags, rate: rate, globalTags: c.tags, namespace: c.namespace, originDetection: c.originDetection, cardinality: cardinality})
 }
 
 // Event sends the provided Event.
@@ -840,8 +843,8 @@ func (c *ClientEx) Event(e *Event, parameters ...Parameter) error {
 		return ErrNoClient
 	}
 	atomic.AddUint64(&c.telemetry.totalEvents, 1)
-	cardinality := parseTagCardinality(parameters)
-	return c.send(metric{metricType: event, evalue: e, rate: 1, globalTags: c.tags, namespace: c.namespace, originDetection: c.originDetection, overrideCard: cardinality})
+	cardinality := parameterCardinality(parameters, c.defaultCardinality)
+	return c.send(metric{metricType: event, evalue: e, rate: 1, globalTags: c.tags, namespace: c.namespace, originDetection: c.originDetection, cardinality: cardinality})
 }
 
 // SimpleEvent sends an event with the provided title and text.
@@ -856,8 +859,8 @@ func (c *ClientEx) ServiceCheck(sc *ServiceCheck, parameters ...Parameter) error
 		return ErrNoClient
 	}
 	atomic.AddUint64(&c.telemetry.totalServiceChecks, 1)
-	cardinality := parseTagCardinality(parameters)
-	return c.send(metric{metricType: serviceCheck, scvalue: sc, rate: 1, globalTags: c.tags, namespace: c.namespace, originDetection: c.originDetection, overrideCard: cardinality})
+	cardinality := parameterCardinality(parameters, c.defaultCardinality)
+	return c.send(metric{metricType: serviceCheck, scvalue: sc, rate: 1, globalTags: c.tags, namespace: c.namespace, originDetection: c.originDetection, cardinality: cardinality})
 }
 
 // SimpleServiceCheck sends an serviceCheck with the provided name and status.

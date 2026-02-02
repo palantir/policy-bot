@@ -14,18 +14,31 @@ type (
 	bufferedMetricMap map[string]*bufferedMetric
 )
 
+type countShard struct {
+	sync.RWMutex
+	counts countsMap
+}
+
+type gaugeShard struct {
+	sync.RWMutex
+	gauges gaugesMap
+}
+
+type setShard struct {
+	sync.RWMutex
+	sets setsMap
+}
+
 type aggregator struct {
 	nbContextGauge uint64
 	nbContextCount uint64
 	nbContextSet   uint64
 
-	countsM sync.RWMutex
-	gaugesM sync.RWMutex
-	setsM   sync.RWMutex
+	shardsCount int
+	countShards []*countShard
+	gaugeShards []*gaugeShard
+	setShards   []*setShard
 
-	gauges        gaugesMap
-	counts        countsMap
-	sets          setsMap
 	histograms    bufferedMetricContexts
 	distributions bufferedMetricContexts
 	timings       bufferedMetricContexts
@@ -43,18 +56,25 @@ type aggregator struct {
 	wg              sync.WaitGroup
 }
 
-func newAggregator(c *ClientEx, maxSamplesPerContext int64) *aggregator {
-	return &aggregator{
+func newAggregator(c *ClientEx, maxSamplesPerContext int64, shardsCount int) *aggregator {
+	agg := &aggregator{
 		client:          c,
-		counts:          countsMap{},
-		gauges:          gaugesMap{},
-		sets:            setsMap{},
+		shardsCount:     shardsCount,
+		countShards:     make([]*countShard, shardsCount),
+		gaugeShards:     make([]*gaugeShard, shardsCount),
+		setShards:       make([]*setShard, shardsCount),
 		histograms:      newBufferedContexts(newHistogramMetric, maxSamplesPerContext),
 		distributions:   newBufferedContexts(newDistributionMetric, maxSamplesPerContext),
 		timings:         newBufferedContexts(newTimingMetric, maxSamplesPerContext),
 		closed:          make(chan struct{}),
 		stopChannelMode: make(chan struct{}),
 	}
+	for i := 0; i < shardsCount; i++ {
+		agg.countShards[i] = &countShard{counts: countsMap{}}
+		agg.gaugeShards[i] = &gaugeShard{gauges: gaugesMap{}}
+		agg.setShards[i] = &setShard{sets: setsMap{}}
+	}
+	return agg
 }
 
 func (a *aggregator) start(flushInterval time.Duration) {
@@ -96,11 +116,11 @@ func (a *aggregator) pullMetric() {
 		case m := <-a.inputMetrics:
 			switch m.metricType {
 			case histogram:
-				a.histogram(m.name, m.fvalue, m.tags, m.rate, m.overrideCard)
+				a.histogram(m.name, m.fvalue, m.tags, m.rate, m.cardinality)
 			case distribution:
-				a.distribution(m.name, m.fvalue, m.tags, m.rate, m.overrideCard)
+				a.distribution(m.name, m.fvalue, m.tags, m.rate, m.cardinality)
 			case timing:
-				a.timing(m.name, m.fvalue, m.tags, m.rate, m.overrideCard)
+				a.timing(m.name, m.fvalue, m.tags, m.rate, m.cardinality)
 			}
 		case <-a.stopChannelMode:
 			a.wg.Done()
@@ -135,40 +155,43 @@ func (a *aggregator) flushMetrics() []metric {
 	// We reset the values to avoid sending 'zero' values for metrics not
 	// sampled during this flush interval
 
-	a.setsM.Lock()
-	sets := a.sets
-	a.sets = setsMap{}
-	a.setsM.Unlock()
-
-	for _, s := range sets {
-		metrics = append(metrics, s.flushUnsafe()...)
+	for _, shard := range a.setShards {
+		shard.Lock()
+		sets := shard.sets
+		shard.sets = setsMap{}
+		shard.Unlock()
+		for _, s := range sets {
+			metrics = append(metrics, s.flushUnsafe()...)
+		}
+		atomic.AddUint64(&a.nbContextSet, uint64(len(sets)))
 	}
 
-	a.gaugesM.Lock()
-	gauges := a.gauges
-	a.gauges = gaugesMap{}
-	a.gaugesM.Unlock()
-
-	for _, g := range gauges {
-		metrics = append(metrics, g.flushUnsafe())
+	for _, shard := range a.gaugeShards {
+		shard.Lock()
+		gauges := shard.gauges
+		shard.gauges = gaugesMap{}
+		shard.Unlock()
+		for _, g := range gauges {
+			metrics = append(metrics, g.flushUnsafe())
+		}
+		atomic.AddUint64(&a.nbContextGauge, uint64(len(gauges)))
 	}
 
-	a.countsM.Lock()
-	counts := a.counts
-	a.counts = countsMap{}
-	a.countsM.Unlock()
-
-	for _, c := range counts {
-		metrics = append(metrics, c.flushUnsafe())
+	for _, shard := range a.countShards {
+		shard.Lock()
+		counts := shard.counts
+		shard.counts = countsMap{}
+		shard.Unlock()
+		for _, c := range counts {
+			metrics = append(metrics, c.flushUnsafe())
+		}
+		atomic.AddUint64(&a.nbContextCount, uint64(len(counts)))
 	}
 
 	metrics = a.histograms.flush(metrics)
 	metrics = a.distributions.flush(metrics)
 	metrics = a.timings.flush(metrics)
 
-	atomic.AddUint64(&a.nbContextCount, uint64(len(counts)))
-	atomic.AddUint64(&a.nbContextGauge, uint64(len(gauges)))
-	atomic.AddUint64(&a.nbContextSet, uint64(len(sets)))
 	return metrics
 }
 
@@ -191,7 +214,7 @@ func getContextAndTags(name string, tags []string, cardinality Cardinality) (str
 		if cardString == "" {
 			return name, ""
 		}
-		return name + nameSeparatorSymbol + cardinality.String(), ""
+		return name + nameSeparatorSymbol + cardString, ""
 	}
 
 	n := len(name) + len(nameSeparatorSymbol) + len(tagSeparatorSymbol)*(len(tags)-1)
@@ -223,79 +246,86 @@ func getContextAndTags(name string, tags []string, cardinality Cardinality) (str
 	return s, s[len(name)+len(nameSeparatorSymbol)+cardStringLen:]
 }
 
+func getShardIndex(shardsCount int, context string) int {
+	if shardsCount <= 1 {
+		return 0
+	}
+	return int(hashString32(context) % uint32(shardsCount))
+}
+
 func (a *aggregator) count(name string, value int64, tags []string, cardinality Cardinality) error {
-	resolvedCardinality := resolveCardinality(cardinality)
-	context := getContext(name, tags, resolvedCardinality)
-	a.countsM.RLock()
-	if count, found := a.counts[context]; found {
+	context := getContext(name, tags, cardinality)
+	shard := a.countShards[getShardIndex(a.shardsCount, context)]
+	shard.RLock()
+	if count, found := shard.counts[context]; found {
 		count.sample(value)
-		a.countsM.RUnlock()
+		shard.RUnlock()
 		return nil
 	}
-	a.countsM.RUnlock()
+	shard.RUnlock()
 
-	metric := newCountMetric(name, value, tags, resolvedCardinality)
+	metric := newCountMetric(name, value, tags, cardinality)
 
-	a.countsM.Lock()
-	// Check if another goroutines hasn't created the value betwen the RUnlock and 'Lock'
-	if count, found := a.counts[context]; found {
+	shard.Lock()
+	// Check if another goroutines hasn't created the value between the RUnlock and 'Lock'
+	if count, found := shard.counts[context]; found {
 		count.sample(value)
-		a.countsM.Unlock()
+		shard.Unlock()
 		return nil
 	}
 
-	a.counts[context] = metric
-	a.countsM.Unlock()
+	shard.counts[context] = metric
+	shard.Unlock()
 	return nil
 }
 
 func (a *aggregator) gauge(name string, value float64, tags []string, cardinality Cardinality) error {
-	resolvedCardinality := resolveCardinality(cardinality)
-	context := getContext(name, tags, resolvedCardinality)
-	a.gaugesM.RLock()
-	if gauge, found := a.gauges[context]; found {
+	context := getContext(name, tags, cardinality)
+	shard := a.gaugeShards[getShardIndex(a.shardsCount, context)]
+	shard.RLock()
+	if gauge, found := shard.gauges[context]; found {
 		gauge.sample(value)
-		a.gaugesM.RUnlock()
+		shard.RUnlock()
 		return nil
 	}
-	a.gaugesM.RUnlock()
+	shard.RUnlock()
 
-	gauge := newGaugeMetric(name, value, tags, resolvedCardinality)
+	gauge := newGaugeMetric(name, value, tags, cardinality)
 
-	a.gaugesM.Lock()
-	// Check if another goroutines hasn't created the value betwen the 'RUnlock' and 'Lock'
-	if gauge, found := a.gauges[context]; found {
+	shard.Lock()
+	// Check if another goroutines hasn't created the value between the 'RUnlock' and 'Lock'
+	if gauge, found := shard.gauges[context]; found {
 		gauge.sample(value)
-		a.gaugesM.Unlock()
+		shard.Unlock()
 		return nil
 	}
-	a.gauges[context] = gauge
-	a.gaugesM.Unlock()
+	shard.gauges[context] = gauge
+	shard.Unlock()
 	return nil
 }
 
 func (a *aggregator) set(name string, value string, tags []string, cardinality Cardinality) error {
-	resolvedCardinality := resolveCardinality(cardinality)
-	context := getContext(name, tags, resolvedCardinality)
-	a.setsM.RLock()
-	if set, found := a.sets[context]; found {
+	context := getContext(name, tags, cardinality)
+	shard := a.setShards[getShardIndex(a.shardsCount, context)]
+	shard.RLock()
+	if set, found := shard.sets[context]; found {
 		set.sample(value)
-		a.setsM.RUnlock()
+		shard.RUnlock()
 		return nil
 	}
-	a.setsM.RUnlock()
+	shard.RUnlock()
 
-	metric := newSetMetric(name, value, tags, resolvedCardinality)
+	metric := newSetMetric(name, value, tags, cardinality)
 
-	a.setsM.Lock()
-	// Check if another goroutines hasn't created the value betwen the 'RUnlock' and 'Lock'
-	if set, found := a.sets[context]; found {
+	shard.Lock()
+	// Check if another goroutines hasn't created the value between the 'RUnlock' and 'Lock'
+	if set, found := shard.sets[context]; found {
 		set.sample(value)
-		a.setsM.Unlock()
+		shard.Unlock()
 		return nil
 	}
-	a.sets[context] = metric
-	a.setsM.Unlock()
+	shard.sets[context] = metric
+	shard.Unlock()
 	return nil
 }
 

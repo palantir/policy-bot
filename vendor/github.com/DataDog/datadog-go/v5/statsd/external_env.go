@@ -2,6 +2,7 @@ package statsd
 
 import (
 	"os"
+	"sync"
 	"unicode"
 )
 
@@ -9,14 +10,17 @@ import (
 const ddExternalEnvVarName = "DD_EXTERNAL_ENV"
 
 var (
-	externalEnv = ""
+	externalEnv   = ""
+	externalEnvMu sync.RWMutex // Protects concurrent access to externalEnv
 )
 
 // initExternalEnv initializes the external environment name.
 func initExternalEnv() {
 	var value = os.Getenv(ddExternalEnvVarName)
 	if value != "" {
+		externalEnvMu.Lock()
 		externalEnv = sanitizeExternalEnv(value)
+		externalEnvMu.Unlock()
 	}
 }
 
@@ -36,5 +40,7 @@ func sanitizeExternalEnv(externalEnv string) string {
 }
 
 func getExternalEnv() string {
+	externalEnvMu.RLock()
+	defer externalEnvMu.RUnlock()
 	return externalEnv
 }

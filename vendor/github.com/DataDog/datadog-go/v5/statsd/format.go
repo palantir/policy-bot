@@ -296,10 +296,8 @@ func appendExternalEnv(buffer []byte, originDetection bool) []byte {
 	return buffer
 }
 
-func appendTagCardinality(buffer []byte, overrideCard Cardinality) []byte {
-	// Check if the user has provided a valid cardinality parameter. If not, use the global setting.
-	cardString := resolveCardinality(overrideCard).String()
-
+func appendTagCardinality(buffer []byte, cardinality Cardinality) []byte {
+	cardString := cardinality.String()
 	if cardString != "" {
 		buffer = append(buffer, "|card:"...)
 		buffer = append(buffer, cardString...)
