@@ -187,6 +187,7 @@ var initialisms = map[string]struct{}{
 	"CSS":   {},
 	"DNS":   {},
 	"EOF":   {},
+	"EPSS":  {},
 	"GUID":  {},
 	"HTML":  {},
 	"HTTP":  {},
