@@ -34,14 +34,23 @@ type Simulate struct {
 	Base
 }
 
+// PartialError represents an error from a child rule that was suppressed by its
+// parent (e.g. an Or requirement that cleared the error because a sibling was
+// pending or approved)
+type PartialError struct {
+	Rule  string `json:"rule"`
+	Error string `json:"error"`
+}
+
 // SimulationResponse is the response returned from Simulate, this is a trimmed down version of common.Result with json
 // tags. This struct and the newSimulationResponse constructor can be extended to include extra content from common.Result.
 type SimulationResponse struct {
-	Name              string `json:"name"`
-	Description       string `json:"description:"`
-	StatusDescription string `json:"status_description"`
-	Status            string `json:"status"`
-	Error             string `json:"error"`
+	Name              string          `json:"name"`
+	Description       string          `json:"description:"`
+	StatusDescription string          `json:"status_description"`
+	Status            string          `json:"status"`
+	Error             string          `json:"error"`
+	PartialErrors     []*PartialError `json:"partial_errors,omitempty"`
 }
 
 type ErrorResponse struct {
@@ -174,9 +183,30 @@ func newSimulationResponse(result *common.Result) *SimulationResponse {
 		response.Description = result.Description
 		response.StatusDescription = result.StatusDescription
 		response.Status = result.Status.String()
+		response.PartialErrors = collectPartialErrors(result)
 	}
 
 	return &response
+}
+
+// collectPartialErrors walks the Result tree and returns errors from child
+// results where the child has a non-nil Error but the parent's Error is nil.
+func collectPartialErrors(result *common.Result) []*PartialError {
+	if result == nil {
+		return nil
+	}
+
+	var partials []*PartialError
+	for _, child := range result.Children {
+		if child.Error != nil && result.Error == nil {
+			partials = append(partials, &PartialError{
+				Rule:  child.Name,
+				Error: child.Error.Error(),
+			})
+		}
+		partials = append(partials, collectPartialErrors(child)...)
+	}
+	return partials
 }
 
 func writeAPIError(w http.ResponseWriter, code int, message string) error {
