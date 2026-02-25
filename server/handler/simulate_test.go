@@ -24,128 +24,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCollectPartialErrors(t *testing.T) {
-	tests := map[string]struct {
-		Result   *common.Result
-		Expected []*PartialError
-	}{
-		"nil result": {
-			Result:   nil,
-			Expected: nil,
-		},
-		"no errors": {
-			Result: &common.Result{
-				Name:   "policy",
-				Status: common.StatusApproved,
-				Children: []*common.Result{
-					{Name: "rule-a", Status: common.StatusApproved},
-					{Name: "rule-b", Status: common.StatusApproved},
-				},
-			},
-			Expected: nil,
-		},
-		"top-level error only, no children": {
-			Result: &common.Result{
-				Name:   "policy",
-				Status: common.StatusPending,
-				Error:  fmt.Errorf("top-level failure"),
-			},
-			Expected: nil,
-		},
-		"or: errored child with pending sibling": {
-			Result: &common.Result{
-				Name:   "or",
-				Status: common.StatusPending,
-				Error:  nil,
-				Children: []*common.Result{
-					{Name: "rule-a", Status: common.StatusPending},
-					{Name: "rule-b", Error: fmt.Errorf("rule-b failed")},
-				},
-			},
-			Expected: []*PartialError{
-				{Rule: "rule-b", Error: "rule-b failed"},
-			},
-		},
-		"or: errored child with approved sibling": {
-			Result: &common.Result{
-				Name:   "or",
-				Status: common.StatusApproved,
-				Error:  nil,
-				Children: []*common.Result{
-					{Name: "rule-a", Status: common.StatusApproved},
-					{Name: "rule-b", Error: fmt.Errorf("rule-b failed")},
-				},
-			},
-			Expected: []*PartialError{
-				{Rule: "rule-b", Error: "rule-b failed"},
-			},
-		},
-		"and: errored child not suppressed": {
-			Result: &common.Result{
-				Name:   "and",
-				Status: common.StatusPending,
-				Error:  fmt.Errorf("child error propagated"),
-				Children: []*common.Result{
-					{Name: "rule-a", Status: common.StatusApproved},
-					{Name: "rule-b", Error: fmt.Errorf("rule-b failed")},
-				},
-			},
-			Expected: nil,
-		},
-		"nested: policy -> approval -> or -> children": {
-			Result: &common.Result{
-				Name:   "policy",
-				Status: common.StatusPending,
-				Error:  nil,
-				Children: []*common.Result{
-					{
-						Name:   "approval-rule",
-						Status: common.StatusPending,
-						Error:  nil,
-						Children: []*common.Result{
-							{
-								Name:   "or",
-								Status: common.StatusPending,
-								Error:  nil,
-								Children: []*common.Result{
-									{Name: "rule-a", Status: common.StatusPending},
-									{Name: "rule-b", Error: fmt.Errorf("deep error")},
-								},
-							},
-						},
-					},
-				},
-			},
-			Expected: []*PartialError{
-				{Rule: "rule-b", Error: "deep error"},
-			},
-		},
-		"multiple suppressed errors": {
-			Result: &common.Result{
-				Name:   "or",
-				Status: common.StatusPending,
-				Error:  nil,
-				Children: []*common.Result{
-					{Name: "rule-a", Status: common.StatusPending},
-					{Name: "rule-b", Error: fmt.Errorf("rule-b failed")},
-					{Name: "rule-c", Error: fmt.Errorf("rule-c failed")},
-				},
-			},
-			Expected: []*PartialError{
-				{Rule: "rule-b", Error: "rule-b failed"},
-				{Rule: "rule-c", Error: "rule-c failed"},
-			},
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			result := collectPartialErrors(test.Result)
-			assert.Equal(t, test.Expected, result)
-		})
-	}
-}
-
 func TestNewSimulationResponse(t *testing.T) {
 	tests := map[string]struct {
 		Result   *common.Result
@@ -155,7 +33,7 @@ func TestNewSimulationResponse(t *testing.T) {
 			Result:   nil,
 			Expected: &SimulationResponse{},
 		},
-		"result with no errors": {
+		"result with no errors and no children": {
 			Result: &common.Result{
 				Name:              "my-policy",
 				Description:       "a policy",
@@ -181,23 +59,65 @@ func TestNewSimulationResponse(t *testing.T) {
 				Error:  "something broke",
 			},
 		},
-		"result with partial errors": {
+		"result with children": {
 			Result: &common.Result{
 				Name:              "or",
 				Status:            common.StatusPending,
 				StatusDescription: "None of the rules are satisfied",
-				Error:             nil,
 				Children: []*common.Result{
 					{Name: "rule-a", Status: common.StatusPending},
-					{Name: "rule-b", Error: fmt.Errorf("rule-b failed")},
+					{Name: "rule-b", Status: common.StatusApproved, Error: fmt.Errorf("rule-b failed")},
 				},
 			},
 			Expected: &SimulationResponse{
 				Name:              "or",
 				Status:            "pending",
 				StatusDescription: "None of the rules are satisfied",
-				PartialErrors: []*PartialError{
-					{Rule: "rule-b", Error: "rule-b failed"},
+				Children: []*SimulationResponse{
+					{Name: "rule-a", Status: "pending"},
+					{Name: "rule-b", Status: "approved", Error: "rule-b failed"},
+				},
+			},
+		},
+		"nested tree": {
+			Result: &common.Result{
+				Name:   "policy",
+				Status: common.StatusPending,
+				Children: []*common.Result{
+					{
+						Name:   "approval-rule",
+						Status: common.StatusPending,
+						Children: []*common.Result{
+							{
+								Name:   "or",
+								Status: common.StatusPending,
+								Children: []*common.Result{
+									{Name: "rule-a", Status: common.StatusPending},
+									{Name: "rule-b", Status: common.StatusSkipped, Error: fmt.Errorf("deep error")},
+								},
+							},
+						},
+					},
+				},
+			},
+			Expected: &SimulationResponse{
+				Name:   "policy",
+				Status: "pending",
+				Children: []*SimulationResponse{
+					{
+						Name:   "approval-rule",
+						Status: "pending",
+						Children: []*SimulationResponse{
+							{
+								Name:   "or",
+								Status: "pending",
+								Children: []*SimulationResponse{
+									{Name: "rule-a", Status: "pending"},
+									{Name: "rule-b", Status: "skipped", Error: "deep error"},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -219,8 +139,8 @@ func TestSimulationResponseJSON(t *testing.T) {
 			StatusDescription: "all rules approved",
 			Status:            "approved",
 			Error:             "something broke",
-			PartialErrors: []*PartialError{
-				{Rule: "rule-b", Error: "rule-b failed"},
+			Children: []*SimulationResponse{
+				{Name: "rule-a", Status: "approved"},
 			},
 		}
 
@@ -231,13 +151,13 @@ func TestSimulationResponseJSON(t *testing.T) {
 		err = json.Unmarshal(data, &fields)
 		require.NoError(t, err)
 
-		expectedKeys := []string{"name", "description:", "status_description", "status", "error", "partial_errors"}
+		expectedKeys := []string{"name", "description", "status_description", "status", "error", "children"}
 		for _, key := range expectedKeys {
 			assert.Contains(t, fields, key, "missing expected JSON field %q", key)
 		}
 	})
 
-	t.Run("partial_errors omitted when empty", func(t *testing.T) {
+	t.Run("children omitted when empty", func(t *testing.T) {
 		resp := &SimulationResponse{
 			Name:   "my-policy",
 			Status: "approved",
@@ -250,6 +170,6 @@ func TestSimulationResponseJSON(t *testing.T) {
 		err = json.Unmarshal(data, &fields)
 		require.NoError(t, err)
 
-		assert.NotContains(t, fields, "partial_errors")
+		assert.NotContains(t, fields, "children")
 	})
 }
