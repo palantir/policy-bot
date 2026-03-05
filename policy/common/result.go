@@ -69,6 +69,10 @@ type Result struct {
 	PredicateResults  []*PredicateResult
 	Methods           *Methods
 
+	// AutoApprove indicates this rule should trigger a GitHub APPROVE review
+	// when the overall policy evaluates to approved.
+	AutoApprove bool
+
 	// Requires contains the result of evaluating the rule's
 	// requirements.
 	Requires RequiresResult

@@ -16,6 +16,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"slices"
 	"time"
@@ -27,6 +28,63 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
+
+func (ec *EvalContext) autoApproveReviewsForResult(ctx context.Context, trigger common.Trigger, result common.Result) error {
+	if !hasAutoApproveRule(&result) {
+		return nil
+	}
+
+	logger := zerolog.Ctx(ctx)
+	owner := ec.PullContext.RepositoryOwner()
+	repoName := ec.PullContext.RepositoryName()
+	number := ec.PullContext.Number()
+
+	if ec.PullContext.IsDraft() || result.Status != common.StatusApproved {
+		msg := fmt.Sprintf("pull request: %s/%s/%d is not approved", owner, repoName, number)
+		logger.Debug().Str("status", result.Status.String()).Msg(msg)
+		return nil
+	}
+
+	reviewTrigger := ^(common.TriggerComment | common.TriggerReview)
+	if !trigger.Matches(reviewTrigger) {
+		return nil
+	}
+
+	// if head commit is already approved, skip this step
+	headSha := ec.PullContext.HeadSHA()
+	reviews, err := ec.PullContext.Reviews()
+	if err != nil {
+		return err
+	}
+
+	for _, r := range reviews {
+		if headSha == r.SHA && r.State == pull.ReviewApproved {
+			msg := fmt.Sprintf("pull request: %s/%s/%d already approved. skipping auto approval", owner, repoName, number)
+			logger.Debug().Msg(msg)
+			return nil
+		}
+	}
+
+	//approve latest commit
+	rev := &github.PullRequestReviewRequest{
+		CommitID: github.String(headSha),
+		Body:     github.String("LGTM!"),
+		Event:    github.String("APPROVE"),
+	}
+
+	_, _, err = ec.Client.PullRequests.CreateReview(ctx, owner, repoName, number, rev)
+	if err != nil {
+		return err
+	}
+
+	msg := fmt.Sprintf("Auto approving pr: %s/%s/%d", owner, repoName, number)
+	logger.Debug().
+		Str("event_trigger", trigger.String()).
+		Str("status", result.Status.String()).
+		Msg(msg)
+
+	return nil
+}
 
 func (ec *EvalContext) requestReviewsForResult(ctx context.Context, trigger common.Trigger, result common.Result) error {
 	logger := zerolog.Ctx(ctx)
@@ -159,4 +217,18 @@ func selectionToReviewersRequest(s reviewer.Selection) github.ReviewersRequest {
 	req.TeamReviewers = slices.Compact(req.TeamReviewers)
 
 	return req
+}
+
+// hasAutoApproveRule walks the result tree and returns true if any approved
+// rule has AutoApprove set.
+func hasAutoApproveRule(result *common.Result) bool {
+	if result.AutoApprove && result.Status == common.StatusApproved {
+		return true
+	}
+	for _, child := range result.Children {
+		if hasAutoApproveRule(child) {
+			return true
+		}
+	}
+	return false
 }
