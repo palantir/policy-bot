@@ -21,39 +21,39 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestHasAutoApproveRule(t *testing.T) {
+func TestHasPostGithubReviewRule(t *testing.T) {
 	tests := map[string]struct {
 		Result   *common.Result
 		Expected bool
 	}{
-		"noAutoApprove": {
+		"noPostGithubReview": {
 			Result: &common.Result{
 				Status: common.StatusApproved,
 			},
 			Expected: false,
 		},
-		"autoApproveAndApproved": {
+		"postGithubReviewAndApproved": {
 			Result: &common.Result{
-				AutoApprove: true,
-				Status:      common.StatusApproved,
+				PostGithubReview: true,
+				Status:           common.StatusApproved,
 			},
 			Expected: true,
 		},
-		"autoApproveButPending": {
+		"postGithubReviewButPending": {
 			Result: &common.Result{
-				AutoApprove: true,
-				Status:      common.StatusPending,
+				PostGithubReview: true,
+				Status:           common.StatusPending,
 			},
 			Expected: false,
 		},
-		"autoApproveButSkipped": {
+		"postGithubReviewButSkipped": {
 			Result: &common.Result{
-				AutoApprove: true,
-				Status:      common.StatusSkipped,
+				PostGithubReview: true,
+				Status:           common.StatusSkipped,
 			},
 			Expected: false,
 		},
-		"childHasAutoApproveAndApproved": {
+		"childHasPostGithubReviewAndApproved": {
 			Result: &common.Result{
 				Status: common.StatusApproved,
 				Children: []*common.Result{
@@ -61,26 +61,26 @@ func TestHasAutoApproveRule(t *testing.T) {
 						Status: common.StatusApproved,
 					},
 					{
-						AutoApprove: true,
-						Status:      common.StatusApproved,
+						PostGithubReview: true,
+						Status:           common.StatusApproved,
 					},
 				},
 			},
 			Expected: true,
 		},
-		"childHasAutoApproveButPending": {
+		"childHasPostGithubReviewButPending": {
 			Result: &common.Result{
 				Status: common.StatusPending,
 				Children: []*common.Result{
 					{
-						AutoApprove: true,
-						Status:      common.StatusPending,
+						PostGithubReview: true,
+						Status:           common.StatusPending,
 					},
 				},
 			},
 			Expected: false,
 		},
-		"deeplyNestedAutoApprove": {
+		"deeplyNestedPostGithubReview": {
 			Result: &common.Result{
 				Status: common.StatusApproved,
 				Children: []*common.Result{
@@ -88,8 +88,8 @@ func TestHasAutoApproveRule(t *testing.T) {
 						Status: common.StatusApproved,
 						Children: []*common.Result{
 							{
-								AutoApprove: true,
-								Status:      common.StatusApproved,
+								PostGithubReview: true,
+								Status:           common.StatusApproved,
 							},
 						},
 					},
@@ -97,7 +97,7 @@ func TestHasAutoApproveRule(t *testing.T) {
 			},
 			Expected: true,
 		},
-		"multipleChildrenOnlyOneAutoApprove": {
+		"multipleChildrenOnlyOnePostGithubReview": {
 			Result: &common.Result{
 				Status: common.StatusApproved,
 				Children: []*common.Result{
@@ -108,8 +108,8 @@ func TestHasAutoApproveRule(t *testing.T) {
 						Status: common.StatusApproved,
 					},
 					{
-						AutoApprove: true,
-						Status:      common.StatusApproved,
+						PostGithubReview: true,
+						Status:           common.StatusApproved,
 					},
 				},
 			},
@@ -123,7 +123,7 @@ func TestHasAutoApproveRule(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			actual := hasAutoApproveRule(test.Result)
+			actual := hasPostGithubReviewRule(test.Result)
 			assert.Equal(t, test.Expected, actual)
 		})
 	}

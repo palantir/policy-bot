@@ -29,8 +29,8 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func (ec *EvalContext) autoApproveReviewsForResult(ctx context.Context, trigger common.Trigger, result common.Result) error {
-	if !hasAutoApproveRule(&result) {
+func (ec *EvalContext) postGithubReviewsForResult(ctx context.Context, trigger common.Trigger, result common.Result) error {
+	if !hasPostGithubReviewRule(&result) {
 		return nil
 	}
 
@@ -219,14 +219,14 @@ func selectionToReviewersRequest(s reviewer.Selection) github.ReviewersRequest {
 	return req
 }
 
-// hasAutoApproveRule walks the result tree and returns true if any approved
-// rule has AutoApprove set.
-func hasAutoApproveRule(result *common.Result) bool {
-	if result.AutoApprove && result.Status == common.StatusApproved {
+// hasPostGithubReviewRule walks the result tree and returns true if any approved
+// rule has PostGithubReview set.
+func hasPostGithubReviewRule(result *common.Result) bool {
+	if result.PostGithubReview && result.Status == common.StatusApproved {
 		return true
 	}
 	for _, child := range result.Children {
-		if hasAutoApproveRule(child) {
+		if hasPostGithubReviewRule(child) {
 			return true
 		}
 	}
