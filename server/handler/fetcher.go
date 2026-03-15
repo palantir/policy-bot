@@ -27,6 +27,11 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// ConfigLoader allows ConfigFetcher to unit test policy loading decisions
+type ConfigLoader interface {
+	LoadConfig(ctx context.Context, client *github.Client, owner, repo, ref string) (appconfig.Config, error)
+}
+
 type FetchedConfig struct {
 	Config     *policy.Config
 	LoadError  error
@@ -34,13 +39,22 @@ type FetchedConfig struct {
 
 	Source string
 	Path   string
+
+	SeenPolicy bool
 }
 
 type ConfigFetcher struct {
-	Loader *appconfig.Loader
+	Loader          ConfigLoader
+	SeenPolicyCache *SeenPolicyCache
 }
 
 func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *github.Client, owner, repository, branch string) FetchedConfig {
+	key := SeenPolicyKey{
+		Owner:      owner,
+		Repository: repository,
+		BaseBranch: branch,
+	}
+
 	retries := 0
 	delay := 1 * time.Second
 	for {
@@ -51,6 +65,7 @@ func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *
 		}
 
 		if err != nil {
+			fc.SeenPolicy = cf.SeenPolicyCache.Get(key)
 			if !os.IsTimeout(err) && !isServerError(err) {
 				fc.LoadError = err
 				return fc
@@ -75,6 +90,10 @@ func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *
 		if c.IsUndefined() {
 			return fc
 		}
+
+		cf.SeenPolicyCache.Set(key)
+		// Mark the branch as having seen a policy even if parsing fails below.
+		fc.SeenPolicy = true
 
 		var pc policy.Config
 		if err := yaml.UnmarshalStrict(c.Content, &pc); err != nil {

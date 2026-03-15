@@ -148,6 +148,8 @@ func New(c *Config) (*Server, error) {
 		return nil, errors.Wrap(err, "failed to initialize global cache")
 	}
 
+	seenPolicyCache := handler.NewSeenPolicyCache()
+
 	policyPaths := []string{c.Options.PolicyPath}
 	if c.Options.ForceSharedPolicy {
 		policyPaths = []string{}
@@ -170,6 +172,7 @@ func New(c *Config) (*Server, error) {
 				policyPaths,
 				appconfig.WithOwnerDefault(*c.Options.SharedRepository, sharedPolicyPaths),
 			),
+			SeenPolicyCache: seenPolicyCache,
 		},
 
 		AppName: app.GetSlug(),
