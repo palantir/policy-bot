@@ -210,6 +210,9 @@ func New(c *Config) (*Server, error) {
 		},
 
 		AppName: app.GetSlug(),
+		AppID:   app.GetID(),
+
+		Debouncer: handler.NewStatusDebouncer(handler.DefaultDebounceWindow),
 	}
 
 	queueSize := c.Workers.QueueSize
