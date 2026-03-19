@@ -126,9 +126,37 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 	} else {
 		res.Status = common.StatusPending
 		res.ReviewRequestRule = r.getReviewRequestRule()
+		res.PendingOnConditionsOnly = r.isPendingOnConditionsOnly(result)
 	}
 
 	return
+}
+
+// isPendingOnConditionsOnly determines if the rule's pending status is purely
+// due to unsatisfied automated conditions (CI status checks, workflow results)
+// rather than missing actor approvals or human-action conditions (labels, file
+// changes, etc.). This is used to decide whether pending_as_failure should
+// report "pending" (waiting for CI) or "failure" (human action needed).
+func (r *Rule) isPendingOnConditionsOnly(result common.RequiresResult) bool {
+	if !result.ActorsApproved || result.ConditionsApproved {
+		return false
+	}
+
+	// Verify that ALL unsatisfied conditions are automated (CI/status
+	// checks). Only predicates with TriggerStatus — has_status,
+	// has_successful_status, has_workflow_result — are considered automated.
+	// Other conditions like has_labels, changed_files, title, etc. require
+	// human action and should not suppress pending_as_failure.
+	predicates := r.Requires.Conditions.Predicates()
+	if len(predicates) != len(result.Conditions) {
+		return false
+	}
+	for i, c := range result.Conditions {
+		if !c.Satisfied && predicates[i].Trigger() != common.TriggerStatus {
+			return false
+		}
+	}
+	return true
 }
 
 func (r *Rule) getReviewRequestRule() *common.ReviewRequestRule {
@@ -171,11 +199,13 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context, candidates []
 	}
 
 	result := common.RequiresResult{
-		Count:           r.Requires.Count,
-		Actors:          r.Requires.Actors,
-		Approvers:       approvers,
-		Conditions:      conditions,
-		OwnershipGroups: ownershipGroups,
+		Count:              r.Requires.Count,
+		Actors:             r.Requires.Actors,
+		Approvers:          approvers,
+		ActorsApproved:     approvedByActors,
+		Conditions:         conditions,
+		ConditionsApproved: approvedByConditions,
+		OwnershipGroups:    ownershipGroups,
 	}
 	return approvedByActors && approvedByConditions, result, nil
 }

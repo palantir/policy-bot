@@ -255,3 +255,159 @@ func TestOrRequirement(t *testing.T) {
 	assert.NoError(t, result.Error)
 	assert.Equal(t, common.StatusApproved, result.Status)
 }
+
+func TestAndRequirement_PendingOnConditionsOnly(t *testing.T) {
+	ctx := context.Background()
+	prctx := &pulltest.Context{}
+
+	tests := map[string]struct {
+		children []common.Evaluator
+		expected bool
+	}{
+		"all_pending_conditions_only": {
+			children: []common.Evaluator{
+				&mockRequirement{result: &common.Result{
+					Status:                  common.StatusPending,
+					PendingOnConditionsOnly: true,
+				}},
+				&mockRequirement{result: &common.Result{
+					Status:                  common.StatusPending,
+					PendingOnConditionsOnly: true,
+				}},
+			},
+			expected: true,
+		},
+		"one_pending_needs_human": {
+			children: []common.Evaluator{
+				&mockRequirement{result: &common.Result{
+					Status:                  common.StatusPending,
+					PendingOnConditionsOnly: true,
+				}},
+				&mockRequirement{result: &common.Result{
+					Status:                  common.StatusPending,
+					PendingOnConditionsOnly: false,
+				}},
+			},
+			expected: false,
+		},
+		"all_pending_need_human": {
+			children: []common.Evaluator{
+				&mockRequirement{result: &common.Result{
+					Status:                  common.StatusPending,
+					PendingOnConditionsOnly: false,
+				}},
+				&mockRequirement{result: &common.Result{
+					Status:                  common.StatusPending,
+					PendingOnConditionsOnly: false,
+				}},
+			},
+			expected: false,
+		},
+		"mix_of_approved_and_conditions_only_pending": {
+			children: []common.Evaluator{
+				&mockRequirement{result: &common.Result{
+					Status: common.StatusApproved,
+				}},
+				&mockRequirement{result: &common.Result{
+					Status:                  common.StatusPending,
+					PendingOnConditionsOnly: true,
+				}},
+			},
+			expected: true,
+		},
+		"not_pending_overall_ignores_flag": {
+			children: []common.Evaluator{
+				&mockRequirement{result: &common.Result{
+					Status: common.StatusApproved,
+				}},
+			},
+			expected: false,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			and := &AndRequirement{requirements: test.children}
+			result := and.Evaluate(ctx, prctx)
+			assert.Equal(t, test.expected, result.PendingOnConditionsOnly)
+		})
+	}
+}
+
+func TestOrRequirement_PendingOnConditionsOnly(t *testing.T) {
+	ctx := context.Background()
+	prctx := &pulltest.Context{}
+
+	tests := map[string]struct {
+		children []common.Evaluator
+		expected bool
+	}{
+		"all_pending_conditions_only": {
+			children: []common.Evaluator{
+				&mockRequirement{result: &common.Result{
+					Status:                  common.StatusPending,
+					PendingOnConditionsOnly: true,
+				}},
+				&mockRequirement{result: &common.Result{
+					Status:                  common.StatusPending,
+					PendingOnConditionsOnly: true,
+				}},
+			},
+			expected: true,
+		},
+		"one_pending_needs_human_makes_or_false": {
+			children: []common.Evaluator{
+				&mockRequirement{result: &common.Result{
+					Status:                  common.StatusPending,
+					PendingOnConditionsOnly: true,
+				}},
+				&mockRequirement{result: &common.Result{
+					Status:                  common.StatusPending,
+					PendingOnConditionsOnly: false,
+				}},
+			},
+			expected: false,
+		},
+		"all_pending_need_human": {
+			children: []common.Evaluator{
+				&mockRequirement{result: &common.Result{
+					Status:                  common.StatusPending,
+					PendingOnConditionsOnly: false,
+				}},
+			},
+			expected: false,
+		},
+		"single_pending_conditions_only_with_skipped": {
+			children: []common.Evaluator{
+				&mockRequirement{result: &common.Result{
+					Status:                  common.StatusPending,
+					PendingOnConditionsOnly: true,
+				}},
+				&mockRequirement{result: &common.Result{
+					Status: common.StatusSkipped,
+				}},
+			},
+			expected: true,
+		},
+		"approved_overall_ignores_flag": {
+			children: []common.Evaluator{
+				&mockRequirement{result: &common.Result{
+					Status: common.StatusApproved,
+				}},
+				&mockRequirement{result: &common.Result{
+					Status:                  common.StatusPending,
+					PendingOnConditionsOnly: true,
+				}},
+			},
+			expected: false,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			or := &OrRequirement{requirements: test.children}
+			result := or.Evaluate(ctx, prctx)
+			assert.Equal(t, test.expected, result.PendingOnConditionsOnly)
+		})
+	}
+}
