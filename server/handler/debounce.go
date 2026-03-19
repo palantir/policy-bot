@@ -99,6 +99,8 @@ func (d *StatusDebouncer) Deduplicate(key string, trailingFn func()) bool {
 }
 
 // DebounceKey builds a deduplication key for a pull request evaluation.
-func DebounceKey(owner, repo string, number int, trigger string) string {
-	return fmt.Sprintf("%s/%s/%d/%s", owner, repo, number, trigger)
+// The key is per-PR only (owner/repo/number) so that different event types
+// (e.g. pull_request and workflow_run) for the same PR are collapsed.
+func DebounceKey(owner, repo string, number int) string {
+	return fmt.Sprintf("%s/%s/%d", owner, repo, number)
 }
