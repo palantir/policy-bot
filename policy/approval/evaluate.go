@@ -143,11 +143,11 @@ func (r *OrRequirement) Evaluate(ctx context.Context, prctx pull.Context) common
 	}
 
 	return common.Result{
-		Name:                   "or",
-		Status:                 status,
-		StatusDescription:      description,
-		Error:                  err,
-		Children:               children,
+		Name:                    "or",
+		Status:                  status,
+		StatusDescription:       description,
+		Error:                   err,
+		Children:                children,
 		PendingOnConditionsOnly: pendingOnConditionsOnly,
 	}
 }
@@ -216,11 +216,11 @@ func (r *AndRequirement) Evaluate(ctx context.Context, prctx pull.Context) commo
 	}
 
 	return common.Result{
-		Name:                   "and",
-		Status:                 status,
-		StatusDescription:      description,
-		Error:                  err,
-		Children:               children,
+		Name:                    "and",
+		Status:                  status,
+		StatusDescription:       description,
+		Error:                   err,
+		Children:                children,
 		PendingOnConditionsOnly: pendingOnConditionsOnly,
 	}
 }

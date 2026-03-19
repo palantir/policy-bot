@@ -40,12 +40,12 @@ func TestEvalContext_EvaluatePolicy_PendingAsFailure(t *testing.T) {
 	ctx := context.Background()
 
 	tests := map[string]struct {
-		serverPendingAsFailure bool
-		policyPendingAsFailure *bool
-		resultStatus           common.EvaluationStatus
+		serverPendingAsFailure  bool
+		policyPendingAsFailure  *bool
+		resultStatus            common.EvaluationStatus
 		pendingOnConditionsOnly bool
-		expectedStatus         string
-		expectedConclusion     string
+		expectedStatus          string
+		expectedConclusion      string
 	}{
 		"default_pending_returns_in_progress": {
 			serverPendingAsFailure: false,
@@ -104,28 +104,28 @@ func TestEvalContext_EvaluatePolicy_PendingAsFailure(t *testing.T) {
 			expectedConclusion:     "failure",
 		},
 		"pending_on_conditions_only_returns_pending_despite_pending_as_failure": {
-			serverPendingAsFailure: true,
-			policyPendingAsFailure: nil,
-			resultStatus:           common.StatusPending,
+			serverPendingAsFailure:  true,
+			policyPendingAsFailure:  nil,
+			resultStatus:            common.StatusPending,
 			pendingOnConditionsOnly: true,
-			expectedStatus:         "in_progress",
-			expectedConclusion:     "",
+			expectedStatus:          "in_progress",
+			expectedConclusion:      "",
 		},
 		"pending_on_conditions_only_with_policy_override_returns_pending": {
-			serverPendingAsFailure: false,
-			policyPendingAsFailure: ptr(true),
-			resultStatus:           common.StatusPending,
+			serverPendingAsFailure:  false,
+			policyPendingAsFailure:  ptr(true),
+			resultStatus:            common.StatusPending,
 			pendingOnConditionsOnly: true,
-			expectedStatus:         "in_progress",
-			expectedConclusion:     "",
+			expectedStatus:          "in_progress",
+			expectedConclusion:      "",
 		},
 		"pending_not_on_conditions_only_still_returns_failure": {
-			serverPendingAsFailure: true,
-			policyPendingAsFailure: nil,
-			resultStatus:           common.StatusPending,
+			serverPendingAsFailure:  true,
+			policyPendingAsFailure:  nil,
+			resultStatus:            common.StatusPending,
 			pendingOnConditionsOnly: false,
-			expectedStatus:         "completed",
-			expectedConclusion:     "failure",
+			expectedStatus:          "completed",
+			expectedConclusion:      "failure",
 		},
 	}
 
@@ -158,8 +158,8 @@ func TestEvalContext_EvaluatePolicy_PendingAsFailure(t *testing.T) {
 			}
 
 			evaluator := &staticEvaluator{
-				Status:                 test.resultStatus,
-				StatusDescription:      "test description",
+				Status:                  test.resultStatus,
+				StatusDescription:       "test description",
 				PendingOnConditionsOnly: test.pendingOnConditionsOnly,
 			}
 

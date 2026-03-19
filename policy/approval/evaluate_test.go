@@ -267,11 +267,11 @@ func TestAndRequirement_PendingOnConditionsOnly(t *testing.T) {
 		"all_pending_conditions_only": {
 			children: []common.Evaluator{
 				&mockRequirement{result: &common.Result{
-					Status:                 common.StatusPending,
+					Status:                  common.StatusPending,
 					PendingOnConditionsOnly: true,
 				}},
 				&mockRequirement{result: &common.Result{
-					Status:                 common.StatusPending,
+					Status:                  common.StatusPending,
 					PendingOnConditionsOnly: true,
 				}},
 			},
@@ -280,11 +280,11 @@ func TestAndRequirement_PendingOnConditionsOnly(t *testing.T) {
 		"one_pending_needs_human": {
 			children: []common.Evaluator{
 				&mockRequirement{result: &common.Result{
-					Status:                 common.StatusPending,
+					Status:                  common.StatusPending,
 					PendingOnConditionsOnly: true,
 				}},
 				&mockRequirement{result: &common.Result{
-					Status:                 common.StatusPending,
+					Status:                  common.StatusPending,
 					PendingOnConditionsOnly: false,
 				}},
 			},
@@ -293,11 +293,11 @@ func TestAndRequirement_PendingOnConditionsOnly(t *testing.T) {
 		"all_pending_need_human": {
 			children: []common.Evaluator{
 				&mockRequirement{result: &common.Result{
-					Status:                 common.StatusPending,
+					Status:                  common.StatusPending,
 					PendingOnConditionsOnly: false,
 				}},
 				&mockRequirement{result: &common.Result{
-					Status:                 common.StatusPending,
+					Status:                  common.StatusPending,
 					PendingOnConditionsOnly: false,
 				}},
 			},
@@ -309,7 +309,7 @@ func TestAndRequirement_PendingOnConditionsOnly(t *testing.T) {
 					Status: common.StatusApproved,
 				}},
 				&mockRequirement{result: &common.Result{
-					Status:                 common.StatusPending,
+					Status:                  common.StatusPending,
 					PendingOnConditionsOnly: true,
 				}},
 			},
@@ -345,11 +345,11 @@ func TestOrRequirement_PendingOnConditionsOnly(t *testing.T) {
 		"all_pending_conditions_only": {
 			children: []common.Evaluator{
 				&mockRequirement{result: &common.Result{
-					Status:                 common.StatusPending,
+					Status:                  common.StatusPending,
 					PendingOnConditionsOnly: true,
 				}},
 				&mockRequirement{result: &common.Result{
-					Status:                 common.StatusPending,
+					Status:                  common.StatusPending,
 					PendingOnConditionsOnly: true,
 				}},
 			},
@@ -358,11 +358,11 @@ func TestOrRequirement_PendingOnConditionsOnly(t *testing.T) {
 		"one_pending_needs_human_makes_or_false": {
 			children: []common.Evaluator{
 				&mockRequirement{result: &common.Result{
-					Status:                 common.StatusPending,
+					Status:                  common.StatusPending,
 					PendingOnConditionsOnly: true,
 				}},
 				&mockRequirement{result: &common.Result{
-					Status:                 common.StatusPending,
+					Status:                  common.StatusPending,
 					PendingOnConditionsOnly: false,
 				}},
 			},
@@ -371,7 +371,7 @@ func TestOrRequirement_PendingOnConditionsOnly(t *testing.T) {
 		"all_pending_need_human": {
 			children: []common.Evaluator{
 				&mockRequirement{result: &common.Result{
-					Status:                 common.StatusPending,
+					Status:                  common.StatusPending,
 					PendingOnConditionsOnly: false,
 				}},
 			},
@@ -380,7 +380,7 @@ func TestOrRequirement_PendingOnConditionsOnly(t *testing.T) {
 		"single_pending_conditions_only_with_skipped": {
 			children: []common.Evaluator{
 				&mockRequirement{result: &common.Result{
-					Status:                 common.StatusPending,
+					Status:                  common.StatusPending,
 					PendingOnConditionsOnly: true,
 				}},
 				&mockRequirement{result: &common.Result{
@@ -395,7 +395,7 @@ func TestOrRequirement_PendingOnConditionsOnly(t *testing.T) {
 					Status: common.StatusApproved,
 				}},
 				&mockRequirement{result: &common.Result{
-					Status:                 common.StatusPending,
+					Status:                  common.StatusPending,
 					PendingOnConditionsOnly: true,
 				}},
 			},
