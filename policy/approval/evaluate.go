@@ -127,12 +127,28 @@ func (r *OrRequirement) Evaluate(ctx context.Context, prctx pull.Context) common
 		err = nil
 	}
 
+	// For 'or', pending is conditions-only when ALL pending children are
+	// pending only on conditions. This is conservative: if any pending
+	// child needs human action, the whole 'or' reports as needing human
+	// action, ensuring tools like Kodiak don't wait indefinitely.
+	var pendingOnConditionsOnly bool
+	if status == common.StatusPending {
+		pendingOnConditionsOnly = true
+		for _, c := range children {
+			if c.Status == common.StatusPending && !c.PendingOnConditionsOnly {
+				pendingOnConditionsOnly = false
+				break
+			}
+		}
+	}
+
 	return common.Result{
-		Name:              "or",
-		Status:            status,
-		StatusDescription: description,
-		Error:             err,
-		Children:          children,
+		Name:                   "or",
+		Status:                 status,
+		StatusDescription:      description,
+		Error:                  err,
+		Children:               children,
+		PendingOnConditionsOnly: pendingOnConditionsOnly,
 	}
 }
 
@@ -185,11 +201,26 @@ func (r *AndRequirement) Evaluate(ctx context.Context, prctx pull.Context) commo
 		description = fmt.Sprintf("%d/%d rules approved", approved, approved+pending)
 	}
 
+	// For 'and', pending is conditions-only when ALL pending children are
+	// pending only on conditions. If any pending child needs human action,
+	// the whole 'and' needs human action.
+	var pendingOnConditionsOnly bool
+	if status == common.StatusPending {
+		pendingOnConditionsOnly = true
+		for _, c := range children {
+			if c.Status == common.StatusPending && !c.PendingOnConditionsOnly {
+				pendingOnConditionsOnly = false
+				break
+			}
+		}
+	}
+
 	return common.Result{
-		Name:              "and",
-		Status:            status,
-		StatusDescription: description,
-		Error:             err,
-		Children:          children,
+		Name:                   "and",
+		Status:                 status,
+		StatusDescription:      description,
+		Error:                  err,
+		Children:               children,
+		PendingOnConditionsOnly: pendingOnConditionsOnly,
 	}
 }

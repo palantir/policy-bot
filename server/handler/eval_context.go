@@ -150,7 +150,12 @@ func (ec *EvalContext) EvaluatePolicy(ctx context.Context, evaluator common.Eval
 		if ec.Config.Config != nil && ec.Config.Config.PendingAsFailure != nil {
 			pendingAsFailure = *ec.Config.Config.PendingAsFailure
 		}
-		if pendingAsFailure {
+		// When pending_as_failure is enabled but the pending status is only
+		// due to conditions (e.g., CI checks still running) and not missing
+		// actor approvals, report "pending" instead of "failure". This
+		// allows tools like Kodiak to distinguish between "waiting for CI"
+		// (should wait) and "needs human action" (should not merge).
+		if pendingAsFailure && !result.PendingOnConditionsOnly {
 			statusState = "failure"
 		} else {
 			statusState = "pending"

@@ -81,6 +81,18 @@ type Result struct {
 	ReviewRequestRule *ReviewRequestRule
 
 	Children []*Result
+
+	// PendingOnConditionsOnly indicates that the pending status is purely
+	// due to unsatisfied automated conditions (CI status checks or workflow
+	// results), not missing actor approvals or human-action conditions like
+	// labels, file changes, etc. When true and pending_as_failure is enabled,
+	// the status should be reported as "pending" rather than "failure"
+	// since no human action is needed — the system is just waiting for
+	// external checks to complete.
+	//
+	// This field is only meaningful when Status == StatusPending. The zero
+	// value (false) is the safe default: it assumes human action is needed.
+	PendingOnConditionsOnly bool
 }
 
 type RequiresResult struct {
@@ -91,8 +103,16 @@ type RequiresResult struct {
 	Actors    Actors
 	Approvers []*Candidate
 
+	// ActorsApproved indicates whether the actor approval requirements
+	// were satisfied during evaluation.
+	ActorsApproved bool
+
 	// Conditions contains the results of all required conditions
 	Conditions []*PredicateResult
+
+	// ConditionsApproved indicates whether all condition requirements
+	// were satisfied during evaluation.
+	ConditionsApproved bool
 
 	// OwnershipGroups contains the results for each codeowner group when
 	// codeowners approval is required. Each group must have at least one

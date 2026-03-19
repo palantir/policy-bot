@@ -928,6 +928,171 @@ func TestTrigger(t *testing.T) {
 	})
 }
 
+func TestIsPendingOnConditionsOnly(t *testing.T) {
+	tests := map[string]struct {
+		rule     Rule
+		result   common.RequiresResult
+		expected bool
+	}{
+		"actors_not_approved_returns_false": {
+			rule: Rule{},
+			result: common.RequiresResult{
+				ActorsApproved:     false,
+				ConditionsApproved: false,
+			},
+			expected: false,
+		},
+		"conditions_already_approved_returns_false": {
+			rule: Rule{},
+			result: common.RequiresResult{
+				ActorsApproved:     true,
+				ConditionsApproved: true,
+			},
+			expected: false,
+		},
+		"actors_approved_ci_status_unsatisfied": {
+			rule: Rule{
+				Requires: Requires{
+					Conditions: predicate.Predicates{
+						HasStatus: predicate.NewHasStatus([]string{"ci/test"}, nil),
+					},
+				},
+			},
+			result: common.RequiresResult{
+				ActorsApproved:     true,
+				ConditionsApproved: false,
+				Conditions: []*common.PredicateResult{
+					{Satisfied: false},
+				},
+			},
+			expected: true,
+		},
+		"actors_approved_workflow_result_unsatisfied": {
+			rule: Rule{
+				Requires: Requires{
+					Conditions: predicate.Predicates{
+						HasWorkflowResult: predicate.NewHasWorkflowResult([]string{"build"}, nil),
+					},
+				},
+			},
+			result: common.RequiresResult{
+				ActorsApproved:     true,
+				ConditionsApproved: false,
+				Conditions: []*common.PredicateResult{
+					{Satisfied: false},
+				},
+			},
+			expected: true,
+		},
+		"actors_approved_label_condition_unsatisfied": {
+			rule: Rule{
+				Requires: Requires{
+					Conditions: predicate.Predicates{
+						HasLabels: &predicate.HasLabels{"approved"},
+					},
+				},
+			},
+			result: common.RequiresResult{
+				ActorsApproved:     true,
+				ConditionsApproved: false,
+				Conditions: []*common.PredicateResult{
+					{Satisfied: false},
+				},
+			},
+			expected: false,
+		},
+		"mixed_ci_and_label_conditions_one_unsatisfied_label": {
+			rule: Rule{
+				Requires: Requires{
+					Conditions: predicate.Predicates{
+						HasStatus: predicate.NewHasStatus([]string{"ci/test"}, nil),
+						HasLabels: &predicate.HasLabels{"approved"},
+					},
+				},
+			},
+			result: common.RequiresResult{
+				ActorsApproved:     true,
+				ConditionsApproved: false,
+				Conditions: []*common.PredicateResult{
+					{Satisfied: true},  // CI passed
+					{Satisfied: false}, // label missing
+				},
+			},
+			expected: false,
+		},
+		"mixed_ci_and_label_conditions_only_ci_unsatisfied": {
+			rule: Rule{
+				Requires: Requires{
+					Conditions: predicate.Predicates{
+						HasStatus: predicate.NewHasStatus([]string{"ci/test"}, nil),
+						HasLabels: &predicate.HasLabels{"approved"},
+					},
+				},
+			},
+			result: common.RequiresResult{
+				ActorsApproved:     true,
+				ConditionsApproved: false,
+				Conditions: []*common.PredicateResult{
+					{Satisfied: false}, // CI not done
+					{Satisfied: true},  // label present
+				},
+			},
+			expected: true,
+		},
+		"no_conditions_returns_false": {
+			rule: Rule{},
+			result: common.RequiresResult{
+				ActorsApproved:     true,
+				ConditionsApproved: true,
+			},
+			expected: false,
+		},
+		"no_actor_requirements_ci_unsatisfied": {
+			rule: Rule{
+				Requires: Requires{
+					Conditions: predicate.Predicates{
+						HasStatus: predicate.NewHasStatus([]string{"ci/test"}, nil),
+					},
+				},
+			},
+			result: common.RequiresResult{
+				ActorsApproved:     true,
+				ConditionsApproved: false,
+				Conditions: []*common.PredicateResult{
+					{Satisfied: false},
+				},
+			},
+			expected: true,
+		},
+		"multiple_ci_conditions_all_unsatisfied": {
+			rule: Rule{
+				Requires: Requires{
+					Conditions: predicate.Predicates{
+						HasStatus:         predicate.NewHasStatus([]string{"ci/test"}, nil),
+						HasWorkflowResult: predicate.NewHasWorkflowResult([]string{"build"}, nil),
+					},
+				},
+			},
+			result: common.RequiresResult{
+				ActorsApproved:     true,
+				ConditionsApproved: false,
+				Conditions: []*common.PredicateResult{
+					{Satisfied: false},
+					{Satisfied: false},
+				},
+			},
+			expected: true,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			actual := test.rule.isPendingOnConditionsOnly(test.result)
+			assert.Equal(t, test.expected, actual)
+		})
+	}
+}
+
 func TestSortCommits(t *testing.T) {
 	tests := map[string]struct {
 		Commits       []*pull.Commit
