@@ -41,7 +41,11 @@ func (h *CheckRun) Handle(ctx context.Context, eventType, deliveryID string, pay
 		return nil
 	}
 
-	// Skip check runs created by this app to prevent infinite re-evaluation loops
+	// Skip check runs created by this app to prevent infinite re-evaluation loops.
+	// Prefer matching by app ID (stable, numeric) over sender login (fragile string).
+	if h.AppID != 0 && event.GetCheckRun().GetApp().GetID() == h.AppID {
+		return nil
+	}
 	if event.GetSender().GetLogin() == h.AppName+"[bot]" {
 		return nil
 	}

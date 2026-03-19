@@ -41,6 +41,9 @@ type Base struct {
 	PullOpts      *PullEvaluationOptions
 
 	AppName string
+	AppID   int64
+
+	Debouncer *StatusDebouncer
 }
 
 // PostCheckRun creates a GitHub check run with consistent logging.
@@ -144,6 +147,24 @@ func (b *Base) NewEvalContext(ctx context.Context, installationID int64, loc pul
 }
 
 func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger common.Trigger, loc pull.Locator) error {
+	if b.Debouncer != nil {
+		key := DebounceKey(loc.Owner, loc.Repo, loc.Number, trigger.String())
+		trailingFn := func() {
+			logger := zerolog.Ctx(ctx)
+			logger.Debug().Msgf("Running trailing evaluation for %s/%s#%d", loc.Owner, loc.Repo, loc.Number)
+			if err := b.doEvaluate(ctx, installationID, trigger, loc); err != nil {
+				logger.Error().Err(err).Msgf("Trailing evaluation failed for %s/%s#%d", loc.Owner, loc.Repo, loc.Number)
+			}
+		}
+		if !b.Debouncer.Deduplicate(key, trailingFn) {
+			zerolog.Ctx(ctx).Debug().Msgf("Debounced evaluation for %s/%s#%d (trigger: %s)", loc.Owner, loc.Repo, loc.Number, trigger)
+			return nil
+		}
+	}
+	return b.doEvaluate(ctx, installationID, trigger, loc)
+}
+
+func (b *Base) doEvaluate(ctx context.Context, installationID int64, trigger common.Trigger, loc pull.Locator) error {
 	evalCtx, err := b.NewEvalContext(ctx, installationID, loc)
 	if err != nil {
 		return errors.Wrap(err, "failed to create evaluation context")
