@@ -23,6 +23,7 @@ import (
 
 func assertPredicateResult(t *testing.T, expected, actual *common.PredicateResult) {
 	assert.Equal(t, expected.Satisfied, actual.Satisfied, "predicate was not correct")
+	assert.Equal(t, expected.Pending, actual.Pending, "pending was not correct")
 	assert.Equal(t, expected.Values, actual.Values, "values were not correct")
 	assert.Equal(t, expected.ConditionsMap, actual.ConditionsMap, "conditions were not correct")
 	assert.Equal(t, expected.ConditionValues, actual.ConditionValues, "conditions were not correct")

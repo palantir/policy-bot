@@ -152,7 +152,7 @@ func (r *Rule) isPendingOnConditionsOnly(result common.RequiresResult) bool {
 		return false
 	}
 	for i, c := range result.Conditions {
-		if !c.Satisfied && predicates[i].Trigger() != common.TriggerStatus {
+		if !c.Satisfied && (predicates[i].Trigger() != common.TriggerStatus || !c.Pending) {
 			return false
 		}
 	}

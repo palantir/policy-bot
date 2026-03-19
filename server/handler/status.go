@@ -46,7 +46,7 @@ func (h *Status) Handle(ctx context.Context, eventType, deliveryID string, paylo
 		return h.processOwn(ctx, event)
 	}
 
-	if event.GetState() == "success" {
+	if event.GetState() != "pending" {
 		return h.processOthers(ctx, event)
 	}
 

@@ -73,6 +73,7 @@ func (pred HasStatus) Evaluate(ctx context.Context, prctx pull.Context) (*common
 		predicateResult.Values = missingResults
 		predicateResult.Description = "One or more statuses is missing: " + strings.Join(missingResults, ", ")
 		predicateResult.Satisfied = false
+		predicateResult.Pending = true
 		return &predicateResult, nil
 	}
 

@@ -950,7 +950,7 @@ func TestIsPendingOnConditionsOnly(t *testing.T) {
 			},
 			expected: false,
 		},
-		"actors_approved_ci_status_unsatisfied": {
+		"actors_approved_ci_status_pending": {
 			rule: Rule{
 				Requires: Requires{
 					Conditions: predicate.Predicates{
@@ -962,12 +962,29 @@ func TestIsPendingOnConditionsOnly(t *testing.T) {
 				ActorsApproved:     true,
 				ConditionsApproved: false,
 				Conditions: []*common.PredicateResult{
-					{Satisfied: false},
+					{Satisfied: false, Pending: true},
 				},
 			},
 			expected: true,
 		},
-		"actors_approved_workflow_result_unsatisfied": {
+		"actors_approved_ci_status_failed": {
+			rule: Rule{
+				Requires: Requires{
+					Conditions: predicate.Predicates{
+						HasStatus: predicate.NewHasStatus([]string{"ci/test"}, nil),
+					},
+				},
+			},
+			result: common.RequiresResult{
+				ActorsApproved:     true,
+				ConditionsApproved: false,
+				Conditions: []*common.PredicateResult{
+					{Satisfied: false, Pending: false},
+				},
+			},
+			expected: false,
+		},
+		"actors_approved_workflow_result_pending": {
 			rule: Rule{
 				Requires: Requires{
 					Conditions: predicate.Predicates{
@@ -979,10 +996,27 @@ func TestIsPendingOnConditionsOnly(t *testing.T) {
 				ActorsApproved:     true,
 				ConditionsApproved: false,
 				Conditions: []*common.PredicateResult{
-					{Satisfied: false},
+					{Satisfied: false, Pending: true},
 				},
 			},
 			expected: true,
+		},
+		"actors_approved_workflow_result_failed": {
+			rule: Rule{
+				Requires: Requires{
+					Conditions: predicate.Predicates{
+						HasWorkflowResult: predicate.NewHasWorkflowResult([]string{"build"}, nil),
+					},
+				},
+			},
+			result: common.RequiresResult{
+				ActorsApproved:     true,
+				ConditionsApproved: false,
+				Conditions: []*common.PredicateResult{
+					{Satisfied: false, Pending: false},
+				},
+			},
+			expected: false,
 		},
 		"actors_approved_label_condition_unsatisfied": {
 			rule: Rule{
@@ -1020,7 +1054,7 @@ func TestIsPendingOnConditionsOnly(t *testing.T) {
 			},
 			expected: false,
 		},
-		"mixed_ci_and_label_conditions_only_ci_unsatisfied": {
+		"mixed_ci_and_label_conditions_only_ci_pending": {
 			rule: Rule{
 				Requires: Requires{
 					Conditions: predicate.Predicates{
@@ -1033,11 +1067,30 @@ func TestIsPendingOnConditionsOnly(t *testing.T) {
 				ActorsApproved:     true,
 				ConditionsApproved: false,
 				Conditions: []*common.PredicateResult{
-					{Satisfied: false}, // CI not done
-					{Satisfied: true},  // label present
+					{Satisfied: false, Pending: true}, // CI not done yet
+					{Satisfied: true},                 // label present
 				},
 			},
 			expected: true,
+		},
+		"mixed_ci_and_label_conditions_only_ci_failed": {
+			rule: Rule{
+				Requires: Requires{
+					Conditions: predicate.Predicates{
+						HasStatus: predicate.NewHasStatus([]string{"ci/test"}, nil),
+						HasLabels: &predicate.HasLabels{"approved"},
+					},
+				},
+			},
+			result: common.RequiresResult{
+				ActorsApproved:     true,
+				ConditionsApproved: false,
+				Conditions: []*common.PredicateResult{
+					{Satisfied: false, Pending: false}, // CI failed
+					{Satisfied: true},                  // label present
+				},
+			},
+			expected: false,
 		},
 		"no_conditions_returns_false": {
 			rule: Rule{},
@@ -1047,7 +1100,7 @@ func TestIsPendingOnConditionsOnly(t *testing.T) {
 			},
 			expected: false,
 		},
-		"no_actor_requirements_ci_unsatisfied": {
+		"no_actor_requirements_ci_pending": {
 			rule: Rule{
 				Requires: Requires{
 					Conditions: predicate.Predicates{
@@ -1059,12 +1112,29 @@ func TestIsPendingOnConditionsOnly(t *testing.T) {
 				ActorsApproved:     true,
 				ConditionsApproved: false,
 				Conditions: []*common.PredicateResult{
-					{Satisfied: false},
+					{Satisfied: false, Pending: true},
 				},
 			},
 			expected: true,
 		},
-		"multiple_ci_conditions_all_unsatisfied": {
+		"no_actor_requirements_ci_failed": {
+			rule: Rule{
+				Requires: Requires{
+					Conditions: predicate.Predicates{
+						HasStatus: predicate.NewHasStatus([]string{"ci/test"}, nil),
+					},
+				},
+			},
+			result: common.RequiresResult{
+				ActorsApproved:     true,
+				ConditionsApproved: false,
+				Conditions: []*common.PredicateResult{
+					{Satisfied: false, Pending: false},
+				},
+			},
+			expected: false,
+		},
+		"multiple_ci_conditions_all_pending": {
 			rule: Rule{
 				Requires: Requires{
 					Conditions: predicate.Predicates{
@@ -1077,11 +1147,30 @@ func TestIsPendingOnConditionsOnly(t *testing.T) {
 				ActorsApproved:     true,
 				ConditionsApproved: false,
 				Conditions: []*common.PredicateResult{
-					{Satisfied: false},
-					{Satisfied: false},
+					{Satisfied: false, Pending: true},
+					{Satisfied: false, Pending: true},
 				},
 			},
 			expected: true,
+		},
+		"multiple_ci_conditions_one_failed_one_pending": {
+			rule: Rule{
+				Requires: Requires{
+					Conditions: predicate.Predicates{
+						HasStatus:         predicate.NewHasStatus([]string{"ci/test"}, nil),
+						HasWorkflowResult: predicate.NewHasWorkflowResult([]string{"build"}, nil),
+					},
+				},
+			},
+			result: common.RequiresResult{
+				ActorsApproved:     true,
+				ConditionsApproved: false,
+				Conditions: []*common.PredicateResult{
+					{Satisfied: false, Pending: false},
+					{Satisfied: false, Pending: true},
+				},
+			},
+			expected: false,
 		},
 	}
 

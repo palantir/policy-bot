@@ -73,6 +73,7 @@ func (pred HasWorkflowResult) Evaluate(ctx context.Context, prctx pull.Context) 
 		predicateResult.Values = missingResults
 		predicateResult.Description = "One or more workflow runs are missing: " + strings.Join(missingResults, ", ")
 		predicateResult.Satisfied = false
+		predicateResult.Pending = true
 		return &predicateResult, nil
 	}
 
