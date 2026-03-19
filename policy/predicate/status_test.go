@@ -95,6 +95,7 @@ func TestHasSuccessfulStatus(t *testing.T) {
 			},
 			&common.PredicateResult{
 				Satisfied: false,
+				Pending:   true,
 				Values:    []string{"status-name-2"},
 			},
 		},
@@ -107,6 +108,7 @@ func TestHasSuccessfulStatus(t *testing.T) {
 			},
 			&common.PredicateResult{
 				Satisfied: false,
+				Pending:   true,
 				Values:    []string{"status-name"},
 			},
 		},
@@ -115,6 +117,7 @@ func TestHasSuccessfulStatus(t *testing.T) {
 			&pulltest.Context{},
 			&common.PredicateResult{
 				Satisfied: false,
+				Pending:   true,
 				Values:    []string{"status-name", "status-name-2"},
 			},
 		},

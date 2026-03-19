@@ -122,6 +122,7 @@ func TestHasSuccessfulWorkflowRun(t *testing.T) {
 			},
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied: false,
+				Pending:   true,
 				Values:    []string{".github/workflows/test.yml"},
 			},
 		},
@@ -133,6 +134,7 @@ func TestHasSuccessfulWorkflowRun(t *testing.T) {
 			},
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied: false,
+				Pending:   true,
 				Values:    []string{".github/workflows/test.yml", ".github/workflows/test2.yml"},
 			},
 		},
@@ -146,6 +148,7 @@ func TestHasSuccessfulWorkflowRun(t *testing.T) {
 			},
 			ExpectedPredicateResult: &common.PredicateResult{
 				Satisfied: false,
+				Pending:   true,
 				Values:    []string{".github/workflows/test.yml"},
 			},
 		},

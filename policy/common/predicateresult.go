@@ -17,6 +17,11 @@ package common
 type PredicateResult struct {
 	Satisfied bool
 
+	// Pending indicates the condition hasn't been determined yet (e.g., CI
+	// check hasn't reported). Only meaningful when Satisfied == false.
+	// When false and Satisfied is false, the condition was conclusively not met.
+	Pending bool
+
 	Description string
 
 	// Describes the values, used as "the $ValuesPhrase"; must be plural
