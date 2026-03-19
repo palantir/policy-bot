@@ -178,7 +178,6 @@ func TestEvalContext_PostStatus_CheckRunFields(t *testing.T) {
 	assert.Equal(t, "Approved by alice", ec.Status.Output.GetSummary())
 }
 
-
 func TestEvalContext_EvaluatePolicy_PendingAsFailure_NilConfig(t *testing.T) {
 	ctx := context.Background()
 
