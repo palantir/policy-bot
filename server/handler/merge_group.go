@@ -65,23 +65,18 @@ func (h *MergeGroup) Handle(ctx context.Context, eventType, devlieryID string, p
 		return nil
 	}
 
-	contextWithBranch := fmt.Sprintf("%s: %s", h.PullOpts.StatusCheckContext, baseBranch)
-	state := "success"
+	name := fmt.Sprintf("%s: %s", h.PullOpts.StatusCheckContext, baseBranch)
 	message := fmt.Sprintf("%s previously approved original pull request.", h.AppName)
-	status := github.RepoStatus{
-		Context:     &contextWithBranch,
-		State:       &state,
-		Description: &message,
-	}
+	opts := NewCheckRunOptions(name, headSHA, "success", message, nil)
 
-	if err := PostStatus(ctx, client, owner, repository, headSHA, status); err != nil {
-		logger.Err(errors.WithStack(err)).Msg("Failed to post status check for merge group")
+	if err := PostCheckRun(ctx, client, owner, repository, opts); err != nil {
+		logger.Err(errors.WithStack(err)).Msg("Failed to post check run for merge group")
 	}
 
 	if h.PullOpts.PostInsecureStatusChecks {
-		status.Context = github.Ptr(h.PullOpts.StatusCheckContext)
-		if err := PostStatus(ctx, client, owner, repository, headSHA, status); err != nil {
-			logger.Err(err).Msg("Failed to post insecure repo status")
+		insecureOpts := NewCheckRunOptions(h.PullOpts.StatusCheckContext, headSHA, "success", message, nil)
+		if err := PostCheckRun(ctx, client, owner, repository, insecureOpts); err != nil {
+			logger.Err(err).Msg("Failed to post insecure check run")
 		}
 	}
 

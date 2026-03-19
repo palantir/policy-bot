@@ -16,6 +16,7 @@ package handler
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/go-github/v81/github"
 	"github.com/palantir/go-baseapp/baseapp"
@@ -42,11 +43,54 @@ type Base struct {
 	AppName string
 }
 
-// PostStatus posts a GitHub commit status with consistent logging.
-func PostStatus(ctx context.Context, client *github.Client, owner, repo, ref string, status github.RepoStatus) error {
-	zerolog.Ctx(ctx).Info().Msgf("Setting %q status on %s to %s: %s", status.GetContext(), ref, status.GetState(), status.GetDescription())
-	_, _, err := client.Repositories.CreateStatus(ctx, owner, repo, ref, status)
+// PostCheckRun creates a GitHub check run with consistent logging.
+func PostCheckRun(ctx context.Context, client *github.Client, owner, repo string, opts github.CreateCheckRunOptions) error {
+	conclusion := "in_progress"
+	if opts.Conclusion != nil {
+		conclusion = *opts.Conclusion
+	}
+	description := ""
+	if opts.Output != nil {
+		description = opts.Output.GetTitle()
+	}
+	zerolog.Ctx(ctx).Info().Msgf("Setting %q check run on %s to %s: %s", opts.Name, opts.HeadSHA, conclusion, description)
+	_, _, err := client.Checks.CreateCheckRun(ctx, owner, repo, opts)
 	return errors.WithStack(err)
+}
+
+// NewCheckRunOptions builds a CreateCheckRunOptions from the legacy status
+// state values (pending, success, failure, error) used throughout the codebase.
+func NewCheckRunOptions(name, headSHA, state, message string, detailsURL *string) github.CreateCheckRunOptions {
+	now := &github.Timestamp{Time: time.Now()}
+	opts := github.CreateCheckRunOptions{
+		Name:       name,
+		HeadSHA:    headSHA,
+		DetailsURL: detailsURL,
+		StartedAt:  now,
+		Output: &github.CheckRunOutput{
+			Title:   &message,
+			Summary: &message,
+		},
+	}
+
+	switch state {
+	case "pending":
+		opts.Status = github.Ptr("in_progress")
+	case "success":
+		opts.Status = github.Ptr("completed")
+		opts.Conclusion = github.Ptr("success")
+		opts.CompletedAt = now
+	case "failure":
+		opts.Status = github.Ptr("completed")
+		opts.Conclusion = github.Ptr("failure")
+		opts.CompletedAt = now
+	case "error":
+		opts.Status = github.Ptr("completed")
+		opts.Conclusion = github.Ptr("action_required")
+		opts.CompletedAt = now
+	}
+
+	return opts
 }
 
 func (b *Base) PreparePRContext(ctx context.Context, installationID int64, pr *github.PullRequest) (context.Context, zerolog.Logger) {

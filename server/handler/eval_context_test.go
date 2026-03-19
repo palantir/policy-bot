@@ -43,55 +43,64 @@ func TestEvalContext_EvaluatePolicy_PendingAsFailure(t *testing.T) {
 		serverPendingAsFailure bool
 		policyPendingAsFailure *bool
 		resultStatus           common.EvaluationStatus
-		expectedState          string
+		expectedStatus         string
+		expectedConclusion     string
 	}{
-		"default_pending_returns_pending": {
+		"default_pending_returns_in_progress": {
 			serverPendingAsFailure: false,
 			policyPendingAsFailure: nil,
 			resultStatus:           common.StatusPending,
-			expectedState:          "pending",
+			expectedStatus:         "in_progress",
+			expectedConclusion:     "",
 		},
 		"server_option_enabled_returns_failure": {
 			serverPendingAsFailure: true,
 			policyPendingAsFailure: nil,
 			resultStatus:           common.StatusPending,
-			expectedState:          "failure",
+			expectedStatus:         "completed",
+			expectedConclusion:     "failure",
 		},
 		"policy_option_enabled_returns_failure": {
 			serverPendingAsFailure: false,
 			policyPendingAsFailure: ptr(true),
 			resultStatus:           common.StatusPending,
-			expectedState:          "failure",
+			expectedStatus:         "completed",
+			expectedConclusion:     "failure",
 		},
 		"policy_option_overrides_server_to_disable": {
 			serverPendingAsFailure: true,
 			policyPendingAsFailure: ptr(false),
 			resultStatus:           common.StatusPending,
-			expectedState:          "pending",
+			expectedStatus:         "in_progress",
+			expectedConclusion:     "",
 		},
 		"approved_returns_success_regardless": {
 			serverPendingAsFailure: true,
 			policyPendingAsFailure: nil,
 			resultStatus:           common.StatusApproved,
-			expectedState:          "success",
+			expectedStatus:         "completed",
+			expectedConclusion:     "success",
 		},
 		"disapproved_returns_failure_regardless": {
 			serverPendingAsFailure: false,
 			policyPendingAsFailure: nil,
 			resultStatus:           common.StatusDisapproved,
-			expectedState:          "failure",
+			expectedStatus:         "completed",
+			expectedConclusion:     "failure",
 		},
-		"skipped_returns_error_regardless": {
+		"skipped_returns_action_required_regardless": {
 			serverPendingAsFailure: true,
 			policyPendingAsFailure: nil,
 			resultStatus:           common.StatusSkipped,
-			expectedState:          "error",
+			expectedStatus:         "completed",
+			expectedConclusion:     "action_required",
 		},
 		"both_server_and_policy_enabled": {
 			serverPendingAsFailure: true,
 			policyPendingAsFailure: ptr(true),
 			resultStatus:           common.StatusPending,
-			expectedState:          "failure",
+			expectedStatus:         "completed",
+			expectedConclusion:     "failure",
 		},
 	}
 
@@ -132,9 +141,41 @@ func TestEvalContext_EvaluatePolicy_PendingAsFailure(t *testing.T) {
 			require.NoError(t, err)
 
 			require.NotNil(t, ec.Status, "status should be set")
-			assert.Equal(t, test.expectedState, *ec.Status.State, "expected state %q, got %q", test.expectedState, *ec.Status.State)
+			assert.Equal(t, test.expectedStatus, ec.Status.GetStatus(), "unexpected check run status")
+			assert.Equal(t, test.expectedConclusion, ec.Status.GetConclusion(), "unexpected check run conclusion")
 		})
 	}
+}
+
+func TestEvalContext_PostStatus_CheckRunFields(t *testing.T) {
+	ctx := context.Background()
+
+	prctx := &pulltest.Context{
+		OwnerValue:     "testowner",
+		RepoValue:      "testrepo",
+		NumberValue:    42,
+		HeadSHAValue:   "def456",
+		BranchBaseName: "main",
+	}
+
+	ec := &EvalContext{
+		Options: &PullEvaluationOptions{
+			StatusCheckContext: "policy-bot",
+		},
+		PublicURL:      "http://localhost:8080",
+		PullContext:    prctx,
+		SkipPostStatus: true,
+	}
+
+	ec.PostStatus(ctx, "success", "Approved by alice")
+
+	require.NotNil(t, ec.Status)
+	assert.Equal(t, "policy-bot: main", ec.Status.Name, "check run name should include branch")
+	assert.Equal(t, "def456", ec.Status.HeadSHA)
+	assert.Equal(t, "http://localhost:8080/details/testowner/testrepo/42", ec.Status.GetDetailsURL())
+	require.NotNil(t, ec.Status.Output)
+	assert.Equal(t, "Approved by alice", ec.Status.Output.GetTitle())
+	assert.Equal(t, "Approved by alice", ec.Status.Output.GetSummary())
 }
 
 func TestEvalContext_EvaluatePolicy_PendingAsFailure_NilConfig(t *testing.T) {
@@ -173,5 +214,6 @@ func TestEvalContext_EvaluatePolicy_PendingAsFailure_NilConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NotNil(t, ec.Status, "status should be set")
-	assert.Equal(t, "failure", *ec.Status.State, "server option should be used when policy config is nil")
+	assert.Equal(t, "completed", ec.Status.GetStatus(), "server option should be used when policy config is nil")
+	assert.Equal(t, "failure", ec.Status.GetConclusion(), "server option should be used when policy config is nil")
 }

@@ -98,15 +98,10 @@ func (h *Installation) postRepoInstallationStatus(ctx context.Context, client *g
 	}
 
 	head := branch.GetCommit().GetSHA()
-	contextWithBranch := fmt.Sprintf("%s: %s", h.PullOpts.StatusCheckContext, defaultBranch)
-	state := "success"
+	name := fmt.Sprintf("%s: %s", h.PullOpts.StatusCheckContext, defaultBranch)
 	message := fmt.Sprintf("%s successfully installed.", h.AppName)
-	status := github.RepoStatus{
-		Context:     &contextWithBranch,
-		State:       &state,
-		Description: &message,
-	}
-	if err := PostStatus(ctx, client, owner, repo, head, status); err != nil {
-		logger.Err(errors.WithStack(err)).Msg("Failed to post repo status")
+	opts := NewCheckRunOptions(name, head, "success", message, nil)
+	if err := PostCheckRun(ctx, client, owner, repo, opts); err != nil {
+		logger.Err(errors.WithStack(err)).Msg("Failed to post check run")
 	}
 }

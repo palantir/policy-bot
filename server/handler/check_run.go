@@ -41,6 +41,11 @@ func (h *CheckRun) Handle(ctx context.Context, eventType, deliveryID string, pay
 		return nil
 	}
 
+	// Skip check runs created by this app to prevent infinite re-evaluation loops
+	if event.GetSender().GetLogin() == h.AppName+"[bot]" {
+		return nil
+	}
+
 	repo := event.GetRepo()
 	repoID := repo.GetID()
 	ownerName := repo.GetOwner().GetLogin()

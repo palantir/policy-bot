@@ -42,11 +42,11 @@ type EvalContext struct {
 	PullContext pull.Context
 	Config      FetchedConfig
 
-	// If true, store statuses in the Status field instead of posting them to
-	// GitHub. Only the last status is saved, so when this option is enabled,
-	// callers should check for a non-nil status after each method call.
+	// If true, store check run options in the Status field instead of posting
+	// them to GitHub. Only the last status is saved, so when this option is
+	// enabled, callers should check for a non-nil status after each method call.
 	SkipPostStatus bool
-	Status         *github.RepoStatus
+	Status         *github.CreateCheckRunOptions
 }
 
 // Evaluate runs the full process for evaluating a pull request.
@@ -185,7 +185,7 @@ func (ec *EvalContext) RunPostEvaluateActions(ctx context.Context, result common
 	}
 }
 
-// PostStatus posts a status for the evaluated PR.
+// PostStatus posts a check run for the evaluated PR.
 func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 	logger := zerolog.Ctx(ctx)
 
@@ -197,15 +197,11 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 	publicURL := strings.TrimSuffix(ec.PublicURL, "/")
 	detailsURL := fmt.Sprintf("%s/details/%s/%s/%d", publicURL, owner, repo, ec.PullContext.Number())
 
-	status := github.RepoStatus{
-		State:       &state,
-		Context:     github.Ptr(fmt.Sprintf("%s: %s", ec.Options.StatusCheckContext, base)),
-		Description: &message,
-		TargetURL:   &detailsURL,
-	}
+	name := fmt.Sprintf("%s: %s", ec.Options.StatusCheckContext, base)
+	opts := NewCheckRunOptions(name, sha, state, message, &detailsURL)
 
 	if ec.SkipPostStatus {
-		ec.Status = &status
+		ec.Status = &opts
 		return
 	}
 
@@ -214,13 +210,13 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 		return
 	}
 
-	if err := PostStatus(ctx, ec.Client, owner, repo, sha, status); err != nil {
-		logger.Err(err).Msg("Failed to post repo status")
+	if err := PostCheckRun(ctx, ec.Client, owner, repo, opts); err != nil {
+		logger.Err(err).Msg("Failed to post check run")
 	}
 	if ec.Options.PostInsecureStatusChecks {
-		status.Context = github.Ptr(ec.Options.StatusCheckContext)
-		if err := PostStatus(ctx, ec.Client, owner, repo, sha, status); err != nil {
-			logger.Err(err).Msg("Failed to post insecure repo status")
+		insecureOpts := NewCheckRunOptions(ec.Options.StatusCheckContext, sha, state, message, &detailsURL)
+		if err := PostCheckRun(ctx, ec.Client, owner, repo, insecureOpts); err != nil {
+			logger.Err(err).Msg("Failed to post insecure check run")
 		}
 	}
 }
