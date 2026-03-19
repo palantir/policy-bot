@@ -113,6 +113,6 @@ func TestStatusDebouncer_DefaultWindow(t *testing.T) {
 }
 
 func TestDebounceKey(t *testing.T) {
-	key := DebounceKey("owner", "repo", 42, "status")
-	assert.Equal(t, "owner/repo/42/status", key)
+	key := DebounceKey("owner", "repo", 42)
+	assert.Equal(t, "owner/repo/42", key)
 }

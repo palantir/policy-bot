@@ -148,7 +148,7 @@ func (b *Base) NewEvalContext(ctx context.Context, installationID int64, loc pul
 
 func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger common.Trigger, loc pull.Locator) error {
 	if b.Debouncer != nil {
-		key := DebounceKey(loc.Owner, loc.Repo, loc.Number, trigger.String())
+		key := DebounceKey(loc.Owner, loc.Repo, loc.Number)
 		trailingFn := func() {
 			logger := zerolog.Ctx(ctx)
 			logger.Debug().Msgf("Running trailing evaluation for %s/%s#%d", loc.Owner, loc.Repo, loc.Number)
