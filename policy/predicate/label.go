@@ -16,6 +16,7 @@ package predicate
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/palantir/policy-bot/policy/common"
@@ -58,10 +59,5 @@ func (pred HasLabels) Trigger() common.Trigger {
 }
 
 func contains(elements []string, value string) bool {
-	for _, element := range elements {
-		if element == value {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(elements, value)
 }

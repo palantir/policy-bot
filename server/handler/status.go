@@ -92,7 +92,7 @@ func (h *Status) processOwn(ctx context.Context, event github.StatusEvent) error
 	// if multiple contexts are forged, we will handle multiple events
 	status := github.RepoStatus{
 		Context:     event.Context,
-		State:       github.String("failure"),
+		State:       new("failure"),
 		Description: &desc,
 	}
 

@@ -446,9 +446,9 @@ func TestCrossRepoBranches(t *testing.T) {
 	crossRepoPr.Head.Repo = &github.Repository{
 		ID: github.Int64(12345),
 		Owner: &github.User{
-			Login: github.String("testorg2"),
+			Login: new("testorg2"),
 		},
-		Name: github.String("testrepofork"),
+		Name: new("testrepofork"),
 	}
 
 	ctx := makeContext(t, rp, crossRepoPr, nil)
@@ -743,36 +743,36 @@ func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest, gc Gl
 
 func defaultTestPR() *github.PullRequest {
 	return &github.PullRequest{
-		Title:     github.String("test title"),
-		State:     github.String("open"),
-		Number:    github.Int(123),
+		Title:     new("test title"),
+		State:     new("open"),
+		Number:    new(123),
 		CreatedAt: &github.Timestamp{Time: time.Date(2020, 9, 30, 17, 42, 10, 0, time.UTC)},
-		Draft:     github.Bool(false),
+		Draft:     new(false),
 		User: &github.User{
-			Login: github.String("mhaypenny"),
+			Login: new("mhaypenny"),
 		},
 		Head: &github.PullRequestBranch{
-			Ref: github.String("test-branch"),
-			SHA: github.String("e05fcae367230ee709313dd2720da527d178ce43"),
+			Ref: new("test-branch"),
+			SHA: new("e05fcae367230ee709313dd2720da527d178ce43"),
 			Repo: &github.Repository{
 				ID: github.Int64(1234),
 				Owner: &github.User{
-					Login: github.String("testorg"),
+					Login: new("testorg"),
 				},
-				Name: github.String("testrepo"),
+				Name: new("testrepo"),
 			},
 		},
 		Base: &github.PullRequestBranch{
-			Ref: github.String("develop"),
+			Ref: new("develop"),
 			Repo: &github.Repository{
 				ID: github.Int64(1234),
 				Owner: &github.User{
-					Login: github.String("testorg"),
+					Login: new("testorg"),
 				},
-				Name: github.String("testrepo"),
+				Name: new("testrepo"),
 			},
 		},
-		ChangedFiles: github.Int(1),
+		ChangedFiles: new(1),
 	}
 }
 

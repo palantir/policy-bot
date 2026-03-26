@@ -100,11 +100,11 @@ func TestRules(t *testing.T) {
 				},
 			},
 			Options: Options{
-				AllowAuthor:      ptr(true),
-				AllowContributor: ptr(true),
+				AllowAuthor:      new(true),
+				AllowContributor: new(true),
 				Methods: &common.Methods{
 					Comments:     []string{"+1"},
-					GithubReview: ptr(false),
+					GithubReview: new(false),
 				},
 			},
 			Requires: Requires{

@@ -24,14 +24,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+//go:fix inline
 func ptr[T any](v T) *T {
-	return &v
+	return new(v)
 }
 
 var customPropertiesTestCtx = &pulltest.Context{
 	RepositoryCustomPropertiesValue: map[string]pull.CustomProperty{
-		"custom1": {String: ptr("value1")},
-		"custom2": {String: ptr("value2")},
+		"custom1": {String: new("value1")},
+		"custom2": {String: new("value2")},
 		"custom3": {Array: []string{"a", "b", "c"}},
 	},
 }

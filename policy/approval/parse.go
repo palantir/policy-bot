@@ -21,7 +21,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-type Policy []interface{}
+type Policy []any
 
 func (p Policy) Parse(rules map[string]*Rule) (common.Evaluator, error) {
 	eval := &evaluator{}
@@ -31,8 +31,8 @@ func (p Policy) Parse(rules map[string]*Rule) (common.Evaluator, error) {
 	}
 
 	// assume "and" for the list of rules
-	root := map[interface{}]interface{}{
-		"and": []interface{}(p),
+	root := map[any]any{
+		"and": []any(p),
 	}
 
 	and, err := parsePolicyR(root, rules, 0)
@@ -44,7 +44,7 @@ func (p Policy) Parse(rules map[string]*Rule) (common.Evaluator, error) {
 	return eval, nil
 }
 
-func parsePolicyR(policy interface{}, rules map[string]*Rule, depth int) (common.Evaluator, error) {
+func parsePolicyR(policy any, rules map[string]*Rule, depth int) (common.Evaluator, error) {
 	if depth > 10 {
 		return nil, errors.New("reached maximum recursive depth while processing policy")
 	}
@@ -65,7 +65,7 @@ func parsePolicyR(policy interface{}, rules map[string]*Rule, depth int) (common
 	}
 
 	// Recursive case, we have "or:", "and:", etc.
-	if conjunction, ok := policy.(map[interface{}]interface{}); ok {
+	if conjunction, ok := policy.(map[any]any); ok {
 		var ops []string
 		for k := range conjunction {
 			ops = append(ops, k.(string))
@@ -75,7 +75,7 @@ func parsePolicyR(policy interface{}, rules map[string]*Rule, depth int) (common
 		}
 
 		op := ops[0]
-		values, ok := conjunction[op].([]interface{})
+		values, ok := conjunction[op].([]any)
 		if !ok {
 			return nil, errors.Errorf("expected list of subconditions, but got %T", conjunction[op])
 		}

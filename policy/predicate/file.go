@@ -446,7 +446,7 @@ func (exp ComparisonExpr) MarshalText() ([]byte, error) {
 	default:
 		return nil, errors.Errorf("unknown operation: %d", exp.Op)
 	}
-	return []byte(fmt.Sprintf("%s %d", op, exp.Value)), nil
+	return fmt.Appendf(nil, "%s %d", op, exp.Value), nil
 }
 
 func (exp ComparisonExpr) String() string {

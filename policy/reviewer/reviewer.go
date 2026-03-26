@@ -103,7 +103,7 @@ func selectRandomUsers(n int, users []string, r *rand.Rand) []string {
 	}
 
 	selected := make(map[int]bool)
-	for i := 0; i < n; i++ {
+	for range n {
 		j := 0
 		for {
 			// Upper bound the number of attempts to uniquely select random users to n*5
@@ -284,19 +284,9 @@ func selectUserReviewers(ctx context.Context, prctx pull.Context, selection *Sel
 }
 
 func requestsTeam(r *common.Result, team string) bool {
-	for _, t := range r.ReviewRequestRule.Teams {
-		if t == team {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(r.ReviewRequestRule.Teams, team)
 }
 
 func requestsPermission(r *common.Result, perm pull.Permission) bool {
-	for _, p := range r.ReviewRequestRule.Permissions {
-		if p == perm {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(r.ReviewRequestRule.Permissions, perm)
 }

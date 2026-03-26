@@ -182,7 +182,7 @@ func (h *Details) getStateIfAllowed(w http.ResponseWriter, r *http.Request) *Det
 	}
 }
 
-func (h *Details) render(w http.ResponseWriter, data interface{}) error {
+func (h *Details) render(w http.ResponseWriter, data any) error {
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 	return h.Templates.ExecuteTemplate(w, "details.html.tmpl", data)

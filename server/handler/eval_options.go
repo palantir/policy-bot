@@ -247,7 +247,7 @@ func setStringListFromEnv[T ~string](key, prefix string, value *[]T) bool {
 	if v, ok := os.LookupEnv(prefix + key); ok {
 		var items []T
 		if v != "" {
-			for _, item := range strings.Split(v, ",") {
+			for item := range strings.SplitSeq(v, ",") {
 				items = append(items, T(item))
 			}
 		} else {
@@ -268,7 +268,7 @@ func setListFromEnv[T any, PT textUnmarshallerPtr[T]](key, prefix string, value 
 	if v, ok := os.LookupEnv(prefix + key); ok {
 		var items []T
 		if v != "" {
-			for _, item := range strings.Split(v, ",") {
+			for item := range strings.SplitSeq(v, ",") {
 				var t T
 				if err := PT(&t).UnmarshalText([]byte(item)); err == nil {
 					items = append(items, t)

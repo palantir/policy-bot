@@ -79,7 +79,7 @@ func (h *MergeGroup) Handle(ctx context.Context, eventType, devlieryID string, p
 	}
 
 	if h.PullOpts.PostInsecureStatusChecks {
-		status.Context = github.Ptr(h.PullOpts.StatusCheckContext)
+		status.Context = new(h.PullOpts.StatusCheckContext)
 		if err := PostStatus(ctx, client, owner, repository, headSHA, status); err != nil {
 			logger.Err(err).Msg("Failed to post insecure repo status")
 		}

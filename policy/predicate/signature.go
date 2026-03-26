@@ -17,6 +17,7 @@ package predicate
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
@@ -187,13 +188,7 @@ func (pred *HasValidSignaturesByKeys) Evaluate(ctx context.Context, prctx pull.C
 	}
 
 	for key := range keys {
-		isValidKey := false
-		for _, acceptedKey := range pred.KeyIDs {
-			if key == acceptedKey {
-				isValidKey = true
-				break
-			}
-		}
+		isValidKey := slices.Contains(pred.KeyIDs, key)
 		if !isValidKey {
 			predicateResult.ConditionPhrase = "exist in the set of allowed keys"
 			predicateResult.Values = []string{key}
