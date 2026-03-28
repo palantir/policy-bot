@@ -28,11 +28,11 @@ import (
 func TestChangedFiles(t *testing.T) {
 	p := &ChangedFiles{
 		Paths: []common.Regexp{
-			common.NewCompiledRegexp(regexp.MustCompile("app/.*\\.go")),
-			common.NewCompiledRegexp(regexp.MustCompile("server/.*\\.go")),
+			common.NewCompiledRegexp(regexp.MustCompile(`app/.*\.go`)),
+			common.NewCompiledRegexp(regexp.MustCompile(`server/.*\.go`)),
 		},
 		IgnorePaths: []common.Regexp{
-			common.NewCompiledRegexp(regexp.MustCompile(".*/special\\.go")),
+			common.NewCompiledRegexp(regexp.MustCompile(`.*/special\.go`)),
 		},
 	}
 
@@ -160,11 +160,11 @@ func TestChangedFiles(t *testing.T) {
 func TestNoChangedFiles(t *testing.T) {
 	p := &NoChangedFiles{
 		Paths: []common.Regexp{
-			common.NewCompiledRegexp(regexp.MustCompile("app/.*\\.go")),
-			common.NewCompiledRegexp(regexp.MustCompile("server/.*\\.go")),
+			common.NewCompiledRegexp(regexp.MustCompile(`app/.*\.go`)),
+			common.NewCompiledRegexp(regexp.MustCompile(`server/.*\.go`)),
 		},
 		IgnorePaths: []common.Regexp{
-			common.NewCompiledRegexp(regexp.MustCompile(".*/special\\.go")),
+			common.NewCompiledRegexp(regexp.MustCompile(`.*/special\.go`)),
 		},
 	}
 
@@ -292,8 +292,8 @@ func TestNoChangedFiles(t *testing.T) {
 func TestOnlyChangedFiles(t *testing.T) {
 	p := &OnlyChangedFiles{
 		Paths: []common.Regexp{
-			common.NewCompiledRegexp(regexp.MustCompile("app/.*\\.go")),
-			common.NewCompiledRegexp(regexp.MustCompile("server/.*\\.go")),
+			common.NewCompiledRegexp(regexp.MustCompile(`app/.*\.go`)),
+			common.NewCompiledRegexp(regexp.MustCompile(`server/.*\.go`)),
 		},
 	}
 
@@ -367,8 +367,8 @@ func TestOnlyChangedFiles(t *testing.T) {
 func TestFileNotDeleted(t *testing.T) {
 	p := &FileNotDeleted{
 		Paths: []common.Regexp{
-			common.NewCompiledRegexp(regexp.MustCompile("workflows/.*\\.yaml")),
-			common.NewCompiledRegexp(regexp.MustCompile("actions/.*\\.yaml")),
+			common.NewCompiledRegexp(regexp.MustCompile(`workflows/.*\.yaml`)),
+			common.NewCompiledRegexp(regexp.MustCompile(`actions/.*\.yaml`)),
 		},
 	}
 
@@ -456,8 +456,8 @@ func TestFileNotDeleted(t *testing.T) {
 func TestFileAdded(t *testing.T) {
 	p := &FileAdded{
 		Paths: []common.Regexp{
-			common.NewCompiledRegexp(regexp.MustCompile("app/.*\\.go")),
-			common.NewCompiledRegexp(regexp.MustCompile("server/.*\\.go")),
+			common.NewCompiledRegexp(regexp.MustCompile(`app/.*\.go`)),
+			common.NewCompiledRegexp(regexp.MustCompile(`server/.*\.go`)),
 		},
 	}
 
@@ -531,8 +531,8 @@ func TestFileAdded(t *testing.T) {
 func TestFileDeleted(t *testing.T) {
 	p := &FileDeleted{
 		Paths: []common.Regexp{
-			common.NewCompiledRegexp(regexp.MustCompile("app/.*\\.go")),
-			common.NewCompiledRegexp(regexp.MustCompile("server/.*\\.go")),
+			common.NewCompiledRegexp(regexp.MustCompile(`app/.*\.go`)),
+			common.NewCompiledRegexp(regexp.MustCompile(`server/.*\.go`)),
 		},
 	}
 
@@ -606,8 +606,8 @@ func TestFileDeleted(t *testing.T) {
 func TestFileNotAdded(t *testing.T) {
 	p := &FileNotAdded{
 		Paths: []common.Regexp{
-			common.NewCompiledRegexp(regexp.MustCompile("workflows/.*\\.yaml")),
-			common.NewCompiledRegexp(regexp.MustCompile("actions/.*\\.yaml")),
+			common.NewCompiledRegexp(regexp.MustCompile(`workflows/.*\.yaml`)),
+			common.NewCompiledRegexp(regexp.MustCompile(`actions/.*\.yaml`)),
 		},
 	}
 

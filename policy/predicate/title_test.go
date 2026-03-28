@@ -28,7 +28,7 @@ import (
 func TestWithNotMatchRule(t *testing.T) {
 	p := &Title{
 		NotMatches: []common.Regexp{
-			common.NewCompiledRegexp(regexp.MustCompile("^(fix|feat|chore): (\\w| )+$")),
+			common.NewCompiledRegexp(regexp.MustCompile(`^(fix|feat|chore): (\w| )+$`)),
 		},
 		Matches: []common.Regexp{},
 	}
@@ -133,8 +133,8 @@ func TestWithMatchRule(t *testing.T) {
 func TestWithMixedRules(t *testing.T) {
 	p := &Title{
 		NotMatches: []common.Regexp{
-			common.NewCompiledRegexp(regexp.MustCompile("^(fix|feat|chore): (\\w| )+$")),
-			common.NewCompiledRegexp(regexp.MustCompile("^BREAKING CHANGE: (\\w| )+$")),
+			common.NewCompiledRegexp(regexp.MustCompile(`^(fix|feat|chore): (\w| )+$`)),
+			common.NewCompiledRegexp(regexp.MustCompile(`^BREAKING CHANGE: (\w| )+$`)),
 		},
 		Matches: []common.Regexp{
 			common.NewCompiledRegexp(regexp.MustCompile("BLOCKED")),
