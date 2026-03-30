@@ -31,11 +31,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//go:fix inline
-func ptr[T any](val T) *T {
-	return new(val)
-}
-
 var defaultOptions = Options{
 	Methods: DefaultMethods(),
 }

@@ -574,8 +574,3 @@ func TestConfigMarshalYaml(t *testing.T) {
 func castToResult(e common.Evaluator) *common.Result {
 	return (*common.Result)(e.(*StaticEvaluator))
 }
-
-//go:fix inline
-func ptr[T any](val T) *T {
-	return new(val)
-}
