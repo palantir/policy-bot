@@ -444,7 +444,7 @@ func TestCrossRepoBranches(t *testing.T) {
 	// change the source repo to a forked repo
 	crossRepoPr := defaultTestPR()
 	crossRepoPr.Head.Repo = &github.Repository{
-		ID: github.Ptr(int64(12345)),
+		ID: new(int64(12345)),
 		Owner: &github.User{
 			Login: new("testorg2"),
 		},
@@ -755,7 +755,7 @@ func defaultTestPR() *github.PullRequest {
 			Ref: new("test-branch"),
 			SHA: new("e05fcae367230ee709313dd2720da527d178ce43"),
 			Repo: &github.Repository{
-				ID: github.Ptr(int64(1234)),
+				ID: new(int64(1234)),
 				Owner: &github.User{
 					Login: new("testorg"),
 				},
@@ -765,7 +765,7 @@ func defaultTestPR() *github.PullRequest {
 		Base: &github.PullRequestBranch{
 			Ref: new("develop"),
 			Repo: &github.Repository{
-				ID: github.Ptr(int64(1234)),
+				ID: new(int64(1234)),
 				Owner: &github.User{
 					Login: new("testorg"),
 				},
