@@ -17,6 +17,8 @@ package pull
 import (
 	"fmt"
 	"strings"
+
+	"github.com/google/go-github/v84/github"
 )
 
 type Permission uint8
@@ -47,6 +49,22 @@ func ParsePermissionMap(m map[string]bool) Permission {
 	case m["triage"]:
 		return PermissionTriage
 	case m["read"] || m["pull"]:
+		return PermissionRead
+	}
+	return PermissionNone
+}
+
+func ParseRepositoryPermissions(p *github.RepositoryPermissions) Permission {
+	switch {
+	case p.GetAdmin():
+		return PermissionAdmin
+	case p.GetMaintain():
+		return PermissionMaintain
+	case p.GetPush():
+		return PermissionWrite
+	case p.GetTriage():
+		return PermissionTriage
+	case p.GetPull():
 		return PermissionRead
 	}
 	return PermissionNone

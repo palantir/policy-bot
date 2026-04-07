@@ -536,7 +536,7 @@ func (ghc *GitHubContext) RepositoryCollaborators(minPermission Permission) ([]*
 		}
 
 		for _, u := range users {
-			directPerms[u.GetLogin()] = ParsePermissionMap(u.GetPermissions())
+			directPerms[u.GetLogin()] = ParseRepositoryPermissions(u.GetPermissions())
 		}
 
 		if resp.NextPage == 0 {
@@ -561,7 +561,7 @@ func (ghc *GitHubContext) RepositoryCollaborators(minPermission Permission) ([]*
 			collaborators = append(collaborators, &Collaborator{
 				Name: u.GetLogin(),
 				Permissions: []CollaboratorPermission{
-					{Permission: ParsePermissionMap(u.GetPermissions())},
+					{Permission: ParseRepositoryPermissions(u.GetPermissions())},
 				},
 			})
 		}
