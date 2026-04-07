@@ -18,7 +18,7 @@ import (
 	"net/http"
 	"slices"
 
-	"github.com/google/go-github/v82/github"
+	"github.com/google/go-github/v84/github"
 	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/approval"
 	"github.com/palantir/policy-bot/pull"
