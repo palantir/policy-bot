@@ -16,6 +16,7 @@ package common
 
 import (
 	"context"
+	"slices"
 	"sort"
 
 	"github.com/palantir/policy-bot/pull"
@@ -73,10 +74,8 @@ func (a *Actors) GetPermissions() []pull.Permission {
 // IsActor returns true if the given user satisfies at least one of the
 // conditions in this structure.
 func (a *Actors) IsActor(ctx context.Context, prctx pull.Context, user string) (bool, error) {
-	for _, u := range a.Users {
-		if user == u {
-			return true, nil
-		}
+	if slices.Contains(a.Users, user) {
+		return true, nil
 	}
 
 	for _, t := range a.Teams {

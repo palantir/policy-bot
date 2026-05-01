@@ -16,11 +16,13 @@ package pull
 
 import (
 	"context"
+	"maps"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v82/github"
+	"github.com/google/go-github/v84/github"
 	"github.com/pkg/errors"
 	"github.com/shurcooL/githubv4"
 )
@@ -85,7 +87,7 @@ func (loc Locator) toV4(ctx context.Context, client *githubv4.Client) (*v4PullRe
 				PullRequest v4PullRequest `graphql:"pullRequest(number: $number)"`
 			} `graphql:"repository(owner: $owner, name: $name)"`
 		}
-		qvars := map[string]interface{}{
+		qvars := map[string]any{
 			"owner":  githubv4.String(loc.Owner),
 			"name":   githubv4.String(loc.Repo),
 			"number": githubv4.Int(loc.Number),
@@ -251,7 +253,7 @@ func (ghc *GitHubContext) Body() (*Body, error) {
 			PullRequest v4PullRequestWithEditedAt `graphql:"pullRequest(number: $number)"`
 		} `graphql:"repository(owner: $owner, name: $name)"`
 	}
-	qvars := map[string]interface{}{
+	qvars := map[string]any{
 		"owner":  githubv4.String(ghc.owner),
 		"name":   githubv4.String(ghc.repo),
 		"number": githubv4.Int(ghc.number),
@@ -469,10 +471,8 @@ func (ghc *GitHubContext) nextChildCommit(sha string) (*Commit, error) {
 	}
 
 	for _, c := range commits {
-		for _, parentSHA := range c.Parents {
-			if sha == parentSHA {
-				return c, nil
-			}
+		if slices.Contains(c.Parents, sha) {
+			return c, nil
 		}
 	}
 	return nil, nil
@@ -536,7 +536,7 @@ func (ghc *GitHubContext) RepositoryCollaborators(minPermission Permission) ([]*
 		}
 
 		for _, u := range users {
-			directPerms[u.GetLogin()] = ParsePermissionMap(u.GetPermissions())
+			directPerms[u.GetLogin()] = ParseRepositoryPermissions(u.GetPermissions())
 		}
 
 		if resp.NextPage == 0 {
@@ -561,7 +561,7 @@ func (ghc *GitHubContext) RepositoryCollaborators(minPermission Permission) ([]*
 			collaborators = append(collaborators, &Collaborator{
 				Name: u.GetLogin(),
 				Permissions: []CollaboratorPermission{
-					{Permission: ParsePermissionMap(u.GetPermissions())},
+					{Permission: ParseRepositoryPermissions(u.GetPermissions())},
 				},
 			})
 		}
@@ -645,7 +645,7 @@ func (ghc *GitHubContext) CollaboratorPermission(user string) (Permission, error
 			} `graphql:"collaborators(query: $user, first: 100, after: $cursor)"`
 		} `graphql:"repository(owner: $owner, name: $name)"`
 	}
-	qvars := map[string]interface{}{
+	qvars := map[string]any{
 		"owner":  githubv4.String(ghc.owner),
 		"name":   githubv4.String(ghc.repo),
 		"user":   githubv4.String(user),
@@ -717,7 +717,7 @@ func (ghc *GitHubContext) loadRequestedReviewers() error {
 			} `graphql:"pullRequest(number: $number)"`
 		} `graphql:"repository(owner: $owner, name: $name)"`
 	}
-	qvars := map[string]interface{}{
+	qvars := map[string]any{
 		"owner":  githubv4.String(ghc.owner),
 		"name":   githubv4.String(ghc.repo),
 		"number": githubv4.Int(ghc.number),
@@ -792,9 +792,7 @@ func (ghc *GitHubContext) LatestStatuses() (map[string]string, error) {
 			return nil, err
 		}
 
-		for k, v := range checkStatuses {
-			statuses[k] = v
-		}
+		maps.Copy(statuses, checkStatuses)
 
 		ghc.statuses = statuses
 	}
@@ -989,7 +987,7 @@ func (ghc *GitHubContext) loadPagedData() error {
 			} `graphql:"pullRequest(number: $number)"`
 		} `graphql:"repository(owner: $owner, name: $name)"`
 	}
-	qvars := map[string]interface{}{
+	qvars := map[string]any{
 		"owner":  githubv4.String(ghc.owner),
 		"name":   githubv4.String(ghc.repo),
 		"number": githubv4.Int(ghc.number),
@@ -1127,16 +1125,16 @@ type v4PageInfo struct {
 
 // UpdateCursor modifies the named cursor value in the the query variable map
 // and returns true if there are additional pages.
-func (pi v4PageInfo) UpdateCursor(vars map[string]interface{}, name string) bool {
+func (pi v4PageInfo) UpdateCursor(vars map[string]any, name string) bool {
 	if pi.HasNextPage && pi.EndCursor != nil {
-		vars[name] = githubv4.NewString(*pi.EndCursor)
+		vars[name] = new(*pi.EndCursor)
 		return true
 	}
 
 	// if this was the last page, set cursor so the next response is empty
 	// on all queuries after that, the end cursor will be nil
 	if pi.EndCursor != nil {
-		vars[name] = githubv4.NewString(*pi.EndCursor)
+		vars[name] = new(*pi.EndCursor)
 	}
 	return false
 }

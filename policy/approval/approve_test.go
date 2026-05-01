@@ -31,10 +31,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func ptr[T any](val T) *T {
-	return &val
-}
-
 var defaultOptions = Options{
 	Methods: DefaultMethods(),
 }
@@ -213,7 +209,7 @@ func TestIsApproved(t *testing.T) {
 		prctx := basePullContext()
 		r := &Rule{
 			Options: Options{
-				AllowAuthor: ptr(false),
+				AllowAuthor: new(false),
 				Defaults:    &defaultOptions,
 			},
 			Requires: Requires{
@@ -230,7 +226,7 @@ func TestIsApproved(t *testing.T) {
 		prctx := basePullContext()
 		r := &Rule{
 			Options: Options{
-				AllowAuthor: ptr(true),
+				AllowAuthor: new(true),
 				Defaults:    &defaultOptions,
 			},
 			Requires: Requires{
@@ -247,7 +243,7 @@ func TestIsApproved(t *testing.T) {
 		prctx := basePullContext()
 		r := &Rule{
 			Options: Options{
-				AllowContributor: ptr(false),
+				AllowContributor: new(false),
 				Defaults:         &defaultOptions,
 			},
 			Requires: Requires{
@@ -264,8 +260,8 @@ func TestIsApproved(t *testing.T) {
 		prctx := basePullContext()
 		r := &Rule{
 			Options: Options{
-				AllowContributor: ptr(true),
-				AllowAuthor:      ptr(false),
+				AllowContributor: new(true),
+				AllowAuthor:      new(false),
 				Defaults:         &defaultOptions,
 			},
 			Requires: Requires{
@@ -282,7 +278,7 @@ func TestIsApproved(t *testing.T) {
 		prctx := basePullContext()
 		r := &Rule{
 			Options: Options{
-				AllowNonAuthorContributor: ptr(true),
+				AllowNonAuthorContributor: new(true),
 				Defaults:                  &defaultOptions,
 			},
 			Requires: Requires{
@@ -299,8 +295,8 @@ func TestIsApproved(t *testing.T) {
 		prctx := basePullContext()
 		r := &Rule{
 			Options: Options{
-				AllowNonAuthorContributor: ptr(true),
-				AllowAuthor:               ptr(true),
+				AllowNonAuthorContributor: new(true),
+				AllowAuthor:               new(true),
 				Defaults:                  &defaultOptions,
 			},
 			Requires: Requires{
@@ -317,8 +313,8 @@ func TestIsApproved(t *testing.T) {
 		prctx := basePullContext()
 		r := &Rule{
 			Options: Options{
-				AllowNonAuthorContributor: ptr(true),
-				AllowContributor:          ptr(true),
+				AllowNonAuthorContributor: new(true),
+				AllowContributor:          new(true),
 				Defaults:                  &defaultOptions,
 			},
 			Requires: Requires{
@@ -433,7 +429,7 @@ func TestIsApproved(t *testing.T) {
 		}
 		assertApproved(t, prctx, r, "Approved by comment-approver")
 
-		r.Options.InvalidateOnPush = ptr(true)
+		r.Options.InvalidateOnPush = new(true)
 		assertPending(t, prctx, r, "0/1 required approvals. Ignored 6 approvals from disqualified users")
 	})
 
@@ -464,7 +460,7 @@ func TestIsApproved(t *testing.T) {
 		}
 		assertApproved(t, prctx, r, "Approved by review-approver")
 
-		r.Options.InvalidateOnPush = ptr(true)
+		r.Options.InvalidateOnPush = new(true)
 		assertPending(t, prctx, r, "0/1 required approvals. Ignored 1 approval from disqualified users")
 	})
 
@@ -487,7 +483,7 @@ func TestIsApproved(t *testing.T) {
 
 		r := &Rule{
 			Options: Options{
-				InvalidateOnPush: ptr(true),
+				InvalidateOnPush: new(true),
 				Defaults:         &defaultOptions,
 			},
 			Requires: Requires{
@@ -499,7 +495,7 @@ func TestIsApproved(t *testing.T) {
 		}
 		assertPending(t, prctx, r, "0/1 required approvals. Ignored 6 approvals from disqualified users")
 
-		r.Options.IgnoreUpdateMerges = ptr(true)
+		r.Options.IgnoreUpdateMerges = new(true)
 		assertApproved(t, prctx, r, "Approved by comment-approver")
 	})
 
@@ -534,7 +530,7 @@ func TestIsApproved(t *testing.T) {
 		}
 		assertPending(t, prctx, r, "0/1 required approvals. Ignored 8 approvals from disqualified users")
 
-		r.Options.IgnoreUpdateMerges = ptr(true)
+		r.Options.IgnoreUpdateMerges = new(true)
 		assertApproved(t, prctx, r, "Approved by merge-committer")
 	})
 
@@ -613,7 +609,7 @@ func TestIsApproved(t *testing.T) {
 		}
 		assertApproved(t, prctx, r, "Approved by comment-approver")
 
-		r.Options.InvalidateOnPush = ptr(true)
+		r.Options.InvalidateOnPush = new(true)
 		r.Options.IgnoreCommitsBy = &common.Actors{
 			Users: []string{"mhaypenny"},
 		}
@@ -660,7 +656,7 @@ func TestIsApproved(t *testing.T) {
 		}
 		assertApproved(t, prctx, r, "Approved by comment-approver")
 
-		r.Options.InvalidateOnPush = ptr(true)
+		r.Options.InvalidateOnPush = new(true)
 		assertPending(t, prctx, r, "0/1 required approvals. Ignored 6 approvals from disqualified users")
 
 		r.Options.IgnoreCommitsBy = &common.Actors{
@@ -686,7 +682,7 @@ func TestIsApproved(t *testing.T) {
 
 		assertApproved(t, prctx, r, "Approved by review-comment-editor")
 
-		r.Options.IgnoreEditedComments = ptr(true)
+		r.Options.IgnoreEditedComments = new(true)
 
 		assertPending(t, prctx, r, "0/1 required approvals. Ignored 5 approvals from disqualified users")
 	})
@@ -708,7 +704,7 @@ func TestIsApproved(t *testing.T) {
 
 		assertApproved(t, prctx, r, "Approved by comment-editor")
 
-		r.Options.IgnoreEditedComments = ptr(true)
+		r.Options.IgnoreEditedComments = new(true)
 
 		assertPending(t, prctx, r, "0/1 required approvals. Ignored 5 approvals from disqualified users")
 	})
@@ -723,7 +719,7 @@ func TestIsApproved(t *testing.T) {
 						common.NewCompiledRegexp(regexp.MustCompile("/no-platform")),
 					},
 				},
-				IgnoreEditedComments: ptr(false),
+				IgnoreEditedComments: new(false),
 				Defaults:             &defaultOptions,
 			},
 			Requires: Requires{
@@ -736,7 +732,7 @@ func TestIsApproved(t *testing.T) {
 
 		assertApproved(t, prctx, r, "Approved by body-editor")
 
-		r.Options.IgnoreEditedComments = ptr(true)
+		r.Options.IgnoreEditedComments = new(true)
 
 		assertPending(t, prctx, r, "0/1 required approvals. Ignored 5 approvals from disqualified users")
 	})
@@ -901,7 +897,7 @@ func TestTrigger(t *testing.T) {
 						common.NewCompiledRegexp(regexp.MustCompile("(?i)nice")),
 					},
 				},
-				IgnoreEditedComments: ptr(false),
+				IgnoreEditedComments: new(false),
 				Defaults:             &defaultOptions,
 			},
 			Requires: Requires{

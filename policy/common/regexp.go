@@ -25,7 +25,7 @@ type Regexp struct {
 	r *regexp.Regexp
 }
 
-func (r Regexp) MarshalYAML() (interface{}, error) {
+func (r Regexp) MarshalYAML() (any, error) {
 	return r.String(), nil
 }
 
@@ -59,7 +59,7 @@ func (r Regexp) String() string {
 	return r.r.String()
 }
 
-func (r *Regexp) UnmarshalYAML(unmarshal func(interface{}) error) (err error) {
+func (r *Regexp) UnmarshalYAML(unmarshal func(any) error) (err error) {
 	var pattern string
 	if err := unmarshal(&pattern); err != nil {
 		return err

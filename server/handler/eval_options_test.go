@@ -38,13 +38,13 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 		"SharedRepository": {
 			Env: map[string]string{"PEO_SHARED_REPOSITORY": "settings"},
 			SetExpected: func(opts *PullEvaluationOptions) {
-				opts.SharedRepository = ptr("settings")
+				opts.SharedRepository = new("settings")
 			},
 		},
 		"SharedPolicyPath": {
 			Env: map[string]string{"PEO_SHARED_POLICY_PATH": "configs/policy-bot/policy.yml"},
 			SetExpected: func(opts *PullEvaluationOptions) {
-				opts.SharedPolicyPath = ptr("configs/policy-bot/policy.yml")
+				opts.SharedPolicyPath = new("configs/policy-bot/policy.yml")
 			},
 		},
 		"StatusCheckContext": {
@@ -80,7 +80,7 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 		"IgnoreEditedComments": {
 			Env: map[string]string{"PEO_IGNORE_EDITED_COMMENTS": "true"},
 			SetExpected: func(opts *PullEvaluationOptions) {
-				opts.IgnoreEditedComments = ptr(true)
+				opts.IgnoreEditedComments = new(true)
 			},
 		},
 		"ApprovalDefaults.Options.AllowAuthor": {
@@ -88,7 +88,7 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 			SetExpected: func(opts *PullEvaluationOptions) {
 				opts.ApprovalDefaults = &approval.Defaults{
 					Options: &approval.Options{
-						AllowAuthor: ptr(true),
+						AllowAuthor: new(true),
 					},
 				}
 			},
@@ -98,7 +98,7 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 			SetExpected: func(opts *PullEvaluationOptions) {
 				opts.ApprovalDefaults = &approval.Defaults{
 					Options: &approval.Options{
-						AllowContributor: ptr(true),
+						AllowContributor: new(true),
 					},
 				}
 			},
@@ -108,7 +108,7 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 			SetExpected: func(opts *PullEvaluationOptions) {
 				opts.ApprovalDefaults = &approval.Defaults{
 					Options: &approval.Options{
-						AllowNonAuthorContributor: ptr(true),
+						AllowNonAuthorContributor: new(true),
 					},
 				}
 			},
@@ -118,7 +118,7 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 			SetExpected: func(opts *PullEvaluationOptions) {
 				opts.ApprovalDefaults = &approval.Defaults{
 					Options: &approval.Options{
-						InvalidateOnPush: ptr(true),
+						InvalidateOnPush: new(true),
 					},
 				}
 			},
@@ -128,7 +128,7 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 			SetExpected: func(opts *PullEvaluationOptions) {
 				opts.ApprovalDefaults = &approval.Defaults{
 					Options: &approval.Options{
-						IgnoreEditedComments: ptr(true),
+						IgnoreEditedComments: new(true),
 					},
 				}
 			},
@@ -138,7 +138,7 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 			SetExpected: func(opts *PullEvaluationOptions) {
 				opts.ApprovalDefaults = &approval.Defaults{
 					Options: &approval.Options{
-						IgnoreUpdateMerges: ptr(true),
+						IgnoreUpdateMerges: new(true),
 					},
 				}
 			},
@@ -332,7 +332,7 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 				opts.ApprovalDefaults = &approval.Defaults{
 					Options: &approval.Options{
 						Methods: &common.Methods{
-							GithubReview: ptr(true),
+							GithubReview: new(true),
 						},
 					},
 				}
@@ -407,8 +407,8 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 			// the input and the output and hiding potential bugs
 			expected := PullEvaluationOptions{
 				PolicyPath:         DefaultPolicyPath,
-				SharedRepository:   ptr(DefaultSharedRepository),
-				SharedPolicyPath:   ptr(DefaultSharedPolicyPath),
+				SharedRepository:   new(DefaultSharedRepository),
+				SharedPolicyPath:   new(DefaultSharedPolicyPath),
 				StatusCheckContext: DefaultStatusCheckContext,
 			}
 			test.SetExpected(&expected)
@@ -416,8 +416,4 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 			assert.Equal(t, expected, opts, "incorrect options set from environment")
 		})
 	}
-}
-
-func ptr[T any](v T) *T {
-	return &v
 }

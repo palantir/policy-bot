@@ -62,7 +62,7 @@ func TestParsePolicy(t *testing.T) {
 		}
 
 		_, err := ParsePolicy(c, &GlobalOptions{
-			IgnoreEditedComments: ptr(true),
+			IgnoreEditedComments: new(true),
 		})
 		assert.NoError(t, err)
 	})
@@ -111,11 +111,11 @@ func TestParsePolicy(t *testing.T) {
 		c := &Config{
 			Policy: Policy{
 				Approval: approval.Policy{
-					map[interface{}]interface{}{
-						"or": []interface{}{
+					map[any]any{
+						"or": []any{
 							"rule1",
-							map[interface{}]interface{}{
-								"and": []interface{}{
+							map[any]any{
+								"and": []any{
 									"rule2",
 									"rule3",
 								},
@@ -136,7 +136,7 @@ func TestParsePolicy(t *testing.T) {
 		rule := &approval.Rule{
 			Name: "test-rule",
 			Options: approval.Options{
-				IgnoreEditedComments: ptr(false),
+				IgnoreEditedComments: new(false),
 			},
 		}
 
@@ -150,7 +150,7 @@ func TestParsePolicy(t *testing.T) {
 		}
 
 		_, err := ParsePolicy(c, &GlobalOptions{
-			IgnoreEditedComments: ptr(true),
+			IgnoreEditedComments: new(true),
 		})
 		assert.NoError(t, err)
 		assert.True(t, rule.Options.IsIgnoreEditedComments())
@@ -160,13 +160,13 @@ func TestParsePolicy(t *testing.T) {
 		rule1 := &approval.Rule{
 			Name: "rule1",
 			Options: approval.Options{
-				AllowAuthor: ptr(true),
+				AllowAuthor: new(true),
 			},
 		}
 		rule2 := &approval.Rule{
 			Name: "rule2",
 			Options: approval.Options{
-				InvalidateOnPush: ptr(false),
+				InvalidateOnPush: new(false),
 			},
 		}
 
@@ -179,8 +179,8 @@ func TestParsePolicy(t *testing.T) {
 			ApprovalRules: []*approval.Rule{rule1, rule2},
 			ApprovalDefaults: &approval.Defaults{
 				Options: &approval.Options{
-					InvalidateOnPush:     ptr(true),
-					IgnoreEditedComments: ptr(true),
+					InvalidateOnPush:     new(true),
+					IgnoreEditedComments: new(true),
 				},
 			},
 		}
@@ -200,13 +200,13 @@ func TestParsePolicy(t *testing.T) {
 		rule1 := &approval.Rule{
 			Name: "rule1",
 			Options: approval.Options{
-				AllowAuthor: ptr(true),
+				AllowAuthor: new(true),
 			},
 		}
 		rule2 := &approval.Rule{
 			Name: "rule2",
 			Options: approval.Options{
-				InvalidateOnPush: ptr(false),
+				InvalidateOnPush: new(false),
 			},
 		}
 
@@ -222,8 +222,8 @@ func TestParsePolicy(t *testing.T) {
 		_, err := ParsePolicy(c, &GlobalOptions{
 			ApprovalDefaults: &approval.Defaults{
 				Options: &approval.Options{
-					InvalidateOnPush:     ptr(true),
-					IgnoreEditedComments: ptr(true),
+					InvalidateOnPush:     new(true),
+					IgnoreEditedComments: new(true),
 				},
 			},
 		})
@@ -241,13 +241,13 @@ func TestParsePolicy(t *testing.T) {
 		rule1 := &approval.Rule{
 			Name: "rule1",
 			Options: approval.Options{
-				AllowAuthor: ptr(true),
+				AllowAuthor: new(true),
 			},
 		}
 		rule2 := &approval.Rule{
 			Name: "rule2",
 			Options: approval.Options{
-				InvalidateOnPush: ptr(false),
+				InvalidateOnPush: new(false),
 			},
 		}
 
@@ -270,7 +270,7 @@ func TestParsePolicy(t *testing.T) {
 		_, err := ParsePolicy(c, &GlobalOptions{
 			ApprovalDefaults: &approval.Defaults{
 				Options: &approval.Options{
-					InvalidateOnPush: ptr(true),
+					InvalidateOnPush: new(true),
 				},
 			},
 		})
@@ -313,10 +313,10 @@ func TestParsePolicy(t *testing.T) {
 	t.Run("maximumRecursiveDepth", func(t *testing.T) {
 		rule := &approval.Rule{Name: "rule"}
 
-		var nestedPolicy interface{} = "rule"
-		for i := 0; i < 12; i++ {
-			nestedPolicy = map[interface{}]interface{}{
-				"and": []interface{}{nestedPolicy},
+		var nestedPolicy any = "rule"
+		for range 12 {
+			nestedPolicy = map[any]any{
+				"and": []any{nestedPolicy},
 			}
 		}
 
@@ -335,9 +335,9 @@ func TestParsePolicy(t *testing.T) {
 	t.Run("invalidConjunction", func(t *testing.T) {
 		rule := &approval.Rule{Name: "rule"}
 
-		invalidConjunction := map[interface{}]interface{}{
-			"and": []interface{}{"rule"},
-			"or":  []interface{}{"rule"},
+		invalidConjunction := map[any]any{
+			"and": []any{"rule"},
+			"or":  []any{"rule"},
 		}
 
 		c := &Config{
@@ -353,8 +353,8 @@ func TestParsePolicy(t *testing.T) {
 	})
 
 	t.Run("emptySubconditions", func(t *testing.T) {
-		emptySubconditions := map[interface{}]interface{}{
-			"and": []interface{}{},
+		emptySubconditions := map[any]any{
+			"and": []any{},
 		}
 
 		c := &Config{
@@ -573,8 +573,4 @@ func TestConfigMarshalYaml(t *testing.T) {
 
 func castToResult(e common.Evaluator) *common.Result {
 	return (*common.Result)(e.(*StaticEvaluator))
-}
-
-func ptr[T any](val T) *T {
-	return &val
 }

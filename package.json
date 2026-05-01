@@ -12,12 +12,12 @@
     "autoprefixer": "^10.4.27",
     "css-loader": "^7.1.4",
     "cssnano": "^7.1",
-    "mini-css-extract-plugin": "^2.10.0",
+    "mini-css-extract-plugin": "^2.10.2",
     "postcss": "^8.5",
     "postcss-loader": "^8.2.1",
     "tailwindcss": "^3.0",
-    "webpack": "^5.105.3",
-    "webpack-cli": "^6.0.1",
+    "webpack": "^5.105.4",
+    "webpack-cli": "^7.0.2",
     "webpack-manifest-plugin": "^6.0.1"
   },
   "dependencies": {

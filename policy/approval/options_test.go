@@ -31,37 +31,37 @@ func TestOptionsFields(t *testing.T) {
 		DefaultValue any // use SetValue if nil
 	}{
 		"AllowAuthor": {
-			Seed:       Options{AllowAuthor: ptr(true)},
+			Seed:       Options{AllowAuthor: new(true)},
 			Get:        func(o Options) any { return o.IsAllowAuthor() },
 			UnsetValue: false,
 			SetValue:   true,
 		},
 		"AllowContributor": {
-			Seed:       Options{AllowContributor: ptr(true)},
+			Seed:       Options{AllowContributor: new(true)},
 			Get:        func(o Options) any { return o.IsAllowContributor() },
 			UnsetValue: false,
 			SetValue:   true,
 		},
 		"AllowNonAuthorContributor": {
-			Seed:       Options{AllowNonAuthorContributor: ptr(true)},
+			Seed:       Options{AllowNonAuthorContributor: new(true)},
 			Get:        func(o Options) any { return o.IsAllowNonAuthorContributor() },
 			UnsetValue: false,
 			SetValue:   true,
 		},
 		"InvalidateOnPush": {
-			Seed:       Options{InvalidateOnPush: ptr(true)},
+			Seed:       Options{InvalidateOnPush: new(true)},
 			Get:        func(o Options) any { return o.IsInvalidateOnPush() },
 			UnsetValue: false,
 			SetValue:   true,
 		},
 		"IgnoreEditedComments": {
-			Seed:       Options{IgnoreEditedComments: ptr(true)},
+			Seed:       Options{IgnoreEditedComments: new(true)},
 			Get:        func(o Options) any { return o.IsIgnoreEditedComments() },
 			UnsetValue: false,
 			SetValue:   true,
 		},
 		"IgnoreUpdateMerges": {
-			Seed:       Options{IgnoreUpdateMerges: ptr(true)},
+			Seed:       Options{IgnoreUpdateMerges: new(true)},
 			Get:        func(o Options) any { return o.IsIgnoreUpdateMerges() },
 			UnsetValue: false,
 			SetValue:   true,
@@ -96,7 +96,7 @@ func TestOptionsFields(t *testing.T) {
 			Seed: Options{
 				Methods: &common.Methods{
 					Comments:     []string{"+1"},
-					GithubReview: ptr(true),
+					GithubReview: new(true),
 				},
 			},
 			Get: func(o Options) any { return o.GetMethods() },
@@ -105,14 +105,14 @@ func TestOptionsFields(t *testing.T) {
 			},
 			SetValue: &common.Methods{
 				Comments:          []string{"+1"},
-				GithubReview:      ptr(true),
+				GithubReview:      new(true),
 				GithubReviewState: pull.ReviewApproved,
 			},
 			DefaultValue: &common.Methods{
 				GithubReviewState: pull.ReviewApproved,
 				Defaults: &common.Methods{
 					Comments:          []string{"+1"},
-					GithubReview:      ptr(true),
+					GithubReview:      new(true),
 					GithubReviewState: pull.ReviewApproved,
 				},
 			},

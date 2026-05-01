@@ -16,9 +16,10 @@ package pull
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"slices"
 	"strings"
 
@@ -71,7 +72,7 @@ func (rp *ResponsePlayer) AddRule(matcher RequestMatcher, file string) *Rule {
 	rule := &Rule{Matcher: matcher}
 	rp.Rules = append(rp.Rules, rule)
 
-	d, err := ioutil.ReadFile(file)
+	d, err := os.ReadFile(file)
 	if err != nil {
 		rule.err = errors.Wrapf(err, "failed to read response file: %s", file)
 		return rule
@@ -107,7 +108,7 @@ func (r *SavedResponse) Response(req *http.Request) *http.Response {
 		ProtoMinor: 1,
 
 		Header:        header,
-		Body:          ioutil.NopCloser(body),
+		Body:          io.NopCloser(body),
 		ContentLength: body.Size(),
 
 		Request: req,
@@ -117,7 +118,7 @@ func (r *SavedResponse) Response(req *http.Request) *http.Response {
 func (rp *ResponsePlayer) findMatch(req *http.Request) *Rule {
 	var body []byte
 	if req.Body != nil {
-		body, _ = ioutil.ReadAll(req.Body)
+		body, _ = io.ReadAll(req.Body)
 		_ = req.Body.Close()
 	}
 
@@ -162,7 +163,7 @@ func errorResponse(req *http.Request, code int, msg string) (*http.Response, err
 		ProtoMinor: 1,
 
 		Header:        make(http.Header),
-		Body:          ioutil.NopCloser(body),
+		Body:          io.NopCloser(body),
 		ContentLength: body.Size(),
 
 		Request: req,

@@ -224,7 +224,7 @@ func TestMethodsFields(t *testing.T) {
 			SetValue:   []Regexp{pattern},
 		},
 		"GithubReview": {
-			Seed:       Methods{GithubReview: ptr(true)},
+			Seed:       Methods{GithubReview: new(true)},
 			Get:        func(m Methods) any { return m.IsGithubReview() },
 			UnsetValue: false,
 			SetValue:   true,
@@ -259,8 +259,4 @@ func TestMethodsFields(t *testing.T) {
 			}
 		})
 	}
-}
-
-func ptr[T any](v T) *T {
-	return &v
 }

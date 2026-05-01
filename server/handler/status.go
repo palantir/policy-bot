@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/go-github/v82/github"
+	"github.com/google/go-github/v84/github"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
@@ -92,7 +92,7 @@ func (h *Status) processOwn(ctx context.Context, event github.StatusEvent) error
 	// if multiple contexts are forged, we will handle multiple events
 	status := github.RepoStatus{
 		Context:     event.Context,
-		State:       github.String("failure"),
+		State:       new("failure"),
 		Description: &desc,
 	}
 

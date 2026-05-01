@@ -15,6 +15,7 @@
 package pulltest
 
 import (
+	"slices"
 	"time"
 
 	"github.com/palantir/policy-bot/pull"
@@ -161,10 +162,8 @@ func (c *Context) IsTeamMember(team, user string) (bool, error) {
 		return false, c.TeamMembershipError
 	}
 
-	for _, t := range c.TeamMemberships[user] {
-		if t == team {
-			return true, nil
-		}
+	if slices.Contains(c.TeamMemberships[user], team) {
+		return true, nil
 	}
 	return false, nil
 }
@@ -174,10 +173,8 @@ func (c *Context) IsOrgMember(org, user string) (bool, error) {
 		return false, c.OrgMembershipError
 	}
 
-	for _, o := range c.OrgMemberships[user] {
-		if o == org {
-			return true, nil
-		}
+	if slices.Contains(c.OrgMemberships[user], org) {
+		return true, nil
 	}
 	return false, nil
 }
