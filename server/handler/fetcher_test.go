@@ -19,7 +19,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/google/go-github/v82/github"
+	"github.com/google/go-github/v84/github"
 	"github.com/palantir/go-githubapp/appconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
