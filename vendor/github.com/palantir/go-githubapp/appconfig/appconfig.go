@@ -21,11 +21,11 @@ package appconfig
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
-	"github.com/google/go-github/v84/github"
+	"github.com/google/go-github/v85/github"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
@@ -267,72 +267,66 @@ func (ld *Loader) loadDefaultConfig(ctx context.Context, client *github.Client, 
 // getFileContents returns the content of the file at path on ref in owner/repo
 // if it exists. Returns an empty slice and false if the file does not exist.
 func getFileContents(ctx context.Context, client *github.Client, owner, repo, ref, path string) ([]byte, bool, error) {
+	// GetContents returns encoded content for files < 1MB and a download URL
+	// for files between 1MB and 100MB. It returns an error for files >100MB,
+	// but if an app has a configuration file that large, there are probably
+	// other issues...
 	file, _, _, err := client.Repositories.GetContents(ctx, owner, repo, path, &github.RepositoryContentGetOptions{
 		Ref: ref,
 	})
 	if err != nil {
-		switch {
-		case isNotFound(err):
+		if isNotFound(err) {
 			return nil, false, nil
-		case isTooLargeError(err):
-			b, err := getLargeFileContents(ctx, client, owner, repo, ref, path)
-			return b, true, err
 		}
 		return nil, false, errors.Wrap(err, "failed to read file")
 	}
 
-	// file will be nil if the path exists but is a directory
+	// The file will be nil if the path exists but is a directory
 	if file == nil {
 		return nil, false, nil
 	}
 
+	// If decoding the content fails, ignore the error and try the download URL
+	// instead. The most likely error is if the file is larger than 1MB.
 	content, err := file.GetContent()
-	if err != nil {
-		return nil, true, errors.Wrap(err, "failed to decode file content")
+	if err == nil {
+		return []byte(content), true, nil
 	}
 
-	return []byte(content), true, nil
-}
-
-// getLargeFileContents is similar to getFileContents, but works for files up
-// to 100MB. Unlike getFileContents, it returns an error if the file does not
-// exist.
-func getLargeFileContents(ctx context.Context, client *github.Client, owner, repo, ref, path string) ([]byte, error) {
-	body, res, err := client.Repositories.DownloadContents(ctx, owner, repo, path, &github.RepositoryContentGetOptions{
-		Ref: ref,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to read file")
+	downloadURL := file.GetDownloadURL()
+	if downloadURL == "" {
+		return nil, true, errors.New("download url is empty")
 	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", downloadURL, nil)
+	if err != nil {
+		return nil, true, errors.Wrap(err, "failed to create download request")
+	}
+
+	res, err := client.Client().Do(req)
+	if err != nil {
+		return nil, true, errors.Wrap(err, "failed to download file")
+	}
+
 	defer func() {
-		_ = body.Close()
+		_, _ = io.Copy(io.Discard, res.Body)
+		_ = res.Body.Close()
 	}()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, errors.Errorf("failed to read file: unexpected status code %d", res.StatusCode)
+		return nil, true, errors.Errorf("failed to download file: unexpected status code %d", res.StatusCode)
 	}
 
-	b, err := ioutil.ReadAll(body)
+	b, err := io.ReadAll(res.Body)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read file")
+		return nil, true, errors.Wrap(err, "failed to read file")
 	}
-	return b, nil
+	return b, true, nil
 }
 
 func isNotFound(err error) bool {
 	if rerr, ok := err.(*github.ErrorResponse); ok {
 		return rerr.Response.StatusCode == http.StatusNotFound
-	}
-	return false
-}
-
-func isTooLargeError(err error) bool {
-	if rerr, ok := err.(*github.ErrorResponse); ok {
-		for _, err := range rerr.Errors {
-			if err.Code == "too_large" {
-				return true
-			}
-		}
 	}
 	return false
 }

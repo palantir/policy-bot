@@ -46,12 +46,12 @@ func errorCounter(r metrics.Registry, event string) metrics.Counter {
 
 // HandlerPanicError is an error created from a recovered handler panic.
 type HandlerPanicError struct {
-	value interface{}
+	value any
 	stack []runtime.Frame
 }
 
 // Value returns the exact value with which panic() was called.
-func (e HandlerPanicError) Value() interface{} {
+func (e HandlerPanicError) Value() any {
 	return e.value
 }
 
