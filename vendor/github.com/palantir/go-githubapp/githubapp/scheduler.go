@@ -212,7 +212,7 @@ func QueueAsyncScheduler(queueSize int, workers int, opts ...SchedulerOption) Sc
 		opt(&s.scheduler)
 	}
 
-	for i := 0; i < workers; i++ {
+	for range workers {
 		go func() {
 			for d := range s.queue {
 				if s.eventAge != nil {
