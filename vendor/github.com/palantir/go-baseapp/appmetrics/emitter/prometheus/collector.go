@@ -181,8 +181,8 @@ func labelsFromName(name string) (string, prometheus.Labels) {
 		return sanitizeName(name), labels
 	}
 
-	labelPairs := strings.Split(name[start+1:len(name)-1], ",")
-	for _, pair := range labelPairs {
+	labelPairs := strings.SplitSeq(name[start+1:len(name)-1], ",")
+	for pair := range labelPairs {
 		key, value, ok := strings.Cut(strings.TrimSpace(pair), ":")
 		if ok {
 			labels[sanitizeLabel(key)] = value

@@ -187,7 +187,7 @@ func (s *Server) Start() error {
 }
 
 // WriteJSON writes a JSON response or an error if mashalling the object fails.
-func WriteJSON(w http.ResponseWriter, status int, obj interface{}) {
+func WriteJSON(w http.ResponseWriter, status int, obj any) {
 	w.Header().Set("Content-Type", "application/json")
 
 	b, err := json.Marshal(obj)

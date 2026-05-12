@@ -32,7 +32,7 @@ type httpError interface {
 
 // RichErrorMarshalFunc is a zerolog error marshaller that formats the error as
 // a string that includes a stack trace, if one is available.
-func RichErrorMarshalFunc(err error) interface{} {
+func RichErrorMarshalFunc(err error) any {
 	return errfmt.Print(err)
 }
 

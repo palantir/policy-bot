@@ -44,7 +44,7 @@ func Print(err error) string {
 		return ""
 	}
 
-	var deepestStack interface{}
+	var deepestStack any
 	currErr := err
 	for currErr != nil {
 		switch currErr.(type) {
@@ -62,7 +62,7 @@ func Print(err error) string {
 	return err.Error() + fmtStack(deepestStack)
 }
 
-func fmtStack(tracer interface{}) string {
+func fmtStack(tracer any) string {
 	switch t := tracer.(type) {
 	case pkgErrorsStackTracer:
 		return fmt.Sprintf("%+v", t.StackTrace())

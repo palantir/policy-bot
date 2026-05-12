@@ -79,7 +79,7 @@ func WithUTCNanoTime() Param {
 }
 
 // WithErrorLogging sets a formatting function used to log errors.
-func WithErrorLogging(marshalFunc func(err error) interface{}) Param {
+func WithErrorLogging(marshalFunc func(err error) any) Param {
 	return func(b *Server) error {
 		zerolog.ErrorMarshalFunc = marshalFunc
 		return nil

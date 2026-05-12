@@ -23,7 +23,6 @@ github.com/c2h5oh/datasize v0.0.0-20231215233829-aa82cc1e6500/go.mod h1:S/7n9cop
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
 github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
-github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -64,8 +63,8 @@ github.com/mattn/go-isatty v0.0.22 h1:j8l17JJ9i6VGPUFUYoTUKPSgKe/83EYU2zBC7YNKMw
 github.com/mattn/go-isatty v0.0.22/go.mod h1:ZXfXG4SQHsB/w3ZeOYbR0PrPwLy+n6xiMrJlRFqopa4=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq1c1nUAm88MOHcQC9l5mIlSMApZMrHA=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
-github.com/palantir/go-baseapp v0.6.0 h1:59UU9rgrd4x2QP/Hb0XqZJ5ZCH6m7BaaPnA+VWKWaTI=
-github.com/palantir/go-baseapp v0.6.0/go.mod h1:sa/waQhryV7OlPMykG0MUT+nsLtDxdHHPv5Q60hA/Ek=
+github.com/palantir/go-baseapp v0.7.0 h1:KsnCqz2T2j2m21JI149p8HUata9ubvVl2aKbw71u8qA=
+github.com/palantir/go-baseapp v0.7.0/go.mod h1:EvMBTXraSU+5cRCZTNt4e+eNty7t2me565Gr/6wc4/I=
 github.com/palantir/go-githubapp v0.44.0 h1:6QXYxgot6tHnObwJ09mrhzVg9K2DA0lQgQHj0q/BX4Y=
 github.com/palantir/go-githubapp v0.44.0/go.mod h1:vFTHSErTFXirDg18QMtFPKDbQ/NB6n8JE8L1yG/3Ij0=
 github.com/patrickmn/go-cache v2.1.0+incompatible h1:HRMgzkcYKYpi3C8ajMPV8OFXaaRUnok+kx1WdO15EQc=

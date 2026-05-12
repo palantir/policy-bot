@@ -116,7 +116,7 @@ func (e *Emitter) Emit(ctx context.Context, interval time.Duration) {
 }
 
 func (e *Emitter) EmitOnce() {
-	e.registry.Each(func(name string, metric interface{}) {
+	e.registry.Each(func(name string, metric any) {
 		name, tags := tagsFromName(name)
 
 		switch m := metric.(type) {
