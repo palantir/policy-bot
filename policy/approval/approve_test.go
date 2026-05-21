@@ -749,7 +749,12 @@ func TestIsApproved(t *testing.T) {
 				},
 			},
 		}
-		assertPending(t, prctx, r, "0/1 required conditions")
+		// The fixture has "deploy" = "pending", which is not in the default
+		// allowed conclusion of "success", so the rule remains pending and
+		// the status description must name the blocking check so a reader
+		// of the GitHub status check can act without opening the policy-bot
+		// details page.
+		assertPending(t, prctx, r, "0/1 required conditions [Pending (not in allowed conclusions success): deploy]")
 	})
 
 	t.Run("conditionsRequiredStatusSuccess", func(t *testing.T) {

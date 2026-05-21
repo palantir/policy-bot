@@ -98,6 +98,39 @@ func TestHasSuccessfulStatus(t *testing.T) {
 			},
 		},
 		{
+			"multiple statuses do not exist",
+			&pulltest.Context{},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"status-name", "status-name-2"},
+			},
+		},
+	}
+
+	// Cases where one status is missing and the other has a non-success
+	// conclusion. Before the descriptive-errors change, the predicate
+	// returned early when any status was missing, hiding the not-success
+	// status from .Values. The new behavior surfaces both at once so a
+	// single failure message can point at every actionable check, but only
+	// when the not-success conclusion is not in the allowed set; if
+	// "skipped" is an allowed conclusion, only the missing status blocks.
+	missingAndNotSuccessStrict := []StatusTestCase{
+		{
+			"a status does not exist, the other status is skipped",
+			&pulltest.Context{
+				LatestStatusesValue: map[string]string{
+					"status-name-2": "skipped",
+				},
+			},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{"status-name", "status-name-2"},
+			},
+		},
+	}
+
+	missingAndNotSuccessRelaxed := []StatusTestCase{
+		{
 			"a status does not exist, the other status is skipped",
 			&pulltest.Context{
 				LatestStatusesValue: map[string]string{
@@ -107,14 +140,6 @@ func TestHasSuccessfulStatus(t *testing.T) {
 			&common.PredicateResult{
 				Satisfied: false,
 				Values:    []string{"status-name"},
-			},
-		},
-		{
-			"multiple statuses do not exist",
-			&pulltest.Context{},
-			&common.PredicateResult{
-				Satisfied: false,
-				Values:    []string{"status-name", "status-name-2"},
 			},
 		},
 	}
@@ -150,13 +175,20 @@ func TestHasSuccessfulStatus(t *testing.T) {
 
 	testSuites := []StatusTestSuite{
 		{predicate: hasStatus, testCases: commonTestCases},
+		{predicate: hasStatus, testCases: missingAndNotSuccessStrict},
 		{predicate: hasStatus, testCases: okOnlyIfSkippedAllowed},
 		{predicate: hasSuccessfulStatus, testCases: commonTestCases},
+		{predicate: hasSuccessfulStatus, testCases: missingAndNotSuccessStrict},
 		{predicate: hasSuccessfulStatus, testCases: okOnlyIfSkippedAllowed},
 		{
 			nameSuffix: "skipped allowed",
 			predicate:  hasStatusSkippedOk,
 			testCases:  commonTestCases,
+		},
+		{
+			nameSuffix: "skipped allowed",
+			predicate:  hasStatusSkippedOk,
+			testCases:  missingAndNotSuccessRelaxed,
 		},
 		{
 			nameSuffix:        "skipped allowed",

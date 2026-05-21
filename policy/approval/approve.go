@@ -443,12 +443,25 @@ func statusDescription(approved bool, result common.RequiresResult, candidates [
 		}
 
 		successful := 0
+		var conditionDetails []string
 		for _, c := range result.Conditions {
 			if c.Satisfied {
 				successful++
+				continue
+			}
+			// Surface predicate-level details (e.g. specific failing status
+			// checks from has_status) so the GitHub status check is
+			// actionable, not just a "X/Y required conditions" count. Each
+			// condition predicate that fails contributes its Description; we
+			// keep this single-pass so order matches policy.yml order.
+			if c.Description != "" {
+				conditionDetails = append(conditionDetails, c.Description)
 			}
 		}
 		fmt.Fprintf(&desc, "%d/%d required conditions", successful, len(result.Conditions))
+		if len(conditionDetails) > 0 {
+			fmt.Fprintf(&desc, " [%s]", strings.Join(conditionDetails, "; "))
+		}
 	}
 	if disqualified := len(candidates) - len(result.Approvers); hasActors && disqualified > 0 {
 		fmt.Fprintf(&desc, ". Ignored %s from disqualified users", numberOfApprovals(disqualified))

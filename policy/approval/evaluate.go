@@ -17,6 +17,7 @@ package approval
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
@@ -157,6 +158,7 @@ func (r *AndRequirement) Evaluate(ctx context.Context, prctx pull.Context) commo
 
 	var err error
 	var pending, approved, skipped int
+	var pendingDetails []string
 	for _, c := range children {
 		if c.Error != nil {
 			err = c.Error
@@ -168,6 +170,14 @@ func (r *AndRequirement) Evaluate(ctx context.Context, prctx pull.Context) commo
 			approved++
 		case common.StatusPending:
 			pending++
+			// Capture the pending rule's StatusDescription so the top-level
+			// status posted to GitHub names the actual blocker (e.g. the
+			// failing has_status checks) instead of just "X/Y rules approved".
+			// We collect from every pending rule because in an AND, all of
+			// them must clear before merge.
+			if d := pendingRuleDetail(c); d != "" {
+				pendingDetails = append(pendingDetails, d)
+			}
 		case common.StatusSkipped:
 			skipped++
 		}
@@ -183,6 +193,9 @@ func (r *AndRequirement) Evaluate(ctx context.Context, prctx pull.Context) commo
 	case pending > 0:
 		status = common.StatusPending
 		description = fmt.Sprintf("%d/%d rules approved", approved, approved+pending)
+		if len(pendingDetails) > 0 {
+			description = fmt.Sprintf("%s; %s", description, joinPendingDetails(pendingDetails))
+		}
 	}
 
 	return common.Result{
@@ -192,4 +205,32 @@ func (r *AndRequirement) Evaluate(ctx context.Context, prctx pull.Context) commo
 		Error:             err,
 		Children:          children,
 	}
+}
+
+// pendingRuleDetail returns a human-readable, blocker-focused suffix for a
+// child rule that is currently pending. The rule's own StatusDescription
+// already encodes either the failing condition predicates (set by
+// statusDescription in approve.go) or the failing precondition predicate (set
+// by Rule.Evaluate when a predicate is not satisfied). We prefer to include
+// the rule name so a reader can correlate the message with the policy.yml.
+func pendingRuleDetail(c *common.Result) string {
+	desc := strings.TrimSpace(c.StatusDescription)
+	if desc == "" {
+		return ""
+	}
+	if c.Name == "" {
+		return desc
+	}
+	return fmt.Sprintf("%q: %s", c.Name, desc)
+}
+
+// joinPendingDetails concatenates pending-rule details with a stable
+// delimiter. We deliberately do not truncate here: the full description is
+// rendered on the policy-bot details page and emitted to logs, and GitHub's
+// own 140-character commit status limit will truncate the message at post
+// time. Truncating internally would hide the actionable detail from the
+// details page and logs while only saving bytes that GitHub would discard
+// anyway.
+func joinPendingDetails(details []string) string {
+	return strings.Join(details, " | ")
 }
