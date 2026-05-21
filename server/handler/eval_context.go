@@ -192,10 +192,18 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 	publicURL := strings.TrimSuffix(ec.PublicURL, "/")
 	detailsURL := fmt.Sprintf("%s/details/%s/%s/%d", publicURL, owner, repo, ec.PullContext.Number())
 
+	// GitHub commit-status descriptions are capped at 140 characters. The
+	// descriptive has-status messages introduced for issue #960 can exceed
+	// that comfortably for repos with many required checks (e.g. SonarCloud
+	// component checks), so truncate here and point the reader at the
+	// already-attached details URL instead of letting GitHub silently lop
+	// off the end mid-word.
+	displayMessage := truncateStatusDescription(message)
+
 	status := github.RepoStatus{
 		State:       &state,
 		Context:     new(fmt.Sprintf("%s: %s", ec.Options.StatusCheckContext, base)),
-		Description: &message,
+		Description: &displayMessage,
 		TargetURL:   &detailsURL,
 	}
 
@@ -218,4 +226,37 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 			logger.Err(err).Msg("Failed to post insecure repo status")
 		}
 	}
+}
+
+// gitHubStatusDescriptionMaxLen is GitHub's hard cap on commit-status
+// descriptions. The API silently truncates anything longer.
+const gitHubStatusDescriptionMaxLen = 140
+
+// statusDescriptionTruncationSuffix is appended when truncation occurs. It is
+// kept short so most of the budget can hold the actionable detail (which
+// segment names the failing or missing check) and points the reader at the
+// existing TargetURL on the same status check for the full text.
+const statusDescriptionTruncationSuffix = " … (see details)"
+
+// truncateStatusDescription returns s unchanged if it already fits inside
+// GitHub's commit-status description limit. Otherwise it truncates from the
+// right at a rune boundary, trims trailing punctuation/whitespace so the
+// suffix joins cleanly, and appends statusDescriptionTruncationSuffix to
+// signal that the reader should follow the status check's "Details" link
+// (already set as TargetURL) for the full description.
+func truncateStatusDescription(s string) string {
+	runes := []rune(s)
+	if len(runes) <= gitHubStatusDescriptionMaxLen {
+		return s
+	}
+	suffixRunes := []rune(statusDescriptionTruncationSuffix)
+	cutoff := gitHubStatusDescriptionMaxLen - len(suffixRunes)
+	if cutoff < 0 {
+		// Defensive: suffix alone is shorter than the limit today, but if a
+		// future edit makes the suffix longer than the limit, fall back to
+		// the raw rune-bounded truncation rather than panicking.
+		return string(runes[:gitHubStatusDescriptionMaxLen])
+	}
+	head := strings.TrimRight(string(runes[:cutoff]), " ,;.:-—")
+	return head + statusDescriptionTruncationSuffix
 }
