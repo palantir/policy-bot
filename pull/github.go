@@ -1046,13 +1046,50 @@ func (ghc *GitHubContext) loadCodeownersResult() (*CodeownersResult, error) {
 	return result, nil
 }
 
-// loadCodeowners attempts to load the CODEOWNERS file from the base branch.
-// It uses the base branch ref to prevent PRs from modifying their own approval
-// requirements by changing CODEOWNERS in the PR. Returns nil if no CODEOWNERS
-// file exists.
-func (ghc *GitHubContext) loadCodeowners() (*codeowners.Codeowners, error) {
-	baseRef := ghc.pr.BaseRefOID
+// defaultBranchHeadSHA returns the current HEAD commit SHA of the repository's
+// default branch. The result is cached with a short TTL (DefaultBranchHeadTTL)
+// to avoid resolving the branch on every evaluation while still picking up
+// CODEOWNERS changes promptly.
+func (ghc *GitHubContext) defaultBranchHeadSHA() (string, error) {
 	repoID := ghc.pr.BaseRepository.DatabaseID
+
+	if gc := ghc.globalCache; gc != nil {
+		if sha, ok := gc.GetDefaultBranchHead(repoID); ok {
+			return sha, nil
+		}
+	}
+
+	repository, _, err := ghc.client.Repositories.Get(ghc.ctx, ghc.owner, ghc.repo)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get repository")
+	}
+
+	branch, _, err := ghc.client.Repositories.GetBranch(ghc.ctx, ghc.owner, ghc.repo, repository.GetDefaultBranch(), 0)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get default branch %q", repository.GetDefaultBranch())
+	}
+
+	sha := branch.GetCommit().GetSHA()
+	if gc := ghc.globalCache; gc != nil {
+		gc.SetDefaultBranchHead(repoID, sha)
+	}
+	return sha, nil
+}
+
+// loadCodeowners attempts to load the CODEOWNERS file from the repository's
+// default branch at its current HEAD. Reading from the default branch (rather
+// than the pull request's base ref) ensures approval rules always reflect the
+// canonical, up-to-date CODEOWNERS and cannot be weakened by targeting or
+// editing a non-default base branch. Returns nil if no CODEOWNERS file exists.
+func (ghc *GitHubContext) loadCodeowners() (*codeowners.Codeowners, error) {
+	repoID := ghc.pr.BaseRepository.DatabaseID
+
+	// Resolve the default branch HEAD SHA so the lookup is always current and
+	// the cache stays keyed by an immutable commit.
+	baseRef, err := ghc.defaultBranchHeadSHA()
+	if err != nil {
+		return nil, err
+	}
 
 	// Check cache for parsed CODEOWNERS content
 	if gc := ghc.globalCache; gc != nil {

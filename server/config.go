@@ -83,6 +83,11 @@ type CachingConfig struct {
 	// The size of the global cache for team member lists. Each entry caches
 	// the full list of team members with metadata (avatars, URLs) with a 5 minute TTL.
 	TeamsSize int `yaml:"teams_size"`
+
+	// The size of the global cache for default branch HEAD SHAs. Each entry
+	// caches the current HEAD of a repository's default branch with a short TTL
+	// (see pull.DefaultBranchHeadTTL).
+	DefaultBranchHeadSize int `yaml:"default_branch_head_size"`
 }
 
 type WorkerConfig struct {

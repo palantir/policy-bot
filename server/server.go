@@ -53,6 +53,7 @@ const (
 	DefaultCodeownersCacheSize = 10_000
 	DefaultMembershipCacheSize = 10_000
 	DefaultTeamsCacheSize      = 1_000
+	DefaultBranchHeadCacheSize = 10_000
 )
 
 type Server struct {
@@ -175,8 +176,9 @@ func New(c *Config) (*Server, error) {
 	codeownersSize := cacheSize(c.Cache.CodeownersSize, DefaultCodeownersCacheSize)
 	membershipSize := cacheSize(c.Cache.MembershipSize, DefaultMembershipCacheSize)
 	teamsSize := cacheSize(c.Cache.TeamsSize, DefaultTeamsCacheSize)
+	defaultBranchHeadSize := cacheSize(c.Cache.DefaultBranchHeadSize, DefaultBranchHeadCacheSize)
 
-	globalCache, err := pull.NewLRUGlobalCache(pushedAtSize, codeownersSize, membershipSize, teamsSize)
+	globalCache, err := pull.NewLRUGlobalCache(pushedAtSize, codeownersSize, membershipSize, teamsSize, defaultBranchHeadSize)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to initialize global cache")
 	}

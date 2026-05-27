@@ -24,6 +24,12 @@ import (
 
 const DefaultMembershipTTL = 5 * time.Minute
 
+// DefaultBranchHeadTTL bounds how stale a cached default branch HEAD SHA may be.
+// It is short so that a CODEOWNERS change merged to the default branch is picked
+// up quickly, while still collapsing the bursts of evaluations a single pull
+// request triggers.
+const DefaultBranchHeadTTL = 30 * time.Second
+
 // TeamMember represents a GitHub user with basic metadata
 type TeamMember struct {
 	Login     string
@@ -62,6 +68,12 @@ type GlobalCache interface {
 	// Returns (members, info, found). If found is false, the value is not in cache.
 	GetTeamMembers(team string) ([]TeamMember, *TeamInfo, bool)
 	SetTeamMembers(team string, info *TeamInfo, members []TeamMember)
+
+	// GetDefaultBranchHead returns the cached default branch HEAD SHA for a
+	// repository. Unlike a commit SHA, the default branch HEAD moves, so this
+	// value is cached with a short TTL (see DefaultBranchHeadTTL).
+	GetDefaultBranchHead(repoID int64) (string, bool)
+	SetDefaultBranchHead(repoID int64, sha string)
 }
 
 type membershipEntry struct {
@@ -75,18 +87,25 @@ type teamMembersEntry struct {
 	expiresAt time.Time
 }
 
+type defaultBranchHeadEntry struct {
+	sha       string
+	expiresAt time.Time
+}
+
 // LRUGlobalCache is a GlobalCache where each data type is stored in a separate
 // LRU cache. This prevents frequently used data of one type from evicting less
 // frequently used data of a different type.
 type LRUGlobalCache struct {
-	pushedAt   *lru.Cache
-	codeowners *lru.Cache
-	membership *lru.Cache
-	teams      *lru.Cache
-	memberTTL  time.Duration
+	pushedAt          *lru.Cache
+	codeowners        *lru.Cache
+	membership        *lru.Cache
+	teams             *lru.Cache
+	defaultBranchHead *lru.Cache
+	memberTTL         time.Duration
+	branchHeadTTL     time.Duration
 }
 
-func NewLRUGlobalCache(pushedAtSize, codeownersSize, membershipSize, teamsSize int) (*LRUGlobalCache, error) {
+func NewLRUGlobalCache(pushedAtSize, codeownersSize, membershipSize, teamsSize, defaultBranchHeadSize int) (*LRUGlobalCache, error) {
 	pushedAt, err := lru.New(pushedAtSize)
 	if err != nil {
 		return nil, err
@@ -103,12 +122,18 @@ func NewLRUGlobalCache(pushedAtSize, codeownersSize, membershipSize, teamsSize i
 	if err != nil {
 		return nil, err
 	}
+	defaultBranchHead, err := lru.New(defaultBranchHeadSize)
+	if err != nil {
+		return nil, err
+	}
 	return &LRUGlobalCache{
-		pushedAt:   pushedAt,
-		codeowners: codeownersCache,
-		membership: membership,
-		teams:      teams,
-		memberTTL:  DefaultMembershipTTL,
+		pushedAt:          pushedAt,
+		codeowners:        codeownersCache,
+		membership:        membership,
+		teams:             teams,
+		defaultBranchHead: defaultBranchHead,
+		memberTTL:         DefaultMembershipTTL,
+		branchHeadTTL:     DefaultBranchHeadTTL,
 	}, nil
 }
 
@@ -182,5 +207,26 @@ func (c *LRUGlobalCache) SetTeamMembers(team string, info *TeamInfo, members []T
 		info:      info,
 		members:   members,
 		expiresAt: time.Now().Add(c.memberTTL),
+	})
+}
+
+func (c *LRUGlobalCache) GetDefaultBranchHead(repoID int64) (string, bool) {
+	key := fmt.Sprintf("%d", repoID)
+	if val, ok := c.defaultBranchHead.Get(key); ok {
+		if entry, ok := val.(defaultBranchHeadEntry); ok {
+			if time.Now().Before(entry.expiresAt) {
+				return entry.sha, true
+			}
+			// Expired - remove and return not found
+			c.defaultBranchHead.Remove(key)
+		}
+	}
+	return "", false
+}
+
+func (c *LRUGlobalCache) SetDefaultBranchHead(repoID int64, sha string) {
+	c.defaultBranchHead.Add(fmt.Sprintf("%d", repoID), defaultBranchHeadEntry{
+		sha:       sha,
+		expiresAt: time.Now().Add(c.branchHeadTTL),
 	})
 }
