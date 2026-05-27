@@ -87,6 +87,7 @@
         {{if ne $s "skipped"}}{{/* only show approval details for active rules */}}
           {{- $hasConditions := gt (len .Requires.Conditions) 0 -}}
           {{- $hasActors := gt .Requires.Count 0 -}}
+          {{- $hasOwnershipGroups := hasOwnershipGroups .Requires -}}
           {{if $hasConditions }}
             <div class="pt-2">
             {{template "result-conditions-details" .}}
@@ -107,7 +108,7 @@
             </div>
             {{end}}
           {{end}}
-          {{if and (not $hasActors) (not $hasConditions)}}
+          {{if and (not $hasActors) (not $hasConditions) (not $hasOwnershipGroups)}}
             <div class="pt-2">
               <b class="font-bold text-sm">This rule is automatically approved and requires no reviews</b>
             </div>

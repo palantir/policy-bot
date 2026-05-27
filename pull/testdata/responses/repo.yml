@@ -1,0 +1,10 @@
+- status: 200
+  body: |
+    {
+      "id": 1234,
+      "name": "testrepo",
+      "owner": {
+        "login": "testorg"
+      },
+      "default_branch": "develop"
+    }

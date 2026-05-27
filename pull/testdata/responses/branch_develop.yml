@@ -1,0 +1,8 @@
+- status: 200
+  body: |
+    {
+      "name": "develop",
+      "commit": {
+        "sha": "abc123def456789"
+      }
+    }
