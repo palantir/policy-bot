@@ -1047,8 +1047,18 @@ func (ghc *GitHubContext) loadCodeownersResult() (*CodeownersResult, error) {
 }
 
 // defaultBranchHeadSHA returns the current HEAD commit SHA of the repository's
-// default branch.
+// default branch. The result is cached with a short TTL (DefaultBranchHeadTTL)
+// to avoid resolving the branch on every evaluation while still picking up
+// CODEOWNERS changes promptly.
 func (ghc *GitHubContext) defaultBranchHeadSHA() (string, error) {
+	repoID := ghc.pr.BaseRepository.DatabaseID
+
+	if gc := ghc.globalCache; gc != nil {
+		if sha, ok := gc.GetDefaultBranchHead(repoID); ok {
+			return sha, nil
+		}
+	}
+
 	repository, _, err := ghc.client.Repositories.Get(ghc.ctx, ghc.owner, ghc.repo)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get repository")
@@ -1059,7 +1069,11 @@ func (ghc *GitHubContext) defaultBranchHeadSHA() (string, error) {
 		return "", errors.Wrapf(err, "failed to get default branch %q", repository.GetDefaultBranch())
 	}
 
-	return branch.GetCommit().GetSHA(), nil
+	sha := branch.GetCommit().GetSHA()
+	if gc := ghc.globalCache; gc != nil {
+		gc.SetDefaultBranchHead(repoID, sha)
+	}
+	return sha, nil
 }
 
 // loadCodeowners attempts to load the CODEOWNERS file from the repository's

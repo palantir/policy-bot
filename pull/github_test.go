@@ -813,6 +813,29 @@ func TestCodeownersContentCache(t *testing.T) {
 		assert.NotNil(t, co, "cached codeowners should not be nil")
 	})
 
+	t.Run("cached default branch HEAD skips branch resolution", func(t *testing.T) {
+		rp := &ResponsePlayer{}
+		addCodeownersRules(rp)
+		// Deliberately omit repo / branch rules: with the default branch HEAD
+		// cached, resolving it must not hit the API (an unmatched request fails).
+		rp.AddRule(
+			codeownersMatcher("CODEOWNERS"),
+			"testdata/responses/codeowners.yml",
+		)
+		rp.AddRule(
+			ExactPathMatcher("/repos/testorg/testrepo/pulls/123/files"),
+			"testdata/responses/pull_files.yml",
+		)
+
+		gc := NewMockGlobalCache()
+		gc.SetDefaultBranchHead(testRepoID, testBaseSHA)
+
+		ctx := makeContext(t, rp, nil, gc)
+		result, err := ctx.Codeowners()
+		require.NoError(t, err)
+		require.NotNil(t, result)
+	})
+
 	t.Run("cache hit skips CODEOWNERS content fetch", func(t *testing.T) {
 		rp := &ResponsePlayer{}
 		addDefaultBranchRules(rp)
@@ -928,10 +951,11 @@ func defaultTestPR() *github.PullRequest {
 }
 
 type MockGlobalCache struct {
-	PushedAt   map[string]time.Time
-	Codeowners map[string]*codeowners.Codeowners
-	Membership map[string]mockMembershipEntry
-	Teams      map[string]mockTeamMembersEntry
+	PushedAt          map[string]time.Time
+	Codeowners        map[string]*codeowners.Codeowners
+	Membership        map[string]mockMembershipEntry
+	Teams             map[string]mockTeamMembersEntry
+	DefaultBranchHead map[int64]string
 }
 
 type mockTeamMembersEntry struct {
@@ -947,10 +971,11 @@ type mockMembershipEntry struct {
 
 func NewMockGlobalCache() *MockGlobalCache {
 	return &MockGlobalCache{
-		PushedAt:   make(map[string]time.Time),
-		Codeowners: make(map[string]*codeowners.Codeowners),
-		Membership: make(map[string]mockMembershipEntry),
-		Teams:      make(map[string]mockTeamMembersEntry),
+		PushedAt:          make(map[string]time.Time),
+		Codeowners:        make(map[string]*codeowners.Codeowners),
+		Membership:        make(map[string]mockMembershipEntry),
+		Teams:             make(map[string]mockTeamMembersEntry),
+		DefaultBranchHead: make(map[int64]string),
 	}
 }
 
@@ -1009,4 +1034,13 @@ func (c *MockGlobalCache) SetTeamMembers(team string, info *TeamInfo, members []
 		members:   members,
 		expiresAt: time.Now().Add(5 * time.Minute),
 	}
+}
+
+func (c *MockGlobalCache) GetDefaultBranchHead(repoID int64) (string, bool) {
+	sha, ok := c.DefaultBranchHead[repoID]
+	return sha, ok
+}
+
+func (c *MockGlobalCache) SetDefaultBranchHead(repoID int64, sha string) {
+	c.DefaultBranchHead[repoID] = sha
 }
