@@ -43,6 +43,10 @@ type Requires struct {
 	Conditions predicate.Predicates `yaml:"conditions,omitempty"`
 }
 
+func (r Requires) needsApprovalCandidates() bool {
+	return r.Count > 0 || r.Actors.Codeowners
+}
+
 type Defaults struct {
 	Options *Options `yaml:"options,omitempty"`
 }
@@ -50,7 +54,7 @@ type Defaults struct {
 func (r *Rule) Trigger() common.Trigger {
 	t := common.TriggerCommit
 
-	if r.Requires.Count > 0 {
+	if r.Requires.needsApprovalCandidates() {
 		m := r.Options.GetMethods()
 		if len(m.GetComments()) > 0 || len(m.GetCommentPatterns()) > 0 {
 			t |= common.TriggerComment
@@ -213,7 +217,7 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context, candidates []
 func (r *Rule) isApprovedByActors(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) (bool, []*common.Candidate, []common.OwnershipGroupResult, error) {
 	log := zerolog.Ctx(ctx)
 
-	if r.Requires.Count <= 0 && !r.Requires.Actors.Codeowners {
+	if !r.Requires.needsApprovalCandidates() {
 		log.Debug().Msg("rule requires no approvals")
 		return true, nil, nil, nil
 	}
@@ -306,7 +310,7 @@ func (r *Rule) isApprovedByConditions(ctx context.Context, prctx pull.Context) (
 // FilteredCandidates returns the potential approval candidates and any
 // candidates that should be dimissed due to rule options.
 func (r *Rule) FilteredCandidates(ctx context.Context, prctx pull.Context) ([]*common.Candidate, []*common.Dismissal, error) {
-	if r.Requires.Count <= 0 && !r.Requires.Actors.Codeowners {
+	if !r.Requires.needsApprovalCandidates() {
 		return nil, nil, nil
 	}
 

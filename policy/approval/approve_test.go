@@ -874,6 +874,20 @@ func TestTrigger(t *testing.T) {
 		assert.True(t, r.Trigger().Matches(common.TriggerReview), "expected %s to match %s", r.Trigger(), common.TriggerReview)
 	})
 
+	t.Run("triggerReviewForCodeownersWithoutCount", func(t *testing.T) {
+		r := &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
+			Requires: Requires{
+				Actors: common.Actors{Codeowners: true},
+			},
+		}
+
+		assert.True(t, r.Trigger().Matches(common.TriggerCommit), "expected %s to match %s", r.Trigger(), common.TriggerCommit)
+		assert.True(t, r.Trigger().Matches(common.TriggerReview), "expected %s to match %s", r.Trigger(), common.TriggerReview)
+	})
+
 	t.Run("triggerReviewForGithubReviewCommentPatterns", func(t *testing.T) {
 		r := &Rule{
 			Options: Options{
@@ -926,6 +940,40 @@ func TestTrigger(t *testing.T) {
 
 		assert.True(t, r.Trigger().Matches(common.TriggerStatus), "expected %s to match %s", r.Trigger(), common.TriggerStatus)
 	})
+}
+
+func TestRequiresNeedsApprovalCandidates(t *testing.T) {
+	tests := map[string]struct {
+		requires Requires
+		expected bool
+	}{
+		"no approval requirements": {
+			requires: Requires{},
+			expected: false,
+		},
+		"explicit approval count": {
+			requires: Requires{Count: 1},
+			expected: true,
+		},
+		"codeowners without count": {
+			requires: Requires{Actors: common.Actors{Codeowners: true}},
+			expected: true,
+		},
+		"conditions only": {
+			requires: Requires{
+				Conditions: predicate.Predicates{
+					HasStatus: predicate.NewHasStatus([]string{"ci/test"}, nil),
+				},
+			},
+			expected: false,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, test.expected, test.requires.needsApprovalCandidates())
+		})
+	}
 }
 
 func TestIsPendingOnConditionsOnly(t *testing.T) {

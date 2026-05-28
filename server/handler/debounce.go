@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-const DefaultDebounceWindow = 30 * time.Second
+const DefaultDebounceWindow = 5 * time.Second
 
 // StatusDebouncer coalesces rapid evaluation requests for the same pull
 // request. When many check runs or status events complete in quick succession

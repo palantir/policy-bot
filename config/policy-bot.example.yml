@@ -156,6 +156,11 @@ sessions:
 #   # environment variable.
 #   pending_as_failure: false
 #
+#   # How long to coalesce rapid status/check/workflow events for the same PR
+#   # before running the trailing evaluation. Can also be set by the
+#   # POLICYBOT_OPTIONS_STATUS_DEBOUNCE_WINDOW environment variable.
+#   status_debounce_window: 5s
+#
 #   # Default options to use for all appoval rules processed by the server.
 #   # Policies can override these values with their own defaults or in individual
 #   # rules. This is equivalent to the "approval_defaults" option in a policy and

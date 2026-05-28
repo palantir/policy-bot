@@ -17,6 +17,7 @@ package handler
 import (
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/palantir/policy-bot/policy/approval"
 	"github.com/palantir/policy-bot/policy/common"
@@ -81,6 +82,12 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 			Env: map[string]string{"PEO_PENDING_AS_FAILURE": "true"},
 			SetExpected: func(opts *PullEvaluationOptions) {
 				opts.PendingAsFailure = true
+			},
+		},
+		"StatusDebounceWindow": {
+			Env: map[string]string{"PEO_STATUS_DEBOUNCE_WINDOW": "10s"},
+			SetExpected: func(opts *PullEvaluationOptions) {
+				opts.StatusDebounceWindow = 10 * time.Second
 			},
 		},
 		"IgnoreEditedComments": {
@@ -412,10 +419,11 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 			// Explicitly set defaults to avoid calling `fillDefaults` on both
 			// the input and the output and hiding potential bugs
 			expected := PullEvaluationOptions{
-				PolicyPath:         DefaultPolicyPath,
-				SharedRepository:   ptr(DefaultSharedRepository),
-				SharedPolicyPath:   ptr(DefaultSharedPolicyPath),
-				StatusCheckContext: DefaultStatusCheckContext,
+				PolicyPath:           DefaultPolicyPath,
+				SharedRepository:     ptr(DefaultSharedRepository),
+				SharedPolicyPath:     ptr(DefaultSharedPolicyPath),
+				StatusCheckContext:   DefaultStatusCheckContext,
+				StatusDebounceWindow: DefaultDebounceWindow,
 			}
 			test.SetExpected(&expected)
 

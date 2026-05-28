@@ -80,30 +80,43 @@ func (ec *EvalContext) Evaluate(ctx context.Context, trigger common.Trigger) (er
 // returns a non-nil Evaluator if the policy exists, is valid, and requires
 // evaluation for the trigger.
 func (ec *EvalContext) ParseConfig(ctx context.Context, trigger common.Trigger) (evaluator common.Evaluator, err error) {
+	return parseFetchedConfigWithSpan(ctx, ec.Config, ec.Options, trigger, ec.PostStatus)
+}
+
+func parseFetchedConfigWithSpan(ctx context.Context, fc FetchedConfig, opts *PullEvaluationOptions, trigger common.Trigger, postStatus postStatusFunc) (evaluator common.Evaluator, err error) {
 	ctx, span := StartChildSpan(ctx, "policy.parse_config")
 	defer span.End()
 	defer RecordError(span, &err)
 	span.SetAttributes(
-		attribute.String(AttrPolicyConfigSource, ec.Config.Source),
-		attribute.String(AttrPolicyConfigPath, ec.Config.Path),
+		attribute.String(AttrPolicyConfigSource, fc.Source),
+		attribute.String(AttrPolicyConfigPath, fc.Path),
 	)
 
+	return parseFetchedConfig(ctx, fc, opts, trigger, postStatus)
+}
+
+type postStatusFunc func(ctx context.Context, state, message string)
+
+func parseFetchedConfig(ctx context.Context, fc FetchedConfig, evalOpts *PullEvaluationOptions, trigger common.Trigger, postStatus postStatusFunc) (common.Evaluator, error) {
 	logger := zerolog.Ctx(ctx)
 
-	fc := ec.Config
 	switch {
 	case fc.LoadError != nil:
 		msg := fmt.Sprintf("Error loading policy from %s", fc.Source)
 		logger.Warn().Err(fc.LoadError).Msg(msg)
 
-		ec.PostStatus(ctx, "error", msg)
+		if postStatus != nil {
+			postStatus(ctx, "error", msg)
+		}
 		return nil, errors.Wrapf(fc.LoadError, "failed to load policy: %s: %s", fc.Source, fc.Path)
 
 	case fc.ParseError != nil:
 		msg := fmt.Sprintf("Invalid policy in %s: %s", fc.Source, fc.Path)
 		logger.Warn().Err(fc.ParseError).Msg(msg)
 
-		ec.PostStatus(ctx, "error", msg)
+		if postStatus != nil {
+			postStatus(ctx, "error", msg)
+		}
 		return nil, errors.Wrapf(fc.ParseError, "failed to parse policy: %s: %s", fc.Source, fc.Path)
 
 	case fc.Config == nil:
@@ -111,17 +124,22 @@ func (ec *EvalContext) ParseConfig(ctx context.Context, trigger common.Trigger) 
 		return nil, nil
 	}
 
-	opts := &policy.GlobalOptions{
-		IgnoreEditedComments: ec.Options.IgnoreEditedComments,
-		ApprovalDefaults:     ec.Options.ApprovalDefaults,
+	if evalOpts == nil {
+		evalOpts = &PullEvaluationOptions{}
+	}
+	policyOpts := &policy.GlobalOptions{
+		IgnoreEditedComments: evalOpts.IgnoreEditedComments,
+		ApprovalDefaults:     evalOpts.ApprovalDefaults,
 	}
 
-	evaluator, err = policy.ParsePolicy(fc.Config, opts)
+	evaluator, err := policy.ParsePolicy(fc.Config, policyOpts)
 	if err != nil {
 		msg := fmt.Sprintf("Invalid policy in %s: %s", fc.Source, fc.Path)
 		logger.Warn().Err(err).Msg(msg)
 
-		ec.PostStatus(ctx, "error", msg)
+		if postStatus != nil {
+			postStatus(ctx, "error", msg)
+		}
 		return nil, errors.Wrapf(err, "failed to create evaluator: %s: %s", fc.Source, fc.Path)
 	}
 
@@ -146,6 +164,8 @@ func (ec *EvalContext) EvaluatePolicy(ctx context.Context, evaluator common.Eval
 	defer RecordError(span, &err)
 
 	logger := zerolog.Ctx(ctx)
+
+	ec.prefetchPullData()
 
 	result := evaluator.Evaluate(ctx, ec.PullContext)
 	if result.Error != nil {
@@ -194,6 +214,14 @@ func (ec *EvalContext) EvaluatePolicy(ctx context.Context, evaluator common.Eval
 
 	ec.PostStatus(ctx, statusState, statusDescription)
 	return result, nil
+}
+
+// prefetchPullData starts background fetches for commonly needed pull request
+// data. Call this only after deciding that policy evaluation will run.
+func (ec *EvalContext) prefetchPullData() {
+	if ghctx, ok := ec.PullContext.(*pull.GitHubContext); ok {
+		ghctx.Prefetch()
+	}
 }
 
 // RunPostEvaluateActions executes additional actions that should happen after

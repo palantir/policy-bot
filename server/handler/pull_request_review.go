@@ -74,18 +74,26 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 
 	ctx, logger := h.PreparePRContext(ctx, installationID, pr)
 
-	evalCtx, err := h.NewEvalContext(ctx, installationID, pull.Locator{
+	loc := pull.Locator{
 		Owner:  owner,
 		Repo:   repo.GetName(),
 		Number: number,
 		Value:  pr,
-	})
+	}
+
+	client, err := h.NewInstallationClient(installationID)
 	if err != nil {
 		return err
 	}
 
-	evaluator, err := evalCtx.ParseConfig(ctx, common.TriggerReview)
+	fetchedConfig := h.ConfigFetcher.ConfigForRepositoryBranch(ctx, client, owner, repo.GetName(), pr.GetBase().GetRef())
+	evaluator, err := parseFetchedConfigWithSpan(ctx, fetchedConfig, h.PullOpts, common.TriggerReview, nil)
 	if err != nil {
+		evalCtx, evalErr := h.newEvalContextWithConfig(ctx, installationID, loc, fetchedConfig)
+		if evalErr != nil {
+			return evalErr
+		}
+		_, err = evalCtx.ParseConfig(ctx, common.TriggerReview)
 		return err
 	}
 	if evaluator == nil {
@@ -93,10 +101,15 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 		return nil
 	}
 
-	if !h.affectsApproval(event.GetReview(), evalCtx.Config.Config) {
+	if !h.affectsApproval(event.GetReview(), fetchedConfig.Config) {
 		logger.Debug().Msg("Skipping evaluation because this review does not impact approval")
 		span.SetAttributes(attribute.String(AttrPolicySkipReason, SkipReasonReviewDoesNotAffectApproval))
 		return nil
+	}
+
+	evalCtx, err := h.newEvalContextWithConfig(ctx, installationID, loc, fetchedConfig)
+	if err != nil {
+		return err
 	}
 
 	result, err := evalCtx.EvaluatePolicy(ctx, evaluator)

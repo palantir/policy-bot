@@ -19,6 +19,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/palantir/policy-bot/policy/approval"
 	"github.com/palantir/policy-bot/policy/common"
@@ -64,6 +65,9 @@ type PullEvaluationOptions struct {
 	// don't meet approval requirements. This is useful for tools like Kodiak
 	// that require definitive pass/fail status checks.
 	PendingAsFailure bool `yaml:"pending_as_failure"`
+
+	// StatusDebounceWindow coalesces rapid status/check/workflow events for the same PR.
+	StatusDebounceWindow time.Duration `yaml:"status_debounce_window"`
 
 	// IgnoreEditedComments enables ignoring comments that have been edited when evaluating approval rules.
 	// This provides a server-side option to ignore edited comments across all rules.
@@ -112,6 +116,9 @@ func (p *PullEvaluationOptions) fillDefaults() {
 	if p.StatusCheckContext == "" {
 		p.StatusCheckContext = DefaultStatusCheckContext
 	}
+	if p.StatusDebounceWindow <= 0 {
+		p.StatusDebounceWindow = DefaultDebounceWindow
+	}
 }
 
 func (p *PullEvaluationOptions) SetValuesFromEnv(prefix string) {
@@ -124,6 +131,7 @@ func (p *PullEvaluationOptions) SetValuesFromEnv(prefix string) {
 	setBoolFromEnv("STRICT_REVIEW_DISMISSAL", prefix, &p.StrictReviewDismissal)
 	setBoolFromEnv("POST_INSECURE_STATUS_CHECKS", prefix, &p.PostInsecureStatusChecks)
 	setBoolFromEnv("PENDING_AS_FAILURE", prefix, &p.PendingAsFailure)
+	setDurationFromEnv("STATUS_DEBOUNCE_WINDOW", prefix, &p.StatusDebounceWindow)
 	setBoolPtrFromEnv("IGNORE_EDITED_COMMENTS", prefix, &p.IgnoreEditedComments)
 
 	p.setApprovalDefaultsFromEnv(prefix + "APPROVAL_DEFAULTS_")
@@ -313,6 +321,16 @@ func setIntFromEnv(key, prefix string, value *int) bool {
 	if v, ok := os.LookupEnv(prefix + key); ok {
 		if i, err := strconv.Atoi(v); err == nil {
 			*value = i
+			return true
+		}
+	}
+	return false
+}
+
+func setDurationFromEnv(key, prefix string, value *time.Duration) bool {
+	if v, ok := os.LookupEnv(prefix + key); ok {
+		if d, err := time.ParseDuration(v); err == nil {
+			*value = d
 			return true
 		}
 	}

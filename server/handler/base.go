@@ -106,6 +106,14 @@ func (b *Base) PreparePRContext(ctx context.Context, installationID int64, pr *g
 }
 
 func (b *Base) NewEvalContext(ctx context.Context, installationID int64, loc pull.Locator) (*EvalContext, error) {
+	return b.newEvalContext(ctx, installationID, loc, nil)
+}
+
+func (b *Base) newEvalContextWithConfig(ctx context.Context, installationID int64, loc pull.Locator, fetchedConfig FetchedConfig) (*EvalContext, error) {
+	return b.newEvalContext(ctx, installationID, loc, &fetchedConfig)
+}
+
+func (b *Base) newEvalContext(ctx context.Context, installationID int64, loc pull.Locator, fetchedConfig *FetchedConfig) (*EvalContext, error) {
 	client, err := b.NewInstallationClient(installationID)
 	if err != nil {
 		return nil, err
@@ -122,17 +130,13 @@ func (b *Base) NewEvalContext(ctx context.Context, installationID int64, loc pul
 		return nil, err
 	}
 
-	// Start background fetches for commonly needed data
-	// This overlaps API calls with the config fetch below
-	if ghctx, ok := prctx.(*pull.GitHubContext); ok {
-		ghctx.Prefetch()
-	}
-
 	baseBranch, _ := prctx.Branches()
 	owner := prctx.RepositoryOwner()
 	repository := prctx.RepositoryName()
 
-	fetchedConfig := b.ConfigFetcher.ConfigForRepositoryBranch(ctx, client, owner, repository, baseBranch)
+	if fetchedConfig == nil {
+		fetchedConfig = github.Ptr(b.ConfigFetcher.ConfigForRepositoryBranch(ctx, client, owner, repository, baseBranch))
+	}
 
 	return &EvalContext{
 		Client:   client,
@@ -142,7 +146,7 @@ func (b *Base) NewEvalContext(ctx context.Context, installationID int64, loc pul
 		PublicURL: b.BaseConfig.PublicURL,
 
 		PullContext: prctx,
-		Config:      fetchedConfig,
+		Config:      *fetchedConfig,
 	}, nil
 }
 
