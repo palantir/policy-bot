@@ -17,6 +17,7 @@ package server
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/policy-bot/version"
@@ -177,13 +178,168 @@ func ClientTracing(enabled bool) githubapp.ClientMiddleware {
 		}
 		// otelhttp.NewTransport wraps the transport and creates spans for each request.
 		// It automatically captures HTTP method, URL, status code, and request duration.
+		// The span name uses a templated path (e.g. /repos/{owner}/{repo}/pulls/{pull_number}/files)
+		// so dashboards group by endpoint instead of producing one operation per PR/commit/SHA.
 		return otelhttp.NewTransport(
 			next,
 			otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
-				return "GitHub API: " + r.Method + " " + r.URL.Path
+				return "GitHub API: " + r.Method + " " + templateGitHubAPIPath(r.URL.Path)
 			}),
 		)
 	}
+}
+
+// templateGitHubAPIPath replaces variable path segments (owner, repo, numeric IDs,
+// SHAs, branch names, ...) with placeholder tokens so high-cardinality real paths
+// like `/repos/{owner}/{repo}/pulls/12345/files` collapse to a single operation
+// `/repos/{owner}/{repo}/pulls/{pull_number}/files`. Per-request identifiers belong
+// on span attributes (github.repo.full_name, github.pr.number, github.sha), not in
+// operation names — those need low cardinality to be aggregatable.
+func templateGitHubAPIPath(p string) string {
+	trimmed := strings.TrimPrefix(p, "/")
+	if trimmed == "" {
+		return "/"
+	}
+	segs := strings.Split(trimmed, "/")
+	out := make([]string, len(segs))
+	copy(out, segs)
+
+	for i := 0; i < len(segs); i++ {
+		var prev string
+		if i > 0 {
+			prev = segs[i-1]
+		}
+		switch {
+		case i == 0:
+			// top-level resource token — keep
+		case segs[0] == "repos" && i == 1:
+			out[i] = "{owner}"
+		case segs[0] == "repos" && i == 2:
+			out[i] = "{repo}"
+		case segs[0] == "repos" && i >= 3:
+			out[i] = templateRepoSubPath(prev, segs[i])
+			if prev == "contents" {
+				// contents/{+path} eats everything that follows
+				return "/" + strings.Join(append(out[:i], "{+path}"), "/")
+			}
+			if (prev == "heads" || prev == "tags") && i >= 5 && segs[i-2] == "refs" {
+				// git/refs/heads/{branch} or git/refs/tags/{tag} — branches can have slashes,
+				// collapse the rest.
+				out[i] = "{ref}"
+				return "/" + strings.Join(out[:i+1], "/")
+			}
+		case segs[0] == "users" && i == 1:
+			out[i] = "{username}"
+		case segs[0] == "orgs" && i == 1:
+			out[i] = "{org}"
+		case segs[0] == "orgs" && i >= 2:
+			switch prev {
+			case "teams":
+				out[i] = "{team_slug}"
+			case "members", "memberships", "public_members":
+				out[i] = "{username}"
+			case "repos":
+				out[i] = "{repo}"
+			}
+		case segs[0] == "app" && segs[1] == "installations" && i == 2:
+			out[i] = "{installation_id}"
+		case segs[0] == "installation" && segs[1] == "repositories":
+			// /installation/repositories is itself an endpoint; nothing to template
+		case segs[0] == "teams" && i == 1:
+			out[i] = "{team_id}"
+		case segs[0] == "repositories" && i == 1:
+			out[i] = "{repository_id}"
+		}
+	}
+	return "/" + strings.Join(out, "/")
+}
+
+func templateRepoSubPath(prev, seg string) string {
+	switch prev {
+	case "pulls":
+		if isAllDigits(seg) {
+			return "{pull_number}"
+		}
+	case "issues":
+		if isAllDigits(seg) {
+			return "{issue_number}"
+		}
+	case "milestones":
+		if isAllDigits(seg) {
+			return "{milestone_number}"
+		}
+	case "check-runs":
+		if isAllDigits(seg) {
+			return "{check_run_id}"
+		}
+	case "check-suites":
+		if isAllDigits(seg) {
+			return "{check_suite_id}"
+		}
+	case "comments":
+		if isAllDigits(seg) {
+			return "{comment_id}"
+		}
+	case "reviews":
+		if isAllDigits(seg) {
+			return "{review_id}"
+		}
+	case "runs", "workflows":
+		if isAllDigits(seg) {
+			return "{run_id}"
+		}
+	case "jobs":
+		if isAllDigits(seg) {
+			return "{job_id}"
+		}
+	case "deployments":
+		if isAllDigits(seg) {
+			return "{deployment_id}"
+		}
+	case "releases":
+		if isAllDigits(seg) {
+			return "{release_id}"
+		}
+	case "commits", "statuses":
+		if isShaLike(seg) {
+			return "{sha}"
+		}
+	case "trees", "blobs":
+		if isShaLike(seg) {
+			return "{sha}"
+		}
+	case "branches":
+		return "{branch}"
+	case "labels":
+		return "{name}"
+	case "assignees":
+		return "{username}"
+	}
+	return seg
+}
+
+func isAllDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func isShaLike(s string) bool {
+	if len(s) < 7 || len(s) > 40 {
+		return false
+	}
+	for _, r := range s {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 // WrapHandler wraps an http.Handler with OpenTelemetry instrumentation.

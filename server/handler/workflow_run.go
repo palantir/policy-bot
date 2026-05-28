@@ -23,6 +23,7 @@ import (
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type WorkflowRun struct {
@@ -31,15 +32,22 @@ type WorkflowRun struct {
 
 func (h *WorkflowRun) Handles() []string { return []string{"workflow_run"} }
 
-func (h *WorkflowRun) Handle(ctx context.Context, eventType, deliveryID string, payload []byte) error {
+func (h *WorkflowRun) Handle(ctx context.Context, eventType, deliveryID string, payload []byte) (err error) {
 	// https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#workflow_run
 	// https://docs.github.com/en/webhooks/webhook-events-and-payloads?actionType=completed#workflow_run
+	ctx, span := StartWebhookSpan(ctx, eventType, deliveryID)
+	defer span.End()
+	defer RecordError(span, &err)
+
 	var event github.WorkflowRunEvent
 	if err := json.Unmarshal(payload, &event); err != nil {
 		return errors.Wrap(err, "failed to parse workflow_run event payload")
 	}
 
+	span.SetAttributes(attribute.String(AttrEventAction, event.GetAction()))
+
 	if event.GetAction() != "completed" {
+		span.SetAttributes(attribute.String(AttrPolicySkipReason, SkipReasonActionNotHandled))
 		return nil
 	}
 
@@ -49,6 +57,12 @@ func (h *WorkflowRun) Handle(ctx context.Context, eventType, deliveryID string, 
 	repoName := repo.GetName()
 	commitSHA := event.GetWorkflowRun().GetHeadSHA()
 	installationID := githubapp.GetInstallationIDFromEvent(&event)
+
+	span.SetAttributes(RepoAttrs(ownerName, repoName)...)
+	span.SetAttributes(
+		attribute.String(AttrSHA, commitSHA),
+		attribute.Int64(AttrInstallationID, installationID),
+	)
 
 	ctx, logger := githubapp.PrepareRepoContext(ctx, installationID, repo)
 
@@ -66,15 +80,22 @@ func (h *WorkflowRun) Handle(ctx context.Context, eventType, deliveryID string, 
 			continue
 		}
 
-		if err := h.Evaluate(ctx, installationID, common.TriggerStatus, pull.Locator{
+		prCtx, prSpan := StartChildSpan(ctx, "policy.evaluate_pr")
+		prSpan.SetAttributes(
+			attribute.Int(AttrPRNumber, pr.GetNumber()),
+			attribute.String(AttrSHA, commitSHA),
+		)
+		if evalErr := h.Evaluate(prCtx, installationID, common.TriggerStatus, pull.Locator{
 			Owner:  ownerName,
 			Repo:   repoName,
 			Number: pr.GetNumber(),
 			Value:  pr,
-		}); err != nil {
+		}); evalErr != nil {
 			evaluationFailures++
-			logger.Error().Err(err).Msgf("Failed to evaluate pull request '%d' for SHA '%s'", pr.GetNumber(), commitSHA)
+			logger.Error().Err(evalErr).Msgf("Failed to evaluate pull request '%d' for SHA '%s'", pr.GetNumber(), commitSHA)
+			RecordError(prSpan, &evalErr)
 		}
+		prSpan.End()
 	}
 	if evaluationFailures == 0 {
 		return nil

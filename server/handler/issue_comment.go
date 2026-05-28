@@ -26,6 +26,7 @@ import (
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type IssueComment struct {
@@ -36,7 +37,11 @@ func (h *IssueComment) Handles() []string { return []string{"issue_comment"} }
 
 // Handle issue_comment
 // See https://developer.github.com/v3/activity/events/types/#issuecommentevent
-func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string, payload []byte) error {
+func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string, payload []byte) (err error) {
+	ctx, span := StartWebhookSpan(ctx, eventType, deliveryID)
+	defer span.End()
+	defer RecordError(span, &err)
+
 	var event github.IssueCommentEvent
 	if err := json.Unmarshal(payload, &event); err != nil {
 		return errors.Wrap(err, "failed to parse issue comment event payload")
@@ -47,8 +52,17 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 	number := event.GetIssue().GetNumber()
 	installationID := githubapp.GetInstallationIDFromEvent(&event)
 
+	span.SetAttributes(RepoAttrs(owner, repo.GetName())...)
+	span.SetAttributes(
+		attribute.String(AttrEventAction, event.GetAction()),
+		attribute.Int(AttrPRNumber, number),
+		attribute.Int64(AttrInstallationID, installationID),
+		attribute.String(AttrSenderLogin, event.GetSender().GetLogin()),
+	)
+
 	if !event.GetIssue().IsPullRequest() {
 		zerolog.Ctx(ctx).Debug().Msg("Issue comment event is not for a pull request")
+		span.SetAttributes(attribute.String(AttrPolicySkipReason, SkipReasonNotPullRequest))
 		return nil
 	}
 
@@ -77,9 +91,11 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 	switch {
 	case evalCtx.Config.LoadError != nil || evalCtx.Config.ParseError != nil:
 		logger.Warn().Str(LogKeyAudit, "issue_comment").Msg("Skipping tampering check because the policy is not valid")
+		span.SetAttributes(attribute.String(AttrPolicySkipReason, SkipReasonInvalidPolicyTamperingCheck))
 	case evalCtx.Config.Config != nil:
 		tampered := h.detectAndLogTampering(ctx, evalCtx, event)
 		if tampered {
+			span.SetAttributes(attribute.String(AttrPolicySkipReason, SkipReasonCommentTampered))
 			return nil
 		}
 	}
@@ -89,11 +105,13 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 		return err
 	}
 	if evaluator == nil {
+		span.SetAttributes(attribute.String(AttrPolicySkipReason, SkipReasonNoPolicy))
 		return nil
 	}
 
 	if !h.affectsApproval(event, evalCtx.Config.Config) {
 		logger.Debug().Msg("Skipping evaluation because this comment does not impact approval")
+		span.SetAttributes(attribute.String(AttrPolicySkipReason, SkipReasonCommentDoesNotAffectApproval))
 		return nil
 	}
 

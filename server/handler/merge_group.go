@@ -24,6 +24,7 @@ import (
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type MergeGroup struct {
@@ -34,23 +35,26 @@ func (h *MergeGroup) Handles() []string { return []string{"merge_group"} }
 
 // Handle merge_group
 // https://docs.github.com/webhooks-and-events/webhooks/webhook-events-and-payloads#merge_group
-func (h *MergeGroup) Handle(ctx context.Context, eventType, devlieryID string, payload []byte) error {
+func (h *MergeGroup) Handle(ctx context.Context, eventType, deliveryID string, payload []byte) (err error) {
+	ctx, span := StartWebhookSpan(ctx, eventType, deliveryID)
+	defer span.End()
+	defer RecordError(span, &err)
+
 	var event github.MergeGroupEvent
 
 	if err := json.Unmarshal(payload, &event); err != nil {
 		return errors.Wrap(err, "failed to parse merge group event payload")
 	}
 
+	span.SetAttributes(attribute.String(AttrEventAction, event.GetAction()))
+
 	if event.GetAction() != "checks_requested" {
+		span.SetAttributes(attribute.String(AttrPolicySkipReason, SkipReasonActionNotHandled))
 		return nil
 	}
 
 	logger := zerolog.Ctx(ctx)
 	installationID := githubapp.GetInstallationIDFromEvent(&event)
-	client, err := h.NewInstallationClient(installationID)
-	if err != nil {
-		return err
-	}
 
 	repository := event.GetRepo().GetName()
 	owner := event.GetRepo().GetOwner().GetLogin()
@@ -58,10 +62,23 @@ func (h *MergeGroup) Handle(ctx context.Context, eventType, devlieryID string, p
 	baseBranch := strings.TrimPrefix(mergeGroup.GetBaseRef(), "refs/heads/")
 	headSHA := mergeGroup.GetHeadSHA()
 
+	span.SetAttributes(RepoAttrs(owner, repository)...)
+	span.SetAttributes(
+		attribute.String(AttrSHA, headSHA),
+		attribute.Int64(AttrInstallationID, installationID),
+		attribute.String("github.merge_group.base_branch", baseBranch),
+	)
+
+	client, err := h.NewInstallationClient(installationID)
+	if err != nil {
+		return err
+	}
+
 	// If a PR is added to the merge queue, presumably the policy existed and was valid at the time of merge,
 	// so we're just checking for the existance of a policy here and don't care about its validity.
 	fetchedConfig := h.ConfigFetcher.ConfigForRepositoryBranch(ctx, client, owner, repository, baseBranch)
 	if fetchedConfig.Config == nil {
+		span.SetAttributes(attribute.String(AttrPolicySkipReason, SkipReasonNoPolicy))
 		return nil
 	}
 

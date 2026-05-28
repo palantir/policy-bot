@@ -24,6 +24,7 @@ import (
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type PullRequestReview struct {
@@ -34,14 +35,27 @@ func (h *PullRequestReview) Handles() []string { return []string{"pull_request_r
 
 // Handle pull_request_review
 // https://developer.github.com/v3/activity/events/types/#pullrequestreviewevent
-func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID string, payload []byte) error {
+func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID string, payload []byte) (err error) {
+	ctx, span := StartWebhookSpan(ctx, eventType, deliveryID)
+	defer span.End()
+	defer RecordError(span, &err)
+
 	var event github.PullRequestReviewEvent
 	if err := json.Unmarshal(payload, &event); err != nil {
 		return errors.Wrap(err, "failed to parse pull request review event payload")
 	}
 
+	sender := event.GetSender().GetLogin()
+	span.SetAttributes(
+		attribute.String(AttrEventAction, event.GetAction()),
+		attribute.String(AttrSenderLogin, sender),
+		attribute.String(AttrReviewState, event.GetReview().GetState()),
+		attribute.String(AttrReviewer, event.GetReview().GetUser().GetLogin()),
+	)
+
 	// Ignore events triggered by policy-bot (e.g. for dismissing stale reviews)
-	if event.GetSender().GetLogin() == h.AppName+"[bot]" {
+	if sender == h.AppName+"[bot]" {
+		span.SetAttributes(attribute.String(AttrPolicySkipReason, SkipReasonSelfSender))
 		return nil
 	}
 
@@ -50,6 +64,13 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 	owner := repo.GetOwner().GetLogin()
 	number := event.GetPullRequest().GetNumber()
 	installationID := githubapp.GetInstallationIDFromEvent(&event)
+
+	span.SetAttributes(RepoAttrs(owner, repo.GetName())...)
+	span.SetAttributes(
+		attribute.Int(AttrPRNumber, number),
+		attribute.String(AttrSHA, pr.GetHead().GetSHA()),
+		attribute.Int64(AttrInstallationID, installationID),
+	)
 
 	ctx, logger := h.PreparePRContext(ctx, installationID, pr)
 
@@ -68,11 +89,13 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 		return err
 	}
 	if evaluator == nil {
+		span.SetAttributes(attribute.String(AttrPolicySkipReason, SkipReasonNoPolicy))
 		return nil
 	}
 
 	if !h.affectsApproval(event.GetReview(), evalCtx.Config.Config) {
 		logger.Debug().Msg("Skipping evaluation because this review does not impact approval")
+		span.SetAttributes(attribute.String(AttrPolicySkipReason, SkipReasonReviewDoesNotAffectApproval))
 		return nil
 	}
 

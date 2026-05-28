@@ -24,6 +24,7 @@ import (
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type Installation struct {
@@ -37,7 +38,11 @@ func (h *Installation) Handles() []string {
 // Handle installation, installation_repositories
 // https://docs.github.com/en/developers/webhooks-and-events/webhooks/webhook-events-and-payloads#installation
 // https://docs.github.com/en/developers/webhooks-and-events/webhooks/webhook-events-and-payloads#installation_repositories
-func (h *Installation) Handle(ctx context.Context, eventType, deliveryID string, payload []byte) error {
+func (h *Installation) Handle(ctx context.Context, eventType, deliveryID string, payload []byte) (err error) {
+	ctx, span := StartWebhookSpan(ctx, eventType, deliveryID)
+	defer span.End()
+	defer RecordError(span, &err)
+
 	var action string
 	var installationID int64
 	var repositories []*github.Repository
@@ -64,6 +69,12 @@ func (h *Installation) Handle(ctx context.Context, eventType, deliveryID string,
 		repositories = event.RepositoriesAdded
 	}
 
+	span.SetAttributes(
+		attribute.String(AttrEventAction, action),
+		attribute.Int64(AttrInstallationID, installationID),
+		attribute.Int("github.installation.repo_count", len(repositories)),
+	)
+
 	switch action {
 	case "created", "added":
 		client, err := h.NewInstallationClient(installationID)
@@ -73,6 +84,8 @@ func (h *Installation) Handle(ctx context.Context, eventType, deliveryID string,
 		for _, repo := range repositories {
 			h.postRepoInstallationStatus(ctx, client, repo)
 		}
+	default:
+		span.SetAttributes(attribute.String(AttrPolicySkipReason, SkipReasonInstallationActionNotHandled))
 	}
 
 	return nil

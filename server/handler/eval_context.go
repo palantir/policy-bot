@@ -27,6 +27,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/shurcooL/githubv4"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // EvalContext contains common fields and methods used to evaluate policy
@@ -51,12 +52,18 @@ type EvalContext struct {
 }
 
 // Evaluate runs the full process for evaluating a pull request.
-func (ec *EvalContext) Evaluate(ctx context.Context, trigger common.Trigger) error {
+func (ec *EvalContext) Evaluate(ctx context.Context, trigger common.Trigger) (err error) {
+	ctx, span := StartChildSpan(ctx, "policy.evaluate")
+	defer span.End()
+	defer RecordError(span, &err)
+	span.SetAttributes(attribute.String(AttrPolicyTrigger, trigger.String()))
+
 	evaluator, err := ec.ParseConfig(ctx, trigger)
 	if err != nil {
 		return err
 	}
 	if evaluator == nil {
+		span.SetAttributes(attribute.String(AttrPolicySkipReason, SkipReasonNoPolicy))
 		return nil
 	}
 
@@ -72,7 +79,15 @@ func (ec *EvalContext) Evaluate(ctx context.Context, trigger common.Trigger) err
 // ParseConfig checks and validates the configuration in the EvalContext and
 // returns a non-nil Evaluator if the policy exists, is valid, and requires
 // evaluation for the trigger.
-func (ec *EvalContext) ParseConfig(ctx context.Context, trigger common.Trigger) (common.Evaluator, error) {
+func (ec *EvalContext) ParseConfig(ctx context.Context, trigger common.Trigger) (evaluator common.Evaluator, err error) {
+	ctx, span := StartChildSpan(ctx, "policy.parse_config")
+	defer span.End()
+	defer RecordError(span, &err)
+	span.SetAttributes(
+		attribute.String(AttrPolicyConfigSource, ec.Config.Source),
+		attribute.String(AttrPolicyConfigPath, ec.Config.Path),
+	)
+
 	logger := zerolog.Ctx(ctx)
 
 	fc := ec.Config
@@ -101,7 +116,7 @@ func (ec *EvalContext) ParseConfig(ctx context.Context, trigger common.Trigger) 
 		ApprovalDefaults:     ec.Options.ApprovalDefaults,
 	}
 
-	evaluator, err := policy.ParsePolicy(fc.Config, opts)
+	evaluator, err = policy.ParsePolicy(fc.Config, opts)
 	if err != nil {
 		msg := fmt.Sprintf("Invalid policy in %s: %s", fc.Source, fc.Path)
 		logger.Warn().Err(err).Msg(msg)
@@ -125,7 +140,11 @@ func (ec *EvalContext) ParseConfig(ctx context.Context, trigger common.Trigger) 
 // EvaluatePolicy evaluates the policy for a PR and generates a result. The
 // evaluator must be non-nil, meaning callers should check the output of
 // ParseConfig before calling this method.
-func (ec *EvalContext) EvaluatePolicy(ctx context.Context, evaluator common.Evaluator) (common.Result, error) {
+func (ec *EvalContext) EvaluatePolicy(ctx context.Context, evaluator common.Evaluator) (_ common.Result, err error) {
+	ctx, span := StartChildSpan(ctx, "policy.evaluate_policy")
+	defer span.End()
+	defer RecordError(span, &err)
+
 	logger := zerolog.Ctx(ctx)
 
 	result := evaluator.Evaluate(ctx, ec.PullContext)
@@ -138,6 +157,8 @@ func (ec *EvalContext) EvaluatePolicy(ctx context.Context, evaluator common.Eval
 		}
 		return result, result.Error
 	}
+
+	span.SetAttributes(attribute.String(AttrPolicyStatus, result.Status.String()))
 
 	statusDescription := result.StatusDescription
 
@@ -182,19 +203,31 @@ func (ec *EvalContext) EvaluatePolicy(ctx context.Context, evaluator common.Eval
 // Post-evaluate actions are best effort, so this function logs failures
 // instead of returning an error.
 func (ec *EvalContext) RunPostEvaluateActions(ctx context.Context, result common.Result, trigger common.Trigger) {
+	ctx, span := StartChildSpan(ctx, "policy.post_evaluate_actions")
+	defer span.End()
+
 	logger := zerolog.Ctx(ctx)
 
 	if err := ec.requestReviewsForResult(ctx, trigger, result); err != nil {
 		logger.Error().Err(err).Msg("Failed to request reviewers")
+		span.RecordError(err)
 	}
 
 	if err := ec.dismissStaleReviewsForResult(ctx, result); err != nil {
 		logger.Error().Err(err).Msg("Failed to dismiss stale reviews")
+		span.RecordError(err)
 	}
 }
 
 // PostStatus posts a check run for the evaluated PR.
 func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
+	ctx, span := StartChildSpan(ctx, "policy.post_status")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String(AttrPolicyStatus, state),
+		attribute.String(AttrSHA, ec.PullContext.HeadSHA()),
+	)
+
 	logger := zerolog.Ctx(ctx)
 
 	owner := ec.PullContext.RepositoryOwner()

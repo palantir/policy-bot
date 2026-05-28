@@ -25,6 +25,7 @@ import (
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type Status struct {
@@ -35,11 +36,26 @@ func (h *Status) Handles() []string { return []string{"status"} }
 
 // Handle status
 // https://developer.github.com/v3/activity/events/types/#statusevent
-func (h *Status) Handle(ctx context.Context, eventType, deliveryID string, payload []byte) error {
+func (h *Status) Handle(ctx context.Context, eventType, deliveryID string, payload []byte) (err error) {
+	ctx, span := StartWebhookSpan(ctx, eventType, deliveryID)
+	defer span.End()
+	defer RecordError(span, &err)
+
 	var event github.StatusEvent
 	if err := json.Unmarshal(payload, &event); err != nil {
 		return errors.Wrap(err, "failed to parse status event payload")
 	}
+
+	repo := event.GetRepo()
+	installationID := githubapp.GetInstallationIDFromEvent(&event)
+	span.SetAttributes(RepoAttrs(repo.GetOwner().GetLogin(), repo.GetName())...)
+	span.SetAttributes(
+		attribute.String(AttrEventAction, event.GetState()),
+		attribute.String("github.status.context", event.GetContext()),
+		attribute.String(AttrSHA, event.GetCommit().GetSHA()),
+		attribute.Int64(AttrInstallationID, installationID),
+		attribute.String(AttrSenderLogin, event.GetSender().GetLogin()),
+	)
 
 	ownContext := h.PullOpts.StatusCheckContext
 	if event.GetContext() == ownContext || strings.HasPrefix(event.GetContext(), ownContext+":") {
@@ -50,6 +66,7 @@ func (h *Status) Handle(ctx context.Context, eventType, deliveryID string, paylo
 		return h.processOthers(ctx, event)
 	}
 
+	span.SetAttributes(attribute.String(AttrPolicySkipReason, SkipReasonStatusStatePending))
 	return nil
 }
 

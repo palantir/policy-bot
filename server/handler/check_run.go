@@ -23,6 +23,7 @@ import (
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type CheckRun struct {
@@ -31,22 +32,36 @@ type CheckRun struct {
 
 func (h *CheckRun) Handles() []string { return []string{"check_run"} }
 
-func (h *CheckRun) Handle(ctx context.Context, eventType, deliveryID string, payload []byte) error {
+func (h *CheckRun) Handle(ctx context.Context, eventType, deliveryID string, payload []byte) (err error) {
+	ctx, span := StartWebhookSpan(ctx, eventType, deliveryID)
+	defer span.End()
+	defer RecordError(span, &err)
+
 	var event github.CheckRunEvent
 	if err := json.Unmarshal(payload, &event); err != nil {
 		return errors.Wrap(err, "failed to parse check_run event payload")
 	}
 
+	span.SetAttributes(
+		attribute.String(AttrEventAction, event.GetAction()),
+		attribute.String(AttrCheckRunName, event.GetCheckRun().GetName()),
+		attribute.String(AttrCheckRunStatus, event.GetCheckRun().GetConclusion()),
+		attribute.String(AttrSenderLogin, event.GetSender().GetLogin()),
+	)
+
 	if event.GetAction() != "completed" {
+		span.SetAttributes(attribute.String(AttrPolicySkipReason, SkipReasonActionNotHandled))
 		return nil
 	}
 
 	// Skip check runs created by this app to prevent infinite re-evaluation loops.
 	// Prefer matching by app ID (stable, numeric) over sender login (fragile string).
 	if h.AppID != 0 && event.GetCheckRun().GetApp().GetID() == h.AppID {
+		span.SetAttributes(attribute.String(AttrPolicySkipReason, SkipReasonSelfCheckRun))
 		return nil
 	}
 	if event.GetSender().GetLogin() == h.AppName+"[bot]" {
+		span.SetAttributes(attribute.String(AttrPolicySkipReason, SkipReasonSelfSender))
 		return nil
 	}
 
@@ -56,6 +71,12 @@ func (h *CheckRun) Handle(ctx context.Context, eventType, deliveryID string, pay
 	repoName := repo.GetName()
 	commitSHA := event.GetCheckRun().GetHeadSHA()
 	installationID := githubapp.GetInstallationIDFromEvent(&event)
+
+	span.SetAttributes(RepoAttrs(ownerName, repoName)...)
+	span.SetAttributes(
+		attribute.String(AttrSHA, commitSHA),
+		attribute.Int64(AttrInstallationID, installationID),
+	)
 
 	ctx, logger := githubapp.PrepareRepoContext(ctx, installationID, repo)
 
@@ -80,15 +101,22 @@ func (h *CheckRun) Handle(ctx context.Context, eventType, deliveryID string, pay
 			continue
 		}
 
-		if err := h.Evaluate(ctx, installationID, common.TriggerStatus, pull.Locator{
+		prCtx, prSpan := StartChildSpan(ctx, "policy.evaluate_pr")
+		prSpan.SetAttributes(
+			attribute.Int(AttrPRNumber, pr.GetNumber()),
+			attribute.String(AttrSHA, commitSHA),
+		)
+		if evalErr := h.Evaluate(prCtx, installationID, common.TriggerStatus, pull.Locator{
 			Owner:  ownerName,
 			Repo:   repoName,
 			Number: pr.GetNumber(),
 			Value:  pr,
-		}); err != nil {
+		}); evalErr != nil {
 			evaluationFailures++
-			logger.Error().Err(err).Msgf("Failed to evaluate pull request '%d' for SHA '%s'", pr.GetNumber(), commitSHA)
+			logger.Error().Err(evalErr).Msgf("Failed to evaluate pull request '%d' for SHA '%s'", pr.GetNumber(), commitSHA)
+			RecordError(prSpan, &evalErr)
 		}
+		prSpan.End()
 	}
 	if evaluationFailures == 0 {
 		return nil

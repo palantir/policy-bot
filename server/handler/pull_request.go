@@ -23,6 +23,7 @@ import (
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type PullRequest struct {
@@ -33,14 +34,30 @@ func (h *PullRequest) Handles() []string { return []string{"pull_request"} }
 
 // Handle pull_request
 // https://developer.github.com/v3/activity/events/types/#requestevent
-func (h *PullRequest) Handle(ctx context.Context, eventType, deliveryID string, payload []byte) error {
+func (h *PullRequest) Handle(ctx context.Context, eventType, deliveryID string, payload []byte) (err error) {
+	ctx, span := StartWebhookSpan(ctx, eventType, deliveryID)
+	defer span.End()
+	defer RecordError(span, &err)
+
 	var event github.PullRequestEvent
 	if err := json.Unmarshal(payload, &event); err != nil {
 		return errors.Wrap(err, "failed to parse pull request event payload")
 	}
 
 	installationID := githubapp.GetInstallationIDFromEvent(&event)
-	ctx, _ = h.PreparePRContext(ctx, installationID, event.GetPullRequest())
+	pr := event.GetPullRequest()
+	repo := event.GetRepo()
+
+	span.SetAttributes(RepoAttrs(repo.GetOwner().GetLogin(), repo.GetName())...)
+	span.SetAttributes(
+		attribute.String(AttrEventAction, event.GetAction()),
+		attribute.Int(AttrPRNumber, pr.GetNumber()),
+		attribute.String(AttrSHA, pr.GetHead().GetSHA()),
+		attribute.Int64(AttrInstallationID, installationID),
+		attribute.String(AttrSenderLogin, event.GetSender().GetLogin()),
+	)
+
+	ctx, _ = h.PreparePRContext(ctx, installationID, pr)
 
 	var t common.Trigger
 	switch event.GetAction() {
@@ -53,13 +70,15 @@ func (h *PullRequest) Handle(ctx context.Context, eventType, deliveryID string, 
 	case "labeled", "unlabeled":
 		t = common.TriggerLabel
 	default:
+		span.SetAttributes(attribute.String(AttrPolicySkipReason, SkipReasonActionNotHandled))
 		return nil
 	}
+	span.SetAttributes(attribute.String(AttrPolicyTrigger, t.String()))
 
 	return h.Evaluate(ctx, installationID, t, pull.Locator{
-		Owner:  event.GetRepo().GetOwner().GetLogin(),
-		Repo:   event.GetRepo().GetName(),
-		Number: event.GetPullRequest().GetNumber(),
-		Value:  event.GetPullRequest(),
+		Owner:  repo.GetOwner().GetLogin(),
+		Repo:   repo.GetName(),
+		Number: pr.GetNumber(),
+		Value:  pr,
 	})
 }
