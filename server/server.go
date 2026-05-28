@@ -33,6 +33,7 @@ import (
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/go-githubapp/oauth2"
 	"github.com/palantir/policy-bot/pull"
+	"github.com/palantir/policy-bot/server/githubclient"
 	"github.com/palantir/policy-bot/server/handler"
 	"github.com/palantir/policy-bot/version"
 	"github.com/pkg/errors"
@@ -149,14 +150,15 @@ func New(c *Config) (*Server, error) {
 		clientMiddleware = append(clientMiddleware, metricsInstance.ClientMetrics())
 	}
 
-	cc, err := githubapp.NewDefaultCachingClientCreator(
+	// InvalidatingClientCreator appends the retry-on-401 middleware internally.
+	cc, err := githubclient.NewInvalidatingClientCreator(
 		c.Github,
+		clientMiddleware,
 		githubapp.WithClientUserAgent(userAgent),
 		githubapp.WithClientTimeout(githubTimeout),
 		githubapp.WithClientCaching(true, func() httpcache.Cache {
 			return lrucache.New(maxSize, 0)
 		}),
-		githubapp.WithClientMiddleware(clientMiddleware...),
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to initialize client creator")

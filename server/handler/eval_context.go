@@ -17,6 +17,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/google/go-github/v81/github"
@@ -132,7 +133,9 @@ func (ec *EvalContext) EvaluatePolicy(ctx context.Context, evaluator common.Eval
 		msg := fmt.Sprintf("Error evaluating policy in %s: %s", ec.Config.Source, ec.Config.Path)
 		logger.Warn().Err(result.Error).Msg(msg)
 
-		ec.PostStatus(ctx, "error", msg)
+		if !isTransientClientError(result.Error) {
+			ec.PostStatus(ctx, "error", msg)
+		}
 		return result, result.Error
 	}
 
@@ -224,4 +227,25 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 			logger.Err(err).Msg("Failed to post insecure check run")
 		}
 	}
+}
+
+// isTransientClientError returns true when err is a GitHub API or network error
+// that should not overwrite the user-visible check status. Policy-logic errors
+// (parse failures, unexpected evaluation states) return false.
+func isTransientClientError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return true
+	}
+	var ghErr *github.ErrorResponse
+	if errors.As(err, &ghErr) {
+		return ghErr.Response != nil && ghErr.Response.StatusCode >= 400
+	}
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		return true
+	}
+	return strings.Contains(err.Error(), "non-200 OK status code")
 }
