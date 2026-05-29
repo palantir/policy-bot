@@ -25,6 +25,7 @@ import (
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
@@ -153,14 +154,26 @@ func (b *Base) newEvalContext(ctx context.Context, installationID int64, loc pul
 func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger common.Trigger, loc pull.Locator) error {
 	if b.Debouncer != nil {
 		key := DebounceKey(loc.Owner, loc.Repo, loc.Number)
-		trailingFn := func() {
-			logger := zerolog.Ctx(ctx)
-			logger.Debug().Msgf("Running trailing evaluation for %s/%s#%d", loc.Owner, loc.Repo, loc.Number)
-			if err := b.doEvaluate(ctx, installationID, trigger, loc); err != nil {
+		trailingFn := func(eventCtx context.Context, accumulated common.Trigger, coalesced int) {
+			tctx, span := StartDebounceTrailingSpan(eventCtx)
+			defer span.End()
+			span.SetAttributes(RepoAttrs(loc.Owner, loc.Repo)...)
+			span.SetAttributes(
+				attribute.Int(AttrPRNumber, loc.Number),
+				attribute.String(AttrPolicyTrigger, accumulated.String()),
+				attribute.String(AttrDebounceKey, key),
+				attribute.String(AttrDebounceAccumulatedTrigger, accumulated.String()),
+				attribute.Int(AttrDebounceCoalesced, coalesced),
+			)
+
+			logger := zerolog.Ctx(tctx)
+			logger.Debug().Msgf("Running trailing evaluation for %s/%s#%d (accumulated trigger: %s, coalesced: %d)", loc.Owner, loc.Repo, loc.Number, accumulated, coalesced)
+			if err := b.doEvaluate(tctx, installationID, accumulated, loc); err != nil {
+				RecordError(span, &err)
 				logger.Error().Err(err).Msgf("Trailing evaluation failed for %s/%s#%d", loc.Owner, loc.Repo, loc.Number)
 			}
 		}
-		if !b.Debouncer.Deduplicate(key, trailingFn) {
+		if !b.Debouncer.Deduplicate(ctx, key, trigger, trailingFn) {
 			zerolog.Ctx(ctx).Debug().Msgf("Debounced evaluation for %s/%s#%d (trigger: %s)", loc.Owner, loc.Repo, loc.Number, trigger)
 			return nil
 		}

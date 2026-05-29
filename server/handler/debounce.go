@@ -15,9 +15,14 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/palantir/policy-bot/policy/common"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const DefaultDebounceWindow = 5 * time.Second
@@ -37,6 +42,16 @@ type debounceEntry struct {
 	evaluatedAt time.Time
 	trailTimer  *time.Timer
 	trailGen    uint64
+
+	// pending accumulates the union of triggers seen during the current window,
+	// including the leading-edge trigger. The trailing evaluation runs with this
+	// union so that a trigger the policy actually responds to (e.g. the
+	// PullRequest trigger from an `opened` event) is never dropped just because
+	// it arrived between two non-matching events (e.g. `labeled`).
+	pending common.Trigger
+	// coalesced counts the events folded into the current window, leading edge
+	// included. Recorded for tracing.
+	coalesced int
 }
 
 // NewStatusDebouncer creates a debouncer with the given window duration.
@@ -51,12 +66,27 @@ func NewStatusDebouncer(window time.Duration) *StatusDebouncer {
 	}
 }
 
-// Deduplicate returns true if the evaluation should proceed immediately.
-// If it returns false, the evaluation is redundant within the debounce window
-// and a trailing evaluation has been scheduled via trailingFn for when the
-// window expires. This trailing evaluation ensures that the final state after
-// a burst of events is always captured.
-func (d *StatusDebouncer) Deduplicate(key string, trailingFn func()) bool {
+// Deduplicate returns true if the evaluation for trigger should proceed
+// immediately. If it returns false, the evaluation is redundant within the
+// debounce window and a trailing evaluation has been scheduled via trailingFn
+// for when the window expires. This trailing evaluation ensures that the final
+// state after a burst of events is always captured.
+//
+// Triggers are unioned across the window: trailingFn receives the OR of every
+// trigger seen since the leading edge (including the leading-edge trigger),
+// along with the number of coalesced events. This guarantees a policy-relevant
+// trigger is never lost just because a non-matching event happened to be the
+// leading edge or the last event in the burst.
+//
+// The decision is recorded as attributes on the span in ctx (typically the
+// webhook span) so a debounced delivery is identifiable from its own trace.
+func (d *StatusDebouncer) Deduplicate(ctx context.Context, key string, trigger common.Trigger, trailingFn func(ctx context.Context, accumulated common.Trigger, coalesced int)) bool {
+	span := trace.SpanFromContext(ctx)
+	span.SetAttributes(
+		attribute.String(AttrDebounceKey, key),
+		attribute.Int64(AttrDebounceWindowMs, d.window.Milliseconds()),
+	)
+
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -65,21 +95,55 @@ func (d *StatusDebouncer) Deduplicate(key string, trailingFn func()) bool {
 
 	if !exists || now.Sub(entry.evaluatedAt) >= d.window {
 		// First event or window expired — evaluate immediately
+		reason := DebounceReasonFirstEvent
+		if exists {
+			reason = DebounceReasonWindowExpired
+		}
 		if entry != nil && entry.trailTimer != nil {
 			entry.trailTimer.Stop()
 		}
-		d.entries[key] = &debounceEntry{evaluatedAt: now}
+		d.entries[key] = &debounceEntry{
+			evaluatedAt: now,
+			pending:     trigger,
+			coalesced:   1,
+		}
+		span.SetAttributes(
+			attribute.String(AttrDebounceDecision, DebounceDecisionEvaluate),
+			attribute.String(AttrDebounceReason, reason),
+			attribute.String(AttrDebounceAccumulatedTrigger, trigger.String()),
+		)
 		return true
 	}
 
-	// Within debounce window — skip and schedule trailing evaluation
+	// Within debounce window — skip, accumulate the trigger, and (re)schedule
+	// the trailing evaluation so it runs with the full union once the burst ends.
 	if entry.trailTimer != nil {
 		entry.trailTimer.Stop()
 	}
 
 	entry.trailGen++
+	entry.pending |= trigger
+	entry.coalesced++
 	gen := entry.trailGen
+	accumulated := entry.pending
+	coalesced := entry.coalesced
 	remaining := d.window - now.Sub(entry.evaluatedAt)
+
+	span.SetAttributes(
+		attribute.String(AttrDebounceDecision, DebounceDecisionSkip),
+		attribute.String(AttrDebounceReason, DebounceReasonWithinWindow),
+		attribute.Bool(AttrDebounceTrailingScheduled, true),
+		attribute.Int64(AttrDebounceTrailingDelayMs, remaining.Milliseconds()),
+		attribute.Int64(AttrDebounceTrailGen, int64(gen)),
+		attribute.String(AttrDebounceAccumulatedTrigger, accumulated.String()),
+		attribute.Int(AttrDebounceCoalesced, coalesced),
+	)
+	// Record this event's contribution so the running union is visible even
+	// before the trailing evaluation fires.
+	span.AddEvent("debounce.trigger_coalesced", trace.WithAttributes(
+		attribute.String(AttrPolicyTrigger, trigger.String()),
+		attribute.String(AttrDebounceAccumulatedTrigger, accumulated.String()),
+	))
 
 	entry.trailTimer = time.AfterFunc(remaining, func() {
 		d.mu.Lock()
@@ -91,7 +155,7 @@ func (d *StatusDebouncer) Deduplicate(key string, trailingFn func()) bool {
 		d.mu.Unlock()
 
 		if shouldRun {
-			trailingFn()
+			trailingFn(ctx, accumulated, coalesced)
 		}
 	})
 

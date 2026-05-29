@@ -28,6 +28,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/shurcooL/githubv4"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // EvalContext contains common fields and methods used to evaluate policy
@@ -121,6 +122,9 @@ func parseFetchedConfig(ctx context.Context, fc FetchedConfig, evalOpts *PullEva
 
 	case fc.Config == nil:
 		logger.Debug().Msg("No policy defined for repository")
+		trace.SpanFromContext(ctx).SetAttributes(
+			attribute.String(AttrPolicySkipReason, SkipReasonNoPolicyConfig),
+		)
 		return nil, nil
 	}
 
@@ -144,11 +148,17 @@ func parseFetchedConfig(ctx context.Context, fc FetchedConfig, evalOpts *PullEva
 	}
 
 	policyTrigger := evaluator.Trigger()
+	trace.SpanFromContext(ctx).SetAttributes(
+		attribute.String(AttrPolicyPolicyTrigger, policyTrigger.String()),
+	)
 	if !trigger.Matches(policyTrigger) {
 		logger.Debug().
 			Str("event_trigger", trigger.String()).
 			Str("policy_trigger", policyTrigger.String()).
 			Msg("No evaluation necessary for this trigger, skipping")
+		trace.SpanFromContext(ctx).SetAttributes(
+			attribute.String(AttrPolicySkipReason, SkipReasonTriggerMismatch),
+		)
 		return nil, nil
 	}
 
@@ -178,7 +188,12 @@ func (ec *EvalContext) EvaluatePolicy(ctx context.Context, evaluator common.Eval
 		return result, result.Error
 	}
 
-	span.SetAttributes(attribute.String(AttrPolicyStatus, result.Status.String()))
+	rulesTotal, rulesApproved := countLeafRules(&result)
+	span.SetAttributes(
+		attribute.String(AttrPolicyStatus, result.Status.String()),
+		attribute.Int(AttrPolicyRulesTotal, rulesTotal),
+		attribute.Int(AttrPolicyRulesApproved, rulesApproved),
+	)
 
 	statusDescription := result.StatusDescription
 

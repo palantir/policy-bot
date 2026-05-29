@@ -55,6 +55,25 @@ func (ec *EvalContext) dismissStaleReviewsForResult(ctx context.Context, result 
 	return nil
 }
 
+// countLeafRules walks the result tree and returns the number of leaf rules
+// (nodes with no children) and how many of those are approved. Leaves are the
+// actual policy rules; interior nodes are and/or combinators.
+func countLeafRules(result *common.Result) (total, approved int) {
+	if len(result.Children) == 0 {
+		approvedCount := 0
+		if result.Status == common.StatusApproved {
+			approvedCount = 1
+		}
+		return 1, approvedCount
+	}
+	for _, c := range result.Children {
+		t, a := countLeafRules(c)
+		total += t
+		approved += a
+	}
+	return total, approved
+}
+
 func findAllDismissals(result *common.Result) []*common.Dismissal {
 	var dismissals []*common.Dismissal
 
