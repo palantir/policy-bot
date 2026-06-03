@@ -1,5 +1,5 @@
 {{/* templatetree:extends page.html.tmpl */}}
-{{define "body-class"}}text-dark-gray1 flex flex-col items-center min-h-screen hero{{end}}
+{{define "body-class"}}pb-home{{end}}
 {{define "body"}}
 {{ $appsPath := "github-apps" }}
 {{ if eq .GitHubURL "https://github.com" }}
@@ -7,19 +7,27 @@
 {{ end }}
 {{ $appURL := printf "%s/%s/%s" .GitHubURL $appsPath .AppName }}
 {{ $docsURL := printf "https://github.com/palantir/policy-bot/blob/v%s/README.md" .Version }}
-<header class="p-4 mb-8 text-white flex flex-col items-center">
-  <div class="logo mb-4 drop-shadow-sm"></div>
-  <h1 class="mb-4 text-5xl font-bold">PolicyBot</h1>
-  <p class="mb-8 text-light-gray1">Enforce approval and disapproval policies on pull requests</p>
-  <a class="block px-4 py-2 bg-blue3 hover:bg-blue2 bg-highlight border border-blue2 rounded text-lg text-white hover:text-white no-underline" href="{{$appURL}}">Install</a>
+
+<header class="pb-home-hero">
+  <div class="pb-home-hero-inner">
+    <div class="logo pb-home-logo"></div>
+    <h1 class="pb-home-title">Policy<span>Bot</span></h1>
+    <p class="pb-home-tagline">Enforce approval and disapproval policies on pull requests</p>
+    <div class="pb-home-actions">
+      <a class="pb-btn pb-btn-primary" href="{{$appURL}}">Install on GitHub</a>
+      <a class="pb-btn pb-btn-ghost" href="{{$docsURL}}">Read the docs</a>
+    </div>
+    <p class="pb-home-version">v{{.Version}}</p>
+  </div>
 </header>
-<div class="max-w-3xl">
-  <section class="bg-white py-4 px-8 mb-8 rounded shadow-sm">
-    <h2 class="mb-2 font-bold">Getting Started</h2>
-    <ol class="list-numbers">
+
+<main class="pb-home-main">
+  <section class="pb-panel">
+    <h2 class="pb-panel-title"><span class="pb-step-num">→</span> Getting Started</h2>
+    <ol class="pb-steps">
       <li><a href="{{$appURL}}">Install <code>{{.AppName}}</code></a> on your repository</li>
       <li>Add a <code>{{.PolicyPath}}</code> file on the default branch (<a href="{{$docsURL}}#configuration">docs</a>):
-        <pre class="p-2 text-sm bg-light-gray3">policy:
+        <pre class="pb-code">policy:
   approval:
     - one approval from palantir
 
@@ -32,12 +40,13 @@ approval_rules:
       <li>Open a pull request and watch the status change based on the policy!</li>
     </ol>
   </section>
-  <section class="bg-white py-4 px-8 rounded shadow-sm">
-    <h2 class="mb-2 font-bold">Learn More</h2>
-    <ul class="pl-4 list-disc">
+
+  <section class="pb-panel">
+    <h2 class="pb-panel-title">Learn More</h2>
+    <ul class="pb-links">
       <li><a href="{{$docsURL}}">Documentation</a></li>
-      <li><a href="https://github.com/palantir/policy-bot">GitHub</a></li>
+      <li><a href="https://github.com/palantir/policy-bot">GitHub repository</a></li>
     </ul>
   </section>
-</div>
+</main>
 {{end}}

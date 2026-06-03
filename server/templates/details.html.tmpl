@@ -6,50 +6,116 @@
 <script defer src="{{ resource "js/main.js" }}"></script>
 {{end}}
 
-{{define "body-class"}}bg-light-gray5 text-dark-gray1 flex flex-col h-screen{{end}}
+{{define "body-class"}}pb-app{{end}}
 {{define "body"}}
-  <header class="w-full tripart p-4 bg-white shadow-sm z-10 relative">
-    <a href="{{.PolicyURL}}" title="View the policy definition on GitHub"
-       class="px-2 py-1 text-xs text-dark-gray3 bg-light-gray3 border border-light-gray2 rounded-sm truncate max-w-full hover:bg-light-gray2 no-underline hover:no-underline">
-      {{.PullRequest.GetBase.GetRepo.GetFullName}}: {{.PullRequest.GetBase.GetRef}}
-    </a>
-    <h1 class="text-xl font-normal tracking-tight text-center">
-      <a href="{{.PullRequest.GetHTMLURL}}" title="View the pull request on GitHub" class="text-blue3 hover:text-blue4 no-underline">
-        #{{.PullRequest.GetNumber}}</a>:
-      {{.PullRequest.GetTitle}}
-    </h1>
-    <span class="text-xs text-dark-gray3 truncate max-w-full">
-      {{.User}}
-    </span>
-  </header>
+  <aside class="pb-sidebar">
+    <div class="pb-brand">
+      <span class="pb-brand-mark"></span>
+      <span class="pb-brand-name">Policy<span>Bot</span></span>
+    </div>
+
+    {{if not .Error}}
+      {{ $stats := ruleStats .Result }}
+      <nav class="pb-rule-index">
+        <div class="pb-rule-index-head">
+          <span>Rules</span>
+          <span class="pb-count">{{$stats.Approved}}<span class="pb-count-sep">/</span>{{$stats.Applicable}}</span>
+        </div>
+        <ul>
+          {{range leafRules .Result}}
+            {{ $s := (or (and .Error "error") (.Status | print)) }}
+            <li>
+              <a href="#rule-{{slug .Name}}" class="pb-rule-link" data-status="{{$s}}">
+                <span class="pb-status-icon {{$s}}"></span>
+                <span class="pb-rule-link-name">{{.Name}}</span>
+              </a>
+            </li>
+          {{end}}
+        </ul>
+      </nav>
+
+      <label class="pb-toggle" for="filter-toggle">
+        <input id="filter-toggle" type="checkbox" autocomplete="off" checked/>
+        <span class="pb-toggle-track"></span>
+        <span class="pb-toggle-label">Hide skipped rules</span>
+      </label>
+    {{end}}
+
+    <div class="pb-sidebar-footer">
+      <a href="{{.PolicyURL}}" title="View the policy definition on GitHub" class="pb-policy-link">
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="currentColor"><path d="M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16h-9.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h9.5a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 9 4.25V1.5Zm6.75.062V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914-.013-.011Z"/></svg>
+        <span class="pb-policy-link-text">{{.PullRequest.GetBase.GetRepo.GetFullName}} <span class="pb-policy-ref">{{.PullRequest.GetBase.GetRef}}</span></span>
+      </a>
+      <span class="pb-user">
+        <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="currentColor"><path d="M10.561 8.073a6.005 6.005 0 0 1 3.432 5.142.75.75 0 1 1-1.498.07 4.5 4.5 0 0 0-8.99 0 .75.75 0 0 1-1.498-.07 6.004 6.004 0 0 1 3.431-5.142 3.999 3.999 0 1 1 5.123 0ZM10.5 5a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0Z"/></svg>
+        {{.User}}
+      </span>
+    </div>
+  </aside>
+
+  <main class="pb-main">
   {{if .Error}}
-    <div class="status-banner error">
-      <h2 class="mb-1 text-lg font-bold">Error</h2>
-      <p>{{.Error}}</p>
+    <div class="pb-hero error">
+      <div class="pb-hero-status">
+        <span class="pb-status-pill error"><span class="pb-status-icon error"></span>Error</span>
+      </div>
+      <p class="pb-hero-desc">{{.Error}}</p>
       {{if .IsTemporaryError}}
-          <p class="status-temporary">This error may be temporary. Wait 30 seconds and refresh this page to retry.</p>
+        <p class="pb-temporary">This error may be temporary. Wait 30 seconds and refresh this page to retry.</p>
       {{end}}
     </div>
   {{else}}
     {{ $s := (or (and .Result.Error "error") (.Result.Status | print)) }}
-    <div class="status-banner {{$s}} flex flex-wrap items-center justify-between">
-      <div>
-        <h2 class="mb-1 text-lg font-bold">Status: {{$s | titlecase}}</h2>
-        <p>{{or .Result.Error .Result.StatusDescription}}</p>
+    {{ $stats := ruleStats .Result }}
+    <header class="pb-hero {{$s}}">
+      <div class="pb-hero-head">
+        <a href="{{.PullRequest.GetHTMLURL}}" title="View the pull request on GitHub" class="pb-pr-number">#{{.PullRequest.GetNumber}}</a>
+        <h1 class="pb-pr-title">{{.PullRequest.GetTitle}}</h1>
       </div>
-      <div class="p-2 rounded-md bg-white text-dark-gray1 text-sm text-shadow-none">
-        <div class="toggle">
-            <input id="filter-toggle" type="checkbox" autocomplete="off" checked/>
-            <label for="filter-toggle">Hide skipped rules</label>
+
+      <div class="pb-hero-status">
+        <span class="pb-status-pill {{$s}}"><span class="pb-status-icon {{$s}}"></span>{{$s | titlecase}}</span>
+        <p class="pb-hero-desc">{{or .Result.Error .Result.StatusDescription}}</p>
+      </div>
+
+      <div class="pb-hero-meta">
+        <div class="pb-progress" aria-label="{{$stats.Approved}} of {{$stats.Applicable}} rules satisfied">
+          <div class="pb-progress-track">
+            {{if gt $stats.Approved 0}}<span class="pb-progress-seg approved" style="flex:{{$stats.Approved}}"></span>{{end}}
+            {{if gt $stats.Pending 0}}<span class="pb-progress-seg pending" style="flex:{{$stats.Pending}}"></span>{{end}}
+            {{if gt $stats.Disapproved 0}}<span class="pb-progress-seg disapproved" style="flex:{{$stats.Disapproved}}"></span>{{end}}
+          </div>
+          <div class="pb-progress-legend">
+            <strong>{{$stats.Approved}}</strong> of <strong>{{$stats.Applicable}}</strong> rules satisfied
+            {{if gt $stats.Pending 0}}<span class="pb-chip pending">{{$stats.Pending}} pending</span>{{end}}
+            {{if gt $stats.Disapproved 0}}<span class="pb-chip disapproved">{{$stats.Disapproved}} blocked</span>{{end}}
+            {{if gt $stats.Skipped 0}}<span class="pb-chip skipped">{{$stats.Skipped}} skipped</span>{{end}}
+          </div>
         </div>
+
+        {{ $approvers := allApprovers .Result }}
+        {{if $approvers}}
+        <div class="pb-approvers">
+          <span class="pb-approvers-label">Approved by</span>
+          <div class="pb-avatars">
+            {{range $approvers}}
+              <a href="{{.Link}}" class="pb-avatar" title="{{.Username}}">
+                <img src="{{.AvatarURL}}" alt="{{.Username}}" loading="lazy"/>
+              </a>
+            {{end}}
+          </div>
+        </div>
+        {{end}}
       </div>
-    </div>
-    <div class="pl-8 overflow-auto grow">
-      <ul class="tree px-4 pb-4" data-hide-status="skipped">
+    </header>
+
+    <div class="pb-tree-wrap">
+      <ul class="tree" data-hide-status="skipped">
         {{template "results" (args $ .Result)}}
       </ul>
     </div>
   {{end}}
+  </main>
 {{end}}
 
 {{define "results"}}
@@ -66,21 +132,21 @@
 {{ $s := (or (and .Error "error") (.Status | print)) }}
 {{ $showReviewers := (and $root.ExpandRequiredReviewers (eq $s "pending")) }}
 <li class="node" data-status="{{$s}}" {{if not (eq $s $nextStatus)}}data-next-status="{{$nextStatus}}"{{end}}>
-  <div class="bg-white p-2 shadow-sm max-w-lg status-stripe {{$s}}">
+  <div id="rule-{{slug .Name}}" class="pb-card {{$s}}">
     {{template "result-details" (args $root .)}}
     {{if (or (.PredicateResults) (hasActors .Requires) (hasActorsPermissions .Requires) (gt (len .Requires.Conditions) 0))}}
     <details
-      class="bg-light-gray5 p-2 mt-2 text-sm"
+      class="pb-details"
       {{if $showReviewers}}
       hx-get="{{$root.BasePath}}/details/{{$root.PullRequest.GetBase.GetRepo.GetFullName}}/{{$root.PullRequest.GetNumber}}/reviewers?rule={{.Name | urlencode}}"
       hx-trigger="toggle once"
       hx-target="find .reviewers"
       {{end}}
     >
-      <summary class="text-dark-gray3 font-semibold">Details</summary>
-      <div class="border-t border-light-gray3 mt-2 overflow-x-auto whitespace-nowrap">
+      <summary class="pb-details-summary">Details</summary>
+      <div class="pb-details-body">
         {{if .PredicateResults}}
-          <div class="pt-2">
+          <div class="pb-details-section">
             {{template "result-predicates-details" .}}
           </div>
         {{end}}
@@ -89,28 +155,28 @@
           {{- $hasActors := gt .Requires.Count 0 -}}
           {{- $hasOwnershipGroups := hasOwnershipGroups .Requires -}}
           {{if $hasConditions }}
-            <div class="pt-2">
+            <div class="pb-details-section">
             {{template "result-conditions-details" .}}
             </div>
           {{end}}
           {{if $hasActors }}
-            <div class="pt-2">
+            <div class="pb-details-section">
             {{template "result-approver-details" (args $root .)}}
             </div>
-            <div class="pt-2">
+            <div class="pb-details-section">
             {{template "result-methods-details" .}}
             </div>
             {{if $showReviewers}}
-            <div class="pt-2">
-              <h4 class="font-bold text-sm mb-1">Required Reviewers</h4>
-              <p class="italic text-xs mb-2">Approval from {{.Requires.Count}} of these users will satisfy this rule</p>
+            <div class="pb-details-section">
+              <h4 class="pb-details-heading">Required Reviewers</h4>
+              <p class="pb-details-note">Approval from {{.Requires.Count}} of these users will satisfy this rule</p>
               <div class="reviewers">{{template "spinner"}}</div>
             </div>
             {{end}}
           {{end}}
           {{if and (not $hasActors) (not $hasConditions) (not $hasOwnershipGroups)}}
-            <div class="pt-2">
-              <b class="font-bold text-sm">This rule is automatically approved and requires no reviews</b>
+            <div class="pb-details-section">
+              <b class="pb-details-heading">This rule is automatically approved and requires no reviews</b>
             </div>
           {{end}}
         {{end}}
@@ -131,17 +197,29 @@
   {{ $root := index . 0 }}
   {{with index . 1}}
   {{ $s := (or (and .Error "error") (.Status | print)) }}
-  <p class="mb-2 flex items-center">
-    <b class="font-bold">{{.Name}}</b>
-    <span class="flex-none status-badge {{$s}}">{{$s | titlecase}}</span>
-  </p>
+  <div class="pb-card-head">
+    <b class="pb-card-name">{{.Name}}</b>
+    <span class="pb-status-badge {{$s}}"><span class="pb-status-icon {{$s}}"></span>{{$s | titlecase}}</span>
+  </div>
   {{if (and .Description (ne $s "skipped"))}}
-  <p class="mb-2 text-dark-gray3 text-sm">{{.Description}}</p>
+  <p class="pb-card-desc">{{.Description}}</p>
   {{end}}
   {{if hasOwnershipGroups .Requires}}
     {{template "ownership-groups" (args $root .Requires)}}
   {{else}}
-    <p class="text-dark-gray3 text-sm">{{or .Error .StatusDescription}}</p>
+    {{$approvers := ruleApprovers .Requires}}
+    {{if (and $approvers (not .Error))}}
+    <div class="pb-card-status">
+      {{range $approvers}}
+        <a href="{{.Link}}" class="pb-approver-chip" title="{{.Username}}">
+          <span class="pb-avatar"><img src="{{.AvatarURL}}" alt="{{.Username}}" loading="lazy"/></span>
+          <span class="pb-approver-name">{{.Username}}</span>
+        </a>
+      {{end}}
+    </div>
+    {{else}}
+    <p class="pb-card-status">{{or .Error .StatusDescription}}</p>
+    {{end}}
   {{end}}
   {{end}}
 {{end}}
@@ -154,9 +232,9 @@
       {{$status := "pending"}}{{if .Satisfied}}{{$status = "approved"}}{{end}}
       <div class="ownership-group">
         <span class="status-dot {{$status}}"></span>
-        {{with index .Owners 0}}
-          {{- template "component/actor" . -}}
-        {{end}}
+        {{range $i, $o := .Owners}}{{if $i}}<span class="owner-sep">/</span>{{end -}}
+          {{- template "component/actor" $o -}}
+        {{- end}}
         {{if .Satisfied}}
           <span class="group-approvers">
             ({{range $i, $a := .Approvers}}{{if $i}}, {{end -}}
@@ -173,9 +251,9 @@
 {{define "result-predicates-details"}}
   {{ $s := (or (and .Error "error") (.Status | print)) }}
   {{if eq $s "skipped"}}
-    <b class="font-bold">This rule is skipped because</b>
+    <b class="pb-details-heading">This rule is skipped because</b>
   {{else}}
-    <b class="font-bold">This rule is selected because</b>
+    <b class="pb-details-heading">This rule is selected because</b>
   {{end}}
   {{template "result-predicates-info" .}}
 {{end}}
@@ -188,7 +266,7 @@
       {{if .Values}}
         The {{.ValuePhrase}}:
         <ul class="list-disc list-outside pl-6 py-2">
-          {{range .Values}}<li class="font-mono text-sm-mono">{{.}}</li>{{end}}
+          {{range .Values}}<li class="pb-mono">{{.}}</li>{{end}}
         </ul>
         {{if or (and (eq $s "skipped") (not .ReverseSkipPhrase)) (and (ne $s "skipped") .ReverseSkipPhrase)}}do not {{end}}{{.ConditionPhrase}}
         {{if .ConditionsMap}}
@@ -197,13 +275,13 @@
           {{if $v}}
           <dt>{{$k}}</dt>
           <dd>
-              <ul class="list-disc list-outside pl-6 py-2">{{range $v}}<li class="font-mono text-sm-mono">{{.}}</li>{{end}}</ul>
+              <ul class="list-disc list-outside pl-6 py-2">{{range $v}}<li class="pb-mono">{{.}}</li>{{end}}</ul>
           </dd>
           {{end}}
         {{end}}
         </dl>
         {{else if .ConditionValues}}
-          <ul class="list-disc list-outside pl-6 py-2">{{range .ConditionValues}}<li class="font-mono text-sm-mono">{{.}}</li>{{end}}</ul>
+          <ul class="list-disc list-outside pl-6 py-2">{{range .ConditionValues}}<li class="pb-mono">{{.}}</li>{{end}}</ul>
         {{end}}
       {{else}}
         There are no {{.ValuePhrase}}
@@ -214,12 +292,12 @@
 {{end}}
 
 {{define "result-methods-details"}}
-  <b class="font-bold text-sm">Approvals may use any of these methods:</b>
+  <b class="pb-details-heading">Approvals may use any of these methods:</b>
   <dl class="my-2">
   {{range $k, $v := getMethods .}}
     <dt>{{$k}}:</dt>
     <dd>
-      <ul class="list-disc list-outside pl-6 py-2">{{range $v}}<li class="font-mono text-sm-mono">{{.}}</li>{{end}}</ul>
+      <ul class="list-disc list-outside pl-6 py-2">{{range $v}}<li class="pb-mono">{{.}}</li>{{end}}</ul>
     </dd>
   {{end}}
   </dl>
@@ -232,13 +310,13 @@
   {{$hasPerms := hasActorsPermissions .Requires}}
   {{$hasCodeowners := hasCodeowners .Requires}}
   {{if or $hasActors $hasPerms}}
-    <b class="font-bold text-sm">{{template "result-reviews-count" .Requires}} from:</b>
+    <b class="pb-details-heading">{{template "result-reviews-count" .Requires}} from:</b>
     <dl class="my-2">
     {{if $hasActors}}
     {{range $k, $v := getActors .}}
       <dt>{{$k}}:</dt>
       <dd>
-        <ul class="list-disc list-outside pl-6 py-2">{{range $v}}<li class="font-mono text-sm-mono"><a href={{.Link}}>{{.Name}}</a></li>{{end}}</ul>
+        <ul class="list-disc list-outside pl-6 py-2">{{range $v}}<li class="pb-mono"><a href={{.Link}}>{{.Name}}</a></li>{{end}}</ul>
       </dd>
     {{end}}
     {{end}}
@@ -248,17 +326,17 @@
         {{if $root.Codeowners}}
           {{range $owner, $files := getCodeownersBreakdown $root.Codeowners}}
             <div class="py-1">
-              <a class="font-mono text-sm-mono font-semibold" href={{codeownerLink $owner}}>{{$owner}}</a>
+              <a class="pb-mono font-semibold" href={{codeownerLink $owner}}>{{$owner}}</a>
               <ul class="list-disc list-outside pl-6">
-                {{range $files}}<li class="font-mono text-xs">{{.}}</li>{{end}}
+                {{range $files}}<li class="pb-mono text-xs">{{.}}</li>{{end}}
               </ul>
             </div>
           {{end}}
           {{if $root.Codeowners.HasOrphanFiles}}
-            <div class="py-1 mt-2 border-t border-light-gray3">
+            <div class="py-1 mt-2 pb-divider-top">
               <span class="font-semibold text-red3">No codeowners:</span>
               <ul class="list-disc list-outside pl-6">
-                {{range $root.Codeowners.OrphanFiles}}<li class="font-mono text-xs">{{.}}</li>{{end}}
+                {{range $root.Codeowners.OrphanFiles}}<li class="pb-mono text-xs">{{.}}</li>{{end}}
               </ul>
             </div>
           {{end}}
@@ -270,12 +348,12 @@
     {{if $hasPerms}}
       <dt>Users with the permissions:</dt>
       <dd>
-        <ul class="list-disc list-outside pl-6 py-2">{{range getPermissions .}}<li class="font-mono text-sm-mono">{{.}}</li>{{end}}</ul>
+        <ul class="list-disc list-outside pl-6 py-2">{{range getPermissions .}}<li class="pb-mono">{{.}}</li>{{end}}</ul>
       </dd>
     {{end}}
     </dl>
   {{else}}
-    <b class="font-bold text-sm">{{template "result-reviews-count" .Requires}}</b>
+    <b class="pb-details-heading">{{template "result-reviews-count" .Requires}}</b>
   {{end}}
   {{end}}
 {{end}}
@@ -284,7 +362,7 @@
 
 {{define "result-conditions-details"}}
   {{/* TODO(bkeyes): this is a placeholder until I can refactor predicate rendering */}}
-  <b class="font-bold text-sm">This rule requires that {{len .Requires.Conditions}} condition{{if gt (len .Requires.Conditions) 1}}s are{{else}} is{{end}} met</b>
+  <b class="pb-details-heading">This rule requires that {{len .Requires.Conditions}} condition{{if gt (len .Requires.Conditions) 1}}s are{{else}} is{{end}} met</b>
 {{end}}
 
 {{define "spinner"}}

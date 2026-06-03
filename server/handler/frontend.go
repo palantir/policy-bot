@@ -125,6 +125,15 @@ func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatet
 			"getEnrichedOwnershipGroups": func(prctx pull.Context, requires common.RequiresResult) []EnrichedOwnershipGroup {
 				return getEnrichedOwnershipGroups(prctx, requires, githubURL)
 			},
+			"ruleApprovers": func(requires common.RequiresResult) []Membership {
+				names := make([]string, 0, len(requires.Approvers))
+				for _, c := range requires.Approvers {
+					if u := c.User(); u != "" {
+						names = append(names, u)
+					}
+				}
+				return enrichApprovers(names, buildApproversMap(requires.Approvers), githubURL)
+			},
 			"getCodeownersBreakdown": func(co *pull.CodeownersResult) map[string][]string {
 				if co == nil {
 					return nil
@@ -159,6 +168,12 @@ func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatet
 				}
 				return ""
 			},
+			"leafRules": leafRules,
+			"ruleStats": ruleStats,
+			"allApprovers": func(result *common.Result) []Membership {
+				return allApprovers(result, githubURL)
+			},
+			"slug": slug,
 		})
 	})
 }
@@ -347,7 +362,116 @@ func enrichApprovers(approverNames []string, approversByLogin map[string]*common
 		if candidate, ok := approversByLogin[name]; ok && candidate.Author != nil {
 			m.AvatarURL = candidate.Author.AvatarURL
 		}
+		if m.AvatarURL == "" {
+			m.AvatarURL = githubURL + "/" + name + ".png"
+		}
 		result = append(result, m)
 	}
 	return result
+}
+
+// RuleStats summarizes the leaf rules of a result tree for the overview panel.
+type RuleStats struct {
+	Approved    int
+	Pending     int
+	Disapproved int
+	Skipped     int
+	Total       int // all leaf rules
+	Applicable  int // leaf rules that are not skipped
+	Percent     int // approved as a percentage of applicable rules
+}
+
+// leafRules returns the actionable rules of a result tree: the leaves that
+// have no children. Composite policy/and/or nodes are not included.
+func leafRules(result *common.Result) []*common.Result {
+	if result == nil {
+		return nil
+	}
+	if len(result.Children) == 0 {
+		return []*common.Result{result}
+	}
+	var out []*common.Result
+	for _, c := range result.Children {
+		out = append(out, leafRules(c)...)
+	}
+	return out
+}
+
+// ruleStats counts leaf rules by status so the UI can show progress.
+func ruleStats(result *common.Result) RuleStats {
+	var s RuleStats
+	for _, r := range leafRules(result) {
+		s.Total++
+		status := r.Status
+		if r.Error != nil {
+			status = common.StatusDisapproved
+		}
+		switch status {
+		case common.StatusApproved:
+			s.Approved++
+		case common.StatusPending:
+			s.Pending++
+		case common.StatusDisapproved:
+			s.Disapproved++
+		case common.StatusSkipped:
+			s.Skipped++
+		}
+	}
+	s.Applicable = s.Total - s.Skipped
+	if s.Applicable > 0 {
+		s.Percent = s.Approved * 100 / s.Applicable
+	}
+	return s
+}
+
+// allApprovers walks the result tree and returns a deduplicated list of every
+// user who has approved at least one rule, for the approver avatar stack.
+func allApprovers(result *common.Result, githubURL string) []Membership {
+	seen := make(map[string]bool)
+	var out []Membership
+
+	var walk func(r *common.Result)
+	walk = func(r *common.Result) {
+		if r == nil {
+			return
+		}
+		for _, c := range r.Requires.Approvers {
+			login := c.User()
+			if login == "" || seen[login] {
+				continue
+			}
+			seen[login] = true
+			m := Membership{Name: login, Username: login, Link: githubURL + "/" + login}
+			if c.Author != nil && c.Author.AvatarURL != "" {
+				m.AvatarURL = c.Author.AvatarURL
+			} else {
+				m.AvatarURL = githubURL + "/" + login + ".png"
+			}
+			out = append(out, m)
+		}
+		for _, child := range r.Children {
+			walk(child)
+		}
+	}
+	walk(result)
+	return out
+}
+
+// slug converts a rule name into a value safe for use as an HTML id fragment.
+func slug(s string) string {
+	var b strings.Builder
+	prevDash := false
+	for _, r := range strings.ToLower(s) {
+		switch {
+		case (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'):
+			b.WriteRune(r)
+			prevDash = false
+		default:
+			if !prevDash {
+				b.WriteByte('-')
+				prevDash = true
+			}
+		}
+	}
+	return strings.Trim(b.String(), "-")
 }
