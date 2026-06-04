@@ -270,8 +270,13 @@ body.pb-app {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.12rem 0.5rem;
+  border-radius: 9999px;
+  background: var(--pb-surface-2);
   font-size: 0.75rem;
-  color: var(--pb-text-subtle);
+  color: var(--pb-text-muted);
 }
 .pb-user svg { opacity: 0.7; }
 
@@ -399,7 +404,7 @@ body.pb-app {
 .pb-chip.disapproved { background: var(--pb-disapproved); }
 .pb-chip.skipped { background: var(--pb-skipped); }
 
-.pb-approvers { display: flex; align-items: center; gap: 0.6rem; }
+.pb-approvers { display: flex; align-items: center; justify-content: flex-end; gap: 0.6rem; }
 .pb-approvers-label {
   font-size: 0.72rem;
   font-weight: 700;
@@ -407,19 +412,56 @@ body.pb-app {
   text-transform: uppercase;
   color: var(--pb-text-subtle);
 }
-.pb-avatars { display: flex; }
-.pb-avatar {
-  display: block;
-  width: 1.9rem;
-  height: 1.9rem;
-  margin-left: -0.5rem;
+.pb-actor-strip {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.pb-actor {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0.15rem 0.55rem 0.15rem 0.2rem;
   border-radius: 9999px;
-  border: 2px solid var(--pb-surface);
-  overflow: hidden;
+  background: var(--pb-surface-2);
+  color: var(--pb-text);
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  vertical-align: middle;
+}
+.pb-actor.no-avatar { padding-left: 0.55rem; }
+.pb-actor:hover {
+  background: var(--pb-border);
+  color: var(--pb-text);
+  text-decoration: none;
+}
+.pb-actor-avatar {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 9999px;
+  object-fit: cover;
   background: var(--pb-surface-2);
 }
-.pb-avatar:first-child { margin-left: 0; }
-.pb-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pb-actor-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pb-actor-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.45rem 0 0.7rem;
+  padding: 0;
+  list-style: none;
+}
 
 .pb-temporary {
   display: inline-block;
@@ -432,6 +474,31 @@ body.pb-app {
 }
 
 .pb-tree-wrap { padding: 1.25rem 1.5rem 2.5rem; }
+.pb-tree-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem 1rem;
+}
+.pb-tree-action {
+  padding: 0.25rem 0.65rem;
+  border: 1px solid var(--pb-border);
+  border-radius: 9999px;
+  background: var(--pb-surface);
+  color: var(--pb-text-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pb-tree-action:hover {
+  background: var(--pb-surface-2);
+  color: var(--pb-text);
+}
+.pb-tree-action:focus-visible {
+  outline: 2px solid var(--pb-accent);
+  outline-offset: 2px;
+}
 
 /* ===========================================================================
    Rule cards
@@ -448,6 +515,12 @@ body.pb-app {
   scroll-margin-top: 12rem;
   transition: box-shadow 0.18s ease, transform 0.18s ease;
 }
+.pb-card > summary {
+  list-style: none;
+}
+.pb-card > summary::-webkit-details-marker {
+  display: none;
+}
 .pb-card.approved { border-left-color: var(--pb-approved); }
 .pb-card.pending { border-left-color: var(--pb-pending); }
 .pb-card.disapproved { border-left-color: var(--pb-disapproved); }
@@ -463,8 +536,49 @@ body.pb-app {
   justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 0.4rem;
+  cursor: pointer;
+  user-select: none;
+}
+.pb-card:not([open]) .pb-card-head {
+  margin-bottom: 0;
 }
 .pb-card-name { font-weight: 700; color: var(--pb-text); }
+.pb-card-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: none;
+}
+.pb-card-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 9999px;
+  color: var(--pb-text-subtle);
+}
+.pb-card-toggle::before {
+  content: "";
+  width: 0.42rem;
+  height: 0.42rem;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+}
+.pb-card:not([open]) .pb-card-toggle::before {
+  transform: rotate(-45deg);
+}
+.pb-card-head:hover .pb-card-toggle {
+  background: var(--pb-surface-2);
+  color: var(--pb-text);
+}
+.pb-card-head:focus-visible {
+  outline: 2px solid var(--pb-accent);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
 .pb-status-badge {
   display: inline-flex;
   align-items: center;
@@ -493,19 +607,6 @@ body.pb-app {
   flex-wrap: wrap;
   gap: 0.5rem;
 }
-.pb-approver-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.15rem 0.55rem 0.15rem 0.2rem;
-  border-radius: 9999px;
-  background: var(--pb-surface-2);
-  color: var(--pb-text);
-  font-weight: 500;
-  text-decoration: none;
-}
-.pb-approver-chip:hover { background: var(--pb-surface-3, var(--pb-surface-2)); }
-.pb-approver-chip .pb-avatar { width: 1.35rem; height: 1.35rem; border-width: 1.5px; }
 
 .pb-details {
   margin-top: 0.7rem;

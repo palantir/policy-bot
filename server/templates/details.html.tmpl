@@ -97,11 +97,9 @@
         {{if $approvers}}
         <div class="pb-approvers">
           <span class="pb-approvers-label">Approved by</span>
-          <div class="pb-avatars">
+          <div class="pb-actor-strip">
             {{range $approvers}}
-              <a href="{{.Link}}" class="pb-avatar" title="{{.Username}}">
-                <img src="{{.AvatarURL}}" alt="{{.Username}}" loading="lazy"/>
-              </a>
+              {{template "component/actor" .}}
             {{end}}
           </div>
         </div>
@@ -110,6 +108,10 @@
     </header>
 
     <div class="pb-tree-wrap">
+      <div class="pb-tree-actions" aria-label="Rule display controls">
+        <button type="button" class="pb-tree-action" data-rule-collapse="collapse">Collapse all</button>
+        <button type="button" class="pb-tree-action" data-rule-collapse="expand">Expand all</button>
+      </div>
       <ul class="tree" data-hide-status="skipped">
         {{template "results" (args $ .Result)}}
       </ul>
@@ -132,8 +134,10 @@
 {{ $s := (or (and .Error "error") (.Status | print)) }}
 {{ $showReviewers := (and $root.ExpandRequiredReviewers (eq $s "pending")) }}
 <li class="node" data-status="{{$s}}" {{if not (eq $s $nextStatus)}}data-next-status="{{$nextStatus}}"{{end}}>
-  <div id="rule-{{slug .Name}}" class="pb-card {{$s}}">
-    {{template "result-details" (args $root .)}}
+  <details id="rule-{{slug .Name}}" class="pb-card {{$s}}" open>
+    {{template "result-head" .}}
+    <div class="pb-card-body">
+    {{template "result-summary" (args $root .)}}
     {{if (or (.PredicateResults) (hasActors .Requires) (hasActorsPermissions .Requires) (gt (len .Requires.Conditions) 0))}}
     <details
       class="pb-details"
@@ -183,7 +187,8 @@
       </div>
     </details>
     {{end}}
-  </div>
+    </div>
+  </details>
   {{if .Children}}
   <ul class="tree">
     {{template "results" (args $root .)}}
@@ -193,14 +198,21 @@
 {{end}}
 {{end}}
 
-{{define "result-details"}}
+{{define "result-head"}}
+  {{ $s := (or (and .Error "error") (.Status | print)) }}
+  <summary class="pb-card-head">
+    <b class="pb-card-name">{{.Name}}</b>
+    <span class="pb-card-head-actions">
+      <span class="pb-status-badge {{$s}}"><span class="pb-status-icon {{$s}}"></span>{{$s | titlecase}}</span>
+      <span class="pb-card-toggle" aria-hidden="true"></span>
+    </span>
+  </summary>
+{{end}}
+
+{{define "result-summary"}}
   {{ $root := index . 0 }}
   {{with index . 1}}
   {{ $s := (or (and .Error "error") (.Status | print)) }}
-  <div class="pb-card-head">
-    <b class="pb-card-name">{{.Name}}</b>
-    <span class="pb-status-badge {{$s}}"><span class="pb-status-icon {{$s}}"></span>{{$s | titlecase}}</span>
-  </div>
   {{if (and .Description (ne $s "skipped"))}}
   <p class="pb-card-desc">{{.Description}}</p>
   {{end}}
@@ -211,10 +223,7 @@
     {{if (and $approvers (not .Error))}}
     <div class="pb-card-status">
       {{range $approvers}}
-        <a href="{{.Link}}" class="pb-approver-chip" title="{{.Username}}">
-          <span class="pb-avatar"><img src="{{.AvatarURL}}" alt="{{.Username}}" loading="lazy"/></span>
-          <span class="pb-approver-name">{{.Username}}</span>
-        </a>
+        {{template "component/actor" .}}
       {{end}}
     </div>
     {{else}}
@@ -316,7 +325,7 @@
     {{range $k, $v := getActors .}}
       <dt>{{$k}}:</dt>
       <dd>
-        <ul class="list-disc list-outside pl-6 py-2">{{range $v}}<li class="pb-mono"><a href={{.Link}}>{{.Name}}</a></li>{{end}}</ul>
+        <ul class="pb-actor-list">{{range $v}}<li>{{template "component/actor" .}}</li>{{end}}</ul>
       </dd>
     {{end}}
     {{end}}
@@ -326,7 +335,7 @@
         {{if $root.Codeowners}}
           {{range $owner, $files := getCodeownersBreakdown $root.Codeowners}}
             <div class="py-1">
-              <a class="pb-mono font-semibold" href={{codeownerLink $owner}}>{{$owner}}</a>
+              {{template "component/actor" (codeownerActor $owner)}}
               <ul class="list-disc list-outside pl-6">
                 {{range $files}}<li class="pb-mono text-xs">{{.}}</li>{{end}}
               </ul>

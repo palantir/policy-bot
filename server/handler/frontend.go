@@ -140,15 +140,8 @@ func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatet
 				}
 				return co.OwnersByOwner()
 			},
-			"codeownerLink": func(owner string) string {
-				ownerType, name := pull.ParseCodeowner(owner)
-				if ownerType == "team" {
-					parts := strings.SplitN(name, "/", 2)
-					if len(parts) == 2 {
-						return githubURL + "/orgs/" + parts[0] + "/teams/" + parts[1]
-					}
-				}
-				return githubURL + "/" + name
+			"codeownerActor": func(owner string) Membership {
+				return enrichOwner(owner, githubURL, nil, nil)
 			},
 			"getMethods": func(results *common.Result) map[string][]string {
 				return getMethods(results)
@@ -314,37 +307,41 @@ func buildApproversMap(approvers []*common.Candidate) map[string]*common.Candida
 func enrichOwners(owners []string, githubURL string, prctx pull.Context, teamInfoCache map[string]*pull.TeamInfo) []Membership {
 	result := make([]Membership, 0, len(owners))
 	for _, owner := range owners {
-		ownerType, name := pull.ParseCodeowner(owner)
-		m := Membership{Name: name, Username: name}
-
-		switch ownerType {
-		case "team":
-			parts := strings.Split(name, "/")
-			if len(parts) == 2 {
-				org, team := parts[0], parts[1]
-				m.Link = githubURL + "/orgs/" + org + "/teams/" + team
-				if prctx != nil {
-					info, ok := teamInfoCache[name]
-					if !ok {
-						info, _ = prctx.TeamInfo(name)
-						teamInfoCache[name] = info
-					}
-					if info != nil && info.ID != 0 {
-						m.AvatarURL = teamAvatarURL(info.ID)
-					}
-				}
-				if m.AvatarURL == "" {
-					m.AvatarURL = githubURL + "/" + org + ".png"
-				}
-			}
-		case "user":
-			m.Link = githubURL + "/" + name
-			m.AvatarURL = githubURL + "/" + name + ".png"
-		}
-
-		result = append(result, m)
+		result = append(result, enrichOwner(owner, githubURL, prctx, teamInfoCache))
 	}
 	return result
+}
+
+func enrichOwner(owner string, githubURL string, prctx pull.Context, teamInfoCache map[string]*pull.TeamInfo) Membership {
+	ownerType, name := pull.ParseCodeowner(owner)
+	m := Membership{Name: name, Username: name}
+
+	switch ownerType {
+	case "team":
+		parts := strings.Split(name, "/")
+		if len(parts) == 2 {
+			org, team := parts[0], parts[1]
+			m.Link = githubURL + "/orgs/" + org + "/teams/" + team
+			if prctx != nil {
+				info, ok := teamInfoCache[name]
+				if !ok {
+					info, _ = prctx.TeamInfo(name)
+					teamInfoCache[name] = info
+				}
+				if info != nil && info.ID != 0 {
+					m.AvatarURL = teamAvatarURL(info.ID)
+				}
+			}
+			if m.AvatarURL == "" {
+				m.AvatarURL = githubURL + "/" + org + ".png"
+			}
+		}
+	case "user":
+		m.Link = githubURL + "/" + name
+		m.AvatarURL = githubURL + "/" + name + ".png"
+	}
+
+	return m
 }
 
 func teamAvatarURL(teamID int64) string {

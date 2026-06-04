@@ -39,10 +39,10 @@
     {{- $display = .Username -}}
   {{- end -}}
 
-  <span class="inline-flex items-center gap-1 max-w-full align-middle">
+  <a href="{{.Link}}" class="pb-actor{{if not .AvatarURL}} no-avatar{{end}}" title="{{$display}}">
     {{- if .AvatarURL -}}
-      <img src="{{.AvatarURL}}" alt="{{$display}}" class="w-4 h-4 rounded-full inline-block align-middle" />
+      <img src="{{.AvatarURL}}" alt="{{$display}}" class="pb-actor-avatar" loading="lazy" />
     {{- end -}}
-    <a href="{{.Link}}" class="align-middle whitespace-nowrap truncate">{{$display}}</a>
-  </span>
+    <span class="pb-actor-name">{{$display}}</span>
+  </a>
 {{end}}
