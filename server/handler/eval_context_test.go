@@ -16,7 +16,9 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"testing"
+	"time"
 
 	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/common"
@@ -242,4 +244,40 @@ func TestEvalContext_EvaluatePolicy_PendingAsFailure_NilConfig(t *testing.T) {
 	require.NotNil(t, ec.Status, "status should be set")
 	assert.Equal(t, "completed", ec.Status.GetStatus(), "server option should be used when policy config is nil")
 	assert.Equal(t, "failure", ec.Status.GetConclusion(), "server option should be used when policy config is nil")
+}
+
+func TestParseFetchedConfigDoesNotPostStatusForTransientLoadError(t *testing.T) {
+	var posted int
+	fc := FetchedConfig{
+		Source:    "kaiko-ai/kaiko-eng@main",
+		Path:      ".policy.yml",
+		LoadError: newRateLimitError(time.Now().Add(time.Minute)),
+	}
+
+	_, err := parseFetchedConfig(context.Background(), fc, nil, common.TriggerStatus, func(context.Context, string, string) {
+		posted++
+	})
+
+	require.Error(t, err)
+	assert.Equal(t, 0, posted)
+}
+
+func TestParseFetchedConfigPostsStatusForNonTransientLoadError(t *testing.T) {
+	var posted int
+	fc := FetchedConfig{
+		Source:    "kaiko-ai/kaiko-eng@main",
+		Path:      ".policy.yml",
+		LoadError: errors.New("invalid remote reference"),
+	}
+
+	_, err := parseFetchedConfig(context.Background(), fc, nil, common.TriggerStatus, func(context.Context, string, string) {
+		posted++
+	})
+
+	require.Error(t, err)
+	assert.Equal(t, 1, posted)
+}
+
+func TestIsTransientClientErrorRecognizesRateLimits(t *testing.T) {
+	assert.True(t, isTransientClientError(newRateLimitError(time.Now().Add(time.Minute))))
 }

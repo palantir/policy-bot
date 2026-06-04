@@ -20,6 +20,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -186,6 +187,80 @@ type recordingTransport struct {
 	unexpected     []string
 	configDelay    time.Duration
 	configBody     string
+}
+
+func TestEvaluateDefersAndRetriesRateLimitedEvaluation(t *testing.T) {
+	transport := &rateLimitedConfigTransport{
+		resetAt: time.Now().Add(time.Second),
+	}
+	httpClient := &http.Client{Transport: transport}
+
+	client := github.NewClient(httpClient)
+	baseURL, err := url.Parse("http://github.localhost/")
+	require.NoError(t, err)
+	client.BaseURL = baseURL
+
+	v4client := githubv4.NewClient(httpClient)
+
+	deferrer := NewRateLimitDeferrer(0)
+	deferrer.jitter = func() time.Duration { return 0 }
+
+	h := Base{
+		ClientCreator: staticClientCreator{
+			client:   client,
+			v4client: v4client,
+		},
+		ConfigFetcher: NewConfigFetcher(appconfig.NewLoader([]string{".policy.yml"})),
+		BaseConfig: &baseapp.HTTPConfig{
+			PublicURL: "https://policy-bot.example.com",
+		},
+		PullOpts: &PullEvaluationOptions{
+			StatusCheckContext: "policy-bot",
+		},
+		RateLimitDeferrer: deferrer,
+	}
+
+	pr := testPullRequest()
+	err = h.Evaluate(context.Background(), 123, 0, pull.Locator{
+		Owner:  pr.GetBase().GetRepo().GetOwner().GetLogin(),
+		Repo:   pr.GetBase().GetRepo().GetName(),
+		Number: pr.GetNumber(),
+		Value:  pr,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 1, transport.configRequestCount())
+
+	require.Eventually(t, func() bool {
+		return transport.configRequestCount() >= 2
+	}, 2*time.Second, 25*time.Millisecond)
+}
+
+type rateLimitedConfigTransport struct {
+	mu             sync.Mutex
+	configRequests int
+	resetAt        time.Time
+}
+
+func (rt *rateLimitedConfigTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	rt.mu.Lock()
+	rt.configRequests++
+	count := rt.configRequests
+	rt.mu.Unlock()
+
+	if count == 1 {
+		res := jsonResponse(req, http.StatusForbidden, `{"message":"API rate limit exceeded"}`)
+		res.Header.Set("X-Ratelimit-Limit", "9600")
+		res.Header.Set("X-Ratelimit-Remaining", "0")
+		res.Header.Set("X-Ratelimit-Reset", strconv.FormatInt(rt.resetAt.Unix(), 10))
+		return res, nil
+	}
+	return jsonResponse(req, http.StatusNotFound, `{"message":"Not Found"}`), nil
+}
+
+func (rt *rateLimitedConfigTransport) configRequestCount() int {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	return rt.configRequests
 }
 
 func (rt *recordingTransport) RoundTrip(req *http.Request) (*http.Response, error) {

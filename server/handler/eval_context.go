@@ -106,7 +106,7 @@ func parseFetchedConfig(ctx context.Context, fc FetchedConfig, evalOpts *PullEva
 		msg := fmt.Sprintf("Error loading policy from %s", fc.Source)
 		logger.Warn().Err(fc.LoadError).Msg(msg)
 
-		if postStatus != nil {
+		if postStatus != nil && !isTransientClientError(fc.LoadError) {
 			postStatus(ctx, "error", msg)
 		}
 		return nil, errors.Wrapf(fc.LoadError, "failed to load policy: %s: %s", fc.Source, fc.Path)
@@ -318,6 +318,9 @@ func isTransientClientError(err error) bool {
 	var ghErr *github.ErrorResponse
 	if errors.As(err, &ghErr) {
 		return ghErr.Response != nil && ghErr.Response.StatusCode >= 400
+	}
+	if isRateLimitError(err) {
+		return true
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) {

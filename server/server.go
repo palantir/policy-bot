@@ -206,17 +206,18 @@ func New(c *Config) (*Server, error) {
 		GlobalCache: globalCache,
 
 		PullOpts: &c.Options,
-		ConfigFetcher: &handler.ConfigFetcher{
-			Loader: appconfig.NewLoader(
+		ConfigFetcher: handler.NewConfigFetcher(
+			appconfig.NewLoader(
 				policyPaths,
 				appconfig.WithOwnerDefault(*c.Options.SharedRepository, sharedPolicyPaths),
 			),
-		},
+		),
 
 		AppName: app.GetSlug(),
 		AppID:   app.GetID(),
 
-		Debouncer: handler.NewStatusDebouncer(c.Options.StatusDebounceWindow),
+		Debouncer:         handler.NewStatusDebouncer(c.Options.StatusDebounceWindow),
+		RateLimitDeferrer: handler.NewRateLimitDeferrer(handler.DefaultRateLimitRetryJitter),
 	}
 
 	queueSize := c.Workers.QueueSize

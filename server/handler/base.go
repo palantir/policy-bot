@@ -44,7 +44,8 @@ type Base struct {
 	AppName string
 	AppID   int64
 
-	Debouncer *StatusDebouncer
+	Debouncer         *StatusDebouncer
+	RateLimitDeferrer *RateLimitDeferrer
 }
 
 // PostCheckRun creates a GitHub check run with consistent logging.
@@ -152,8 +153,8 @@ func (b *Base) newEvalContext(ctx context.Context, installationID int64, loc pul
 }
 
 func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger common.Trigger, loc pull.Locator) error {
+	key := DebounceKey(loc.Owner, loc.Repo, loc.Number)
 	if b.Debouncer != nil {
-		key := DebounceKey(loc.Owner, loc.Repo, loc.Number)
 		trailingFn := func(eventCtx context.Context, accumulated common.Trigger, coalesced int) {
 			tctx, span := StartDebounceTrailingSpan(eventCtx)
 			defer span.End()
@@ -168,7 +169,7 @@ func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger commo
 
 			logger := zerolog.Ctx(tctx)
 			logger.Debug().Msgf("Running trailing evaluation for %s/%s#%d (accumulated trigger: %s, coalesced: %d)", loc.Owner, loc.Repo, loc.Number, accumulated, coalesced)
-			if err := b.doEvaluate(tctx, installationID, accumulated, loc); err != nil {
+			if err := b.evaluateOnce(tctx, installationID, accumulated, loc, key); err != nil {
 				RecordError(span, &err)
 				logger.Error().Err(err).Msgf("Trailing evaluation failed for %s/%s#%d", loc.Owner, loc.Repo, loc.Number)
 			}
@@ -178,7 +179,7 @@ func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger commo
 			return nil
 		}
 	}
-	return b.doEvaluate(ctx, installationID, trigger, loc)
+	return b.evaluateOnce(ctx, installationID, trigger, loc, key)
 }
 
 func (b *Base) doEvaluate(ctx context.Context, installationID int64, trigger common.Trigger, loc pull.Locator) error {
@@ -187,4 +188,29 @@ func (b *Base) doEvaluate(ctx context.Context, installationID int64, trigger com
 		return errors.Wrap(err, "failed to create evaluation context")
 	}
 	return evalCtx.Evaluate(ctx, trigger)
+}
+
+func (b *Base) evaluateOnce(ctx context.Context, installationID int64, trigger common.Trigger, loc pull.Locator, key string) error {
+	if b.RateLimitDeferrer != nil && b.RateLimitDeferrer.DeferIfActive(ctx, installationID, key, trigger, func(deferredCtx context.Context, deferredTrigger common.Trigger) {
+		if err := b.evaluateOnce(deferredCtx, installationID, deferredTrigger, loc, key); err != nil {
+			zerolog.Ctx(deferredCtx).Error().Err(err).Msgf("Deferred evaluation failed for %s/%s#%d", loc.Owner, loc.Repo, loc.Number)
+		}
+	}) {
+		zerolog.Ctx(ctx).Warn().Msgf("Deferring evaluation for %s/%s#%d because installation %d is rate limited", loc.Owner, loc.Repo, loc.Number, installationID)
+		return nil
+	}
+
+	if err := b.doEvaluate(ctx, installationID, trigger, loc); err != nil {
+		if resetAt, ok := rateLimitResetTime(err); ok && b.RateLimitDeferrer != nil {
+			b.RateLimitDeferrer.DeferUntil(ctx, installationID, key, trigger, resetAt, func(deferredCtx context.Context, deferredTrigger common.Trigger) {
+				if evalErr := b.evaluateOnce(deferredCtx, installationID, deferredTrigger, loc, key); evalErr != nil {
+					zerolog.Ctx(deferredCtx).Error().Err(evalErr).Msgf("Deferred evaluation failed for %s/%s#%d", loc.Owner, loc.Repo, loc.Number)
+				}
+			})
+			zerolog.Ctx(ctx).Warn().Err(err).Time("github_rate_limit_reset", resetAt).Msgf("Rate limited evaluating %s/%s#%d; deferred retry scheduled", loc.Owner, loc.Repo, loc.Number)
+			return nil
+		}
+		return err
+	}
+	return nil
 }
