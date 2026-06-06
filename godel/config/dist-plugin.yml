@@ -15,6 +15,10 @@ products:
         arch: amd64
       - os: linux
         arch: arm64
+      - os: darwin
+        arch: amd64
+      - os: darwin
+        arch: arm64
     dist:
       output-dir: build
       disters:
