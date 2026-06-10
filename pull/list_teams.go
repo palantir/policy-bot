@@ -20,7 +20,7 @@ import (
 	"net/url"
 	"reflect"
 
-	"github.com/google/go-github/v85/github"
+	"github.com/google/go-github/v88/github"
 	"github.com/google/go-querystring/query"
 )
 

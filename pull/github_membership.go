@@ -18,7 +18,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/google/go-github/v85/github"
+	"github.com/google/go-github/v88/github"
 	"github.com/pkg/errors"
 )
 

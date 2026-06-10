@@ -16,10 +16,10 @@ package githubapp
 
 import (
 	"context"
+	"errors"
 	"sync/atomic"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
 	"github.com/rs/zerolog"
 )
