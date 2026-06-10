@@ -719,11 +719,13 @@ func TestLatestStatuses(t *testing.T) {
 
 func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest, gc GlobalCache) Context {
 	ctx := context.Background()
-	client := github.NewClient(&http.Client{Transport: rp})
+	baseURL := "http://github.localhost/"
+	client, err := github.NewClient(
+		github.WithHTTPClient(&http.Client{Transport: rp}),
+		github.WithURLs(&baseURL, nil),
+	)
+	require.NoError(t, err, "failed to create github client")
 	v4client := githubv4.NewClient(&http.Client{Transport: rp})
-
-	base, _ := url.Parse("http://github.localhost/")
-	client.BaseURL = base
 
 	mbrCtx := NewGitHubMembershipContext(ctx, client)
 	if pr == nil {

@@ -42,13 +42,13 @@ func listTeams(ctx context.Context, client *github.Client, owner string, repo st
 		return nil, nil, err
 	}
 
-	req, err := client.NewRequest("GET", u, nil)
+	req, err := client.NewRequest(ctx, "GET", u, nil)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	var teams []*teamWithPermissions
-	resp, err := client.Do(ctx, req, &teams)
+	resp, err := client.Do(req, &teams)
 	if err != nil {
 		return nil, resp, err
 	}
