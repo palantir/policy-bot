@@ -17,9 +17,8 @@ package githubapp
 import (
 	"fmt"
 
-	"github.com/google/go-github/v85/github"
+	"github.com/google/go-github/v88/github"
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/pkg/errors"
 	"github.com/shurcooL/githubv4"
 	"golang.org/x/oauth2"
 )
@@ -47,7 +46,7 @@ func NewDefaultCachingClientCreator(c Config, opts ...ClientOption) (ClientCreat
 func NewCachingClientCreator(delegate ClientCreator, capacity int) (ClientCreator, error) {
 	cache, err := lru.New(capacity)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create cache")
+		return nil, fmt.Errorf("failed to create cache: %w", err)
 	}
 
 	return &cachingClientCreator{

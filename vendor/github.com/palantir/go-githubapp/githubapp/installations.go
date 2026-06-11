@@ -19,8 +19,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/google/go-github/v85/github"
-	"github.com/pkg/errors"
+	"github.com/google/go-github/v88/github"
 )
 
 // Installation is a minimal representation of a GitHub app installation.
@@ -94,7 +93,7 @@ func (i defaultInstallationsService) ListAll(ctx context.Context) ([]Installatio
 	for {
 		installations, res, err := i.Apps.ListInstallations(ctx, &opt)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to list installations")
+			return nil, fmt.Errorf("failed to list installations: %w", err)
 		}
 		for _, inst := range installations {
 			allInstallations = append(allInstallations, toInstallation(inst))
@@ -109,14 +108,14 @@ func (i defaultInstallationsService) ListAll(ctx context.Context) ([]Installatio
 }
 
 func (i defaultInstallationsService) GetByOwner(ctx context.Context, owner string) (Installation, error) {
-	installation, _, err := i.Apps.FindOrganizationInstallation(ctx, owner)
+	installation, _, err := i.Apps.GetOrganizationInstallation(ctx, owner)
 	if err == nil {
 		return toInstallation(installation), nil
 	}
 
 	// owner is not an organization, try to find as a user
 	if isNotFound(err) {
-		installation, _, err = i.Apps.FindUserInstallation(ctx, owner)
+		installation, _, err = i.Apps.GetUserInstallation(ctx, owner)
 		if err == nil {
 			return toInstallation(installation), nil
 		}
@@ -125,11 +124,11 @@ func (i defaultInstallationsService) GetByOwner(ctx context.Context, owner strin
 	if isNotFound(err) {
 		return Installation{}, InstallationNotFound(owner)
 	}
-	return Installation{}, errors.Wrapf(err, "failed to get installation for owner %q", owner)
+	return Installation{}, fmt.Errorf("failed to get installation for owner %q: %w", owner, err)
 }
 
 func (i defaultInstallationsService) GetByRepository(ctx context.Context, owner, repo string) (Installation, error) {
-	installation, _, err := i.Apps.FindRepositoryInstallation(ctx, owner, repo)
+	installation, _, err := i.Apps.GetRepositoryInstallation(ctx, owner, repo)
 	if err == nil {
 		return toInstallation(installation), nil
 	}
@@ -138,7 +137,7 @@ func (i defaultInstallationsService) GetByRepository(ctx context.Context, owner,
 	if isNotFound(err) {
 		return Installation{}, InstallationNotFound(ownerRepo)
 	}
-	return Installation{}, errors.Wrapf(err, "failed to get installation for repository %q", ownerRepo)
+	return Installation{}, fmt.Errorf("failed to get installation for repository %q: %w", ownerRepo, err)
 }
 
 // InstallationNotFound is returned when no installation exists for a
