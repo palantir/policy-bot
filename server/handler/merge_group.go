@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/go-github/v85/github"
+	"github.com/google/go-github/v88/github"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"

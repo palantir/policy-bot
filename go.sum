@@ -34,8 +34,6 @@ github.com/golang/mock v1.6.0/go.mod h1:p6yTPP+5HYm5mzsMV8JkE6ZKdX+/wYM6Hr+Licev
 github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
 github.com/google/go-cmp v0.7.0/go.mod h1:pXiqmnSA92OHEEa9HXL2W4E7lf9JzCmGVUdgjX3N/iU=
-github.com/google/go-github/v85 v85.0.0 h1:1+TLFX/akTFXK7o9Z9uAloQGufOn4ySa5DItUM1VWT4=
-github.com/google/go-github/v85 v85.0.0/go.mod h1:jYkBnqN+SzR2A2fGKYfbt6DEEQAyxeK0Q2XpPV9ZFsU=
 github.com/google/go-github/v88 v88.0.0 h1:dZA9IKkPK1eXZj4ypngnpRj5FwdpTv4whix2PrQMP7M=
 github.com/google/go-github/v88 v88.0.0/go.mod h1:rufTDgn2N45wjhukLTyxmvc9nilSp3mr3Rgtt6b1MPw=
 github.com/google/go-querystring v1.2.0 h1:yhqkPbu2/OH+V9BfpCVPZkNmUXhb2gBxJArfhIxNtP0=
@@ -65,8 +63,8 @@ github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/palantir/go-baseapp v0.7.0 h1:KsnCqz2T2j2m21JI149p8HUata9ubvVl2aKbw71u8qA=
 github.com/palantir/go-baseapp v0.7.0/go.mod h1:EvMBTXraSU+5cRCZTNt4e+eNty7t2me565Gr/6wc4/I=
-github.com/palantir/go-githubapp v0.44.0 h1:6QXYxgot6tHnObwJ09mrhzVg9K2DA0lQgQHj0q/BX4Y=
-github.com/palantir/go-githubapp v0.44.0/go.mod h1:vFTHSErTFXirDg18QMtFPKDbQ/NB6n8JE8L1yG/3Ij0=
+github.com/palantir/go-githubapp v0.45.0 h1:wVldKEz7ZNjbqcwlUUOuQW6SDTB4kyN1WaIOuMB8yaY=
+github.com/palantir/go-githubapp v0.45.0/go.mod h1:OrIFZV9FEKYvW0UQX/lDt6TNtd1HmXmlzIL/6crBuIs=
 github.com/patrickmn/go-cache v2.1.0+incompatible h1:HRMgzkcYKYpi3C8ajMPV8OFXaaRUnok+kx1WdO15EQc=
 github.com/patrickmn/go-cache v2.1.0+incompatible/go.mod h1:3Qf8kWWT7OJRJbdiICTKqZju1ZixQ/KpMGzzAfe6+WQ=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
@@ -83,8 +81,8 @@ github.com/prometheus/procfs v0.20.1 h1:XwbrGOIplXW/AU3YhIhLODXMJYyC1isLFfYCsTEy
 github.com/prometheus/procfs v0.20.1/go.mod h1:o9EMBZGRyvDrSPH1RqdxhojkuXstoe4UlK79eF5TGGo=
 github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9 h1:bsUq1dX0N8AOIL7EB/X911+m4EHsnWEHeJ0c+3TTBrg=
 github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
-github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0tI/otEQ=
-github.com/rogpeppe/go-internal v1.14.1/go.mod h1:MaRKkUm5W0goXpeCfT7UZI6fk/L7L7so1lCWt35ZSgc=
+github.com/rogpeppe/go-internal v1.15.0 h1:D0RCU5rMAp+SpgkiNdrjfJ+LX4J1M32V2NeCY7EJ6hc=
+github.com/rogpeppe/go-internal v1.15.0/go.mod h1:DrUVZyrJU+txYW5/1kwtXQSMFio52ZOxX7yM1VHvnxs=
 github.com/rs/xid v1.6.0 h1:fV591PaemRlL6JfRxGDEPl69wICngIQ3shQtzfy2gxU=
 github.com/rs/xid v1.6.0/go.mod h1:7XoLgs4eV+QndskICGsho+ADou8ySMSjJKDIan90Nz0=
 github.com/rs/zerolog v1.35.1 h1:m7xQeoiLIiV0BCEY4Hs+j2NG4Gp2o2KPKmhnnLiazKI=

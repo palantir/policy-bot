@@ -20,13 +20,13 @@ package appconfig
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 
-	"github.com/google/go-github/v85/github"
-	"github.com/pkg/errors"
+	"github.com/google/go-github/v88/github"
 	"github.com/rs/zerolog"
 )
 
@@ -52,7 +52,7 @@ type RemoteRef struct {
 func (r RemoteRef) SplitRemote() (owner, repo string, err error) {
 	slash := strings.IndexByte(r.Remote, '/')
 	if slash <= 0 || slash >= len(r.Remote)-1 {
-		return "", "", errors.Errorf("invalid remote value: %s", r.Remote)
+		return "", "", fmt.Errorf("invalid remote value: %s", r.Remote)
 	}
 	return r.Remote[:slash], r.Remote[slash+1:], nil
 }
@@ -189,7 +189,7 @@ func (ld *Loader) loadRemoteConfig(ctx context.Context, client *github.Client, r
 			if isNotFound(err) {
 				return c, notFoundErr
 			}
-			return c, errors.Wrap(err, "failed to get remote repository")
+			return c, fmt.Errorf("failed to get remote repository: %w", err)
 		}
 		ref = r.GetDefaultBranch()
 	}
@@ -222,7 +222,7 @@ func (ld *Loader) loadDefaultConfig(ctx context.Context, client *github.Client, 
 			return Config{}, nil
 		}
 		c := Config{Source: fmt.Sprintf("%s/%s", owner, ld.defaultRepo)}
-		return c, errors.Wrap(err, "failed to get default repository")
+		return c, fmt.Errorf("failed to get default repository: %w", err)
 	}
 
 	ref := r.GetDefaultBranch()
@@ -278,7 +278,7 @@ func getFileContents(ctx context.Context, client *github.Client, owner, repo, re
 		if isNotFound(err) {
 			return nil, false, nil
 		}
-		return nil, false, errors.Wrap(err, "failed to read file")
+		return nil, false, fmt.Errorf("failed to read file: %w", err)
 	}
 
 	// The file will be nil if the path exists but is a directory
@@ -300,12 +300,12 @@ func getFileContents(ctx context.Context, client *github.Client, owner, repo, re
 
 	req, err := http.NewRequestWithContext(ctx, "GET", downloadURL, nil)
 	if err != nil {
-		return nil, true, errors.Wrap(err, "failed to create download request")
+		return nil, true, fmt.Errorf("failed to create download request: %w", err)
 	}
 
 	res, err := client.Client().Do(req)
 	if err != nil {
-		return nil, true, errors.Wrap(err, "failed to download file")
+		return nil, true, fmt.Errorf("failed to download file: %w", err)
 	}
 
 	defer func() {
@@ -314,12 +314,12 @@ func getFileContents(ctx context.Context, client *github.Client, owner, repo, re
 	}()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, true, errors.Errorf("failed to download file: unexpected status code %d", res.StatusCode)
+		return nil, true, fmt.Errorf("failed to download file: unexpected status code %d", res.StatusCode)
 	}
 
 	b, err := io.ReadAll(res.Body)
 	if err != nil {
-		return nil, true, errors.Wrap(err, "failed to read file")
+		return nil, true, fmt.Errorf("failed to read file: %w", err)
 	}
 	return b, true, nil
 }

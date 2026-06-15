@@ -16,12 +16,11 @@ package handler
 
 import (
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/alexedwards/scs"
 	"github.com/bluekeyes/hatpear"
-	"github.com/google/go-github/v85/github"
+	"github.com/google/go-github/v88/github"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/go-githubapp/oauth2"
 	"github.com/pkg/errors"
@@ -34,16 +33,15 @@ const (
 
 func Login(c githubapp.Config, basePath string, sessions *scs.Manager) oauth2.LoginCallback {
 	return func(w http.ResponseWriter, r *http.Request, login *oauth2.Login) {
-		client := github.NewClient(login.Client)
-
-		// TODO(bkeyes): this should be in baseapp or something
-		// I should be able to get a valid, parsed URL
-		u, err := url.Parse(strings.TrimSuffix(c.V3APIURL, "/") + "/")
+		baseURL := strings.TrimSuffix(c.V3APIURL, "/") + "/"
+		client, err := github.NewClient(
+			github.WithHTTPClient(login.Client),
+			github.WithURLs(&baseURL, nil),
+		)
 		if err != nil {
-			hatpear.Store(r, errors.Wrap(err, "failed to parse github url"))
+			hatpear.Store(r, errors.Wrap(err, "failed to create github client"))
 			return
 		}
-		client.BaseURL = u
 
 		user, _, err := client.Users.Get(r.Context(), "")
 		if err != nil {
