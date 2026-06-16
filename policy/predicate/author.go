@@ -85,6 +85,17 @@ func (pred *OnlyHasContributorsIn) Evaluate(ctx context.Context, prctx pull.Cont
 	users[prctx.Author()] = struct{}{}
 
 	for _, c := range commits {
+		// A commit whose author or committer cannot be resolved to a GitHub
+		// user contributes an identity we cannot membership-check, so we cannot
+		// assert that only permitted contributors touched the pull request.
+		// Fail closed.
+		if desc, ok := c.UnattributedContributor(); ok {
+			predicateResult.Description = fmt.Sprintf("Commit %.10s has an %s that is not a GitHub user", c.SHA, desc)
+			predicateResult.Values = []string{}
+			predicateResult.Satisfied = false
+			return &predicateResult, nil
+		}
+
 		for _, u := range c.Users() {
 			users[u] = struct{}{}
 		}

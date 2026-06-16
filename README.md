@@ -369,7 +369,10 @@ if:
 
   # "only_has_contributors_in" is satisfied if all of the commits on the pull
   # request have an author or committer in the users list or that belong to
-  # any of the listed organizations or teams.
+  # any of the listed organizations or teams. A commit whose author or
+  # committer cannot be attributed to a GitHub account (for example, a commit
+  # made with an email address that is not registered to any user) is treated
+  # as a contributor outside the set, so the predicate is not satisfied.
   only_has_contributors_in:
     users: ["user1", "user2", ...]
     organizations: ["org1", "org2", ...]
