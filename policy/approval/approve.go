@@ -104,6 +104,34 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 	}
 	res.PredicateResults = predicateResults
 
+	// When contributors are banned from approving their own changes, every
+	// contributing commit must be attributable to a GitHub user. A commit whose
+	// author or committer cannot be resolved to an account could hide a
+	// contributor who is also an approver, so the contributor restriction
+	// cannot be enforced — fail the rule closed.
+	if r.Requires.Count > 0 && !r.Options.IsAllowContributor() && !r.Options.IsAllowNonAuthorContributor() {
+		commits, err := r.filteredCommits(ctx, prctx)
+		if err != nil {
+			res.Error = errors.Wrap(err, "failed to list commits")
+			return
+		}
+		for _, c := range commits {
+			if desc, ok := c.UnattributedContributor(); ok {
+				log.Warn().
+					Str("sha", c.SHA).
+					Str("unattributed", desc).
+					Msg("commit contributor could not be attributed to a GitHub user; failing rule closed")
+
+				res.Status = common.StatusPending
+				res.StatusDescription = fmt.Sprintf(
+					"Cannot verify contributors: commit %.10s has an %s that is not a GitHub user",
+					c.SHA, desc)
+				res.ReviewRequestRule = r.getReviewRequestRule()
+				return
+			}
+		}
+	}
+
 	candidates, dismissals, err := r.FilteredCandidates(ctx, prctx)
 	if err != nil {
 		res.Error = errors.Wrap(err, "failed to filter candidates")

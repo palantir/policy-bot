@@ -1237,6 +1237,10 @@ func (c *v4Commit) ToCommit() *Commit {
 		CommittedViaWeb: c.CommittedViaWeb,
 		Author:          c.Author.User.GetV3Login(),
 		Committer:       c.Committer.User.GetV3Login(),
+		AuthorName:      c.Author.Name,
+		AuthorEmail:     c.Author.Email,
+		CommitterName:   c.Committer.Name,
+		CommitterEmail:  c.Committer.Email,
 		Signature:       signature,
 	}
 }
@@ -1283,7 +1287,9 @@ func (a *v4Actor) GetV3Login() string {
 }
 
 type v4GitActor struct {
-	User *v4Actor
+	Name  string
+	Email string
+	User  *v4Actor
 }
 
 func isNotFound(err error) bool {

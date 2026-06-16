@@ -15,6 +15,7 @@
 package pull
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -167,6 +168,15 @@ type Commit struct {
 	// committer is not a real user.
 	Committer string
 
+	// AuthorName, AuthorEmail, CommitterName, and CommitterEmail are the raw
+	// git identity recorded in the commit. They are populated even when the
+	// identity cannot be resolved to a GitHub user, in which case the
+	// corresponding Author or Committer login above is empty.
+	AuthorName     string
+	AuthorEmail    string
+	CommitterName  string
+	CommitterEmail string
+
 	// Signature is the signature and details that was extracted from the commit.
 	// It is nil if the commit has no signature
 	Signature *Signature
@@ -182,6 +192,45 @@ func (c *Commit) Users() []string {
 		users = append(users, c.Committer)
 	}
 	return users
+}
+
+// HasUnattributedContributor reports whether the commit has an author or
+// committer that could not be resolved to a GitHub user. The committer is
+// exempt for commits made via the GitHub web interface, because GitHub sets
+// the committer in that case (matching AuthorIsOnlyContributor).
+func (c *Commit) HasUnattributedContributor() bool {
+	_, ok := c.UnattributedContributor()
+	return ok
+}
+
+// UnattributedContributor returns a human-readable description of the first
+// git identity (author, then committer) on the commit that could not be
+// resolved to a GitHub user, and whether such an identity exists. It is used
+// to fail closed for the contributor approval restriction: a contributor that
+// GitHub cannot attribute to an account cannot be excluded from the approver
+// pool.
+func (c *Commit) UnattributedContributor() (string, bool) {
+	if c.Author == "" {
+		return "author " + gitIdentity(c.AuthorName, c.AuthorEmail), true
+	}
+	if !c.CommittedViaWeb && c.Committer == "" {
+		return "committer " + gitIdentity(c.CommitterName, c.CommitterEmail), true
+	}
+	return "", false
+}
+
+// gitIdentity formats a raw git name/email pair for display.
+func gitIdentity(name, email string) string {
+	switch {
+	case name != "" && email != "":
+		return fmt.Sprintf("%s <%s>", name, email)
+	case email != "":
+		return fmt.Sprintf("<%s>", email)
+	case name != "":
+		return name
+	default:
+		return "unknown"
+	}
 }
 
 type SignatureType string

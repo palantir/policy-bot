@@ -327,6 +327,85 @@ func TestIsApproved(t *testing.T) {
 		assertApproved(t, prctx, r, "Approved by comment-approver, mhaypenny, contributor-author, contributor-committer, review-approver")
 	})
 
+	// A contributor whose commit cannot be attributed to a GitHub user must not
+	// silently drop out of the banned set: when the contributor approval
+	// restriction is enforced, such a commit fails the rule closed.
+	// See HackerOne #3788981.
+	t.Run("unattributedContributorFailsClosed", func(t *testing.T) {
+		prctx := basePullContext()
+		prctx.HeadSHAValue = "674832587eaaf416371b30f5bc5a47e377f534ec"
+		prctx.CommitsValue = []*pull.Commit{
+			{
+				SHA:       "c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
+				Author:    "mhaypenny",
+				Committer: "mhaypenny",
+			},
+			{
+				SHA:         "674832587eaaf416371b30f5bc5a47e377f534ec",
+				Author:      "",
+				AuthorName:  "Sneaky Contributor",
+				AuthorEmail: "sneaky@noreply.invalid",
+				Committer:   "mhaypenny",
+				Parents:     []string{"c6ade256ecfc755d8bc877ef22cc9e01745d46bb"},
+			},
+		}
+
+		r := &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
+			Requires: Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Organizations: []string{"everyone"},
+				},
+			},
+		}
+
+		res := r.Evaluate(ctx, prctx)
+		require.NoError(t, res.Error)
+		assert.Equal(t, common.StatusPending, res.Status)
+		assert.Equal(t, "Cannot verify contributors: commit 674832587e has an author Sneaky Contributor <sneaky@noreply.invalid> that is not a GitHub user", res.StatusDescription)
+	})
+
+	// Control for the case above: the only delta is the contributing commit's
+	// author login. With the author attributed, the rule evaluates normally and
+	// the non-contributor approvers satisfy it.
+	t.Run("attributedContributorEvaluatesNormally", func(t *testing.T) {
+		prctx := basePullContext()
+		prctx.HeadSHAValue = "674832587eaaf416371b30f5bc5a47e377f534ec"
+		prctx.CommitsValue = []*pull.Commit{
+			{
+				SHA:       "c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
+				Author:    "mhaypenny",
+				Committer: "mhaypenny",
+			},
+			{
+				SHA:       "674832587eaaf416371b30f5bc5a47e377f534ec",
+				Author:    "contributor-author",
+				Committer: "mhaypenny",
+				Parents:   []string{"c6ade256ecfc755d8bc877ef22cc9e01745d46bb"},
+			},
+		}
+
+		r := &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
+			Requires: Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Organizations: []string{"everyone"},
+				},
+			},
+		}
+
+		res := r.Evaluate(ctx, prctx)
+		require.NoError(t, res.Error)
+		assert.Equal(t, common.StatusApproved, res.Status)
+		assert.Equal(t, "Approved by comment-approver, contributor-committer, review-approver", res.StatusDescription)
+	})
+
 	t.Run("specificUserApproves", func(t *testing.T) {
 		prctx := basePullContext()
 		r := &Rule{
