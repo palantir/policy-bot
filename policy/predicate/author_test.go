@@ -261,6 +261,39 @@ func TestOnlyHasContributorsIn(t *testing.T) {
 
 	runAuthorTests(t, p, []AuthorTestCase{
 		{
+			// A contributor whose commit cannot be attributed to a GitHub user
+			// must fail the predicate closed: an identity we cannot resolve
+			// cannot be confirmed to be in the permitted set. See HackerOne
+			// #3788981.
+			"unattributedContributorFailsClosed",
+			&pulltest.Context{
+				AuthorValue: "mhaypenny",
+				CommitsValue: []*pull.Commit{
+					{
+						SHA:       "abcdef123456789",
+						Author:    "mhaypenny",
+						Committer: "mhaypenny",
+					},
+					{
+						SHA:         "fedcba987654321",
+						Author:      "",
+						AuthorName:  "Sneaky Contributor",
+						AuthorEmail: "sneaky@noreply.invalid",
+						Committer:   "mhaypenny",
+					},
+				},
+			},
+			&common.PredicateResult{
+				Satisfied: false,
+				Values:    []string{},
+				ConditionsMap: map[string][]string{
+					"Organizations": p.Organizations,
+					"Teams":         p.Teams,
+					"Users":         p.Users,
+				},
+			},
+		},
+		{
 			"authorNotInList",
 			&pulltest.Context{
 				AuthorValue: "ttest",
