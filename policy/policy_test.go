@@ -555,6 +555,26 @@ func TestConfigMarshalYaml(t *testing.T) {
       additions: '> 10'
 `,
 		},
+		{
+			name: "hasTopics",
+			config: Config{
+				ApprovalRules: []*approval.Rule{
+					{
+						Name: "rule1",
+						Predicates: predicate.Predicates{
+							HasTopics: &predicate.HasTopics{"lib", "go"},
+						},
+					},
+				},
+			},
+			expected: `approval_rules:
+- name: rule1
+  if:
+    has_topics:
+    - lib
+    - go
+`,
+		},
 	}
 
 	for _, test := range tests {
