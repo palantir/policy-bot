@@ -19,7 +19,7 @@ var clientTelemetryTag = "client:go"
 /*
 clientVersionTelemetryTag is a tag identifying this specific client version.
 */
-var clientVersionTelemetryTag = "client_version:5.8.3"
+var clientVersionTelemetryTag = "client_version:5.9.0"
 
 // Telemetry represents internal metrics about the client behavior since it started.
 type Telemetry struct {
@@ -260,7 +260,7 @@ func (t *telemetryClient) flush() []metric {
 
 	// same as Count but without global namespace
 	telemetryCount := func(name string, value int64, tags []string) {
-		m = append(m, metric{metricType: count, name: name, ivalue: value, tags: tags, rate: 1})
+		m = append(m, metric{metricType: count, name: name, ivalue: value, tags: tags, rate: 1, cardinality: t.c.defaultCardinality})
 	}
 
 	tlm := t.getTelemetry()

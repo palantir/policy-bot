@@ -80,6 +80,19 @@ func (b *statsdBuffer) writeAggregated(metricSymbol []byte, namespace string, gl
 		return 0, errBufferFull
 	}
 
+	// Augment tagSize with trailing fields the caller's extraSize estimate omits.
+	if containerID := getContainerID(); len(containerID) > 0 {
+		tagSize += 3 + len(containerID) // "|c:" + containerID
+	}
+	if originDetection {
+		if externalEnv := getExternalEnv(); externalEnv != "" {
+			tagSize += 3 + len(externalEnv) // "|e:" + externalEnv
+		}
+	}
+	if cardString := cardinality.String(); cardString != "" {
+		tagSize += 6 + len(cardString) // "|card:" + cardString
+	}
+
 	originalBuffer := b.buffer
 	b.buffer = appendHeader(b.buffer, namespace, name)
 

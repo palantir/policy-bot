@@ -194,9 +194,6 @@ func (s *bufferedMetric) maybeKeepSample(v float64, rand *rand.Rand, randLock *s
 	}
 }
 
-func (s *bufferedMetric) skipSample() {
-	atomic.AddInt64(&s.totalSamples, 1)
-}
 
 func (s *bufferedMetric) flushUnsafe() metric {
 	totalSamples := atomic.LoadInt64(&s.totalSamples)
