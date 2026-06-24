@@ -2,25 +2,31 @@ package statsd
 
 import (
 	"os"
-	"sync"
+	"sync/atomic"
 	"unicode"
 )
 
 // ddExternalEnvVarName specifies the env var to inject the environment name.
 const ddExternalEnvVarName = "DD_EXTERNAL_ENV"
 
-var (
-	externalEnv   = ""
-	externalEnvMu sync.RWMutex // Protects concurrent access to externalEnv
-)
+// externalEnvHolder stores the external env name atomically. The value is
+// written at most once at client startup (initExternalEnv) and read on every
+// metric write via getExternalEnv.
+var externalEnvHolder atomic.Value
+
+func init() {
+	// Pre-seed with an empty string so Load never returns nil and the
+	// type-assertion in the read path is unconditional. This is also what
+	// guarantees the stored type stays string (atomic.Value requires the
+	// concrete type of every Store call to match).
+	externalEnvHolder.Store("")
+}
 
 // initExternalEnv initializes the external environment name.
 func initExternalEnv() {
-	var value = os.Getenv(ddExternalEnvVarName)
+	value := os.Getenv(ddExternalEnvVarName)
 	if value != "" {
-		externalEnvMu.Lock()
-		externalEnv = sanitizeExternalEnv(value)
-		externalEnvMu.Unlock()
+		externalEnvHolder.Store(sanitizeExternalEnv(value))
 	}
 }
 
@@ -40,7 +46,9 @@ func sanitizeExternalEnv(externalEnv string) string {
 }
 
 func getExternalEnv() string {
-	externalEnvMu.RLock()
-	defer externalEnvMu.RUnlock()
-	return externalEnv
+	return externalEnvHolder.Load().(string)
+}
+
+func setExternalEnvForTest(v string) {
+	externalEnvHolder.Store(v)
 }
