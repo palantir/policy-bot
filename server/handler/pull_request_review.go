@@ -76,6 +76,24 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 		return nil
 	}
 
+	// When a user edits the body of an approved review, GitHub fires a
+	// pull_request_review event with action "edited". The review state remains
+	// "approved"; only the comment text changed. Re-evaluating in this case
+	// would cause ignore_edited_comments to dismiss the review candidate
+	// (because LastEditedAt becomes non-zero), incorrectly revoking approval.
+	//
+	// Skip re-evaluation when:
+	//   - the event action is "edited" (body text changed, not state change)
+	//   - the review state is still "approved"
+	//   - no rules match on github_review_comment_patterns (which would need
+	//     the body to re-match after an edit)
+	if event.GetAction() == "edited" &&
+		pull.ReviewState(event.GetReview().GetState()) == pull.ReviewApproved &&
+		!h.anyRuleUsesReviewCommentPatterns(evalCtx.Config.Config) {
+		logger.Debug().Msg("Skipping evaluation: edited approved review body does not affect approval state")
+		return nil
+	}
+
 	result, err := evalCtx.EvaluatePolicy(ctx, evaluator)
 	if err != nil {
 		return err
@@ -83,6 +101,19 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 
 	evalCtx.RunPostEvaluateActions(ctx, result, common.TriggerReview)
 	return nil
+}
+
+// anyRuleUsesReviewCommentPatterns returns true if any approval rule in the
+// policy uses github_review_comment_patterns. When such a rule exists, the
+// body of a review affects whether it qualifies as a candidate, so an edit to
+// the review body must trigger re-evaluation.
+func (h *PullRequestReview) anyRuleUsesReviewCommentPatterns(config *policy.Config) bool {
+	for _, rule := range config.ApprovalRules {
+		if len(rule.Options.GetMethods().GetGithubReviewCommentPatterns()) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func (h *PullRequestReview) affectsApproval(review *github.PullRequestReview, config *policy.Config) bool {
