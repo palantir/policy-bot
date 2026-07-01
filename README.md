@@ -891,7 +891,9 @@ It can be useful to simulate how Policy Bot would evaluate a pull request if cer
 
 An API endpoint exists at `api/simulate/:org/:repo/:prNumber` to simulate the result of a pull request. Simulations using this endpoint will NOT write the result back to the pull request status check and will instead return the result.
 
-This API requires a GitHub token be passed as a bearer token. The token must have the ability to read the pull request the simulation is being run against.
+This API requires a GitHub token be passed as a bearer token. The token must be
+associated with a user who has `admin` or `maintain` permission on the
+repository and must have sufficient scopes to read the pull request.
 
 The API can be used as such:
 

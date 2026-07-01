@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/google/go-github/v88/github"
 	"github.com/palantir/go-baseapp/baseapp"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/policy-bot/policy"
@@ -64,6 +65,14 @@ func (h *Simulate) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	owner, repo, number, ok := parsePullParams(r)
 	if !ok {
 		return writeAPIError(w, http.StatusBadRequest, "failed to parse pull request parameters from request")
+	}
+
+	hasPermission, err := checkTokenHasMaintain(ctx, client, owner, repo)
+	if err != nil {
+		return err
+	}
+	if !hasPermission {
+		return writeAPIError(w, http.StatusForbidden, "simulation is only available to users with admin or maintain permission")
 	}
 
 	pr, _, err := client.PullRequests.Get(ctx, owner, repo, number)
@@ -190,6 +199,27 @@ func buildChildren(children []*common.Result) []*SimulationResponse {
 		result[i] = newSimulationResponse(child)
 	}
 	return result
+}
+
+func checkTokenHasMaintain(ctx context.Context, client *github.Client, owner, repo string) (bool, error) {
+	user, _, err := client.Users.Get(ctx, "")
+	if err != nil {
+		return false, errors.Wrap(err, "failed to get authenticated user")
+	}
+
+	level, _, err := client.Repositories.GetPermissionLevel(ctx, owner, repo, user.GetLogin())
+	if err != nil {
+		if isNotFound(err) {
+			return false, nil
+		}
+		return false, errors.Wrap(err, "failed to get user permission level")
+	}
+
+	switch level.GetPermission() {
+	case "admin", "maintain":
+		return true, nil
+	}
+	return false, nil
 }
 
 func writeAPIError(w http.ResponseWriter, code int, message string) error {
