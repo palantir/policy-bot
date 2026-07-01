@@ -16,6 +16,7 @@ package handler
 
 import (
 	"context"
+	stderrors "errors"
 	"net/http"
 	"strings"
 
@@ -52,14 +53,13 @@ type ErrorResponse struct {
 
 func (h *Simulate) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
-	token := getToken(r)
-	if token == "" {
-		return writeAPIError(w, http.StatusUnauthorized, "missing token")
-	}
 
-	client, err := h.NewTokenClient(token)
+	username, ok, err := h.getRequestUserFromToken(ctx, r)
 	if err != nil {
-		return errors.Wrap(err, "failed to create token client")
+		return err
+	}
+	if !ok {
+		return writeAPIError(w, http.StatusUnauthorized, "missing or invalid token")
 	}
 
 	owner, repo, number, ok := parsePullParams(r)
@@ -67,26 +67,35 @@ func (h *Simulate) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 		return writeAPIError(w, http.StatusBadRequest, "failed to parse pull request parameters from request")
 	}
 
-	hasPermission, err := checkTokenHasMaintain(ctx, client, owner, repo)
+	installation, err := h.Installations.GetByOwner(ctx, owner)
+	if err != nil {
+		return writeAPI404Error(w)
+	}
+
+	client, err := h.NewInstallationClient(installation.ID)
 	if err != nil {
 		return err
-	}
-	if !hasPermission {
-		return writeAPIError(w, http.StatusForbidden, "simulation is only available to users with admin or maintain permission")
 	}
 
 	pr, _, err := client.PullRequests.Get(ctx, owner, repo, number)
 	if err != nil {
 		if isNotFound(err) {
-			return writeAPIError(w, http.StatusNotFound, "failed to find pull request")
+			return writeAPI404Error(w)
 		}
-
 		return errors.Wrap(err, "failed to get pull request")
 	}
 
-	installation, err := h.Installations.GetByOwner(ctx, owner)
+	permission, err := getUserSimulatePermission(ctx, client, owner, repo, username)
 	if err != nil {
-		return writeAPIError(w, http.StatusNotFound, "not installed in org")
+		return err
+	}
+	switch permission {
+	case simulatePermissionSimulate:
+		// allowed to simulate, continue with handler
+	case simulatePermissionExists:
+		return writeAPIError(w, http.StatusForbidden, "simulation is only available to users with admin or maintain permission")
+	default:
+		return writeAPI404Error(w)
 	}
 
 	ctx, _ = h.PreparePRContext(ctx, installation.ID, pr)
@@ -109,15 +118,6 @@ func (h *Simulate) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	response := newSimulationResponse(result)
 	baseapp.WriteJSON(w, http.StatusOK, response)
 	return nil
-}
-
-func getToken(r *http.Request) string {
-	auth := r.Header.Get("Authorization")
-	if token, ok := strings.CutPrefix(auth, "Bearer "); ok {
-		return token
-	}
-
-	return ""
 }
 
 func (h *Simulate) getSimulatedResult(ctx context.Context, installation githubapp.Installation, loc pull.Locator, options simulated.Options) (*common.Result, error) {
@@ -201,25 +201,75 @@ func buildChildren(children []*common.Result) []*SimulationResponse {
 	return result
 }
 
-func checkTokenHasMaintain(ctx context.Context, client *github.Client, owner, repo string) (bool, error) {
+// getRequestUserFromToken uses the GitHub token from the request to look up
+// the username of the token owner. It returns an empty username and false if
+// the token is missing or invalid. It returns an error only if an error
+// occurred while checking the token.
+func (h *Simulate) getRequestUserFromToken(ctx context.Context, r *http.Request) (string, bool, error) {
+	token := getToken(r)
+	if token == "" {
+		return "", false, nil
+	}
+
+	client, err := h.NewTokenClient(token)
+	if err != nil {
+		return "", false, errors.Wrap(err, "failed to create token client")
+	}
+
 	user, _, err := client.Users.Get(ctx, "")
 	if err != nil {
-		return false, errors.Wrap(err, "failed to get authenticated user")
+		if rerr, ok := stderrors.AsType[*github.ErrorResponse](err); ok {
+			switch rerr.Response.StatusCode {
+			case http.StatusUnauthorized, http.StatusForbidden:
+				return "", false, nil
+			}
+		}
+		return "", false, errors.Wrap(err, "failed to get authenticated user")
 	}
 
-	level, _, err := client.Repositories.GetPermissionLevel(ctx, owner, repo, user.GetLogin())
+	return user.GetLogin(), true, nil
+}
+
+func getToken(r *http.Request) string {
+	auth := r.Header.Get("Authorization")
+	if token, ok := strings.CutPrefix(auth, "Bearer "); ok {
+		return token
+	}
+	return ""
+}
+
+type simulatePermission int
+
+const (
+	// User has no permission to see this repository
+	simulatePermissionNone simulatePermission = iota
+	// User can see the repository but cannot run simulations
+	simulatePermissionExists
+	// User can perform simulations
+	simulatePermissionSimulate
+)
+
+func getUserSimulatePermission(ctx context.Context, client *github.Client, owner, repo, username string) (simulatePermission, error) {
+	level, _, err := client.Repositories.GetPermissionLevel(ctx, owner, repo, username)
 	if err != nil {
 		if isNotFound(err) {
-			return false, nil
+			return simulatePermissionNone, nil
 		}
-		return false, errors.Wrap(err, "failed to get user permission level")
+		return simulatePermissionNone, errors.Wrap(err, "failed to get user permission level")
 	}
 
-	switch level.GetPermission() {
-	case "admin", "maintain":
-		return true, nil
+	perms := level.GetUser().GetPermissions()
+	switch {
+	case perms.GetAdmin() || perms.GetMaintain():
+		return simulatePermissionSimulate, nil
+	case perms.GetPush() || perms.GetPull() || perms.GetTriage():
+		return simulatePermissionExists, nil
 	}
-	return false, nil
+	return simulatePermissionNone, nil
+}
+
+func writeAPI404Error(w http.ResponseWriter) error {
+	return writeAPIError(w, http.StatusNotFound, "not found: the repository or pull request does not exist, you do not have permission, or policy-bot is not installed")
 }
 
 func writeAPIError(w http.ResponseWriter, code int, message string) error {
