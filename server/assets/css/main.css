@@ -187,7 +187,7 @@ details summary > * {
   display: inline-block;
 
   @apply w-8 h-8 mr-2 -ml-10 py-2;
-  @apply bg-light-gray3 rounded-full;
+  @apply bg-light-gray3 dark:bg-dark-gray4 rounded-full;
   @apply text-center;
 }
 

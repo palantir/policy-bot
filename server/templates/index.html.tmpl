@@ -14,12 +14,12 @@
   <a class="block px-4 py-2 bg-blue3 hover:bg-blue2 bg-highlight border border-blue2 rounded text-lg text-white hover:text-white no-underline" href="{{$appURL}}">Install</a>
 </header>
 <div class="max-w-3xl">
-  <section class="bg-white py-4 px-8 mb-8 rounded shadow-sm">
+  <section class="bg-white dark:bg-dark-gray3 py-4 px-8 mb-8 rounded shadow-sm">
     <h2 class="mb-2 font-bold">Getting Started</h2>
     <ol class="list-numbers">
       <li><a href="{{$appURL}}">Install <code>{{.AppName}}</code></a> on your repository</li>
       <li>Add a <code>{{.PolicyPath}}</code> file on the default branch (<a href="{{$docsURL}}#configuration">docs</a>):
-        <pre class="p-2 text-sm bg-light-gray3">policy:
+        <pre class="p-2 text-sm bg-light-gray3 dark:bg-dark-gray1">policy:
   approval:
     - one approval from palantir
 
@@ -32,7 +32,7 @@ approval_rules:
       <li>Open a pull request and watch the status change based on the policy!</li>
     </ol>
   </section>
-  <section class="bg-white py-4 px-8 rounded shadow-sm">
+  <section class="bg-white dark:bg-dark-gray3 py-4 px-8 rounded shadow-sm">
     <h2 class="mb-2 font-bold">Learn More</h2>
     <ul class="pl-4 list-disc">
       <li><a href="{{$docsURL}}">Documentation</a></li>

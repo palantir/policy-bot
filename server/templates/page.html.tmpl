@@ -9,9 +9,20 @@
 
     <link rel="icon" href="{{ resource "img/favicon.ico" }}" />
     <link rel="stylesheet" href="{{ resource "css/main.css" }}">
-    {{block "scripts" .}}{{end}}
+    <script>
+      (function() {
+        var stored = localStorage.getItem("theme");
+        var dark = stored ? stored === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+        if (dark) document.documentElement.classList.add("dark");
+      })();
+    </script>
+    {{block "scripts" .}}<script defer src="{{ resource "js/main.js" }}"></script>{{end}}
   </head>
-  <body class="{{block "body-class" .}}bg-light-gray5 text-dark-gray1{{end}}">
+  <body class="{{block "body-class" .}}bg-light-gray5 text-dark-gray1{{end}} dark:bg-dark-gray1 dark:text-light-gray4">
+    <div class="toggle fixed bottom-4 right-4 z-50 bg-white dark:bg-dark-gray3 rounded-full px-3 py-1 shadow-sm text-xs text-dark-gray1 dark:text-light-gray4">
+      <input id="theme-toggle" type="checkbox" autocomplete="off"/>
+      <label for="theme-toggle">Dark mode</label>
+    </div>
     {{block "body" .}}{{end}}
   </body>
 </html>
