@@ -52,5 +52,9 @@ func (s *SessionStateStore) VerifyState(r *http.Request, expected string) (bool,
 		return false, err
 	}
 
+	if state == "" {
+		return false, nil
+	}
+
 	return subtle.ConstantTimeCompare([]byte(expected), []byte(state)) == 1, nil
 }

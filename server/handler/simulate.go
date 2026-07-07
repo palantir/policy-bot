@@ -20,7 +20,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/google/go-github/v88/github"
+	"github.com/google/go-github/v89/github"
 	"github.com/palantir/go-baseapp/baseapp"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/policy-bot/policy"
