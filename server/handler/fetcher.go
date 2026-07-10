@@ -17,7 +17,6 @@ package handler
 import (
 	"context"
 	"errors"
-	"net/http"
 	"os"
 	"time"
 
@@ -108,10 +107,7 @@ func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *
 func isServerError(err error) bool {
 	var ghErr *github.ErrorResponse
 	if errors.As(err, &ghErr) {
-		switch ghErr.Response.StatusCode {
-		case http.StatusInternalServerError, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
-			return true
-		}
+		return ghErr.Response.StatusCode >= 500 && ghErr.Response.StatusCode <= 599
 	}
 	return false
 }
