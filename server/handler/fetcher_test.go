@@ -17,6 +17,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
 
 	"github.com/google/go-github/v89/github"
@@ -24,6 +25,60 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func githubErr(statusCode int) error {
+	return &github.ErrorResponse{
+		Response: &http.Response{StatusCode: statusCode},
+	}
+}
+
+func TestIsServerError(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{"bad gateway", githubErr(http.StatusBadGateway), true},
+		{"internal server error", githubErr(http.StatusInternalServerError), true},
+		{"service unavailable", githubErr(http.StatusServiceUnavailable), true},
+		{"gateway timeout", githubErr(http.StatusGatewayTimeout), true},
+		{"not found", githubErr(http.StatusNotFound), false},
+		{"unauthorized", githubErr(http.StatusUnauthorized), false},
+		{"ok", githubErr(http.StatusOK), false},
+		{"non-github error", errors.New("request failed"), false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expected, isServerError(test.err))
+		})
+	}
+}
+
+func TestConfigFetcherRetriesServerError(t *testing.T) {
+	cache := NewSeenPolicyCache()
+
+	calls := 0
+	fetcher := ConfigFetcher{
+		Loader: mockConfigLoader{
+			loadConfig: func(ctx context.Context, client *github.Client, owner, repo, ref string) (appconfig.Config, error) {
+				calls++
+				if calls == 1 {
+					return appconfig.Config{}, githubErr(http.StatusBadGateway)
+				}
+				return appconfig.Config{
+					Content: []byte("policy:\n  approval: []\n"),
+					Source:  "testorg/testrepo@main",
+					Path:    ".policy.yml",
+				}, nil
+			},
+		},
+		SeenPolicyCache: cache,
+	}
+
+	fc := fetcher.ConfigForRepositoryBranch(context.Background(), nil, "testorg", "testrepo", "main")
+	require.NoError(t, fc.LoadError)
+	require.NoError(t, fc.ParseError)
+	assert.Equal(t, 2, calls)
+}
 
 type mockConfigLoader struct {
 	loadConfig func(ctx context.Context, client *github.Client, owner, repo, ref string) (appconfig.Config, error)
