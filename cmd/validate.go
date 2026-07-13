@@ -18,6 +18,7 @@ import (
 	"io/fs"
 	"os"
 
+	"github.com/palantir/go-githubapp/appconfig"
 	"github.com/palantir/policy-bot/policy"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -43,6 +44,11 @@ func validationCmd(cmd *cobra.Command, args []string) error {
 	}
 	if err != nil {
 		return errors.Wrapf(err, "failed to read policy file: %s", validateCmdConfig.Path)
+	}
+
+	remoteRef, err := appconfig.YAMLRemoteRefParser("", policyData)
+	if err == nil && remoteRef != nil {
+		return nil
 	}
 
 	var policyConfig policy.Config
