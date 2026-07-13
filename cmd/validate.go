@@ -45,6 +45,11 @@ func validationCmd(cmd *cobra.Command, args []string) error {
 		return errors.Wrapf(err, "failed to read policy file: %s", validateCmdConfig.Path)
 	}
 
+	remoteRef, err := appconfig.YAMLRemoteRefParser("", requestPolicy)
+	if err == nil && remoteRef != nil {
+		return nil
+	}
+
 	var policyConfig policy.Config
 	if err := yaml.UnmarshalStrict(policyData, &policyConfig); err != nil {
 		return errors.Wrapf(err, "failed to parse policy from yaml file")
