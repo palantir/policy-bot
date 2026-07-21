@@ -3,11 +3,11 @@
 set -euo pipefail
 
 # Version and checksums for godel. Values are populated by the godel "dist" task.
-VERSION=2.159.0
-DARWIN_AMD64_CHECKSUM=00fe45158751bf02442bf183c83121e186fac0dc521b6e9322fd973e70ff160d
-DARWIN_ARM64_CHECKSUM=aed0f5fabc895fc380f6b57268cfaf10bdf42edfcfed29469183f8ab4120e49f
-LINUX_AMD64_CHECKSUM=3e2fc3a44e81121d0fa51450b3898f61504127c0adfac96fc69046b5a5d09b25
-LINUX_ARM64_CHECKSUM=85afb4e4d17ba05e0735f46cb152beb316207cb349ecebe9ce27d3831243bfd6
+VERSION=2.163.0
+DARWIN_AMD64_CHECKSUM=e9e127113f336647e16e20b1eb00a42d9148b27185dc009274d7dfb7ab333101
+DARWIN_ARM64_CHECKSUM=5e399687ba806ebf1f8aa565e96b9969a388060d03d5f88fb60b7085674ce430
+LINUX_AMD64_CHECKSUM=eec0239a6703b23660fb82108d52392f8326d600481894893b7751d7a777f5e2
+LINUX_ARM64_CHECKSUM=2212c7c8eb2fe64d6d671e5cb54dd21285780240319dc45ff7886cb82d60e3ef
 
 # Downloads file at URL to destination path using wget or curl. Prints an error and exits if wget or curl is not present.
 function download {
@@ -155,6 +155,54 @@ function verify_godel_version {
     fi
 }
 
+# Acquires a lock using mkdir (atomic operation).
+# Returns 0 if lock acquired, 1 if timeout.
+function acquire_lock {
+    local lock_dir=$1
+    local max_attempts=10  # Try up to 10 times (20 seconds with 2 second sleep)
+    local attempt=0
+
+    # Ensure parent directory exists
+    mkdir -p "$(dirname "$lock_dir")"
+
+    while [ $attempt -lt $max_attempts ]; do
+        # Try to create lock directory atomically
+        if mkdir "$lock_dir" 2>/dev/null; then
+            # Success - we have the lock
+            # Write PID to lock directory for debugging
+            echo $$ > "$lock_dir/pid"
+            return 0
+        fi
+
+        # Failed to acquire lock - check if it's stale
+        # A lock is stale if it's older than 5 minutes
+        if [ -d "$lock_dir" ]; then
+            # Check if lock directory is old (use find for portability)
+            # Find returns the directory if it's older than 5 minutes
+            local stale_lock=$(find "$lock_dir" -type d -mmin +5 2>/dev/null | head -1)
+            if [ -n "$stale_lock" ]; then
+                # Lock is stale - try to remove it
+                # Use rmdir to fail safely if another process is using it
+                rmdir "$lock_dir" 2>/dev/null || rm -rf "$lock_dir" 2>/dev/null
+            fi
+        fi
+
+        # Wait before retrying (constant 2 second delay)
+        sleep 2
+        attempt=$((attempt + 1))
+    done
+
+    return 1
+}
+
+# Releases a lock by removing the lock directory.
+function release_lock {
+    local lock_dir=$1
+    if [ -d "$lock_dir" ]; then
+        rm -rf "$lock_dir"
+    fi
+}
+
 # directory of godelw script
 SCRIPT_HOME=$(cd "$(dirname "$0")" && pwd)
 
@@ -196,64 +244,86 @@ CMD=$GODEL_BASE_DIR/dists/godel-$VERSION/bin/$OS-$ARCH/godel
 
 # godel binary is not present -- download distribution
 if [ ! -f "$CMD" ]; then
-    # get download URL
-    PROPERTIES_FILE=$SCRIPT_HOME/godel/config/godel.properties
-    if [ ! -f "$PROPERTIES_FILE" ]; then
-        echo "Properties file must exist at $PROPERTIES_FILE"
+    # Define lock directory for this godel version
+    LOCK_DIR="$GODEL_BASE_DIR/downloads/.lock-godel-$VERSION"
+
+    # Try to acquire lock
+    if ! acquire_lock "$LOCK_DIR"; then
+        echo "Failed to acquire lock for godel installation after timeout"
+        echo "If you believe this is due to a stale lock, remove: $LOCK_DIR"
         exit 1
     fi
-    DOWNLOAD_URL=$(cat "$PROPERTIES_FILE" | sed -E -n "s/^distributionURL=//p")
-    if [ -z "$DOWNLOAD_URL" ]; then
-        echo "Value for property \"distributionURL\" was empty in $PROPERTIES_FILE"
-        exit 1
+
+    # Set up trap to release lock on exit (success or failure)
+    trap 'release_lock "$LOCK_DIR"' EXIT
+
+    # Double-check if binary exists after acquiring lock
+    # (another process may have installed it while we were waiting)
+    if [ ! -f "$CMD" ]; then
+        # get download URL
+        PROPERTIES_FILE=$SCRIPT_HOME/godel/config/godel.properties
+        if [ ! -f "$PROPERTIES_FILE" ]; then
+            echo "Properties file must exist at $PROPERTIES_FILE"
+            exit 1
+        fi
+        DOWNLOAD_URL=$(cat "$PROPERTIES_FILE" | sed -E -n "s/^distributionURL=//p")
+        if [ -z "$DOWNLOAD_URL" ]; then
+            echo "Value for property \"distributionURL\" was empty in $PROPERTIES_FILE"
+            exit 1
+        fi
+        DOWNLOAD_CHECKSUM=$(cat "$PROPERTIES_FILE" | sed -E -n "s/^distributionSHA256=//p")
+
+        # create downloads directory if it does not already exist
+        mkdir -p "$GODEL_BASE_DIR/downloads"
+
+        # download tgz and verify its contents
+        # Download to unique location that includes PID ($$) and use trap ensure that temporary download file is cleaned up
+        # if script is terminated before the file is moved to its destination.
+        DOWNLOAD_DST=$GODEL_BASE_DIR/downloads/godel-$VERSION-$$.tgz
+        download "$DOWNLOAD_URL" "$DOWNLOAD_DST"
+        trap 'rm -rf "$DOWNLOAD_DST"; release_lock "$LOCK_DIR"' EXIT
+        if [ -n "$DOWNLOAD_CHECKSUM" ]; then
+            verify_checksum "$DOWNLOAD_DST" "$DOWNLOAD_CHECKSUM"
+        fi
+        verify_dist_tgz_valid "$DOWNLOAD_DST" "$VERSION"
+
+        # create temporary directory for unarchiving, unarchive downloaded file and verify directory
+        TMP_DIST_DIR=$(mktemp -d "$GODEL_BASE_DIR/tmp_XXXXXX" 2>/dev/null || mktemp -d -t "$GODEL_BASE_DIR/tmp_XXXXXX")
+        trap 'rm -rf "$TMP_DIST_DIR"; release_lock "$LOCK_DIR"' EXIT
+        tar zxvf "$DOWNLOAD_DST" -C "$TMP_DIST_DIR" >/dev/null 2>&1
+        verify_godel_version "$TMP_DIST_DIR" "$VERSION" "$OS" "$ARCH"
+
+        # rename downloaded file to remove PID portion
+        mv "$DOWNLOAD_DST" "$GODEL_BASE_DIR/downloads/godel-$VERSION.tgz"
+
+        # if destination directory for distribution already exists, remove it
+        if [ -d "$GODEL_BASE_DIR/dists/godel-$VERSION" ]; then
+            rm -rf "$GODEL_BASE_DIR/dists/godel-$VERSION"
+        fi
+
+        # ensure that parent directory of destination exists
+        mkdir -p "$GODEL_BASE_DIR/dists"
+
+        # move expanded distribution directory to destination location. The location of the unarchived directory is known to
+        # be in the same directory tree as the destination, so "mv" should always work.
+        mv "$TMP_DIST_DIR/godel-$VERSION" "$GODEL_BASE_DIR/dists/godel-$VERSION"
+
+        # edge case cleanup: if the destination directory "$GODEL_BASE_DIR/dists/godel-$VERSION" was created prior to the
+        # "mv" operation above, then the move operation will move the source directory into the destination directory. In
+        # this case, remove the directory. It should always be safe to remove this directory because if the directory
+        # existed in the distribution and was non-empty, then the move operation would fail (because non-empty directories
+        # cannot be overwritten by mv). All distributions of a given version are also assumed to be identical. The only
+        # instance in which this would not work is if the distribution purposely contained an empty directory that matched
+        # the name "godel-$VERSION", and this is assumed to never be true.
+        if [ -d "$GODEL_BASE_DIR/dists/godel-$VERSION/godel-$VERSION" ]; then
+            rm -rf "$GODEL_BASE_DIR/dists/godel-$VERSION/godel-$VERSION"
+        fi
     fi
-    DOWNLOAD_CHECKSUM=$(cat "$PROPERTIES_FILE" | sed -E -n "s/^distributionSHA256=//p")
 
-    # create downloads directory if it does not already exist
-    mkdir -p "$GODEL_BASE_DIR/downloads"
-
-    # download tgz and verify its contents
-    # Download to unique location that includes PID ($$) and use trap ensure that temporary download file is cleaned up
-    # if script is terminated before the file is moved to its destination.
-    DOWNLOAD_DST=$GODEL_BASE_DIR/downloads/godel-$VERSION-$$.tgz
-    download "$DOWNLOAD_URL" "$DOWNLOAD_DST"
-    trap 'rm -rf "$DOWNLOAD_DST"' EXIT
-    if [ -n "$DOWNLOAD_CHECKSUM" ]; then
-        verify_checksum "$DOWNLOAD_DST" "$DOWNLOAD_CHECKSUM"
-    fi
-    verify_dist_tgz_valid "$DOWNLOAD_DST" "$VERSION"
-
-    # create temporary directory for unarchiving, unarchive downloaded file and verify directory
-    TMP_DIST_DIR=$(mktemp -d "$GODEL_BASE_DIR/tmp_XXXXXX" 2>/dev/null || mktemp -d -t "$GODEL_BASE_DIR/tmp_XXXXXX")
-    trap 'rm -rf "$TMP_DIST_DIR"' EXIT
-    tar zxvf "$DOWNLOAD_DST" -C "$TMP_DIST_DIR" >/dev/null 2>&1
-    verify_godel_version "$TMP_DIST_DIR" "$VERSION" "$OS" "$ARCH"
-
-    # rename downloaded file to remove PID portion
-    mv "$DOWNLOAD_DST" "$GODEL_BASE_DIR/downloads/godel-$VERSION.tgz"
-
-    # if destination directory for distribution already exists, remove it
-    if [ -d "$GODEL_BASE_DIR/dists/godel-$VERSION" ]; then
-        rm -rf "$GODEL_BASE_DIR/dists/godel-$VERSION"
-    fi
-
-    # ensure that parent directory of destination exists
-    mkdir -p "$GODEL_BASE_DIR/dists"
-
-    # move expanded distribution directory to destination location. The location of the unarchived directory is known to
-    # be in the same directory tree as the destination, so "mv" should always work.
-    mv "$TMP_DIST_DIR/godel-$VERSION" "$GODEL_BASE_DIR/dists/godel-$VERSION"
-
-    # edge case cleanup: if the destination directory "$GODEL_BASE_DIR/dists/godel-$VERSION" was created prior to the
-    # "mv" operation above, then the move operation will move the source directory into the destination directory. In
-    # this case, remove the directory. It should always be safe to remove this directory because if the directory
-    # existed in the distribution and was non-empty, then the move operation would fail (because non-empty directories
-    # cannot be overwritten by mv). All distributions of a given version are also assumed to be identical. The only
-    # instance in which this would not work is if the distribution purposely contained an empty directory that matched
-    # the name "godel-$VERSION", and this is assumed to never be true.
-    if [ -d "$GODEL_BASE_DIR/dists/godel-$VERSION/godel-$VERSION" ]; then
-        rm -rf "$GODEL_BASE_DIR/dists/godel-$VERSION/godel-$VERSION"
-    fi
+    # Release lock so other operations that are blocking can proceed.
+    # This is an optimization: even if this is not called, the lock will
+    # be released by trap on exit
+    release_lock "$LOCK_DIR"
 fi
 
 verify_checksum "$CMD" "$EXPECTED_CHECKSUM"
