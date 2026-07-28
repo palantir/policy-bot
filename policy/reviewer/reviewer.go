@@ -20,6 +20,7 @@ import (
 	"math/rand"
 	"slices"
 	"sort"
+	"strings"
 
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
@@ -196,12 +197,35 @@ func selectTeamReviewers(ctx context.Context, prctx pull.Context, selection *Sel
 	}
 
 	var teams []string
+	selected := make(map[string]bool)
 	for team, perm := range eligibleTeams {
 		switch {
 		case requestsTeam(result, prctx.RepositoryOwner()+"/"+team):
 			teams = append(teams, team)
+			selected[team] = true
 		case requestsPermission(result, perm):
 			teams = append(teams, team)
+			selected[team] = true
+		}
+	}
+
+	// Teams that only have permission inherited from a parent team are not
+	// repository collaborators, so they do not appear in the eligible team
+	// list. Resolve the remaining requested teams individually to include
+	// inherited permissions.
+	for _, qualifiedTeam := range result.ReviewRequestRule.Teams {
+		team, ok := strings.CutPrefix(qualifiedTeam, prctx.RepositoryOwner()+"/")
+		if !ok || selected[team] {
+			continue
+		}
+
+		perm, err := prctx.TeamPermission(team)
+		if err != nil {
+			return err
+		}
+		if perm != pull.PermissionNone {
+			teams = append(teams, team)
+			selected[team] = true
 		}
 	}
 
