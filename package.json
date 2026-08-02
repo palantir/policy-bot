@@ -17,7 +17,7 @@
     "postcss-loader": "^8.2.1",
     "tailwindcss": "^3.0",
     "webpack": "^5.108.4",
-    "webpack-cli": "^7.2.1",
+    "webpack-cli": "^7.2.2",
     "webpack-manifest-plugin": "^6.0.1"
   },
   "dependencies": {
