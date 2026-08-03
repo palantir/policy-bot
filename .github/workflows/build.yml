@@ -3,13 +3,10 @@ name: Build
 on:
   push:
     branches: [develop]
-    tags-ignore:
-      - '**'
+    tags:
+      - 'v[0-9]*'
 
   pull_request:
-
-  release:
-    types: [published]
 
 jobs:
   Verify:
@@ -115,7 +112,7 @@ jobs:
     #
 
     - name: Login to Docker Hub
-      if: ${{ github.event_name == 'push' || github.event_name == 'release' }}
+      if: ${{ github.event_name == 'push' }}
       uses: docker/login-action@06fb636fac595d6fb4b28a5dfcb21a6f5091859c # v4
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -126,11 +123,11 @@ jobs:
       run: ./godelw docker push --tags=snapshot
 
     - name: Push release image to Docker Hub
-      if: ${{ github.event_name == 'release' }}
+      if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
       run: ./godelw docker push --tags=latest,version
 
     - name: Publish release assets
-      if: ${{ github.event_name == 'release' }}
+      if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
       run: ./godelw publish github --add-v-prefix --api-url=${GITHUB_API_URL} --user=palantir --repository=policy-bot --token=${{ secrets.GITHUB_TOKEN }}
 
   ci-all:
