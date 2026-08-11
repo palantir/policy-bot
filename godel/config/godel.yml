@@ -3,12 +3,12 @@ plugins:
     - https://github.com/{{index GroupParts 1}}/{{index GroupParts 2}}/releases/download/v{{Version}}/{{Product}}-{{Version}}-{{OS}}-{{Arch}}.tgz
   plugins:
     - locator:
-        id: com.palantir.godel-mod-plugin:mod-plugin:1.57.0
+        id: com.palantir.godel-mod-plugin:mod-plugin:1.58.0
         checksums:
-          darwin-amd64: 5c0e741eafbe5842d3e048c4b87951080eb4e152a4dee401f60b5c1507fb771c
-          darwin-arm64: 216b9275906ea555b02cc54005a77142f39e461f17c7f83b398593772bab983a
-          linux-amd64: e3a5e7dae559941423664b7362b21781281f58164ec8855271632498a7529dd2
-          linux-arm64: 4afdc8c6eaa547aa5f7d1232ed5754c9068f9906732ec11ee58fe70b8ed49ec4
+          darwin-amd64: 88c5587f5e390b08c332fd9b4c8f8fc08141c05764f8658e69baddc1594fa60d
+          darwin-arm64: 3b993f2c0a62cf0a0b3d4bdcf69c179ea5dbe7de5d6547d960820f30fc7f7ec6
+          linux-amd64: bde7c7e01536852284b350c320e20463c4f9d97dd1ad823670a66d0a0e5466ff
+          linux-arm64: 70b163228825d748b7d8260fc7dcea30775c421780933817753f4ce2a013cbcb
 environment:
   GO111MODULE: "on"
   GOFLAGS: "-mod=vendor"
