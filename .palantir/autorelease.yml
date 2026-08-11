@@ -2,3 +2,12 @@ version: 3
 options:
   disable_label_releases: true
   allow_patch_releases_on_major_series_branches: true
+  # Remove '[skip ci]' from Autorelease commit messages so the release tag push triggers the build workflow.
+  # GitHub Actions honors '[skip ci]' on the tagged commit.
+  disable_skip_ci: true
+
+# Create the GitHub release as a draft so the build workflow can upload the dist artifacts and then finalize
+# (un-draft) the release. GitHub's immutable-releases feature rejects asset uploads to a release once it has been
+# published.
+github_releases:
+  draft: true
