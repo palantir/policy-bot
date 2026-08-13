@@ -3,11 +3,11 @@
 set -euo pipefail
 
 # Version and checksums for godel. Values are populated by the godel "dist" task.
-VERSION=2.169.0
-DARWIN_AMD64_CHECKSUM=676cfc9713e9fc25e16862d8080140ed80db1c05f8740858dce1bffe6ae0c6e3
-DARWIN_ARM64_CHECKSUM=e04de0c23b6911b6712697460f4fe969cb41b2fd98ff80d0fe669a5ea1053f5c
-LINUX_AMD64_CHECKSUM=c08f4bc6cda07e042eef6d0f89584c222af2f81244f6caa79e30df840322faff
-LINUX_ARM64_CHECKSUM=5d171a9b34203489c6f5ff147b2cb48a6876f80e47bd5f723deaf113900daec2
+VERSION=2.170.0
+DARWIN_AMD64_CHECKSUM=59dff82399776758350338ea229ccb998bd05df48f69f3331f567fcf782d0ec4
+DARWIN_ARM64_CHECKSUM=d9f4ed77e8ddd30dda97c86e1af1150729d4f4c59be4508b195d0b70b6de3f78
+LINUX_AMD64_CHECKSUM=d50c44edde78cbefd214d580d15ccef0390ca380a481e3a3b9f5878cfbd63a10
+LINUX_ARM64_CHECKSUM=41937f0f7bfabae4b35c5d771667531f5a824cea778f031774230bb38487076a
 
 # Downloads file at URL to destination path using wget or curl. Prints an error and exits if wget or curl is not present.
 function download {
