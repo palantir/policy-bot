@@ -117,6 +117,9 @@ func New(c *Config) (*Server, error) {
 			return lrucache.New(maxSize, 0)
 		}),
 		githubapp.WithClientMiddleware(
+			func(rt http.RoundTripper) http.RoundTripper {
+				return NewErrorFilteringTransport(rt)
+			},
 			githubapp.ClientLogging(
 				zerolog.DebugLevel,
 				githubapp.LogRequestBody("^"+v4URL.Path+"$"),
