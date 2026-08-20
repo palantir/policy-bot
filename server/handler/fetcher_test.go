@@ -20,7 +20,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/google/go-github/v89/github"
+	"github.com/google/go-github/v90/github"
 	"github.com/palantir/go-githubapp/appconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
