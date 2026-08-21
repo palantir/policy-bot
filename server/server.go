@@ -169,8 +169,10 @@ func New(c *Config) (*Server, error) {
 
 		PullOpts: &c.Options,
 		ConfigFetcher: &handler.ConfigFetcher{
-			Loader: appconfig.NewLoader(
+			Loader: handler.NewCrossOrgConfigLoader(
 				policyPaths,
+				cc,
+				githubapp.NewInstallationsService(appClient),
 				appconfig.WithOwnerDefault(*c.Options.SharedRepository, sharedPolicyPaths),
 			),
 			SeenPolicyCache: seenPolicyCache,
