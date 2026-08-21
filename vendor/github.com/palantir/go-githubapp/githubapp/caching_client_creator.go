@@ -17,7 +17,7 @@ package githubapp
 import (
 	"fmt"
 
-	"github.com/google/go-github/v89/github"
+	"github.com/google/go-github/v90/github"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/shurcooL/githubv4"
 	"golang.org/x/oauth2"

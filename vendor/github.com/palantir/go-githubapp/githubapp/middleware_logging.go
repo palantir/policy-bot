@@ -32,6 +32,7 @@ const (
 	httpHeaderRateUsed      = "X-Ratelimit-Used"
 	httpHeaderRateReset     = "X-Ratelimit-Reset"
 	httpHeaderRateResource  = "X-Ratelimit-Resource"
+	httpHeaderRequestID     = "X-GitHub-Request-Id"
 )
 
 // ClientLogging creates client middleware that logs request and response
@@ -73,6 +74,9 @@ func ClientLogging(lvl zerolog.Level, opts ...ClientLoggingOption) ClientMiddlew
 				cached := res.Header.Get(httpcache.XFromCache) != ""
 				evt.Bool("cached", cached).
 					Int("status", res.StatusCode)
+				if requestID := res.Header.Get(httpHeaderRequestID); requestID != "" {
+					evt.Str("github_request_id", requestID)
+				}
 
 				size := res.ContentLength
 				if requestMatches(r, options.ResponseBodyPatterns) {
