@@ -119,6 +119,7 @@ func New(c *Config) (*Server, error) {
 		githubapp.WithClientMiddleware(
 			githubapp.ClientLogging(
 				zerolog.DebugLevel,
+				githubapp.LogGitHubRequestID(),
 				githubapp.LogRequestBody("^"+v4URL.Path+"$"),
 			),
 			githubapp.ClientMetrics(base.Registry()),
