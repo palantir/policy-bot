@@ -63,6 +63,13 @@ func (p *pipeWriter) ensureConnection() (net.Conn, error) {
 }
 
 func (p *pipeWriter) Close() error {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	// conn is nil if no write ever established a connection
+	if p.conn == nil {
+		return nil
+	}
+
 	return p.conn.Close()
 }
 
