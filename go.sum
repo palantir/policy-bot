@@ -64,8 +64,8 @@ github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/palantir/go-baseapp v0.7.0 h1:KsnCqz2T2j2m21JI149p8HUata9ubvVl2aKbw71u8qA=
 github.com/palantir/go-baseapp v0.7.0/go.mod h1:EvMBTXraSU+5cRCZTNt4e+eNty7t2me565Gr/6wc4/I=
-github.com/palantir/go-githubapp v0.47.0 h1:GdgxR/LSOmmdUZxyRtf1RukwPrmSu0/jeZGiaL6UTXQ=
-github.com/palantir/go-githubapp v0.47.0/go.mod h1:ATGA5Cnt80ETx5u4kcRJhCVBGSiqsHIu5qqBvY5782k=
+github.com/palantir/go-githubapp v0.47.1 h1:FbixB7R7hwbhiz9S26Y01mn41d/jdcfbAGrZIjOXxnA=
+github.com/palantir/go-githubapp v0.47.1/go.mod h1:sI9O5VqEJpTN5LqZDzNT1NEICj3tuNe55hpHM1+ozx0=
 github.com/patrickmn/go-cache v2.1.0+incompatible h1:HRMgzkcYKYpi3C8ajMPV8OFXaaRUnok+kx1WdO15EQc=
 github.com/patrickmn/go-cache v2.1.0+incompatible/go.mod h1:3Qf8kWWT7OJRJbdiICTKqZju1ZixQ/KpMGzzAfe6+WQ=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
