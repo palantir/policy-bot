@@ -223,6 +223,12 @@ path: path/to/policy.yml
 ref: master
 ```
 
+The remote repository does not need to belong to the same GitHub
+organization as the repository defining the `remote` key. If it belongs to
+a different organization, policy-bot looks up that organization's own app
+installation to fetch the file — the policy-bot GitHub App must also be
+installed on the remote repository's organization.
+
 ### Approval Rules
 
 Each list entry in `approval_rules` has the following specification:
