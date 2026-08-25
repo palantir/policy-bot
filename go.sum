@@ -62,8 +62,8 @@ github.com/mattn/go-isatty v0.0.24 h1:tGZZoVgT/KiqK1c8ocVLeDS8BSWMRd47J3Lbz7vsRe
 github.com/mattn/go-isatty v0.0.24/go.mod h1:nMCL3Zebbrt45jsMDgnfIwz6ydEQApk5oEI3HqDio6A=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq1c1nUAm88MOHcQC9l5mIlSMApZMrHA=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
-github.com/palantir/go-baseapp v0.7.0 h1:KsnCqz2T2j2m21JI149p8HUata9ubvVl2aKbw71u8qA=
-github.com/palantir/go-baseapp v0.7.0/go.mod h1:EvMBTXraSU+5cRCZTNt4e+eNty7t2me565Gr/6wc4/I=
+github.com/palantir/go-baseapp v0.7.1 h1:PEoZ8NZIF8EMT+jGFhkVCts9JMflRYiXehkeScLmwzs=
+github.com/palantir/go-baseapp v0.7.1/go.mod h1:KBqHCakdBYFZMGt55N3iOp0IrgZGHPPgkHxUleOcius=
 github.com/palantir/go-githubapp v0.47.1 h1:FbixB7R7hwbhiz9S26Y01mn41d/jdcfbAGrZIjOXxnA=
 github.com/palantir/go-githubapp v0.47.1/go.mod h1:sI9O5VqEJpTN5LqZDzNT1NEICj3tuNe55hpHM1+ozx0=
 github.com/patrickmn/go-cache v2.1.0+incompatible h1:HRMgzkcYKYpi3C8ajMPV8OFXaaRUnok+kx1WdO15EQc=
