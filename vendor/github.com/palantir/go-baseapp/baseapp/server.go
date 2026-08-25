@@ -40,6 +40,7 @@ type Server struct {
 	logger     zerolog.Logger
 	mux        *goji.Mux
 	server     *http.Server
+	realIP     bool
 
 	registry metrics.Registry
 
@@ -70,6 +71,10 @@ func NewServer(c HTTPConfig, params ...Param) (*Server, error) {
 
 	if base.middleware == nil {
 		base.middleware = DefaultMiddleware(base.logger, base.registry)
+	}
+
+	if base.realIP {
+		base.middleware = append([]func(http.Handler) http.Handler{RealIP}, base.middleware...)
 	}
 
 	for _, middleware := range base.middleware {

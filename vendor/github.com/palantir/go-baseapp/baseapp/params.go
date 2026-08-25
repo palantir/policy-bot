@@ -67,6 +67,14 @@ func WithMiddleware(middleware ...func(http.Handler) http.Handler) Param {
 	}
 }
 
+// WithRealIP set a flag so that the server's middleware stack is prepended with RealIP
+func WithRealIP() Param {
+	return func(b *Server) error {
+		b.realIP = true
+		return nil
+	}
+}
+
 // WithUTCNanoTime adds a UTC timestamp with nanosecond precision to log lines.
 func WithUTCNanoTime() Param {
 	return func(b *Server) error {

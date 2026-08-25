@@ -15,13 +15,20 @@
 package baseapp
 
 import (
+	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/bluekeyes/hatpear"
 	"github.com/rcrowley/go-metrics"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/hlog"
+)
+
+const (
+	XForwardedFor = "X-Forwarded-For"
+	XRealIP       = "X-Real-Ip"
 )
 
 // DefaultMiddleware returns the default middleware stack. The stack:
@@ -56,6 +63,35 @@ func NewMetricsHandler(registry metrics.Registry) func(http.Handler) http.Handle
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// RealIP overwrites the request RemoteAddr with the client IP from the
+// X-Forwarded-For or X-Real-Ip header. Downstream request logging then reports
+// the client, not the reverse proxy. RealIP trusts these headers, so use it only
+// when a trusted proxy such as Traefik sits in front of the server. It must run
+// before any middleware that reads RemoteAddr, so place it first in the stack.
+func RealIP(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if ip := realIPFromRequest(r); ip != "" {
+			r.RemoteAddr = ip
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func realIPFromRequest(r *http.Request) string {
+	if forwarded := r.Header.Get(XForwardedFor); forwarded != "" {
+		first, _, _ := strings.Cut(forwarded, ",")
+		return strings.TrimSpace(first)
+	}
+	if ip := r.Header.Get(XRealIP); ip != "" {
+		return strings.TrimSpace(ip)
+	}
+
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
+	}
+	return r.RemoteAddr
 }
 
 // LogRequest is an AccessCallback that logs request information.
