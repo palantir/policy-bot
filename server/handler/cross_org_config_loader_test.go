@@ -16,6 +16,8 @@ package handler
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -341,4 +343,71 @@ func TestCrossOrgConfigLoader_DefaultsPathAndRef(t *testing.T) {
 
 	assert.Equal(t, "shared-policy", capturedRepo)
 	assert.Equal(t, "trunk", capturedRef, "empty remote ref should default to the remote repository's default branch")
+}
+
+// serveFileContent registers a handler on mux that responds like the GitHub
+// contents API for a single file, base64-encoding content the way GitHub
+// really does.
+func serveFileContent(t *testing.T, mux *http.ServeMux, pattern, content string) {
+	t.Helper()
+
+	body, err := json.Marshal(github.RepositoryContent{
+		Type:     github.Ptr("file"),
+		Encoding: github.Ptr("base64"),
+		Content:  github.Ptr(base64.StdEncoding.EncodeToString([]byte(content))),
+	})
+	require.NoError(t, err)
+
+	mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(body)
+	})
+}
+
+// TestCrossOrgConfigLoader_RealRemoteLoaderRejectsMissingRemoteFile is a
+// regression test for the production newRemoteLoader built by
+// NewCrossOrgConfigLoader. It does not mock newRemoteLoader (unlike every
+// other test in this file): it builds the loader through the real
+// constructor and drives it against an httptest-backed GitHub API, so it
+// exercises the actual appconfig.Loader used in production.
+//
+// Without appconfig.WithOwnerDefault("", nil) on that loader, a missing
+// remote file falls through to the target org's ".github" repository
+// default policy instead of producing the documented
+// "invalid remote reference: file does not exist" error. This test proves
+// that fallback is not taken: the ".github" repo below serves real content
+// that would make the test wrongly pass if the org-default fallback fired.
+func TestCrossOrgConfigLoader_RealRemoteLoaderRejectsMissingRemoteFile(t *testing.T) {
+	mux := http.NewServeMux()
+
+	// The local policy file: a remote reference with an explicit ref so we
+	// don't need to mock the remote repository's default-branch lookup.
+	serveFileContent(t, mux, "/repos/testorg/testrepo/contents/.policy.yml",
+		"remote: testorg/shared-policy\nref: main\n")
+
+	// The remote file genuinely does not exist.
+	mux.HandleFunc("/repos/testorg/shared-policy/contents/.policy.yml", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"message":"Not Found"}`))
+	})
+
+	// testorg's ".github" repo default policy DOES exist. If the buggy
+	// org-default fallback were taken, this content would be returned
+	// (mislabeled as the shared-policy remote) instead of an error.
+	// loadDefaultConfig first looks up the ".github" repo itself (for its
+	// default branch), then fetches the file from it.
+	mux.HandleFunc("/repos/testorg/.github", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"name":".github","default_branch":"main"}`))
+	})
+	serveFileContent(t, mux, "/repos/testorg/.github/contents/.policy.yml",
+		"policy:\n  approval: []\n")
+
+	client := newTestGitHubClient(t, mux)
+
+	loader := NewCrossOrgConfigLoader([]string{".policy.yml"}, fakeClientCreator{}, fakeInstallations{})
+
+	cfg, err := loader.LoadConfig(context.Background(), client, "testorg", "testrepo", "main")
+	require.Error(t, err, "got config %+v", cfg)
+	assert.Contains(t, err.Error(), "invalid remote reference: file does not exist")
 }

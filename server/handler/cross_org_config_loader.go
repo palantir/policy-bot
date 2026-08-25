@@ -61,7 +61,7 @@ func NewCrossOrgConfigLoader(paths []string, cc githubapp.ClientCreator, install
 		clientCreator: cc,
 		installations: installations,
 		newRemoteLoader: func(paths []string) ConfigLoader {
-			return appconfig.NewLoader(paths, appconfig.WithRemoteRefParser(nil))
+			return appconfig.NewLoader(paths, appconfig.WithRemoteRefParser(nil), appconfig.WithOwnerDefault("", nil))
 		},
 	}
 }
