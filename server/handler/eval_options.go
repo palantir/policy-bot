@@ -41,8 +41,8 @@ type PullEvaluationOptions struct {
 	// Ignore PolicyPath and use SharedRepository and SharedPolicyPath only.
 	ForceSharedPolicy bool `yaml:"force_shared_policy"`
 
-	// StatusCheckContext will be used to create the status context. It will be used in the following
-	// pattern: <StatusCheckContext>: <Base Branch Name>
+	// StatusCheckContext is the base name for status contexts. See the
+	// StatusContext method for how the posted context is derived from it.
 	StatusCheckContext string `yaml:"status_check_context"`
 
 	// ExpandRequiredReviewers enables a UI feature where the details page

@@ -98,11 +98,10 @@ func (b *Base) NewEvalContext(ctx context.Context, installationID int64, loc pul
 	}, nil
 }
 
-// policyRef returns the branch to load the policy from: the pull request's
-// base branch by default, or the repository's default branch when the
-// PolicyFromDefaultBranch option is enabled. Event payloads usually carry the
-// default branch; the API lookup covers locators built without a payload
-// value, such as details page requests.
+// policyRef returns the branch to load the policy from. Most pull request
+// values carry the repository's default branch; the API lookup covers the
+// minimal pull request objects in check_run and workflow_run event payloads,
+// which omit it.
 func (b *Base) policyRef(ctx context.Context, client *github.Client, owner, repo, baseBranch, defaultBranch string) (string, error) {
 	if !b.PullOpts.PolicyFromDefaultBranch {
 		return baseBranch, nil

@@ -1181,12 +1181,11 @@ Before enabling this option, consider the following:
   default behavior, they can only change the policy of pull requests that
   target branches they can push to).
 
-- Policies that use the `targets_branch` predicate or evaluate pull request
-  content are still sensitive to retargeting: statuses attach to commits, so
-  after a retarget the previous status remains until `policy-bot` processes
-  the edit event and re-evaluates. This window exists with the default
-  behavior as well, but with a stable context the stale status is one a
-  required check accepts.
+- Statuses attach to commits, so after a base branch change the previous
+  status remains until `policy-bot` re-evaluates. With a stable context the
+  stale status is one a required check accepts, so `policy-bot` forces a full
+  re-evaluation whenever a pull request's base branch changes; the remaining
+  exposure is the delay between the retarget and the updated status.
 
 ### Comment Edits <!-- omit in toc -->
 
