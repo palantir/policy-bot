@@ -16,6 +16,7 @@ package handler
 
 import (
 	"encoding"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -59,6 +60,15 @@ type PullEvaluationOptions struct {
 	// no templating. This is turned off by default. This is to support legacy workflows that depend on the original
 	// context behaviour, and will be removed in 2.0
 	PostInsecureStatusChecks bool `yaml:"post_insecure_status_checks"`
+
+	// PolicyFromDefaultBranch loads the policy from the repository's default
+	// branch instead of the pull request's base branch and posts the status
+	// using the bare StatusCheckContext, with no branch suffix. Because the
+	// policy source no longer depends on the base branch, the status name is
+	// stable across base branches, which required status checks need for
+	// stacked pull requests and other retargeting workflows. This is turned
+	// off by default; see the README for the security tradeoffs.
+	PolicyFromDefaultBranch bool `yaml:"policy_from_default_branch"`
 
 	// IgnoreEditedComments enables ignoring comments that have been edited when evaluating approval rules.
 	// This provides a server-side option to ignore edited comments across all rules.
@@ -109,6 +119,27 @@ func (p *PullEvaluationOptions) fillDefaults() {
 	}
 }
 
+// StatusContext returns the status check context for a pull request with the
+// given base branch. The context normally embeds the branch name so that a
+// status earned against one branch's policy cannot satisfy a required check
+// on a branch with a different policy. When PolicyFromDefaultBranch is
+// enabled every branch shares the default branch's policy, so the bare
+// context is used instead.
+func (p *PullEvaluationOptions) StatusContext(baseBranch string) string {
+	if p.PolicyFromDefaultBranch {
+		return p.StatusCheckContext
+	}
+	return fmt.Sprintf("%s: %s", p.StatusCheckContext, baseBranch)
+}
+
+// ShouldPostInsecureStatus reports whether a second status with the bare
+// StatusCheckContext should be posted after the primary status. It is
+// disabled when PolicyFromDefaultBranch is enabled because the primary
+// status already uses the bare context.
+func (p *PullEvaluationOptions) ShouldPostInsecureStatus() bool {
+	return p.PostInsecureStatusChecks && !p.PolicyFromDefaultBranch
+}
+
 func (p *PullEvaluationOptions) SetValuesFromEnv(prefix string) {
 	setStringFromEnv("POLICY_PATH", prefix, &p.PolicyPath)
 	setStringPtrFromEnv("SHARED_REPOSITORY", prefix, &p.SharedRepository)
@@ -118,6 +149,7 @@ func (p *PullEvaluationOptions) SetValuesFromEnv(prefix string) {
 	setBoolFromEnv("EXPAND_REQUIRED_REVIEWERS", prefix, &p.ExpandRequiredReviewers)
 	setBoolFromEnv("STRICT_REVIEW_DISMISSAL", prefix, &p.StrictReviewDismissal)
 	setBoolFromEnv("POST_INSECURE_STATUS_CHECKS", prefix, &p.PostInsecureStatusChecks)
+	setBoolFromEnv("POLICY_FROM_DEFAULT_BRANCH", prefix, &p.PolicyFromDefaultBranch)
 	setBoolPtrFromEnv("IGNORE_EDITED_COMMENTS", prefix, &p.IgnoreEditedComments)
 
 	p.setApprovalDefaultsFromEnv(prefix + "APPROVAL_DEFAULTS_")

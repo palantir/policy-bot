@@ -1149,6 +1149,45 @@ approve and merge a pull request before `policy-bot` can detect the problem.
 Organizations concerned about this case should monitor and alert on the
 relevant audit logs or minimize write access to repositories.
 
+### Policy Source and Status Context <!-- omit in toc -->
+
+By default, `policy-bot` loads the policy from the base branch of each pull
+request and appends the base branch name to the status context (e.g.
+`policy-bot: main`). This scopes trust to a branch: a status earned against
+one branch's policy cannot satisfy a required check configured for a branch
+with a different policy.
+
+The branch suffix means the status name changes when a pull request is
+retargeted. In particular, GitHub's stacked pull requests evaluate every pull
+request in a stack against the required checks of the stack's final target
+branch, so pull requests that target another pull request's head branch never
+receive the exact context the required check expects.
+
+The `options.policy_from_default_branch` server option supports these
+workflows. When enabled, `policy-bot` loads the policy from the repository's
+default branch for every pull request and posts statuses under the bare
+`status_check_context` with no branch suffix. Because all pull requests are
+evaluated against a single policy source, the branch suffix no longer carries
+a security property and the stable name can be used as a required check.
+
+Before enabling this option, consider the following:
+
+- Repositories can no longer define different policies for different base
+  branches. The `targets_branch` predicate can express some per-branch
+  behavior within a single policy, but not all configurations.
+
+- The default branch must be protected. Users who can push to the default
+  branch can change the policy that applies to every pull request (with the
+  default behavior, they can only change the policy of pull requests that
+  target branches they can push to).
+
+- Policies that use the `targets_branch` predicate or evaluate pull request
+  content are still sensitive to retargeting: statuses attach to commits, so
+  after a retarget the previous status remains until `policy-bot` processes
+  the edit event and re-evaluates. This window exists with the default
+  behavior as well, but with a stable context the stale status is one a
+  required check accepts.
+
 ### Comment Edits <!-- omit in toc -->
 
 GitHub users with sufficient permissions can edit the comments of other users,
