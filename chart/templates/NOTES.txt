@@ -1,0 +1,48 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named: {{ .Release.Name }}
+
+To get the application URL:
+{{- if .Values.ingress.enabled }}
+{{- range $host := .Values.ingress.hosts }}
+  {{- range .paths }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}{{ .path }}
+  {{- end }}
+{{- end }}
+{{- else if contains "NodePort" .Values.service.type }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "policy-bot.fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT
+{{- else if contains "LoadBalancer" .Values.service.type }}
+  NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+        Watch the status with: kubectl get --namespace {{ .Release.Namespace }} svc -w {{ include "policy-bot.fullname" . }}
+
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "policy-bot.fullname" . }} --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
+  echo http://$SERVICE_IP:{{ .Values.service.port }}
+{{- else if contains "ClusterIP" .Values.service.type }}
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "policy-bot.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }}
+  echo "Visit http://127.0.0.1:{{ .Values.service.port }} to access policy-bot"
+{{- end }}
+
+IMPORTANT: Before the application can function, you must configure:
+
+1. GitHub App credentials:
+   - Integration ID
+   - Webhook secret
+   - Private key (PEM format)
+
+2. OAuth credentials (for the web UI):
+   - Client ID
+   - Client secret
+
+3. Session key (for signing session cookies)
+
+These can be set in values.yaml under 'secrets' or via an existing Kubernetes Secret.
+
+For more information, see:
+  - GitHub App setup: https://github.com/palantir/policy-bot#github-app-configuration
+  - Documentation: https://github.com/palantir/policy-bot#readme
+
+Health check endpoint: /api/health
+Metrics endpoint: /api/metrics (Prometheus format)
+Webhook endpoint: /api/github/hook
