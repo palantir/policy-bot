@@ -18,6 +18,7 @@ import (
 	"context"
 	"slices"
 	"sort"
+	"strings"
 
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
@@ -28,6 +29,7 @@ import (
 // all conditions in this structure.
 type Actors struct {
 	Users         []string `yaml:"users,omitempty" json:"users"`
+	UserTypes     []string `yaml:"user_types,omitempty" json:"user_types"`
 	Teams         []string `yaml:"teams,omitempty" json:"teams"`
 	Organizations []string `yaml:"organizations,omitempty" json:"organizations"`
 
@@ -38,11 +40,13 @@ type Actors struct {
 	// A list of GitHub collaborator permissions that are allowed. Values may
 	// be any of "admin", "maintain", "write", "triage", and "read".
 	Permissions []pull.Permission `yaml:"permissions,omitempty" json:"permissions"`
+
+	Not *Actors `yaml:"not,omitempty" json:"not,omitempty"`
 }
 
 // IsZero returns true if no conditions for actors are defined.
 func (a *Actors) IsZero() bool {
-	return a == nil || (len(a.Users) == 0 && len(a.Teams) == 0 && len(a.Organizations) == 0 &&
+	return a == nil || (len(a.Users) == 0 && len(a.UserTypes) == 0 && len(a.Teams) == 0 && len(a.Organizations) == 0 &&
 		len(a.Permissions) == 0 && !a.Admins && !a.WriteCollaborators)
 }
 
@@ -74,6 +78,27 @@ func (a *Actors) GetPermissions() []pull.Permission {
 // IsActor returns true if the given user satisfies at least one of the
 // conditions in this structure.
 func (a *Actors) IsActor(ctx context.Context, prctx pull.Context, user string) (bool, error) {
+	if a.Not != nil {
+		isNotActor, err := a.Not.IsActor(ctx, prctx, user)
+		if err != nil {
+			return false, errors.Wrap(err, "failed to check not actor condition")
+		}
+		if isNotActor {
+			return false, nil
+		}
+	}
+
+	var userType string
+	if strings.HasSuffix(user, "[bot]") {
+		userType = "Bot"
+	} else {
+		userType = "User"
+	}
+
+	if slices.Contains(a.UserTypes, userType) {
+		return true, nil
+	}
+
 	if slices.Contains(a.Users, user) {
 		return true, nil
 	}

@@ -354,26 +354,41 @@ if:
   # the users list or belongs to any of the listed organizations or teams. The
   # `users` field can contain a GitHub App by appending `[bot]` to the end of
   # the name, for example: `fun-github-app[bot]`
+  #
+  # `not` can be used to exclude certain users. Since `not` is used for excluding
+  # only, specifying only `not` means it never matches.
+  # `not` can optionally be nested where needed.
   has_author_in:
     users: ["user1", "user2", ...]
+    user_types: ["User", "Bot"]
     organizations: ["org1", "org2", ...]
     teams: ["org1/team1", "org2/team2", ...]
+    not:
+      users: ["user1", "user2", ...]
+      user_types: ["User", "Bot"]
+      organizations: ["org1", "org2", ...]
+      teams: ["org1/team1", "org2/team2", ...]
+      # not: ...
 
   # "has_contributor_in" is satisfied if any commits on the pull request have
   # an author or committer in the users list or that belong to any of the
   # listed organizations or teams.
   has_contributor_in:
     users: ["user1", "user2", ...]
+    user_types: ["User", "Bot"]
     organizations: ["org1", "org2", ...]
     teams: ["org1/team1", "org2/team2", ...]
+    not: ...
 
   # "only_has_contributors_in" is satisfied if all of the commits on the pull
   # request have an author or committer in the users list or that belong to
   # any of the listed organizations or teams.
   only_has_contributors_in:
     users: ["user1", "user2", ...]
+    user_types: ["User", "Bot"]
     organizations: ["org1", "org2", ...]
     teams: ["org1/team1", "org2/team2", ...]
+    not: ...
 
   # "author_is_only_contributor", when true, is satisfied if all commits in the
   # pull request are authored by and committed by the user who opened the pull
@@ -492,8 +507,10 @@ if:
   # or belong to a user in any of the listed organizations or teams.
   has_valid_signatures_by:
     users: ["user1", "user2", ...]
+    user_types: ["User", "Bot"]
     organizations: ["org1", "org2", ...]
     teams: ["org1/team1", "org2/team2", ...]
+    not: ...
 
   # "has_valid_signatures_by_keys" is satisfied if the commits in the pull request
   # all have git commit signatures that have been verified by GitHub, and
@@ -584,8 +601,10 @@ options:
   # see the README for more details.
   ignore_commits_by:
     users: ["bulldozer[bot]"]
+    user_types: ["User", "Bot"]
     organizations: ["org1"]
     teams: ["org1/team1"]
+    not: ...
 
   # Automatically request reviewers when a Pull Request is opened
   # if this rule is pending, there are no assigned reviewers, and if the
@@ -654,8 +673,10 @@ requires:
   # A user must be in the list of users or belong to at least one of the given
   # organizations or teams for their approval to count for this rule.
   users: ["user1", "user2"]
+  user_types: ["User", "Bot"]
   organizations: ["org1", "org2"]
   teams: ["org1/team1", "org2/team2"]
+  not: ...
 
   # A user must have at least the minimum permission in this list for their
   # approval to count for this rule. Valid permissions are "admin", "maintain",
@@ -852,6 +873,7 @@ disapproval:
   # disapproval is not enabled.
   requires:
     users: ["user1", "user2"]
+    user_types: ["User", "Bot"]
     organizations: ["org1", "org2"]
     teams: ["org1/team1", "org2/team2"]
 ```
@@ -1063,6 +1085,7 @@ Given the following example requirement rule,
   requires:
     count: 2
     users: ["user1", "user2"]
+    user_types: ["User", "Bot"]
     organizations: ["org1", "org2"]
     teams: ["org1/team1", "org2/team2"]
 ```
