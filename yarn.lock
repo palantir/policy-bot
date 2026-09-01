@@ -922,10 +922,10 @@ hasown@^2.0.2:
   dependencies:
     function-bind "^1.1.2"
 
-htmx.org@^1.9.12:
-  version "1.9.12"
-  resolved "https://registry.yarnpkg.com/htmx.org/-/htmx.org-1.9.12.tgz#1c5bc7fb4d3eb4e8c0d72323dc774a6b9b66addc"
-  integrity sha512-VZAohXyF7xPGS52IM8d1T1283y+X4D+Owf3qY1NZ9RuBypyu9l8cGsxUMAG5fEAb/DhT7rDoJ9Hpu5/HxFD3cw==
+htmx.org@^4.0.0:
+  version "4.0.0"
+  resolved "https://registry.yarnpkg.com/htmx.org/-/htmx.org-4.0.0.tgz#72323bd24261364fe3111803c46b80da1fb33445"
+  integrity sha512-T/171FUY93Kdfp8t+DnHdk45QvKRiBhVhhrwSzrXgUi4pHKvhp77dUA/qg8FAjsFWPIHNbmUuIdCrcVHuiZWng==
 
 icss-utils@^5.0.0, icss-utils@^5.1.0:
   version "5.1.0"
