@@ -8,9 +8,9 @@
 
 {{define "body-class"}}bg-light-gray5 text-dark-gray1 flex flex-col h-screen{{end}}
 {{define "body"}}
-  <header class="w-full tripart p-4 bg-white shadow-sm z-10 relative">
+  <header class="w-full tripart p-4 bg-white dark:bg-dark-gray3 shadow-sm z-10 relative">
     <a href="{{.PolicyURL}}" title="View the policy definition on GitHub"
-       class="px-2 py-1 text-xs text-dark-gray3 bg-light-gray3 border border-light-gray2 rounded-sm truncate max-w-full hover:bg-light-gray2 no-underline hover:no-underline">
+       class="px-2 py-1 text-xs text-dark-gray3 dark:text-light-gray3 bg-light-gray3 dark:bg-dark-gray4 border border-light-gray2 dark:border-dark-gray5 rounded-sm truncate max-w-full hover:bg-light-gray2 dark:hover:bg-dark-gray5 no-underline hover:no-underline">
       {{.PullRequest.GetBase.GetRepo.GetFullName}}: {{.PullRequest.GetBase.GetRef}}
     </a>
     <h1 class="text-xl font-normal tracking-tight text-center">
@@ -18,7 +18,7 @@
         #{{.PullRequest.GetNumber}}</a>:
       {{.PullRequest.GetTitle}}
     </h1>
-    <span class="text-xs text-dark-gray3 truncate max-w-full">
+    <span class="text-xs text-dark-gray3 dark:text-light-gray3 truncate max-w-full">
       {{.User}}
     </span>
   </header>
@@ -37,7 +37,7 @@
         <h2 class="mb-1 text-lg font-bold">Status: {{$s | toFirstUpper}}</h2>
         <p>{{or .Result.Error .Result.StatusDescription}}</p>
       </div>
-      <div class="p-2 rounded-md bg-white text-dark-gray1 text-sm text-shadow-none">
+      <div class="p-2 rounded-md bg-white dark:bg-dark-gray3 text-dark-gray1 dark:text-light-gray4 text-sm text-shadow-none">
         <div class="toggle">
             <input id="filter-toggle" type="checkbox" autocomplete="off" checked/>
             <label for="filter-toggle">Hide skipped rules</label>
@@ -66,19 +66,19 @@
 {{ $s := (or (and .Error "error") (.Status | print)) }}
 {{ $showReviewers := (and $root.ExpandRequiredReviewers (eq $s "pending")) }}
 <li class="node" data-status="{{$s}}" {{if not (eq $s $nextStatus)}}data-next-status="{{$nextStatus}}"{{end}}>
-  <div class="bg-white p-2 shadow-sm max-w-lg status-stripe {{$s}}">
+  <div class="bg-white dark:bg-dark-gray3 p-2 shadow-sm max-w-lg status-stripe {{$s}}">
     {{template "result-details" .}}
     {{if (or (.PredicateResults) (hasActors .Requires) (hasActorsPermissions .Requires) (gt (len .Requires.Conditions) 0))}}
     <details
-      class="bg-light-gray5 p-2 mt-2 text-sm"
+      class="bg-light-gray5 dark:bg-dark-gray2 p-2 mt-2 text-sm"
       {{if $showReviewers}}
       hx-get="{{$root.BasePath}}/details/{{$root.PullRequest.GetBase.GetRepo.GetFullName}}/{{$root.PullRequest.GetNumber}}/reviewers?rule={{.Name | urlencode}}"
       hx-trigger="toggle once"
       hx-target="find .reviewers"
       {{end}}
     >
-      <summary class="text-dark-gray3 font-semibold">Details</summary>
-      <div class="border-t border-light-gray3 mt-2 overflow-x-auto whitespace-nowrap">
+      <summary class="text-dark-gray3 dark:text-light-gray3 font-semibold">Details</summary>
+      <div class="border-t border-light-gray3 dark:border-dark-gray4 mt-2 overflow-x-auto whitespace-nowrap">
         {{if .PredicateResults}}
           <div class="pt-2">
             {{template "result-predicates-details" .}}

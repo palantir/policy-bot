@@ -1,5 +1,6 @@
 // Policy Bot Javascript
 import './js/filter.js';
+import './js/theme.js';
 
 // Policy Bot CSS
 import './css/main.css';
