@@ -146,6 +146,7 @@ type GitHubContext struct {
 	pushedAt                   map[string]time.Time
 	workflowRuns               map[string][]string
 	repositoryCustomProperties map[string]CustomProperty
+	repositoryTopics           []string
 }
 
 // NewGitHubContext creates a new pull.Context that makes GitHub requests to
@@ -229,6 +230,26 @@ func (ghc *GitHubContext) loadRepositoryCustomProperties() error {
 		ghc.repositoryCustomProperties[value.PropertyName] = result
 	}
 
+	return nil
+}
+
+func (ghc *GitHubContext) RepositoryTopics() ([]string, error) {
+	if ghc.repositoryTopics == nil {
+		if err := ghc.loadRepositoryTopics(); err != nil {
+			return nil, err
+		}
+	}
+
+	return ghc.repositoryTopics, nil
+}
+
+func (ghc *GitHubContext) loadRepositoryTopics() error {
+	topics, _, err := ghc.client.Repositories.ListAllTopics(ghc.ctx, ghc.owner, ghc.repo, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to load repository topics")
+	}
+
+	ghc.repositoryTopics = topics
 	return nil
 }
 
