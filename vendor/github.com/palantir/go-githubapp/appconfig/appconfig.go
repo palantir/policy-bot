@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"github.com/google/go-github/v90/github"
+	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/rs/zerolog"
 )
 
@@ -81,6 +82,9 @@ type Loader struct {
 	parser       RemoteRefParser
 	defaultRepo  string
 	defaultPaths []string
+
+	clientCreator githubapp.ClientCreator
+	installations githubapp.InstallationsService
 }
 
 // NewLoader creates a Loader that loads configuration from paths.
@@ -139,7 +143,7 @@ func (ld *Loader) LoadConfig(ctx context.Context, client *github.Client, owner, 
 			}
 			if remote != nil {
 				logger.Debug().Msgf("Found remote configuration at %s in %s", p, c.Source)
-				return ld.loadRemoteConfig(ctx, client, *remote, c)
+				return ld.loadRemoteConfig(ctx, client, owner, *remote, c)
 			}
 		}
 
@@ -159,7 +163,7 @@ func (ld *Loader) LoadConfig(ctx context.Context, client *github.Client, owner, 
 	return Config{}, nil
 }
 
-func (ld *Loader) loadRemoteConfig(ctx context.Context, client *github.Client, remote RemoteRef, c Config) (Config, error) {
+func (ld *Loader) loadRemoteConfig(ctx context.Context, client *github.Client, sourceOwner string, remote RemoteRef, c Config) (Config, error) {
 	logger := zerolog.Ctx(ctx)
 	notFoundErr := fmt.Errorf("invalid remote reference: file does not exist")
 
@@ -167,6 +171,7 @@ func (ld *Loader) loadRemoteConfig(ctx context.Context, client *github.Client, r
 	if err != nil {
 		return c, err
 	}
+	client = ld.remoteClient(ctx, client, sourceOwner, owner, repo)
 
 	path := remote.Path
 	if path == "" && len(ld.paths) > 0 {
@@ -250,7 +255,7 @@ func (ld *Loader) loadDefaultConfig(ctx context.Context, client *github.Client, 
 			}
 			if remote != nil {
 				logger.Debug().Msgf("Found remote default configuration at %s in %s", p, c.Source)
-				return ld.loadRemoteConfig(ctx, client, *remote, c)
+				return ld.loadRemoteConfig(ctx, client, owner, *remote, c)
 			}
 		}
 
@@ -262,6 +267,30 @@ func (ld *Loader) loadDefaultConfig(ctx context.Context, client *github.Client, 
 
 	// no default configuration, return an empty/undefined one
 	return Config{}, nil
+}
+
+// remoteClient returns an installation-scoped client for remoteOwner/remoteRepo when
+// private remotes are enabled and the remote belongs to a different owner. If
+// the app is not installed on that repository, or a client cannot be created, it
+// falls back to the caller's client so public repositories continue to work.
+func (ld *Loader) remoteClient(ctx context.Context, client *github.Client, sourceOwner, remoteOwner, remoteRepo string) *github.Client {
+	if strings.EqualFold(sourceOwner, remoteOwner) || ld.clientCreator == nil || ld.installations == nil {
+		return client
+	}
+
+	logger := zerolog.Ctx(ctx)
+	installation, err := ld.installations.GetByRepository(ctx, remoteOwner, remoteRepo)
+	if err != nil {
+		logger.Warn().Err(err).Msgf("Failed to find GitHub App installation for remote configuration repository %q; using the original client", remoteOwner+"/"+remoteRepo)
+		return client
+	}
+
+	remoteClient, err := ld.clientCreator.NewInstallationClient(installation.ID)
+	if err != nil {
+		logger.Warn().Err(err).Msgf("Failed to create GitHub App client for remote configuration repository %q; using the original client", remoteOwner+"/"+remoteRepo)
+		return client
+	}
+	return remoteClient
 }
 
 // getFileContents returns the content of the file at path on ref in owner/repo

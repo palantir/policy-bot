@@ -16,7 +16,7 @@ require (
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 	github.com/hashicorp/golang-lru v1.0.2
 	github.com/palantir/go-baseapp v0.7.1
-	github.com/palantir/go-githubapp v0.47.1
+	github.com/palantir/go-githubapp v0.47.2
 	github.com/pkg/errors v0.9.1
 	github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9
 	github.com/rs/zerolog v1.35.1
@@ -25,6 +25,7 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/vektah/gqlparser v1.3.1
 	goji.io v2.0.2+incompatible
+	golang.org/x/oauth2 v0.36.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -51,7 +52,6 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.55.0 // indirect
-	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 )
