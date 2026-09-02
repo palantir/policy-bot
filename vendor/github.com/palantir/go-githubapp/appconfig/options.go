@@ -14,6 +14,10 @@
 
 package appconfig
 
+import (
+	"github.com/palantir/go-githubapp/githubapp"
+)
+
 type Option func(*Loader)
 
 // WithRemoteRefParser sets the parser for encoded RemoteRefs. The default
@@ -36,20 +40,25 @@ func WithOwnerDefault(name string, paths []string) Option {
 	}
 }
 
-/*
-
-Not sure this is valuable yet, but leaving this option function as a starting
-point for a future implementation. See https://github.com/palantir/policy-bot/issues/111
-for some explanation of why this is desired.
-
-In the Loader implementation, if a ClientCreator and InstallationsService are
-set, the loadRemoteConfig method would use them to create a new client if the
-remote owner does not equal the starting owner.
-
 // WithPrivateRemotes enables loading remote configuration from private
-// repositories in different organizations. By default, only public
-// repositories can be remote targets.
-func WithPrivateRemotes(cc githubapp.ClientCreator, installs githubapp.InstallationsService) Option {
-	return func(ld *Loader) {}
+// repositories owned by a different user or organization. It uses the app's
+// installation on the remote repository to fetch the referenced file. If the
+// app is not installed on that repository, or an installation client cannot be created,
+// the loader logs the failure and falls back to the original client so public
+// remote repositories remain supported.
+//
+// WARNING: Enabling this option can expose configuration file content and
+// repository existence to users who otherwise may not be able to access them.
+// Enable it only when the app is installed on GitHub organizations where all
+// users are trusted, or when the caller otherwise prevents unintentional
+// information disclosure.
+//
+// This loader does not cache installation lookups or clients. Callers that
+// load configuration frequently should pass caching implementations, such as
+// githubapp.NewCachingInstallationsService and githubapp.NewCachingClientCreator.
+func WithPrivateRemotes(clientCreator githubapp.ClientCreator, installations githubapp.InstallationsService) Option {
+	return func(ld *Loader) {
+		ld.clientCreator = clientCreator
+		ld.installations = installations
+	}
 }
-*/
