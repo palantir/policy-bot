@@ -16,6 +16,7 @@ package handler
 
 import (
 	"encoding"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -59,6 +60,11 @@ type PullEvaluationOptions struct {
 	// no templating. This is turned off by default. This is to support legacy workflows that depend on the original
 	// context behaviour, and will be removed in 2.0
 	PostInsecureStatusChecks bool `yaml:"post_insecure_status_checks"`
+
+	// PolicyFromDefaultBranch loads the policy from the default branch instead of the base branch and drops the
+	// branch suffix from the status context. It also suppresses the insecure status, which would otherwise
+	// duplicate the bare context. Off by default.
+	PolicyFromDefaultBranch bool `yaml:"policy_from_default_branch"`
 
 	// IgnoreEditedComments enables ignoring comments that have been edited when evaluating approval rules.
 	// This provides a server-side option to ignore edited comments across all rules.
@@ -109,6 +115,17 @@ func (p *PullEvaluationOptions) fillDefaults() {
 	}
 }
 
+func (p *PullEvaluationOptions) StatusContext(branch string) string {
+	if p.PolicyFromDefaultBranch {
+		return p.StatusCheckContext
+	}
+	return fmt.Sprintf("%s: %s", p.StatusCheckContext, branch)
+}
+
+func (p *PullEvaluationOptions) ShouldPostInsecureStatus() bool {
+	return p.PostInsecureStatusChecks && !p.PolicyFromDefaultBranch
+}
+
 func (p *PullEvaluationOptions) SetValuesFromEnv(prefix string) {
 	setStringFromEnv("POLICY_PATH", prefix, &p.PolicyPath)
 	setStringPtrFromEnv("SHARED_REPOSITORY", prefix, &p.SharedRepository)
@@ -118,6 +135,7 @@ func (p *PullEvaluationOptions) SetValuesFromEnv(prefix string) {
 	setBoolFromEnv("EXPAND_REQUIRED_REVIEWERS", prefix, &p.ExpandRequiredReviewers)
 	setBoolFromEnv("STRICT_REVIEW_DISMISSAL", prefix, &p.StrictReviewDismissal)
 	setBoolFromEnv("POST_INSECURE_STATUS_CHECKS", prefix, &p.PostInsecureStatusChecks)
+	setBoolFromEnv("POLICY_FROM_DEFAULT_BRANCH", prefix, &p.PolicyFromDefaultBranch)
 	setBoolPtrFromEnv("IGNORE_EDITED_COMMENTS", prefix, &p.IgnoreEditedComments)
 
 	p.setApprovalDefaultsFromEnv(prefix + "APPROVAL_DEFAULTS_")
