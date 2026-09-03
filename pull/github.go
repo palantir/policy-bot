@@ -1212,6 +1212,8 @@ type v4Commit struct {
 	Author          v4GitActor
 	Committer       v4GitActor
 	CommittedViaWeb bool
+	MessageHeadline string
+	MessageBody     string
 	Parents         struct {
 		Nodes []struct {
 			OID string
@@ -1237,6 +1239,8 @@ func (c *v4Commit) ToCommit() *Commit {
 		CommittedViaWeb: c.CommittedViaWeb,
 		Author:          c.Author.User.GetV3Login(),
 		Committer:       c.Committer.User.GetV3Login(),
+		MessageHeadline: c.MessageHeadline,
+		MessageBody:     c.MessageBody,
 		Signature:       signature,
 	}
 }
