@@ -123,6 +123,11 @@ type Context interface {
 	// permission on a repo.
 	Teams() (map[string]Permission, error)
 
+	// TeamPermission returns the permission of the named team on the
+	// repository, including permission inherited from parent teams. It
+	// returns PermissionNone if the team does not exist or has no access.
+	TeamPermission(team string) (Permission, error)
+
 	// RequestedReviewers returns any current and dismissed review requests on
 	// the pull request.
 	RequestedReviewers() ([]*Reviewer, error)
