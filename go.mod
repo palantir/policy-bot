@@ -2,7 +2,7 @@ module github.com/palantir/policy-bot
 
 go 1.26.0
 
-toolchain go1.26.7
+toolchain go1.26.8
 
 require (
 	github.com/alexedwards/scs v1.4.1
