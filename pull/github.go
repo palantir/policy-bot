@@ -527,7 +527,7 @@ func (ghc *GitHubContext) RepositoryCollaborators(minPermission Permission) ([]*
 	directOpts := &github.ListCollaboratorsOptions{
 		Affiliation: "direct",
 		Permission:  minPermission.GitHubString(),
-		ListOptions: github.ListOptions{PerPage: 100},
+		PerPage:     100,
 	}
 	for {
 		users, resp, err := ghc.client.Repositories.ListCollaborators(ghc.ctx, ghc.owner, ghc.repo, directOpts)
@@ -549,7 +549,7 @@ func (ghc *GitHubContext) RepositoryCollaborators(minPermission Permission) ([]*
 	allOpts := &github.ListCollaboratorsOptions{
 		Affiliation: "all",
 		Permission:  minPermission.GitHubString(),
-		ListOptions: github.ListOptions{PerPage: 100},
+		PerPage:     100,
 	}
 	for {
 		users, resp, err := ghc.client.Repositories.ListCollaborators(ghc.ctx, ghc.owner, ghc.repo, allOpts)
@@ -824,9 +824,7 @@ func (ghc *GitHubContext) getStatuses() (map[string]string, error) {
 
 func (ghc *GitHubContext) getCheckStatuses() (map[string]string, error) {
 	opt := &github.ListCheckRunsOptions{
-		ListOptions: github.ListOptions{
-			PerPage: 100,
-		},
+		PerPage: 100,
 	}
 	// get all pages of results
 	statuses := make(map[string]string)
@@ -863,10 +861,8 @@ func (ghc *GitHubContext) LatestWorkflowRuns() (map[string][]string, error) {
 	opt := &github.ListWorkflowRunsOptions{
 		ExcludePullRequests: true,
 		HeadSHA:             ghc.HeadSHA(),
-		ListOptions: github.ListOptions{
-			PerPage: 100,
-			Page:    0,
-		},
+		PerPage:             100,
+		Page:                0,
 	}
 
 	// The same workflow file can be triggered multiple times. For example:

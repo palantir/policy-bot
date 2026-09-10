@@ -85,18 +85,14 @@ func TestRules(t *testing.T) {
 					},
 				},
 				HasAuthorIn: &predicate.HasAuthorIn{
-					Actors: common.Actors{
-						Teams:         []string{"team1"},
-						Users:         []string{"user1", "user2"},
-						Organizations: []string{"org1"},
-					},
+					Teams:         []string{"team1"},
+					Users:         []string{"user1", "user2"},
+					Organizations: []string{"org1"},
 				},
 				HasContributorIn: &predicate.HasContributorIn{
-					Actors: common.Actors{
-						Teams:         []string{"team2"},
-						Users:         []string{"user3"},
-						Organizations: []string{"org2"},
-					},
+					Teams:         []string{"team2"},
+					Users:         []string{"user3"},
+					Organizations: []string{"org2"},
 				},
 			},
 			Options: Options{

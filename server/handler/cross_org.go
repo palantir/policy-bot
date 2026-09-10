@@ -71,7 +71,7 @@ func (c *CrossOrgMembershipContext) getCtxForOrg(name string) (pull.MembershipCo
 }
 
 func (c *CrossOrgMembershipContext) IsTeamMember(team, user string) (bool, error) {
-	org := strings.Split(team, "/")[0]
+	org, _, _ := strings.Cut(team, "/")
 	mbrCtx, err := c.getCtxForOrg(org)
 	if err != nil {
 		return false, err
@@ -96,7 +96,7 @@ func (c *CrossOrgMembershipContext) OrganizationMembers(org string) ([]string, e
 }
 
 func (c *CrossOrgMembershipContext) TeamMembers(team string) ([]string, error) {
-	org := strings.Split(team, "/")[0]
+	org, _, _ := strings.Cut(team, "/")
 	mbrCtx, err := c.getCtxForOrg(org)
 	if err != nil {
 		return nil, err

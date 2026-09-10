@@ -105,8 +105,7 @@ func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *
 }
 
 func isServerError(err error) bool {
-	var ghErr *github.ErrorResponse
-	if errors.As(err, &ghErr) {
+	if ghErr, ok := errors.AsType[*github.ErrorResponse](err); ok {
 		return ghErr.Response.StatusCode >= 500 && ghErr.Response.StatusCode <= 599
 	}
 	return false

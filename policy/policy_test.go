@@ -512,9 +512,7 @@ func TestConfigMarshalYaml(t *testing.T) {
 						Name: "rule1",
 						Predicates: predicate.Predicates{
 							HasAuthorIn: &predicate.HasAuthorIn{
-								Actors: common.Actors{
-									Users: []string{"author1", "author2"},
-								},
+								Users: []string{"author1", "author2"},
 							},
 							AuthorIsOnlyContributor: new(predicate.AuthorIsOnlyContributor),
 						},

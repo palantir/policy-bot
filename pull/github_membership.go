@@ -98,9 +98,7 @@ func (mc *GitHubMembershipContext) OrganizationMembers(org string) ([]string, er
 	members, ok := mc.orgMembers[org]
 	if !ok {
 		opt := &github.ListMembersOptions{
-			ListOptions: github.ListOptions{
-				PerPage: 100,
-			},
+			PerPage: 100,
 		}
 
 		for {
@@ -127,9 +125,7 @@ func (mc *GitHubMembershipContext) TeamMembers(team string) ([]string, error) {
 	members, ok := mc.teamMembers[team]
 	if !ok {
 		opt := &github.TeamListTeamMembersOptions{
-			ListOptions: github.ListOptions{
-				PerPage: 100,
-			},
+			PerPage: 100,
 		}
 
 		org, slug, err := splitTeam(team)
