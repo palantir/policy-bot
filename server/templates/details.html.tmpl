@@ -96,6 +96,11 @@
             <div class="pt-2">
             {{template "result-approver-details" .}}
             </div>
+            {{if .Requires.Disqualifications}}
+            <div class="pt-2">
+            {{template "result-disqualification-details" (args $root .)}}
+            </div>
+            {{end}}
             <div class="pt-2">
             {{template "result-methods-details" .}}
             </div>
@@ -216,6 +221,25 @@
     </dl>
   {{else}}
     <b class="font-bold text-sm">{{template "result-reviews-count" .Requires}}</b>
+  {{end}}
+{{end}}
+
+{{define "result-disqualification-details"}}
+  {{$root := index . 0}}
+  {{with index . 1}}
+    <b class="font-bold text-sm">These approvals were not counted:</b>
+    <dl class="my-2">
+    {{range .Requires.Disqualifications}}
+      <dt class="font-mono text-sm-mono">{{.Candidate.User}}</dt>
+      <dd class="pl-6 py-1 text-xs italic">
+        {{- if .Commit -}}
+          Contributed commit <a class="font-mono text-sm-mono not-italic" href="{{githubURL $root.PullRequest.GetBase.GetRepo.GetFullName "commit" .Commit}}">{{printf "%.7s" .Commit}}</a>
+        {{- else -}}
+          {{.Description}}
+        {{- end -}}
+      </dd>
+    {{end}}
+    </dl>
   {{end}}
 {{end}}
 

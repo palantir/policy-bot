@@ -118,7 +118,7 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 
 	res.Requires = result
 	res.Dismissals = dismissals
-	res.StatusDescription = statusDescription(approved, result, candidates)
+	res.StatusDescription = statusDescription(approved, result)
 
 	if approved {
 		res.Status = common.StatusApproved
@@ -158,7 +158,7 @@ func (r *Rule) getReviewRequestRule() *common.ReviewRequestRule {
 }
 
 func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) (bool, common.RequiresResult, error) {
-	approvedByActors, approvers, err := r.isApprovedByActors(ctx, prctx, candidates)
+	approvedByActors, approvers, disqualifications, err := r.isApprovedByActors(ctx, prctx, candidates)
 	if err != nil {
 		return false, common.RequiresResult{}, err
 	}
@@ -169,46 +169,59 @@ func (r *Rule) IsApproved(ctx context.Context, prctx pull.Context, candidates []
 	}
 
 	result := common.RequiresResult{
-		Count:      r.Requires.Count,
-		Actors:     r.Requires.Actors,
-		Approvers:  approvers,
-		Conditions: conditions,
+		Count:             r.Requires.Count,
+		Actors:            r.Requires.Actors,
+		Approvers:         approvers,
+		Disqualifications: disqualifications,
+		Conditions:        conditions,
 	}
 	return approvedByActors && approvedByConditions, result, nil
 }
 
-func (r *Rule) isApprovedByActors(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) (bool, []*common.Candidate, error) {
+// banReason is why a user cannot approve a rule, and the commit that caused it
+// when the reason is contribution.
+type banReason struct {
+	reason common.DisqualificationReason
+	commit string
+}
+
+func (r *Rule) isApprovedByActors(ctx context.Context, prctx pull.Context, candidates []*common.Candidate) (bool, []*common.Candidate, []*common.Disqualification, error) {
 	log := zerolog.Ctx(ctx)
 
 	if r.Requires.Count <= 0 {
 		log.Debug().Msg("rule requires no approvals")
-		return true, nil, nil
+		return true, nil, nil, nil
 	}
 
 	log.Debug().Msgf("found %d candidates for approval", len(candidates))
 
-	// collect users "banned" by approval options
-	banned := make(map[string]bool)
+	// collect users "banned" by approval options, recording why so the reason
+	// can be reported instead of only logged
+	banned := make(map[string]banReason)
 
 	// "author" is the user who opened the PR
 	// if contributors are allowed, the author counts as a contributor
 	author := prctx.Author()
 
 	if !r.Options.IsAllowAuthor() && !r.Options.IsAllowContributor() {
-		banned[author] = true
+		banned[author] = banReason{reason: common.DisqualifiedAuthor}
 	}
 
 	// "contributor" is any user who added a commit to the PR
 	if !r.Options.IsAllowContributor() && !r.Options.IsAllowNonAuthorContributor() {
 		commits, err := r.filteredCommits(ctx, prctx)
 		if err != nil {
-			return false, nil, err
+			return false, nil, nil, err
 		}
 
 		for _, c := range commits {
 			for _, u := range c.Users() {
+				// the first commit found for a user is the one reported; the
+				// author ban takes precedence and is never overwritten
 				if u != author {
-					banned[u] = true
+					if _, ok := banned[u]; !ok {
+						banned[u] = banReason{reason: common.DisqualifiedContributor, commit: c.SHA}
+					}
 				}
 			}
 		}
@@ -216,18 +229,28 @@ func (r *Rule) isApprovedByActors(ctx context.Context, prctx pull.Context, candi
 
 	// filter real approvers using banned status and required membership
 	var approvers []*common.Candidate
+	var disqualifications []*common.Disqualification
 	for _, c := range candidates {
-		if banned[c.User] {
-			log.Debug().Str("user", c.User).Msg("rejecting approval by banned user")
+		if b, ok := banned[c.User]; ok {
+			log.Debug().Str("user", c.User).Str("reason", string(b.reason)).Msg("rejecting approval by banned user")
+			disqualifications = append(disqualifications, &common.Disqualification{
+				Candidate: c,
+				Reason:    b.reason,
+				Commit:    b.commit,
+			})
 			continue
 		}
 
 		isApprover, err := r.Requires.Actors.IsActor(ctx, prctx, c.User)
 		if err != nil {
-			return false, nil, errors.Wrap(err, "failed to check candidate status")
+			return false, nil, nil, errors.Wrap(err, "failed to check candidate status")
 		}
 		if !isApprover {
 			log.Debug().Str("user", c.User).Msg("ignoring approval by non-required user")
+			disqualifications = append(disqualifications, &common.Disqualification{
+				Candidate: c,
+				Reason:    common.DisqualifiedNotRequired,
+			})
 			continue
 		}
 
@@ -235,7 +258,7 @@ func (r *Rule) isApprovedByActors(ctx context.Context, prctx pull.Context, candi
 	}
 
 	log.Debug().Msgf("found %d/%d required approvers", len(approvers), r.Requires.Count)
-	return len(approvers) >= r.Requires.Count, approvers, nil
+	return len(approvers) >= r.Requires.Count, approvers, disqualifications, nil
 }
 
 func (r *Rule) isApprovedByConditions(ctx context.Context, prctx pull.Context) (bool, []*common.PredicateResult, error) {
@@ -405,7 +428,7 @@ func (r *Rule) filteredCommits(ctx context.Context, prctx pull.Context) ([]*pull
 	return filtered, nil
 }
 
-func statusDescription(approved bool, result common.RequiresResult, candidates []*common.Candidate) string {
+func statusDescription(approved bool, result common.RequiresResult) string {
 	hasActors := result.Count > 0
 	hasConditions := len(result.Conditions) > 0
 
@@ -450,10 +473,83 @@ func statusDescription(approved bool, result common.RequiresResult, candidates [
 		}
 		fmt.Fprintf(&desc, "%d/%d required conditions", successful, len(result.Conditions))
 	}
-	if disqualified := len(candidates) - len(result.Approvers); hasActors && disqualified > 0 {
-		fmt.Fprintf(&desc, ". Ignored %s from disqualified users", numberOfApprovals(disqualified))
+	if hasActors && len(result.Disqualifications) > 0 {
+		fmt.Fprintf(&desc, ". Ignored %s%s", numberOfApprovals(len(result.Disqualifications)), disqualificationSummary(result.Disqualifications))
 	}
 	return desc.String()
+}
+
+// disqualificationSummary explains why approvals were ignored, briefly enough
+// to fit in a commit status alongside the approval counts. The details page
+// lists the individual users and reasons.
+func disqualificationSummary(disqualifications []*common.Disqualification) string {
+	counts := make(map[common.DisqualificationReason]int)
+	for _, d := range disqualifications {
+		counts[d.Reason]++
+	}
+
+	// keep a fixed order so the message is stable between evaluations
+	order := []common.DisqualificationReason{
+		common.DisqualifiedAuthor,
+		common.DisqualifiedContributor,
+		common.DisqualifiedNotRequired,
+	}
+
+	if len(counts) == 1 {
+		for _, reason := range order {
+			if n, ok := counts[reason]; ok {
+				return " from " + disqualificationPhrase(reason, n)
+			}
+		}
+	}
+
+	var parts []string
+	for _, reason := range order {
+		if n, ok := counts[reason]; ok {
+			parts = append(parts, fmt.Sprintf("%d %s", n, disqualificationShortPhrase(reason, n)))
+		}
+	}
+	return ": " + strings.Join(parts, ", ")
+}
+
+// disqualificationPhrase names a single reason in full, for example
+// "2 approvals from contributors to this pull request".
+func disqualificationPhrase(reason common.DisqualificationReason, count int) string {
+	switch reason {
+	case common.DisqualifiedAuthor:
+		return "the author of this pull request"
+	case common.DisqualifiedContributor:
+		if count == 1 {
+			return "a contributor to this pull request"
+		}
+		return "contributors to this pull request"
+	case common.DisqualifiedNotRequired:
+		if count == 1 {
+			return "a user this rule does not require"
+		}
+		return "users this rule does not require"
+	}
+	return "disqualified users"
+}
+
+// disqualificationShortPhrase names a reason compactly, for the mixed case
+// where several reasons must fit in one status.
+func disqualificationShortPhrase(reason common.DisqualificationReason, count int) string {
+	switch reason {
+	case common.DisqualifiedAuthor:
+		if count == 1 {
+			return "author"
+		}
+		return "authors"
+	case common.DisqualifiedContributor:
+		if count == 1 {
+			return "contributor"
+		}
+		return "contributors"
+	case common.DisqualifiedNotRequired:
+		return "not required"
+	}
+	return string(reason)
 }
 
 func isUpdateMerge(commits []*pull.Commit, c *pull.Commit) bool {

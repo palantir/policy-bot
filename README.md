@@ -34,6 +34,7 @@ UI to view the detailed approval status of any pull request.
     - [Simulation API](#simulation-api)
   - [Caveats and Notes](#caveats-and-notes)
     - [Disapproval is Disabled by Default](#disapproval-is-disabled-by-default)
+    - [Why Approvals Are Ignored](#why-approvals-are-ignored)
     - [Interactions with GitHub Reviews](#interactions-with-github-reviews)
     - [`or`, `and`, and `if` (Rule Predicates)](#or-and-and-if-rule-predicates)
     - [Cross-organization Membership Tests](#cross-organization-membership-tests)
@@ -975,6 +976,27 @@ are worth mentioning.
 You must set at least one of the `disapproval.requires` fields to enable
 disapproval. Without setting one of these fields, GitHub reviews that request
 changes have no effect on the `policy-bot` status.
+
+#### Why Approvals Are Ignored
+
+When `policy-bot` finds an approval it cannot count towards a rule, the commit status says
+so and gives the reason:
+
+    0/1 required approvals. Ignored 1 approval from a contributor to this pull request
+
+The reasons are:
+
+| Reason | Meaning |
+| --- | --- |
+| the author of this pull request | The approver opened the pull request and the rule does not set `allow_author` (or `allow_contributor`). |
+| a contributor to this pull request | The approver has a commit in the pull request and the rule does not set `allow_contributor` or `allow_non_author_contributor`. |
+| a user this rule does not require | The approver is not in the rule's `requires.users`, `requires.organizations`, `requires.teams`, or `requires.permissions`. |
+
+If approvals were ignored for more than one reason, the status lists a count per reason
+instead, for example `Ignored 4 approvals: 1 author, 2 contributors, 1 not required`.
+
+The details page names each ignored approver individually, and links the commit that made
+someone a contributor so you do not have to read the pull request's commits to find it.
 
 #### Interactions with GitHub Reviews
 
