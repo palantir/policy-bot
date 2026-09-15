@@ -108,6 +108,14 @@ type Context interface {
 	// implementation dependent.
 	Reviews() ([]*Review, error)
 
+	// Reactions lists the reactions on the pull request itself. Reactions on
+	// individual comments and reviews are not included. The reaction order is
+	// implementation dependent.
+	//
+	// GitHub does not deliver webhooks for reactions, so the result may be
+	// newer than the event that started this evaluation.
+	Reactions() ([]*Reaction, error)
+
 	// IsDraft returns the draft status of the Pull Request.
 	IsDraft() bool
 
@@ -206,6 +214,29 @@ type Comment struct {
 	LastEditedAt time.Time
 	Author       string
 	Body         string
+}
+
+// Reaction is a reaction on the pull request itself.
+type Reaction struct {
+	CreatedAt time.Time
+	Author    string
+
+	// Content is one of GitHub's reaction content values, such as "+1" or
+	// "rocket". See ReactionContents for the full set.
+	Content string
+}
+
+// ReactionContents is the set of content values GitHub accepts for a reaction.
+// https://docs.github.com/en/rest/reactions/reactions
+var ReactionContents = []string{
+	"+1",
+	"-1",
+	"laugh",
+	"confused",
+	"heart",
+	"hooray",
+	"rocket",
+	"eyes",
 }
 
 type ReviewState string

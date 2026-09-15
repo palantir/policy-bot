@@ -54,6 +54,9 @@ type Context struct {
 	ReviewsValue []*pull.Review
 	ReviewsError error
 
+	ReactionsValue []*pull.Reaction
+	ReactionsError error
+
 	TeamMemberships     map[string][]string
 	TeamMembershipError error
 
@@ -261,6 +264,10 @@ func (c *Context) LatestStatuses() (map[string]string, error) {
 
 func (c *Context) LatestWorkflowRuns() (map[string][]string, error) {
 	return c.LatestWorkflowRunsValue, c.LatestWorkflowRunsError
+}
+
+func (c *Context) Reactions() ([]*pull.Reaction, error) {
+	return c.ReactionsValue, c.ReactionsError
 }
 
 func (c *Context) Labels() ([]string, error) {

@@ -572,3 +572,86 @@ func TestConfigMarshalYaml(t *testing.T) {
 func castToResult(e common.Evaluator) *common.Result {
 	return (*common.Result)(e.(*StaticEvaluator))
 }
+
+// TestReactionApprovalEndToEnd parses a policy.yml that uses the reactions
+// method and evaluates it, covering the whole path from YAML to status.
+func TestReactionApprovalEndToEnd(t *testing.T) {
+	ctx := context.Background()
+
+	const policyYAML = `
+policy:
+  approval:
+    - review bot approved
+
+approval_rules:
+  - name: review bot approved
+    options:
+      methods:
+        comments: []
+        comment_patterns: []
+        github_review: false
+        reactions: ["+1"]
+    requires:
+      count: 1
+      users: ["review-bot[bot]"]
+`
+
+	parse := func(t *testing.T) common.Evaluator {
+		t.Helper()
+		var c Config
+		require.NoError(t, yaml.Unmarshal([]byte(policyYAML), &c))
+		eval, err := ParsePolicy(&c, nil)
+		require.NoError(t, err)
+		return eval
+	}
+
+	t.Run("approvesOnMatchingReaction", func(t *testing.T) {
+		prctx := &pulltest.Context{
+			AuthorValue: "mhaypenny",
+			ReactionsValue: []*pull.Reaction{
+				{Author: "review-bot[bot]", Content: "+1"},
+			},
+		}
+
+		r := parse(t).Evaluate(ctx, prctx)
+		require.NoError(t, r.Error)
+		assert.Equal(t, common.StatusApproved, r.Status)
+	})
+
+	t.Run("pendingWithoutReaction", func(t *testing.T) {
+		prctx := &pulltest.Context{
+			AuthorValue:    "mhaypenny",
+			ReactionsValue: []*pull.Reaction{},
+		}
+
+		r := parse(t).Evaluate(ctx, prctx)
+		require.NoError(t, r.Error)
+		assert.Equal(t, common.StatusPending, r.Status)
+	})
+
+	t.Run("pendingWhenADifferentUserReacts", func(t *testing.T) {
+		prctx := &pulltest.Context{
+			AuthorValue: "mhaypenny",
+			ReactionsValue: []*pull.Reaction{
+				{Author: "someone-else", Content: "+1"},
+			},
+		}
+
+		r := parse(t).Evaluate(ctx, prctx)
+		require.NoError(t, r.Error)
+		assert.Equal(t, common.StatusPending, r.Status)
+	})
+
+	t.Run("rejectsInvalidReactionAtParseTime", func(t *testing.T) {
+		var c Config
+		err := yaml.Unmarshal([]byte(`
+approval_rules:
+  - name: bad
+    options:
+      methods:
+        reactions: [":+1:"]
+`), &c)
+		require.Error(t, err, "an emoji code should not parse as a reaction")
+		assert.Contains(t, err.Error(), "invalid reaction")
+	})
+}
