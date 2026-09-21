@@ -1,0 +1,126 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "policy-bot.fullname" . }}
+  labels:
+    {{- include "policy-bot.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "policy-bot.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/api/metrics"
+        prometheus.io/scheme: "http"
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "policy-bot.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "policy-bot.serviceAccountName" . }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: {{ include "policy-bot.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - server
+            - --config
+            - /secrets/policy-bot.yml
+          env:
+            - name: GITHUB_APP_INTEGRATION_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "policy-bot.secretName" . }}
+                  key: github-integration-id
+            - name: GITHUB_APP_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "policy-bot.secretName" . }}
+                  key: github-webhook-secret
+            - name: GITHUB_APP_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "policy-bot.secretName" . }}
+                  key: github-private-key
+            - name: GITHUB_OAUTH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "policy-bot.secretName" . }}
+                  key: oauth-client-id
+            - name: GITHUB_OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "policy-bot.secretName" . }}
+                  key: oauth-client-secret
+            - name: POLICYBOT_SESSIONS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "policy-bot.secretName" . }}
+                  key: session-key
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.config.server.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /secrets/policy-bot.yml
+              subPath: {{ include "policy-bot.configKey" . }}
+              readOnly: true
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "policy-bot.configMapName" . }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
