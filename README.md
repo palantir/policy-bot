@@ -1030,8 +1030,8 @@ supported options:
 
  * `all-users` to request all users who can approve
  * `random-users` to randomly select the number of users that are required
- * `teams` to request teams for review. Teams must be repository collaborators
-   with at least read access.
+ * `teams` to request teams for review. Teams must have at least read access
+   to the repository, either directly or inherited from a parent team.
 
 ```yaml
 options:
