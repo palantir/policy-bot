@@ -223,6 +223,17 @@ path: path/to/policy.yml
 ref: master
 ```
 
+By default, remote repositories must be accessible to the GitHub App
+installation for the repository defining the `remote` key. To load a private
+remote repository owned by a different user or organization, set the
+server-level `options.allow_private_remotes` option to `true`. The GitHub App
+must be installed on the remote repository. This option can expose policy
+content and repository existence to users without direct repository access, so
+enable it only when all users in the GitHub organizations where policy-bot is
+installed are trusted, or access is otherwise restricted. If policy-bot cannot
+find an installation for the remote repository, it falls back to the original
+client so public remote repositories continue to work.
+
 ### Approval Rules
 
 Each list entry in `approval_rules` has the following specification:

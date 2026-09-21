@@ -134,6 +134,14 @@ sessions:
 #   # environment variable.
 #   force_shared_policy: false
 #
+#   # If true, allow remote policies from private repositories owned by a
+#   # different user or organization. This can disclose policy content and
+#   # repository existence to users without direct repository access. Enable
+#   # only when all users in the GitHub organizations where policy-bot is
+#   # installed are trusted, or access is otherwise restricted. Can also be
+#   # set by the POLICYBOT_OPTIONS_ALLOW_PRIVATE_REMOTES environment variable.
+#   allow_private_remotes: false
+#
 #   # Default options to use for all appoval rules processed by the server.
 #   # Policies can override these values with their own defaults or in individual
 #   # rules. This is equivalent to the "approval_defaults" option in a policy and

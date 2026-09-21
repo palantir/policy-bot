@@ -160,19 +160,24 @@ func New(c *Config) (*Server, error) {
 	if c.Options.SharedPolicyPath != nil {
 		sharedPolicyPaths = []string{*c.Options.SharedPolicyPath}
 	}
+	installations := githubapp.NewInstallationsService(appClient)
+
+	loaderOptions := []appconfig.Option{
+		appconfig.WithOwnerDefault(*c.Options.SharedRepository, sharedPolicyPaths),
+	}
+	if c.Options.AllowPrivateRemotes {
+		loaderOptions = append(loaderOptions, appconfig.WithPrivateRemotes(cc, installations))
+	}
 
 	basePolicyHandler := handler.Base{
 		ClientCreator: cc,
 		BaseConfig:    &c.Server,
-		Installations: githubapp.NewInstallationsService(appClient),
+		Installations: installations,
 		GlobalCache:   globalCache,
 
 		PullOpts: &c.Options,
 		ConfigFetcher: &handler.ConfigFetcher{
-			Loader: appconfig.NewLoader(
-				policyPaths,
-				appconfig.WithOwnerDefault(*c.Options.SharedRepository, sharedPolicyPaths),
-			),
+			Loader:          appconfig.NewLoader(policyPaths, loaderOptions...),
 			SeenPolicyCache: seenPolicyCache,
 		},
 
