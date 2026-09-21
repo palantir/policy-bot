@@ -29,11 +29,12 @@ import (
 )
 
 type Rule struct {
-	Name        string               `yaml:"name,omitempty"`
-	Description string               `yaml:"description,omitempty"`
-	Predicates  predicate.Predicates `yaml:"if,omitempty"`
-	Options     Options              `yaml:"options,omitempty"`
-	Requires    Requires             `yaml:"requires,omitempty"`
+	Name             string               `yaml:"name,omitempty"`
+	Description      string               `yaml:"description,omitempty"`
+	PostGithubReview bool                 `yaml:"post_github_review,omitempty"`
+	Predicates       predicate.Predicates `yaml:"if,omitempty"`
+	Options          Options              `yaml:"options,omitempty"`
+	Requires         Requires             `yaml:"requires,omitempty"`
 }
 
 type Requires struct {
@@ -79,6 +80,7 @@ func (r *Rule) Evaluate(ctx context.Context, prctx pull.Context) (res common.Res
 	res.Description = r.Description
 	res.Status = common.StatusSkipped
 	res.Methods = r.Options.GetMethods()
+	res.PostGithubReview = r.PostGithubReview
 
 	var predicateResults []*common.PredicateResult
 
