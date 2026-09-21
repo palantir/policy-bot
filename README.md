@@ -455,6 +455,12 @@ if:
     - "label-1"
     - "label-2"
 
+  # "has_topics" is satisfied if the repository has all of the specified topics.
+  # Topics are the values returned by the GitHub API as "topics" for a repository.
+  has_topics:
+    - "lib"
+    - "go"
+
   # "repository" is satisfied if the pull request repository matches any one of the
   # patterns within the "matches" list or does not match all of the patterns
   # within the "not_matches" list.
