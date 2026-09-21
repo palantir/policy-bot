@@ -34,6 +34,7 @@ UI to view the detailed approval status of any pull request.
     - [Simulation API](#simulation-api)
   - [Caveats and Notes](#caveats-and-notes)
     - [Disapproval is Disabled by Default](#disapproval-is-disabled-by-default)
+    - [Approval by Reaction](#approval-by-reaction)
     - [Interactions with GitHub Reviews](#interactions-with-github-reviews)
     - [`or`, `and`, and `if` (Rule Predicates)](#or-and-and-if-rule-predicates)
     - [Cross-organization Membership Tests](#cross-organization-membership-tests)
@@ -644,6 +645,18 @@ options:
     body_patterns:
       - "\b(?i)no-platform"
 
+    # If a user adds one of these reactions to the pull request itself, it
+    # counts as approval. Reactions on individual comments and reviews are not
+    # considered. Defaults to an empty list, which disables the method.
+    #
+    # Values are GitHub's reaction content names, not emoji or emoji codes:
+    # "+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes".
+    #
+    # IMPORTANT: GitHub does not send webhooks for reactions, so policy-bot
+    # cannot react to one on its own. See "Approval by reaction" below.
+    reactions:
+      - "+1"
+
 # "requires" specifies the approval requirements for the rule. If the block
 # does not exist, the rule is automatically approved.
 requires:
@@ -975,6 +988,49 @@ are worth mentioning.
 You must set at least one of the `disapproval.requires` fields to enable
 disapproval. Without setting one of these fields, GitHub reviews that request
 changes have no effect on the `policy-bot` status.
+
+#### Approval by Reaction
+
+The `methods.reactions` option counts a reaction on the pull request itself as
+approval. It is useful for bots and GitHub Apps whose only public signal is a
+reaction rather than a comment or a review.
+
+```yaml
+approval_rules:
+  - name: review bot approved
+    options:
+      methods:
+        # only the reaction counts for this rule
+        comments: []
+        comment_patterns: []
+        github_review: false
+        reactions: ["+1"]
+    requires:
+      count: 1
+      users: ["review-bot[bot]"]
+```
+
+Reaction candidates honour `requires.users`, `requires.organizations` and
+`requires.teams` like every other method, and `invalidate_on_push` dismisses a
+reaction that was added before the most recent push, using the time the
+reaction was created. Reactions cannot be edited, so `ignore_edited_comments`
+never applies to them.
+
+**GitHub does not send webhooks for reactions.** There is no `reaction` event
+in [the list of webhook events][webhook-events], so `policy-bot` is never told
+that someone reacted and cannot update the status in response to one on its
+own. A rule that uses reactions is therefore evaluated on *every* other event
+for the pull request, and a new reaction is picked up by the next thing that
+happens there: a comment, a review, a push, a status, or a check run. Opening
+the details page also re-evaluates the policy and shows the current result.
+
+In practice this works well for the bot case, where the reaction usually
+accompanies a check run or a status that does deliver an event. If a reaction
+is the only signal and nothing else happens on the pull request, the status
+will not update until it does. Where that matters, prefer a comment or a
+review, which both have webhooks.
+
+[webhook-events]: https://docs.github.com/en/webhooks/webhook-events-and-payloads
 
 #### Interactions with GitHub Reviews
 

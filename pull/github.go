@@ -137,6 +137,7 @@ type GitHubContext struct {
 	commits                    []*Commit
 	comments                   []*Comment
 	reviews                    []*Review
+	reactions                  []*Reaction
 	reviewers                  []*Reviewer
 	collaborators              map[Permission][]*Collaborator
 	permissions                map[string]Permission
@@ -953,6 +954,43 @@ func (ghc *GitHubContext) Labels() ([]string, error) {
 		ghc.labels = labels
 	}
 	return ghc.labels, nil
+}
+
+// Reactions lists the reactions on the pull request itself.
+//
+// This is loaded on demand with a separate REST call rather than as part of
+// loadPagedData: only policies that configure reaction methods need it, and
+// adding a fourth connection to that query would raise its cost for everyone
+// else.
+func (ghc *GitHubContext) Reactions() ([]*Reaction, error) {
+	if ghc.reactions == nil {
+		opt := &github.ListReactionOptions{
+			ListOptions: github.ListOptions{PerPage: 100},
+		}
+
+		reactions := []*Reaction{}
+		for {
+			res, resp, err := ghc.client.Reactions.ListIssueReactions(ghc.ctx, ghc.owner, ghc.repo, ghc.number, opt)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to list reactions for page %d", opt.Page)
+			}
+
+			for _, r := range res {
+				reactions = append(reactions, &Reaction{
+					CreatedAt: r.GetCreatedAt().Time,
+					Author:    r.GetUser().GetLogin(),
+					Content:   r.GetContent(),
+				})
+			}
+
+			if resp.NextPage == 0 {
+				break
+			}
+			opt.Page = resp.NextPage
+		}
+		ghc.reactions = reactions
+	}
+	return ghc.reactions, nil
 }
 
 func (ghc *GitHubContext) loadPagedData() error {

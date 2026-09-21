@@ -60,6 +60,13 @@ func (r *Rule) Trigger() common.Trigger {
 		if m.IsGithubReview() || len(m.GetGithubReviewCommentPatterns()) > 0 {
 			t |= common.TriggerReview
 		}
+		if len(m.GetReactions()) > 0 {
+			// GitHub sends no webhook when a reaction is added, so there is no
+			// event that specifically means "a reaction changed". Evaluate this
+			// rule on every event instead, so the next thing that happens on the
+			// pull request picks the reaction up.
+			t |= common.TriggerAll
+		}
 	}
 
 	for _, c := range r.Requires.Conditions.Predicates() {
