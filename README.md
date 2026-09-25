@@ -228,7 +228,8 @@ ref: master
 Each list entry in `approval_rules` has the following specification:
 
 ```yaml
-# "name" is required, and is used to reference rules in the "policy" block
+# "name" is required, must be unique within approval_rules, and is used to
+# reference rules in the "policy" block.
 name: "example rule"
 
 # "description" is optional and provides an explanation of the rule or

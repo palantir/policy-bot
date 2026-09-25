@@ -78,6 +78,10 @@ func ParsePolicy(c *Config, opts *GlobalOptions) (common.Evaluator, error) {
 
 	rulesByName := make(map[string]*approval.Rule)
 	for _, r := range c.ApprovalRules {
+		if _, exists := rulesByName[r.Name]; exists {
+			return nil, errors.Errorf("duplicate approval rule name %q", r.Name)
+		}
+
 		// Set policy and server rule defaults
 		r.Options.Defaults = defaultApprovalOptions
 
