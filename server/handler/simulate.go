@@ -169,7 +169,11 @@ func (h *Simulate) newSimulatedContext(ctx context.Context, installationID int64
 	baseBranch, _ := simulatedPRCtx.Branches()
 	owner := simulatedPRCtx.RepositoryOwner()
 	repository := simulatedPRCtx.RepositoryName()
-	fetchedConfig := h.ConfigFetcher.ConfigForRepositoryBranch(ctx, client, owner, repository, baseBranch)
+	policyBranch, err := h.policyBranch(ctx, client, owner, repository, baseBranch, loc.Value.GetBase().GetRepo().GetDefaultBranch())
+	if err != nil {
+		return nil, nil, err
+	}
+	fetchedConfig := h.ConfigFetcher.ConfigForRepositoryBranch(ctx, client, owner, repository, policyBranch)
 	return simulatedPRCtx, &fetchedConfig, nil
 }
 
