@@ -122,6 +122,14 @@ sessions:
 #   # POLICYBOT_OPTIONS_STATUS_CHECK_CONTEXT environment variable.
 #   status_check_context: policy-bot
 #
+#   # If true, load the policy from the repository's default branch instead of
+#   # each pull request's base branch, and post statuses under the bare
+#   # status_check_context with no branch suffix. The stable status name is
+#   # required for stacked pull requests. This option has security
+#   # implications; see the README. Can also be set by the
+#   # POLICYBOT_OPTIONS_POLICY_FROM_DEFAULT_BRANCH environment variable.
+#   policy_from_default_branch: false
+#
 #   # If true, expand teams, organizations, and permissions in the detils UI to
 #   # a list of users. This option has security implications; see the README.
 #   # Can also be set by the POLICYBOT_OPTIONS_EXPAND_REQUIRED_REVIEWERS

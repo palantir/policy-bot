@@ -60,16 +60,20 @@ func (h *MergeGroup) Handle(ctx context.Context, eventType, devlieryID string, p
 
 	// If a PR is added to the merge queue, presumably the policy existed and was valid at the time of merge,
 	// so we're just checking for the existance of a policy here and don't care about its validity.
-	fetchedConfig := h.ConfigFetcher.ConfigForRepositoryBranch(ctx, client, owner, repository, baseBranch)
+	policyRef, err := h.policyRef(ctx, client, owner, repository, baseBranch, event.GetRepo().GetDefaultBranch())
+	if err != nil {
+		return err
+	}
+	fetchedConfig := h.ConfigFetcher.ConfigForRepositoryBranch(ctx, client, owner, repository, policyRef)
 	if fetchedConfig.Config == nil {
 		return nil
 	}
 
-	contextWithBranch := fmt.Sprintf("%s: %s", h.PullOpts.StatusCheckContext, baseBranch)
+	statusContext := h.PullOpts.StatusContext(baseBranch)
 	state := "success"
 	message := fmt.Sprintf("%s previously approved original pull request.", h.AppName)
 	status := github.RepoStatus{
-		Context:     &contextWithBranch,
+		Context:     &statusContext,
 		State:       &state,
 		Description: &message,
 	}
@@ -78,7 +82,7 @@ func (h *MergeGroup) Handle(ctx context.Context, eventType, devlieryID string, p
 		logger.Err(errors.WithStack(err)).Msg("Failed to post status check for merge group")
 	}
 
-	if h.PullOpts.PostInsecureStatusChecks {
+	if h.PullOpts.ShouldPostInsecureStatus() {
 		status.Context = new(h.PullOpts.StatusCheckContext)
 		if err := PostStatus(ctx, client, owner, repository, headSHA, status); err != nil {
 			logger.Err(err).Msg("Failed to post insecure repo status")
