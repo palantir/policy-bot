@@ -85,7 +85,7 @@ func TestParsePolicy(t *testing.T) {
 		assert.Equal(t, disapprovalPolicy, evaluatorImpl.disapproval)
 	})
 
-	t.Run("withMultipleApprovalRules", func(t *testing.T) {
+	t.Run("withUniqueApprovalRuleNames", func(t *testing.T) {
 		rule1 := &approval.Rule{Name: "rule1"}
 		rule2 := &approval.Rule{Name: "rule2"}
 
@@ -99,8 +99,25 @@ func TestParsePolicy(t *testing.T) {
 			ApprovalRules: []*approval.Rule{rule1, rule2},
 		}
 
-		_, err := ParsePolicy(c, nil)
-		assert.NoError(t, err)
+		eval, err := ParsePolicy(c, nil)
+		require.NoError(t, err)
+		assert.NotNil(t, eval)
+	})
+
+	t.Run("withDuplicateApprovalRuleNames", func(t *testing.T) {
+		c := &Config{
+			Policy: Policy{
+				Approval: approval.Policy{"review"},
+			},
+			ApprovalRules: []*approval.Rule{
+				{Name: "review"},
+				{Name: "review"},
+			},
+		}
+
+		eval, err := ParsePolicy(c, nil)
+		require.EqualError(t, err, `duplicate approval rule name "review"`)
+		assert.Nil(t, eval)
 	})
 
 	t.Run("withComplexApprovalPolicy", func(t *testing.T) {
