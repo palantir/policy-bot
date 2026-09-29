@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-github/v90/github"
 	"github.com/palantir/go-githubapp/appconfig"
 	"github.com/palantir/policy-bot/policy"
+	"github.com/rs/zerolog"
 	"gopkg.in/yaml.v2"
 )
 
@@ -45,6 +46,7 @@ type FetchedConfig struct {
 type ConfigFetcher struct {
 	Loader          ConfigLoader
 	SeenPolicyCache *SeenPolicyCache
+	LastGoodCache   *LastGoodConfigCache
 }
 
 func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *github.Client, owner, repository, branch string) FetchedConfig {
@@ -72,6 +74,18 @@ func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *
 
 			retries++
 			if retries > 3 {
+				// After exhausting retries on a transient error, fall back to
+				// the last known good config if one is cached. This prevents a
+				// sustained GitHub outage (e.g. Contents API 500s lasting
+				// minutes) from failing every webhook evaluation.
+				if cached, ok := cf.LastGoodCache.Get(key); ok {
+					zerolog.Ctx(ctx).Warn().
+						Err(err).
+						Str("source", fc.Source).
+						Str("path", fc.Path).
+						Msg("Using cached policy after transient error loading policy")
+					return cached
+				}
 				fc.LoadError = err
 				return fc
 			}
@@ -87,6 +101,7 @@ func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *
 		}
 
 		if c.IsUndefined() {
+			cf.LastGoodCache.Set(key, fc)
 			return fc
 		}
 
@@ -99,6 +114,11 @@ func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *
 			fc.ParseError = err
 		} else {
 			fc.Config = &pc
+		}
+		// Only cache successfully parsed configs. A parse error means the
+		// policy is invalid and should not be served as a fallback.
+		if fc.ParseError == nil {
+			cf.LastGoodCache.Set(key, fc)
 		}
 		return fc
 	}
