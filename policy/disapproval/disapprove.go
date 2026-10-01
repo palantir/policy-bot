@@ -106,6 +106,12 @@ func (p *Policy) Trigger() common.Trigger {
 		if rm.IsGithubReview() || len(rm.GetGithubReviewCommentPatterns()) > 0 {
 			t |= common.TriggerReview
 		}
+
+		// see the matching comment in approval.Rule.Trigger: reactions have no
+		// webhook of their own, so they have to be checked on every event
+		if len(dm.GetReactions()) > 0 || len(rm.GetReactions()) > 0 {
+			t |= common.TriggerAll
+		}
 	}
 
 	for _, predicate := range p.Predicates.Predicates() {

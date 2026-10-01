@@ -16,6 +16,7 @@ package common
 
 import (
 	"context"
+	"errors"
 	"regexp"
 	"sort"
 	"testing"
@@ -52,6 +53,23 @@ func TestCandidates(t *testing.T) {
 				CreatedAt: now.Add(8 * time.Minute),
 				Body:      "I approve this, because it looks good to me.",
 				Author:    "wstrawmoney",
+			},
+		},
+		ReactionsValue: []*pull.Reaction{
+			{
+				CreatedAt: now.Add(6 * time.Minute),
+				Author:    "reviewbot",
+				Content:   "+1",
+			},
+			{
+				CreatedAt: now.Add(6 * time.Minute),
+				Author:    "rrandom",
+				Content:   "eyes",
+			},
+			{
+				CreatedAt: now.Add(10 * time.Minute),
+				Author:    "mhaypenny",
+				Content:   "rocket",
 			},
 		},
 		ReviewsValue: []*pull.Review{
@@ -153,6 +171,48 @@ func TestCandidates(t *testing.T) {
 		assert.Equal(t, "mhaypenny", cs[0].User)
 	})
 
+	t.Run("reactions", func(t *testing.T) {
+		m := &Methods{
+			Reactions: []ReactionContent{"+1"},
+		}
+
+		cs, err := m.Candidates(ctx, prctx)
+		require.NoError(t, err)
+
+		require.Len(t, cs, 1, "incorrect number of candidates found")
+		assert.Equal(t, "reviewbot", cs[0].User)
+		assert.Equal(t, ReactionCandidate, cs[0].Type)
+		assert.Equal(t, now.Add(6*time.Minute), cs[0].CreatedAt)
+		assert.True(t, cs[0].LastEditedAt.IsZero(), "reactions cannot be edited")
+	})
+
+	t.Run("multipleReactions", func(t *testing.T) {
+		m := &Methods{
+			Reactions: []ReactionContent{"+1", "rocket"},
+		}
+
+		cs, err := m.Candidates(ctx, prctx)
+		require.NoError(t, err)
+
+		sort.Sort(CandidatesByCreationTime(cs))
+
+		require.Len(t, cs, 2, "incorrect number of candidates found")
+		assert.Equal(t, "reviewbot", cs[0].User)
+		assert.Equal(t, "mhaypenny", cs[1].User)
+	})
+
+	t.Run("reactionsAreNotLoadedUnlessConfigured", func(t *testing.T) {
+		failing := &pulltest.Context{
+			ReactionsError: errors.New("Reactions() should not be called"),
+		}
+		m := &Methods{
+			Comments: []string{":+1:"},
+		}
+
+		_, err := m.Candidates(ctx, failing)
+		require.NoError(t, err, "reactions were loaded even though no reaction method is configured")
+	})
+
 	t.Run("deduplicate", func(t *testing.T) {
 		githubReview := true
 		m := &Methods{
@@ -171,6 +231,22 @@ func TestCandidates(t *testing.T) {
 		assert.Equal(t, "ttest", cs[1].User)
 		assert.Equal(t, "santaclaus", cs[2].User)
 		assert.Equal(t, "dasherdancer", cs[3].User)
+	})
+
+	t.Run("deduplicateAcrossReactionsAndComments", func(t *testing.T) {
+		m := &Methods{
+			Comments:  []string{":+1:"},
+			Reactions: []ReactionContent{"rocket"},
+		}
+
+		cs, err := m.Candidates(ctx, prctx)
+		require.NoError(t, err)
+
+		// mhaypenny both commented ":+1:" and reacted with "rocket"; only the
+		// later of the two is kept
+		require.Len(t, cs, 1, "incorrect number of candidates found")
+		assert.Equal(t, "mhaypenny", cs[0].User)
+		assert.Equal(t, ReactionCandidate, cs[0].Type, "the more recent action wins")
 	})
 }
 

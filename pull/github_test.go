@@ -717,6 +717,52 @@ func TestLatestStatuses(t *testing.T) {
 	assert.Equal(t, statuses["check-run-b"], "failure", "incorrect conclusion for 'check-run-b' status")
 }
 
+func TestReactions(t *testing.T) {
+	rp := &ResponsePlayer{}
+	rp.AddRule(
+		ExactPathMatcher("/repos/testorg/testrepo/issues/123/reactions"),
+		"testdata/responses/pull_reactions.yml",
+	)
+
+	ctx := makeContext(t, rp, nil, nil)
+
+	reactions, err := ctx.Reactions()
+	require.NoError(t, err)
+
+	require.Len(t, reactions, 3, "incorrect number of reactions, pagination may have failed")
+	assert.Equal(t, "review-bot[bot]", reactions[0].Author)
+	assert.Equal(t, "+1", reactions[0].Content)
+	assert.Equal(t, time.Date(2024, 8, 14, 12, 12, 0, 0, time.UTC), reactions[0].CreatedAt)
+
+	assert.Equal(t, "mhaypenny", reactions[1].Author)
+	assert.Equal(t, "eyes", reactions[1].Content)
+
+	// the third reaction only appears if the second page was requested
+	assert.Equal(t, "ttest", reactions[2].Author)
+	assert.Equal(t, "rocket", reactions[2].Content)
+}
+
+func TestNoReactions(t *testing.T) {
+	rp := &ResponsePlayer{}
+	rule := rp.AddRule(
+		ExactPathMatcher("/repos/testorg/testrepo/issues/123/reactions"),
+		"testdata/responses/pull_no_reactions.yml",
+	)
+
+	ctx := makeContext(t, rp, nil, nil)
+
+	reactions, err := ctx.Reactions()
+	require.NoError(t, err)
+	assert.Empty(t, reactions)
+
+	// a pull request with no reactions must still be cached, or every
+	// evaluation pays for the request again
+	reactions, err = ctx.Reactions()
+	require.NoError(t, err)
+	assert.Empty(t, reactions)
+	assert.Equal(t, 1, rule.Count, "reactions were requested more than once")
+}
+
 func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest, gc GlobalCache) Context {
 	ctx := context.Background()
 	baseURL := "http://github.localhost/"

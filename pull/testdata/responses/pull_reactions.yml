@@ -1,0 +1,36 @@
+- status: 200
+  headers:
+    Link: |
+      <http://github.localhost/repos/testorg/testrepo/issues/123/reactions?page=2>; rel="next",
+      <http://github.localhost/repos/testorg/testrepo/issues/123/reactions?page=2>; rel="last"
+  body: |
+    [
+      {
+        "id": 1,
+        "content": "+1",
+        "created_at": "2024-08-14T12:12:00Z",
+        "user": {
+          "login": "review-bot[bot]"
+        }
+      },
+      {
+        "id": 2,
+        "content": "eyes",
+        "created_at": "2024-08-14T12:13:00Z",
+        "user": {
+          "login": "mhaypenny"
+        }
+      }
+    ]
+- status: 200
+  body: |
+    [
+      {
+        "id": 3,
+        "content": "rocket",
+        "created_at": "2024-08-14T12:14:00Z",
+        "user": {
+          "login": "ttest"
+        }
+      }
+    ]

@@ -93,6 +93,18 @@ func TestIsApproved(t *testing.T) {
 					Body:         "LGTM :+1: :shipit:",
 				},
 			},
+			ReactionsValue: []*pull.Reaction{
+				{
+					CreatedAt: now.Add(25 * time.Second),
+					Author:    "reaction-approver",
+					Content:   "+1",
+				},
+				{
+					CreatedAt: now.Add(26 * time.Second),
+					Author:    "reaction-watcher",
+					Content:   "eyes",
+				},
+			},
 			ReviewsValue: []*pull.Review{
 				{
 					CreatedAt:    now.Add(70 * time.Second),
@@ -400,6 +412,161 @@ func TestIsApproved(t *testing.T) {
 			},
 		}
 		assertApproved(t, prctx, r, "Approved by comment-approver, review-approver")
+	})
+
+	t.Run("reactionApproves", func(t *testing.T) {
+		prctx := basePullContext()
+		r := &Rule{
+			Options: Options{
+				Methods: &common.Methods{
+					Comments:     []string{},
+					GithubReview: new(false),
+					Reactions:    []common.ReactionContent{"+1"},
+				},
+				Defaults: &defaultOptions,
+			},
+			Requires: Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Users: []string{"reaction-approver"},
+				},
+			},
+		}
+		assertApproved(t, prctx, r, "Approved by reaction-approver")
+	})
+
+	t.Run("nonMatchingReactionDoesNotApprove", func(t *testing.T) {
+		prctx := basePullContext()
+		r := &Rule{
+			Options: Options{
+				Methods: &common.Methods{
+					Comments:     []string{},
+					GithubReview: new(false),
+					Reactions:    []common.ReactionContent{"+1"},
+				},
+				Defaults: &defaultOptions,
+			},
+			Requires: Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Users: []string{"reaction-watcher"},
+				},
+			},
+		}
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 1 approval from disqualified users")
+	})
+
+	t.Run("reactionRespectsRequiredUsers", func(t *testing.T) {
+		prctx := basePullContext()
+		r := &Rule{
+			Options: Options{
+				Methods: &common.Methods{
+					Comments:     []string{},
+					GithubReview: new(false),
+					Reactions:    []common.ReactionContent{"+1", "eyes"},
+				},
+				Defaults: &defaultOptions,
+			},
+			Requires: Requires{
+				Count: 2,
+				Actors: common.Actors{
+					Users: []string{"reaction-approver"},
+				},
+			},
+		}
+		assertPending(t, prctx, r, "1/2 required approvals. Ignored 1 approval from disqualified users")
+	})
+
+	t.Run("invalidateReactionOnPush", func(t *testing.T) {
+		prctx := basePullContext()
+		// the reaction is at now+25s, so a push at now+30s invalidates it
+		prctx.PushedAtValue = map[string]time.Time{
+			"c6ade256ecfc755d8bc877ef22cc9e01745d46bb": now.Add(30 * time.Second),
+		}
+		prctx.HeadSHAValue = "c6ade256ecfc755d8bc877ef22cc9e01745d46bb"
+		prctx.CommitsValue = []*pull.Commit{
+			{
+				SHA:       "c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
+				Author:    "mhaypenny",
+				Committer: "mhaypenny",
+			},
+		}
+
+		r := &Rule{
+			Options: Options{
+				InvalidateOnPush: new(true),
+				Methods: &common.Methods{
+					Comments:     []string{},
+					GithubReview: new(false),
+					Reactions:    []common.ReactionContent{"+1"},
+				},
+				Defaults: &defaultOptions,
+			},
+			Requires: Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Users: []string{"reaction-approver"},
+				},
+			},
+		}
+		assertPending(t, prctx, r, "0/1 required approvals")
+	})
+
+	t.Run("reactionSurvivesEarlierPush", func(t *testing.T) {
+		prctx := basePullContext()
+		// the reaction is at now+25s, so a push at now+20s leaves it standing
+		prctx.PushedAtValue = map[string]time.Time{
+			"c6ade256ecfc755d8bc877ef22cc9e01745d46bb": now.Add(20 * time.Second),
+		}
+		prctx.HeadSHAValue = "c6ade256ecfc755d8bc877ef22cc9e01745d46bb"
+		prctx.CommitsValue = []*pull.Commit{
+			{
+				SHA:       "c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
+				Author:    "mhaypenny",
+				Committer: "mhaypenny",
+			},
+		}
+
+		r := &Rule{
+			Options: Options{
+				InvalidateOnPush: new(true),
+				Methods: &common.Methods{
+					Comments:     []string{},
+					GithubReview: new(false),
+					Reactions:    []common.ReactionContent{"+1"},
+				},
+				Defaults: &defaultOptions,
+			},
+			Requires: Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Users: []string{"reaction-approver"},
+				},
+			},
+		}
+		assertApproved(t, prctx, r, "Approved by reaction-approver")
+	})
+
+	t.Run("editedCommentsOptionDoesNotDismissReactions", func(t *testing.T) {
+		prctx := basePullContext()
+		r := &Rule{
+			Options: Options{
+				IgnoreEditedComments: new(true),
+				Methods: &common.Methods{
+					Comments:     []string{},
+					GithubReview: new(false),
+					Reactions:    []common.ReactionContent{"+1"},
+				},
+				Defaults: &defaultOptions,
+			},
+			Requires: Requires{
+				Count: 1,
+				Actors: common.Actors{
+					Users: []string{"reaction-approver"},
+				},
+			},
+		}
+		assertApproved(t, prctx, r, "Approved by reaction-approver")
 	})
 
 	t.Run("invalidateCommentOnPush", func(t *testing.T) {
@@ -831,6 +998,26 @@ func TestTrigger(t *testing.T) {
 
 		assert.True(t, r.Trigger().Matches(common.TriggerCommit), "expected %s to match %s", r.Trigger(), common.TriggerCommit)
 		assert.True(t, r.Trigger().Matches(common.TriggerComment), "expected %s to match %s", r.Trigger(), common.TriggerComment)
+	})
+
+	t.Run("triggerAllOnReactions", func(t *testing.T) {
+		r := &Rule{
+			Options: Options{
+				Methods: &common.Methods{
+					Comments:     []string{},
+					GithubReview: new(false),
+					Reactions:    []common.ReactionContent{"+1"},
+				},
+				Defaults: &defaultOptions,
+			},
+			Requires: Requires{
+				Count: 1,
+			},
+		}
+
+		// GitHub sends no webhook for reactions, so the rule has to be
+		// re-evaluated on every other event to notice one
+		assert.Equal(t, common.TriggerAll, r.Trigger(), "reactions must be checked on every event")
 	})
 
 	t.Run("triggerCommentOnCommentPatterns", func(t *testing.T) {

@@ -16,6 +16,7 @@ package common
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"time"
 
@@ -28,6 +29,13 @@ type Methods struct {
 	GithubReview                *bool    `yaml:"github_review,omitempty"`
 	GithubReviewCommentPatterns []Regexp `yaml:"github_review_comment_patterns,omitempty"`
 	BodyPatterns                []Regexp `yaml:"body_patterns,omitempty"`
+
+	// Reactions lists GitHub reaction contents ("+1", "rocket", ...) on the
+	// pull request itself that count. Defaults to an empty list.
+	//
+	// GitHub sends no webhook when a reaction is added, so a rule using this
+	// is only re-evaluated when something else happens on the pull request.
+	Reactions []ReactionContent `yaml:"reactions,omitempty"`
 
 	// If GithubReview is true, GithubReviewState is the state a review must
 	// have to be considered a candidate. It is set after parsing based on the
@@ -81,6 +89,16 @@ func (m *Methods) GetGithubReviewCommentPatterns() []Regexp {
 	return m.GithubReviewCommentPatterns
 }
 
+func (m *Methods) GetReactions() []ReactionContent {
+	if m.Reactions == nil {
+		if m.Defaults != nil {
+			return m.Defaults.GetReactions()
+		}
+		return nil
+	}
+	return m.Reactions
+}
+
 func (m *Methods) GetBodyPatterns() []Regexp {
 	if m.BodyPatterns == nil {
 		if m.Defaults != nil {
@@ -94,8 +112,9 @@ func (m *Methods) GetBodyPatterns() []Regexp {
 type CandidateType string
 
 const (
-	ReviewCandidate  CandidateType = "review"
-	CommentCandidate CandidateType = "comment"
+	ReviewCandidate   CandidateType = "review"
+	CommentCandidate  CandidateType = "comment"
+	ReactionCandidate CandidateType = "reaction"
 )
 
 type Candidate struct {
@@ -150,6 +169,25 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 				CreatedAt:    prBody.CreatedAt,
 				LastEditedAt: prBody.LastEditedAt,
 			})
+		}
+	}
+
+	if len(m.GetReactions()) > 0 {
+		reactions, err := prctx.Reactions()
+		if err != nil {
+			return nil, err
+		}
+
+		for _, r := range reactions {
+			if m.ReactionMatches(r.Content) {
+				candidates = append(candidates, &Candidate{
+					Type:      ReactionCandidate,
+					User:      r.Author,
+					CreatedAt: r.CreatedAt,
+					// reactions cannot be edited, so LastEditedAt stays zero
+					// and ignore_edited_comments never dismisses one
+				})
+			}
 		}
 	}
 
@@ -225,6 +263,11 @@ func (m *Methods) GithubReviewCommentMatches(commentBody string) bool {
 		}
 	}
 	return false
+}
+
+// ReactionMatches reports whether content is one of the configured reactions.
+func (m *Methods) ReactionMatches(content string) bool {
+	return slices.Contains(m.GetReactions(), ReactionContent(content))
 }
 
 func (m *Methods) BodyMatches(prBody string) bool {
