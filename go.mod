@@ -25,6 +25,7 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/vektah/gqlparser v1.3.1
 	goji.io v2.0.2+incompatible
+	golang.org/x/oauth2 v0.36.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
