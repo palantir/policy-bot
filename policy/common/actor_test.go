@@ -113,6 +113,47 @@ func TestIsActor(t *testing.T) {
 		assertActor(t, a, "jstrawnickel")
 		assertNotActor(t, a, "ttest")
 	})
+
+	t.Run("user_types_bot", func(t *testing.T) {
+		a := &Actors{
+			UserTypes: []string{"Bot"},
+		}
+
+		assertActor(t, a, "dependabot[bot]")
+		assertNotActor(t, a, "mhaypenny")
+	})
+
+	t.Run("user_types_user", func(t *testing.T) {
+		a := &Actors{
+			UserTypes: []string{"User"},
+		}
+
+		assertActor(t, a, "mhaypenny")
+		assertNotActor(t, a, "dependabot[bot]")
+	})
+
+	t.Run("not_empty", func(t *testing.T) {
+		a := &Actors{
+			Not: &Actors{
+				Users: []string{"ttest"},
+			},
+		}
+
+		assertNotActor(t, a, "ttest")
+		assertNotActor(t, a, "mhaypenny")
+	})
+
+	t.Run("not_precedence", func(t *testing.T) {
+		a := &Actors{
+			Users: []string{"mhaypenny", "ttest"},
+			Not: &Actors{
+				Users: []string{"mhaypenny"},
+			},
+		}
+
+		assertActor(t, a, "ttest")
+		assertNotActor(t, a, "mhaypenny")
+	})
 }
 
 func TestIsEmpty(t *testing.T) {
@@ -122,11 +163,17 @@ func TestIsEmpty(t *testing.T) {
 	a = &Actors{Users: []string{"user"}}
 	assert.False(t, a.IsZero(), "Actors struct was empty")
 
+	a = &Actors{UserTypes: []string{"User"}}
+	assert.False(t, a.IsZero(), "Actors struct was empty")
+
 	a = &Actors{Teams: []string{"org/team"}}
 	assert.False(t, a.IsZero(), "Actors struct was empty")
 
 	a = &Actors{Organizations: []string{"org"}}
 	assert.False(t, a.IsZero(), "Actors struct was empty")
+
+	a = &Actors{Not: &Actors{Users: []string{"user"}}}
+	assert.True(t, a.IsZero(), "Actors struct with Not was not empty (specifying Not only should not make it non-empty)")
 
 	a = nil
 	assert.True(t, a.IsZero(), "nil struct was not empty")
