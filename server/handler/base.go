@@ -79,7 +79,12 @@ func (b *Base) NewEvalContext(ctx context.Context, installationID int64, loc pul
 	owner := prctx.RepositoryOwner()
 	repository := prctx.RepositoryName()
 
-	fetchedConfig := b.ConfigFetcher.ConfigForRepositoryBranch(ctx, client, owner, repository, baseBranch)
+	policyRef, err := b.policyRef(ctx, client, owner, repository, baseBranch, loc.Value.GetBase().GetRepo().GetDefaultBranch())
+	if err != nil {
+		return nil, err
+	}
+
+	fetchedConfig := b.ConfigFetcher.ConfigForRepositoryBranch(ctx, client, owner, repository, policyRef)
 
 	return &EvalContext{
 		Client:   client,
@@ -91,6 +96,28 @@ func (b *Base) NewEvalContext(ctx context.Context, installationID int64, loc pul
 		PullContext: prctx,
 		Config:      fetchedConfig,
 	}, nil
+}
+
+// policyRef returns the branch to load the policy from. Most pull request
+// values carry the repository's default branch; the API lookup covers the
+// minimal pull request objects in check_run and workflow_run event payloads,
+// which omit it.
+func (b *Base) policyRef(ctx context.Context, client *github.Client, owner, repo, baseBranch, defaultBranch string) (string, error) {
+	if !b.PullOpts.PolicyFromDefaultBranch {
+		return baseBranch, nil
+	}
+	if defaultBranch != "" {
+		return defaultBranch, nil
+	}
+
+	repository, _, err := client.Repositories.Get(ctx, owner, repo)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get repository %s/%s for default branch", owner, repo)
+	}
+	if branch := repository.GetDefaultBranch(); branch != "" {
+		return branch, nil
+	}
+	return "", errors.Errorf("repository %s/%s has no default branch", owner, repo)
 }
 
 func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger common.Trigger, loc pull.Locator) error {
