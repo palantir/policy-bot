@@ -171,6 +171,16 @@ func TestHasSuccessfulStatus(t *testing.T) {
 	}
 }
 
+func TestHasStatusDefaultConclusionInFailureDescription(t *testing.T) {
+	predicateResult, err := (HasStatus{Statuses: []string{"ci/test"}}).Evaluate(context.Background(), &pulltest.Context{
+		LatestStatusesValue: map[string]string{"ci/test": "failure"},
+	})
+
+	if assert.NoError(t, err) {
+		assert.Equal(t, "One or more statuses has not concluded with success: ci/test", predicateResult.Description)
+	}
+}
+
 type StatusTestSuite struct {
 	nameSuffix        string
 	predicate         Predicate
