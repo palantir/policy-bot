@@ -178,9 +178,7 @@ func getMethods(result *common.Result) map[string][]string {
 	)
 
 	patternInfo := make(map[string][]string)
-	for _, comment := range result.Methods.GetComments() {
-		patternInfo[commentKey] = append(patternInfo[commentKey], comment)
-	}
+	patternInfo[commentKey] = append(patternInfo[commentKey], result.Methods.GetComments()...)
 	for _, commentPattern := range result.Methods.GetCommentPatterns() {
 		patternInfo[commentPatternKey] = append(patternInfo[commentPatternKey], commentPattern.String())
 	}
