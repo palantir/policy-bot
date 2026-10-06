@@ -24,6 +24,25 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestStatusContext(t *testing.T) {
+	opts := &PullEvaluationOptions{StatusCheckContext: "policy-bot"}
+	assert.Equal(t, "policy-bot: main", opts.StatusContext("main"))
+
+	opts.PolicyFromDefaultBranch = true
+	assert.Equal(t, "policy-bot", opts.StatusContext("feature-base"))
+}
+
+func TestShouldPostInsecureStatus(t *testing.T) {
+	assert.False(t, (&PullEvaluationOptions{}).ShouldPostInsecureStatus())
+	assert.True(t, (&PullEvaluationOptions{
+		PostInsecureStatusChecks: true,
+	}).ShouldPostInsecureStatus())
+	assert.False(t, (&PullEvaluationOptions{
+		PostInsecureStatusChecks: true,
+		PolicyFromDefaultBranch:  true,
+	}).ShouldPostInsecureStatus(), "the primary status already uses the bare context")
+}
+
 func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 	tests := map[string]struct {
 		Env         map[string]string
@@ -51,6 +70,12 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 			Env: map[string]string{"PEO_STATUS_CHECK_CONTEXT": "custom-policy-bot"},
 			SetExpected: func(opts *PullEvaluationOptions) {
 				opts.StatusCheckContext = "custom-policy-bot"
+			},
+		},
+		"PolicyFromDefaultBranch": {
+			Env: map[string]string{"PEO_POLICY_FROM_DEFAULT_BRANCH": "true"},
+			SetExpected: func(opts *PullEvaluationOptions) {
+				opts.PolicyFromDefaultBranch = true
 			},
 		},
 		"ForceSharedPolicy": {
