@@ -59,6 +59,12 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 				opts.ForceSharedPolicy = true
 			},
 		},
+		"AllowPrivateRemotes": {
+			Env: map[string]string{"PEO_ALLOW_PRIVATE_REMOTES": "true"},
+			SetExpected: func(opts *PullEvaluationOptions) {
+				opts.AllowPrivateRemotes = true
+			},
+		},
 		"ExpandRequiredReviewers": {
 			Env: map[string]string{"PEO_EXPAND_REQUIRED_REVIEWERS": "true"},
 			SetExpected: func(opts *PullEvaluationOptions) {
