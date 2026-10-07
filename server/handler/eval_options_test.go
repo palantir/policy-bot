@@ -24,11 +24,31 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestStatusContext(t *testing.T) {
+	byBranch := &PullEvaluationOptions{StatusCheckContext: "policy-bot"}
+	assert.Equal(t, "policy-bot: main", byBranch.StatusContext("main"))
+
+	fromDefault := &PullEvaluationOptions{StatusCheckContext: "policy-bot", PolicyFromDefaultBranch: true}
+	assert.Equal(t, "policy-bot", fromDefault.StatusContext("feat-b"))
+}
+
+func TestShouldPostInsecureStatus(t *testing.T) {
+	assert.True(t, (&PullEvaluationOptions{PostInsecureStatusChecks: true}).ShouldPostInsecureStatus())
+	assert.False(t, (&PullEvaluationOptions{PostInsecureStatusChecks: true, PolicyFromDefaultBranch: true}).ShouldPostInsecureStatus())
+	assert.False(t, (&PullEvaluationOptions{}).ShouldPostInsecureStatus())
+}
+
 func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 	tests := map[string]struct {
 		Env         map[string]string
 		SetExpected func(*PullEvaluationOptions)
 	}{
+		"PolicyFromDefaultBranch": {
+			Env: map[string]string{"PEO_POLICY_FROM_DEFAULT_BRANCH": "true"},
+			SetExpected: func(opts *PullEvaluationOptions) {
+				opts.PolicyFromDefaultBranch = true
+			},
+		},
 		"PolicyPath": {
 			Env: map[string]string{"PEO_POLICY_PATH": "test/policy.yml"},
 			SetExpected: func(opts *PullEvaluationOptions) {
