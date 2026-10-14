@@ -79,7 +79,12 @@ func (b *Base) NewEvalContext(ctx context.Context, installationID int64, loc pul
 	owner := prctx.RepositoryOwner()
 	repository := prctx.RepositoryName()
 
-	fetchedConfig := b.ConfigFetcher.ConfigForRepositoryBranch(ctx, client, owner, repository, baseBranch)
+	policyBranch, err := b.policyBranch(ctx, client, owner, repository, baseBranch, loc.Value.GetBase().GetRepo().GetDefaultBranch())
+	if err != nil {
+		return nil, err
+	}
+
+	fetchedConfig := b.ConfigFetcher.ConfigForRepositoryBranch(ctx, client, owner, repository, policyBranch)
 
 	return &EvalContext{
 		Client:   client,
@@ -99,4 +104,21 @@ func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger commo
 		return errors.Wrap(err, "failed to create evaluation context")
 	}
 	return evalCtx.Evaluate(ctx, trigger)
+}
+
+func (b *Base) policyBranch(ctx context.Context, client *github.Client, owner, repo, baseBranch, payloadDefaultBranch string) (string, error) {
+	if !b.PullOpts.PolicyFromDefaultBranch {
+		return baseBranch, nil
+	}
+	if payloadDefaultBranch != "" {
+		return payloadDefaultBranch, nil
+	}
+	repoInfo, _, err := client.Repositories.Get(ctx, owner, repo)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to load repository for default branch")
+	}
+	if branch := repoInfo.GetDefaultBranch(); branch != "" {
+		return branch, nil
+	}
+	return "", errors.Errorf("repository %s/%s has no default branch", owner, repo)
 }
