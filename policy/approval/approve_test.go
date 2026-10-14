@@ -17,6 +17,7 @@ package approval
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"regexp"
 	"testing"
@@ -159,7 +160,7 @@ func TestIsApproved(t *testing.T) {
 		require.NoError(t, err)
 
 		if assert.True(t, approved, "pull request was not approved") {
-			msg := statusDescription(approved, result, allowedCandidates)
+			msg := statusDescription(approved, result)
 			assert.Equal(t, expected, msg)
 		}
 	}
@@ -172,10 +173,112 @@ func TestIsApproved(t *testing.T) {
 		require.NoError(t, err)
 
 		if assert.False(t, approved, "pull request was incorrectly approved") {
-			msg := statusDescription(approved, result, allowedCandidates)
+			msg := statusDescription(approved, result)
 			assert.Equal(t, expected, msg)
 		}
 	}
+
+	// assertDisqualified checks which candidates were rejected and why, keyed
+	// by user so the assertion does not depend on candidate ordering.
+	assertDisqualified := func(t *testing.T, prctx pull.Context, r *Rule, expected map[string]common.DisqualificationReason) {
+		allowedCandidates, _, err := r.FilteredCandidates(ctx, prctx)
+		require.NoError(t, err)
+
+		_, result, err := r.IsApproved(ctx, prctx, allowedCandidates)
+		require.NoError(t, err)
+
+		actual := make(map[string]common.DisqualificationReason)
+		for _, d := range result.Disqualifications {
+			actual[d.Candidate.User] = d.Reason
+		}
+		assert.Equal(t, expected, actual)
+	}
+
+	// https://github.com/palantir/policy-bot/issues/766
+	t.Run("reportsWhyEachApprovalWasIgnored", func(t *testing.T) {
+		prctx := basePullContext()
+		r := &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
+			Requires: Requires{
+				Count: 1,
+				Actors: common.Actors{
+					// nobody who approved is in the required set, so every
+					// candidate is disqualified for some reason
+					Users: []string{"nobody"},
+				},
+			},
+		}
+
+		assertDisqualified(t, prctx, r, map[string]common.DisqualificationReason{
+			"mhaypenny":             common.DisqualifiedAuthor,
+			"contributor-author":    common.DisqualifiedContributor,
+			"contributor-committer": common.DisqualifiedContributor,
+			"comment-approver":      common.DisqualifiedNotRequired,
+			"comment-editor":        common.DisqualifiedNotRequired,
+			"review-approver":       common.DisqualifiedNotRequired,
+			"review-comment-editor": common.DisqualifiedNotRequired,
+		})
+	})
+
+	t.Run("namesTheCommitThatDisqualifiedAContributor", func(t *testing.T) {
+		prctx := basePullContext()
+		r := &Rule{
+			Options: Options{
+				Defaults: &defaultOptions,
+			},
+			Requires: Requires{
+				Count:  1,
+				Actors: common.Actors{Users: []string{"nobody"}},
+			},
+		}
+
+		allowedCandidates, _, err := r.FilteredCandidates(ctx, prctx)
+		require.NoError(t, err)
+		_, result, err := r.IsApproved(ctx, prctx, allowedCandidates)
+		require.NoError(t, err)
+
+		commits := make(map[string]string)
+		for _, d := range result.Disqualifications {
+			if d.Reason == common.DisqualifiedContributor {
+				commits[d.Candidate.User] = d.Commit
+			}
+		}
+
+		// without this, finding out why an approval was ignored means reading
+		// every commit on the pull request by hand
+		assert.Equal(t, map[string]string{
+			"contributor-author":    "674832587eaaf416371b30f5bc5a47e377f534ec",
+			"contributor-committer": "97d5ea26da319a987d80f6db0b7ef759f2f2e441",
+		}, commits)
+	})
+
+	t.Run("allowedContributorsAreNotDisqualified", func(t *testing.T) {
+		prctx := basePullContext()
+		r := &Rule{
+			Options: Options{
+				AllowContributor: new(true),
+				Defaults:         &defaultOptions,
+			},
+			Requires: Requires{
+				Count:  1,
+				Actors: common.Actors{Users: []string{"contributor-author"}},
+			},
+		}
+
+		allowedCandidates, _, err := r.FilteredCandidates(ctx, prctx)
+		require.NoError(t, err)
+		_, result, err := r.IsApproved(ctx, prctx, allowedCandidates)
+		require.NoError(t, err)
+
+		for _, d := range result.Disqualifications {
+			assert.NotEqual(t, common.DisqualifiedContributor, d.Reason,
+				"contributors are allowed, so none should be disqualified for contributing")
+			assert.NotEqual(t, common.DisqualifiedAuthor, d.Reason,
+				"allow_contributor also allows the author")
+		}
+	})
 
 	t.Run("noApprovalRequired", func(t *testing.T) {
 		prctx := basePullContext()
@@ -202,7 +305,7 @@ func TestIsApproved(t *testing.T) {
 				Count: 1,
 			},
 		}
-		assertPending(t, prctx, r, "0/1 required approvals. Ignored 7 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 7 approvals: 1 author, 2 contributors, 4 not required")
 	})
 
 	t.Run("authorCannotApprove", func(t *testing.T) {
@@ -353,7 +456,7 @@ func TestIsApproved(t *testing.T) {
 				},
 			},
 		}
-		assertPending(t, prctx, r, "0/1 required approvals. Ignored 7 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 7 approvals: 1 author, 2 contributors, 4 not required")
 	})
 
 	t.Run("specificOrgApproves", func(t *testing.T) {
@@ -382,7 +485,7 @@ func TestIsApproved(t *testing.T) {
 				},
 			},
 		}
-		assertPending(t, prctx, r, "0/1 required approvals. Ignored 7 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 7 approvals: 1 author, 2 contributors, 4 not required")
 	})
 
 	t.Run("specificOrgsOrUserApproves", func(t *testing.T) {
@@ -430,7 +533,7 @@ func TestIsApproved(t *testing.T) {
 		assertApproved(t, prctx, r, "Approved by comment-approver")
 
 		r.Options.InvalidateOnPush = new(true)
-		assertPending(t, prctx, r, "0/1 required approvals. Ignored 6 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 6 approvals: 1 author, 5 not required")
 	})
 
 	t.Run("invalidateReviewOnPush", func(t *testing.T) {
@@ -461,7 +564,7 @@ func TestIsApproved(t *testing.T) {
 		assertApproved(t, prctx, r, "Approved by review-approver")
 
 		r.Options.InvalidateOnPush = new(true)
-		assertPending(t, prctx, r, "0/1 required approvals. Ignored 1 approval from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 1 approval from a user this rule does not require")
 	})
 
 	t.Run("ignoreUpdateMergeAfterReview", func(t *testing.T) {
@@ -493,7 +596,7 @@ func TestIsApproved(t *testing.T) {
 				},
 			},
 		}
-		assertPending(t, prctx, r, "0/1 required approvals. Ignored 6 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 6 approvals: 1 author, 5 not required")
 
 		r.Options.IgnoreUpdateMerges = new(true)
 		assertApproved(t, prctx, r, "Approved by comment-approver")
@@ -528,7 +631,7 @@ func TestIsApproved(t *testing.T) {
 				},
 			},
 		}
-		assertPending(t, prctx, r, "0/1 required approvals. Ignored 8 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 8 approvals: 1 author, 1 contributor, 6 not required")
 
 		r.Options.IgnoreUpdateMerges = new(true)
 		assertApproved(t, prctx, r, "Approved by merge-committer")
@@ -554,7 +657,7 @@ func TestIsApproved(t *testing.T) {
 				},
 			},
 		}
-		assertPending(t, prctx, r, "0/1 required approvals. Ignored 7 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 7 approvals: 1 author, 1 contributor, 5 not required")
 
 		r.Options.IgnoreCommitsBy = &common.Actors{
 			Users: []string{"comment-approver"},
@@ -579,7 +682,7 @@ func TestIsApproved(t *testing.T) {
 				},
 			},
 		}
-		assertPending(t, prctx, r, "0/1 required approvals. Ignored 7 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 7 approvals: 1 author, 2 contributors, 4 not required")
 	})
 
 	t.Run("ignoreCommitsInvalidateOnPush", func(t *testing.T) {
@@ -657,7 +760,7 @@ func TestIsApproved(t *testing.T) {
 		assertApproved(t, prctx, r, "Approved by comment-approver")
 
 		r.Options.InvalidateOnPush = new(true)
-		assertPending(t, prctx, r, "0/1 required approvals. Ignored 6 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 6 approvals: 1 author, 5 not required")
 
 		r.Options.IgnoreCommitsBy = &common.Actors{
 			Users: []string{"mhaypenny"},
@@ -684,7 +787,7 @@ func TestIsApproved(t *testing.T) {
 
 		r.Options.IgnoreEditedComments = new(true)
 
-		assertPending(t, prctx, r, "0/1 required approvals. Ignored 5 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 5 approvals: 1 author, 2 contributors, 2 not required")
 	})
 
 	t.Run("ignoreEditedComments", func(t *testing.T) {
@@ -706,7 +809,7 @@ func TestIsApproved(t *testing.T) {
 
 		r.Options.IgnoreEditedComments = new(true)
 
-		assertPending(t, prctx, r, "0/1 required approvals. Ignored 5 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 5 approvals: 1 author, 2 contributors, 2 not required")
 	})
 
 	t.Run("ignoreEditedCommentsWithBodyPattern", func(t *testing.T) {
@@ -734,7 +837,7 @@ func TestIsApproved(t *testing.T) {
 
 		r.Options.IgnoreEditedComments = new(true)
 
-		assertPending(t, prctx, r, "0/1 required approvals. Ignored 5 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals. Ignored 5 approvals: 1 author, 2 contributors, 2 not required")
 	})
 
 	t.Run("conditionsRequiredStatusPending", func(t *testing.T) {
@@ -780,7 +883,7 @@ func TestIsApproved(t *testing.T) {
 				},
 			},
 		}
-		assertPending(t, prctx, r, "0/1 required approvals and 1/1 required conditions. Ignored 7 approvals from disqualified users")
+		assertPending(t, prctx, r, "0/1 required approvals and 1/1 required conditions. Ignored 7 approvals: 1 author, 2 contributors, 4 not required")
 	})
 
 	t.Run("conditionsRequiredStatusAndOrgApproval", func(t *testing.T) {
@@ -1005,6 +1108,106 @@ func TestSortCommits(t *testing.T) {
 				actual = append(actual, c.SHA)
 			}
 			assert.Equal(t, test.ExpectedOrder, actual, "incorrect commit order")
+		})
+	}
+}
+
+// TestStatusDescriptionDisqualifications pins the wording of the status that
+// GitHub shows, which is the only place most users ever see why an approval
+// was ignored. See https://github.com/palantir/policy-bot/issues/766.
+func TestStatusDescriptionDisqualifications(t *testing.T) {
+	disqualify := func(reasons ...common.DisqualificationReason) []*common.Disqualification {
+		var ds []*common.Disqualification
+		for i, r := range reasons {
+			ds = append(ds, &common.Disqualification{
+				Candidate: &common.Candidate{User: fmt.Sprintf("user%d", i)},
+				Reason:    r,
+			})
+		}
+		return ds
+	}
+
+	for _, test := range []struct {
+		name     string
+		result   common.RequiresResult
+		expected string
+	}{
+		{
+			name:     "noDisqualifications",
+			result:   common.RequiresResult{Count: 1},
+			expected: "0/1 required approvals",
+		},
+		{
+			// previously read "Ignored 1 approval from disqualified users"
+			name: "singleAuthor",
+			result: common.RequiresResult{
+				Count:             1,
+				Disqualifications: disqualify(common.DisqualifiedAuthor),
+			},
+			expected: "0/1 required approvals. Ignored 1 approval from the author of this pull request",
+		},
+		{
+			name: "singleContributor",
+			result: common.RequiresResult{
+				Count:             1,
+				Disqualifications: disqualify(common.DisqualifiedContributor),
+			},
+			expected: "0/1 required approvals. Ignored 1 approval from a contributor to this pull request",
+		},
+		{
+			name: "multipleContributors",
+			result: common.RequiresResult{
+				Count:             2,
+				Disqualifications: disqualify(common.DisqualifiedContributor, common.DisqualifiedContributor),
+			},
+			expected: "0/2 required approvals. Ignored 2 approvals from contributors to this pull request",
+		},
+		{
+			name: "singleNotRequired",
+			result: common.RequiresResult{
+				Count:             1,
+				Disqualifications: disqualify(common.DisqualifiedNotRequired),
+			},
+			expected: "0/1 required approvals. Ignored 1 approval from a user this rule does not require",
+		},
+		{
+			name: "multipleNotRequired",
+			result: common.RequiresResult{
+				Count:             1,
+				Disqualifications: disqualify(common.DisqualifiedNotRequired, common.DisqualifiedNotRequired),
+			},
+			expected: "0/1 required approvals. Ignored 2 approvals from users this rule does not require",
+		},
+		{
+			name: "mixedReasonsAreBrokenDown",
+			result: common.RequiresResult{
+				Count: 1,
+				Disqualifications: disqualify(
+					common.DisqualifiedNotRequired,
+					common.DisqualifiedContributor,
+					common.DisqualifiedAuthor,
+					common.DisqualifiedContributor,
+				),
+			},
+			// reasons are listed in a fixed order, not the order they happened
+			expected: "0/1 required approvals. Ignored 4 approvals: 1 author, 2 contributors, 1 not required",
+		},
+		{
+			name: "noDisqualificationTextWhenNoActorsAreRequired",
+			result: common.RequiresResult{
+				Count:             0,
+				Conditions:        []*common.PredicateResult{{Satisfied: false}},
+				Disqualifications: disqualify(common.DisqualifiedAuthor),
+			},
+			expected: "0/1 required conditions",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			desc := statusDescription(false, test.result)
+			assert.Equal(t, test.expected, desc)
+
+			// GitHub rejects status descriptions longer than this
+			assert.LessOrEqual(t, len(desc), 140, "status description is too long for the GitHub API")
 		})
 	}
 }
