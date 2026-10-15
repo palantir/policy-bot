@@ -152,7 +152,7 @@ func userHasReviewerPermission(user *pull.Collaborator, perms []pull.Permission)
 
 func findRuleRequires(config *policy.Config, ruleName string) *approval.Requires {
 	for _, rule := range config.ApprovalRules {
-		if rule.Name == ruleName {
+		if rule != nil && rule.Name == ruleName {
 			return &rule.Requires
 		}
 	}

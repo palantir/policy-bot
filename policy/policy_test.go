@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"regexp"
+	"sync"
 	"testing"
 
 	"github.com/palantir/policy-bot/policy/approval"
@@ -384,6 +385,29 @@ func TestParsePolicy(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "empty list of subconditions is not allowed")
 	})
+}
+
+func TestParsePolicySharedServerDefaults(t *testing.T) {
+	opts := &GlobalOptions{ApprovalDefaults: &approval.Defaults{Options: &approval.Options{
+		IgnoreEditedComments: new(true),
+	}}}
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Go(func() {
+			rule := &approval.Rule{Name: "review"}
+			config := &Config{
+				Policy:        Policy{Approval: approval.Policy{"review"}},
+				ApprovalRules: []*approval.Rule{rule},
+			}
+			_, err := ParsePolicy(config, opts)
+			if assert.NoError(t, err) {
+				assert.True(t, rule.Options.IsIgnoreEditedComments())
+				assert.Equal(t, approval.DefaultMethods().Comments, rule.Options.GetMethods().GetComments())
+			}
+		})
+	}
+	wg.Wait()
+	assert.Nil(t, opts.ApprovalDefaults.Options.Defaults)
 }
 
 func TestEvaluator(t *testing.T) {
