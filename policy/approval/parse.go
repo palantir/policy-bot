@@ -23,11 +23,23 @@ import (
 
 type Policy []any
 
-func (p Policy) Parse(rules map[string]*Rule) (common.Evaluator, error) {
-	eval := &evaluator{}
+// Parse records declared slots in slots. A nil registry disallows declarations.
+func (p Policy) Parse(rules map[string]*Rule, slots map[string]*SlotRule) (common.Evaluator, error) {
+	root, err := p.parseTree(rules, slots)
+	if err != nil {
+		return nil, err
+	}
+	return &evaluator{root: root}, nil
+}
 
+// ParseFill parses an implicitly ANDed list of rules without allowing slots.
+func (p Policy) ParseFill(rules map[string]*Rule) (common.Evaluator, error) {
+	return p.parseTree(rules, nil)
+}
+
+func (p Policy) parseTree(rules map[string]*Rule, slots map[string]*SlotRule) (common.Evaluator, error) {
 	if len(p) == 0 {
-		return eval, nil
+		return nil, nil
 	}
 
 	// assume "and" for the list of rules
@@ -35,16 +47,10 @@ func (p Policy) Parse(rules map[string]*Rule) (common.Evaluator, error) {
 		"and": []any(p),
 	}
 
-	and, err := parsePolicyR(root, rules, 0)
-	if err != nil {
-		return nil, err
-	}
-
-	eval.root = and
-	return eval, nil
+	return parsePolicyR(root, rules, slots, 0)
 }
 
-func parsePolicyR(policy any, rules map[string]*Rule, depth int) (common.Evaluator, error) {
+func parsePolicyR(policy any, rules map[string]*Rule, slots map[string]*SlotRule, depth int) (common.Evaluator, error) {
 	if depth > 10 {
 		return nil, errors.New("reached maximum recursive depth while processing policy")
 	}
@@ -68,13 +74,23 @@ func parsePolicyR(policy any, rules map[string]*Rule, depth int) (common.Evaluat
 	if conjunction, ok := policy.(map[any]any); ok {
 		var ops []string
 		for k := range conjunction {
-			ops = append(ops, k.(string))
+			key, ok := k.(string)
+			if !ok {
+				return nil, errors.Errorf("expected string policy key, but got %T", k)
+			}
+			ops = append(ops, key)
+		}
+		if _, exists := conjunction["slot"]; exists {
+			return parseSlot(conjunction, slots)
 		}
 		if len(ops) != 1 {
 			return nil, errors.Errorf("multiple keys found when one was expected: %v", ops)
 		}
 
 		op := ops[0]
+		if op != "and" && op != "or" {
+			return nil, errors.Errorf("invalid conjunction '%s', allowed values: [or, and]", op)
+		}
 		values, ok := conjunction[op].([]any)
 		if !ok {
 			return nil, errors.Errorf("expected list of subconditions, but got %T", conjunction[op])
@@ -85,22 +101,46 @@ func parsePolicyR(policy any, rules map[string]*Rule, depth int) (common.Evaluat
 
 		var subrequirements []common.Evaluator
 		for _, subpolicy := range values {
-			subreq, err := parsePolicyR(subpolicy, rules, depth+1)
+			subreq, err := parsePolicyR(subpolicy, rules, slots, depth+1)
 			if err != nil {
 				return nil, errors.WithMessage(err, fmt.Sprintf("failed to parse subpolicies for '%s'", op))
 			}
 			subrequirements = append(subrequirements, subreq)
 		}
 
-		switch op {
-		case "or":
+		if op == "or" {
 			return &OrRequirement{requirements: subrequirements}, nil
-		case "and":
-			return &AndRequirement{requirements: subrequirements}, nil
-		default:
-			return nil, errors.Errorf("invalid conjunction '%s', allowed values: [or, and]", op)
 		}
+		return &AndRequirement{requirements: subrequirements}, nil
 	}
 
 	return nil, errors.Errorf("malformed policy, expected string or map, but encountered %T", policy)
+}
+
+func parseSlot(marker map[any]any, slots map[string]*SlotRule) (common.Evaluator, error) {
+	if slots == nil {
+		return nil, errors.New("slot declarations are not allowed in slot fills")
+	}
+	for key := range marker {
+		if key != "slot" && key != "required" {
+			return nil, errors.Errorf("unknown slot key %q", key)
+		}
+	}
+	slotName, ok := marker["slot"].(string)
+	if !ok || slotName == "" {
+		return nil, errors.New("slot name must be a nonempty string")
+	}
+	var required bool
+	if value, exists := marker["required"]; exists {
+		required, ok = value.(bool)
+		if !ok {
+			return nil, errors.Errorf("slot %q required flag must be a boolean", slotName)
+		}
+	}
+	if _, exists := slots[slotName]; exists {
+		return nil, errors.Errorf("duplicate slot name %q", slotName)
+	}
+	slot := &SlotRule{Name: slotName, Required: required}
+	slots[slotName] = slot
+	return slot, nil
 }
