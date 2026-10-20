@@ -1,0 +1,5 @@
+type: improvement
+improvement:
+  description: Add a `test` command that evaluates a policy against local scenario fixtures offline, for unit-testing policies in CI.
+  links:
+  - https://github.com/palantir/policy-bot/pull/1422
