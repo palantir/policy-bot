@@ -1,5 +1,0 @@
-type: improvement
-improvement:
-  description: Add a `labels` predicate supporting `has_any`, `has_all`, and `has_none` sub-keys for matching pull request labels.
-  links:
-  - https://github.com/palantir/policy-bot/pull/1421
