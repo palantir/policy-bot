@@ -16,6 +16,7 @@ package pull
 
 import (
 	"context"
+	"fmt"
 	"maps"
 	"net/http"
 	"slices"
@@ -35,6 +36,11 @@ const (
 	// MaxPullRequestCommits is the max number of commits returned by GitHub
 	// https://developer.github.com/v3/pulls/#list-commits-on-a-pull-request
 	MaxPullRequestCommits = 250
+
+	// MaxCompareFiles is the max number of files returned by GitHub when
+	// comparing two commits
+	// https://docs.github.com/en/rest/commits/commits#compare-two-commits
+	MaxCompareFiles = 300
 )
 
 // Locator identifies a pull request and optionally contains a full or partial
@@ -314,21 +320,9 @@ func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
 	}
 
 	if ghc.files == nil {
-		opt := github.ListOptions{
-			PerPage: 100,
-		}
-
-		var allFiles []*github.CommitFile
-		for {
-			files, res, err := ghc.client.PullRequests.ListFiles(ghc.ctx, ghc.owner, ghc.repo, ghc.number, &opt)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to list pull request files")
-			}
-			allFiles = append(allFiles, files...)
-			if res.NextPage == 0 {
-				break
-			}
-			opt.Page = res.NextPage
+		allFiles, err := ghc.loadChangedFiles()
+		if err != nil {
+			return nil, err
 		}
 
 		ghc.files = make([]*File, 0, len(allFiles))
@@ -363,6 +357,80 @@ func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
 	}
 
 	return ghc.files, nil
+}
+
+// loadChangedFiles returns the files changed by the head commit of the
+// context, which may differ from the current head of the pull request.
+func (ghc *GitHubContext) loadChangedFiles() ([]*github.CommitFile, error) {
+	if ghc.pr.ChangedFiles < MaxCompareFiles {
+		// Comparing with three dots uses the merge base, like the pull
+		// request diff. Commits are paginated but files are only on the first
+		// page, so request the smallest page of commits.
+		comparison, _, err := ghc.client.Repositories.CompareCommits(ghc.ctx, ghc.owner, ghc.repo, ghc.pr.BaseRefName, ghc.pr.HeadRefOID, &github.ListOptions{
+			PerPage: 1,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to compare pull request head to base")
+		}
+		if len(comparison.Files) < MaxCompareFiles {
+			return comparison.Files, nil
+		}
+	}
+
+	// The pull request files API only lists files for the current head, so
+	// the head must not change while listing them.
+	if err := ghc.checkHeadUnchanged(); err != nil {
+		return nil, err
+	}
+
+	opt := github.ListOptions{
+		PerPage: 100,
+	}
+
+	var allFiles []*github.CommitFile
+	for {
+		files, res, err := ghc.client.PullRequests.ListFiles(ghc.ctx, ghc.owner, ghc.repo, ghc.number, &opt)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to list pull request files")
+		}
+		allFiles = append(allFiles, files...)
+		if res.NextPage == 0 {
+			break
+		}
+		opt.Page = res.NextPage
+	}
+
+	if err := ghc.checkHeadUnchanged(); err != nil {
+		return nil, err
+	}
+	return allFiles, nil
+}
+
+// checkHeadUnchanged returns a TemporaryError if the current head of the pull
+// request is not the head commit of the context.
+func (ghc *GitHubContext) checkHeadUnchanged() error {
+	var q struct {
+		Repository struct {
+			PullRequest struct {
+				HeadRefOID string
+			} `graphql:"pullRequest(number: $number)"`
+		} `graphql:"repository(owner: $owner, name: $name)"`
+	}
+	qvars := map[string]any{
+		"owner":  githubv4.String(ghc.owner),
+		"name":   githubv4.String(ghc.repo),
+		"number": githubv4.Int(ghc.number),
+	}
+
+	if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
+		return errors.Wrap(err, "failed to load pull request head")
+	}
+	if head := q.Repository.PullRequest.HeadRefOID; head != ghc.pr.HeadRefOID {
+		return &TemporaryError{
+			error: fmt.Sprintf("pull request head changed from %.10s to %.10s during evaluation", ghc.pr.HeadRefOID, head),
+		}
+	}
+	return nil
 }
 
 func (ghc *GitHubContext) Commits() ([]*Commit, error) {
