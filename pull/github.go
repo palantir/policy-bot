@@ -133,7 +133,7 @@ type GitHubContext struct {
 	number int
 	pr     *v4PullRequest
 
-	statusCheckContext string
+	statusSource StatusSource
 
 	// cached fields
 	files                      []*File
@@ -153,13 +153,27 @@ type GitHubContext struct {
 	repositoryCustomProperties map[string]CustomProperty
 }
 
+// StatusSource identifies the statuses that policy-bot posts. Only these
+// statuses are used to estimate push times.
+type StatusSource struct {
+	// AppName is the slug of the GitHub App. Its statuses are created by the
+	// AppName + "[bot]" user.
+	AppName string
+
+	// Context is the context prefix of the statuses.
+	Context string
+}
+
+// DetailsPath returns the path of the details page for a pull request,
+// relative to the public URL of policy-bot.
+func DetailsPath(owner, repo string, number int) string {
+	return fmt.Sprintf("/details/%s/%s/%d", owner, repo, number)
+}
+
 // NewGitHubContext creates a new pull.Context that makes GitHub requests to
 // obtain information. It caches responses for the lifetime of the context. The
 // pull request passed to the context must contain at least the base repository
 // and the number or the function panics.
-//
-// The statusCheckContext is the context prefix of the statuses posted by
-// policy-bot. Only these statuses are used to estimate push times.
 func NewGitHubContext(
 	ctx context.Context,
 	mbrCtx MembershipContext,
@@ -167,7 +181,7 @@ func NewGitHubContext(
 	client *github.Client,
 	v4client *githubv4.Client,
 	loc Locator,
-	statusCheckContext string,
+	statusSource StatusSource,
 ) (Context, error) {
 	if loc.Owner == "" || loc.Repo == "" || loc.Number == 0 {
 		panic("pull request object does not contain full identifying information")
@@ -193,7 +207,7 @@ func NewGitHubContext(
 		number: loc.Number,
 		pr:     pr,
 
-		statusCheckContext: statusCheckContext,
+		statusSource: statusSource,
 	}, nil
 }
 
@@ -1105,18 +1119,24 @@ func (ghc *GitHubContext) loadPushedAt(sha string) (time.Time, error) {
 }
 
 // isOwnStatus returns true if the status was posted by policy-bot for this
-// pull request.
+// pull request. Anyone with write access can post a status with any context
+// and target URL, so the creator is checked first.
 func (ghc *GitHubContext) isOwnStatus(s *github.RepoStatus) bool {
-	if ghc.statusCheckContext == "" {
+	src := ghc.statusSource
+	if src.AppName == "" || src.Context == "" {
+		return false
+	}
+
+	if s.GetCreator().GetLogin() != src.AppName+"[bot]" {
 		return false
 	}
 
 	statusContext := s.GetContext()
-	if statusContext != ghc.statusCheckContext && !strings.HasPrefix(statusContext, ghc.statusCheckContext+": ") {
+	if statusContext != src.Context && !strings.HasPrefix(statusContext, src.Context+": ") {
 		return false
 	}
 
-	detailsPath := fmt.Sprintf("/details/%s/%s/%d", ghc.owner, ghc.repo, ghc.number)
+	detailsPath := DetailsPath(ghc.owner, ghc.repo, ghc.number)
 	return strings.HasSuffix(strings.ToLower(s.GetTargetURL()), strings.ToLower(detailsPath))
 }
 

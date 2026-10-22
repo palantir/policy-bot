@@ -7,16 +7,19 @@
     [
       {
         "context": "policy-bot: develop",
+        "creator": { "login": "policy-bot[bot]" },
         "target_url": "http://policy-bot.localhost/details/testorg/testrepo/123",
         "created_at": "2020-09-30T17:36:44Z"
       },
       {
         "context": "policy-bot: develop",
+        "creator": { "login": "policy-bot[bot]" },
         "target_url": "http://policy-bot.localhost/details/testorg/testrepo/123",
         "created_at": "2020-09-30T17:35:01Z"
       },
       {
         "context": "policy-bot: develop",
+        "creator": { "login": "policy-bot[bot]" },
         "target_url": "http://policy-bot.localhost/details/testorg/testrepo/123",
         "created_at": "2020-09-30T17:32:13Z"
       }
@@ -32,16 +35,19 @@
     [
       {
         "context": "policy-bot: develop",
+        "creator": { "login": "policy-bot[bot]" },
         "target_url": "http://policy-bot.localhost/details/testorg/testrepo/123",
         "created_at": "2020-09-30T17:32:00Z"
       },
       {
         "context": "policy-bot: develop",
+        "creator": { "login": "policy-bot[bot]" },
         "target_url": "http://policy-bot.localhost/details/testorg/testrepo/123",
         "created_at": "2020-09-30T17:30:21Z"
       },
       {
         "context": "policy-bot: develop",
+        "creator": { "login": "policy-bot[bot]" },
         "target_url": "http://policy-bot.localhost/details/testorg/testrepo/123",
         "created_at": "2020-09-30T17:30:11Z"
       }
@@ -55,11 +61,13 @@
     [
       {
         "context": "policy-bot: develop",
+        "creator": { "login": "policy-bot[bot]" },
         "target_url": "http://policy-bot.localhost/details/testorg/testrepo/123",
         "created_at": "2020-09-30T17:30:10Z"
       },
       {
         "context": "policy-bot: develop",
+        "creator": { "login": "policy-bot[bot]" },
         "target_url": "http://policy-bot.localhost/details/testorg/testrepo/123",
         "created_at": "2020-09-30T17:30:00Z"
       }

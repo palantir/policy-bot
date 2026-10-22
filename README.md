@@ -1104,8 +1104,8 @@ When this option is enabled, an approval is only valid if:
   estimate of the push time of the most recent relevant commit. The estimate
   uses the time of the oldest status that `policy-bot` posted on the commit
   for this pull request, or the current time during evaluation if there is no
-  such status. Statuses posted by other tools, or for other pull requests, are
-  not used.
+  such status. Statuses posted by other users or tools, even with the same
+  context and details link, or for other pull requests, are not used.
 - For all approvals, the approval happened after the most recent force-push,
   head branch restore, reopen, or base branch change of the pull request.
 

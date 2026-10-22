@@ -824,7 +824,7 @@ func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest, gc Gl
 		Repo:   pr.GetBase().GetRepo().GetName(),
 		Number: pr.GetNumber(),
 		Value:  pr,
-	}, "policy-bot")
+	}, StatusSource{AppName: "policy-bot", Context: "policy-bot"})
 	require.NoError(t, err, "failed to create github context")
 
 	return prctx
