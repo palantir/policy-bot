@@ -461,6 +461,7 @@ if:
       - ".github/workflows/a.yml"
       - ".github/workflows/b.yml"
 
+  # DEPRECATED: Use "labels" below instead, which is more flexible.
   # "has_labels" is satisfied if the pull request has the specified labels
   # applied
   has_labels:

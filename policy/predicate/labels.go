@@ -70,6 +70,10 @@ func (pred Labels) Evaluate(ctx context.Context, prctx pull.Context) (*common.Pr
 	}
 
 	predicateResult.Satisfied = satisfied
+	predicateResult.Description = "The labels do not meet the required conditions"
+	if satisfied {
+		predicateResult.Description = "The labels meet the required conditions"
+	}
 	return &predicateResult, nil
 }
 
