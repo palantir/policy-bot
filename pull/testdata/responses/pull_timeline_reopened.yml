@@ -1,0 +1,18 @@
+- status: 200
+  body: |
+    {
+      "data": {
+        "repository": {
+          "pullRequest": {
+            "timelineItems": {
+              "nodes": [
+                {
+                  "__typename": "ReopenedEvent",
+                  "createdAt": "2020-09-30T18:05:00Z"
+                }
+              ]
+            }
+          }
+        }
+      }
+    }

@@ -616,7 +616,7 @@ func TestPushedAt(t *testing.T) {
 		assert.Equal(t, expectedTime, pushedAt, "incorrect pushed at for commit")
 		assert.Equal(t, 3, statusRuleE05.Count, "incorrect http request count")
 
-		cachedPushedAt := gc.PushedAt["1234:e05fcae367230ee709313dd2720da527d178ce43"]
+		cachedPushedAt := gc.PushedAt["1234:123:e05fcae367230ee709313dd2720da527d178ce43"]
 		assert.Equal(t, expectedTime, cachedPushedAt, "incorrect value in global cache")
 	})
 
@@ -650,6 +650,93 @@ func TestPushedAt(t *testing.T) {
 
 		assert.Equal(t, expectedTime, pushedAt, "incorrect pushed at for commit")
 		assert.Equal(t, 3, statusRuleE05.Count, "incorrect http request count")
+	})
+}
+
+func TestPushedAtOwnStatuses(t *testing.T) {
+	sha := "e05fcae367230ee709313dd2720da527d178ce43"
+	statusPath := "/repos/testorg/testrepo/commits/" + sha + "/statuses"
+
+	t.Run("oldestForThisPullRequest", func(t *testing.T) {
+		rp := &ResponsePlayer{}
+		rp.AddRule(ExactPathMatcher(statusPath), "testdata/responses/repo_statuses_mixed_contexts.yml")
+
+		ctx := makeContext(t, rp, nil, nil)
+		pushedAt, err := ctx.PushedAt(sha)
+		require.NoError(t, err)
+
+		assert.Equal(t, time.Date(2020, 9, 30, 17, 38, 0, 0, time.UTC), pushedAt, "incorrect pushed at for commit")
+	})
+
+	t.Run("onlyOtherPullRequest", func(t *testing.T) {
+		rp := &ResponsePlayer{}
+		rp.AddRule(
+			GraphQLNodePrefixMatcher("repository.pullRequest.commits"),
+			"testdata/responses/pull_commits_comments_reviews.yml",
+		)
+		rp.AddRule(ExactPathMatcher(statusPath), "testdata/responses/repo_statuses_other_pull_request.yml")
+
+		gc := NewMockGlobalCache()
+		gc.PushedAt["1234:456:"+sha] = time.Date(2020, 9, 30, 17, 30, 0, 0, time.UTC)
+
+		ctx := makeContext(t, rp, nil, gc)
+		pushedAt, err := ctx.PushedAt(sha)
+		require.NoError(t, err)
+
+		assert.Equal(t, ctx.EvaluationTimestamp(), pushedAt, "push time must not come from another pull request")
+	})
+}
+
+func TestLatestHeadRewrite(t *testing.T) {
+	matcher := GraphQLNodePrefixMatcher("repository.pullRequest.timelineItems")
+
+	t.Run("forcePushed", func(t *testing.T) {
+		rp := &ResponsePlayer{}
+		rule := rp.AddRule(matcher, "testdata/responses/pull_timeline_force_pushed.yml")
+
+		ctx := makeContext(t, rp, nil, nil)
+		rewrite, err := ctx.LatestHeadRewrite()
+		require.NoError(t, err)
+
+		require.NotNil(t, rewrite)
+		assert.Equal(t, time.Date(2020, 9, 30, 18, 0, 0, 0, time.UTC), rewrite.At)
+		assert.Equal(t, "e05fcae367230ee709313dd2720da527d178ce43", rewrite.SHA)
+
+		_, err = ctx.LatestHeadRewrite()
+		require.NoError(t, err)
+		assert.Equal(t, 1, rule.Count, "incorrect http request count")
+	})
+
+	t.Run("reopened", func(t *testing.T) {
+		rp := &ResponsePlayer{}
+		rp.AddRule(matcher, "testdata/responses/pull_timeline_reopened.yml")
+
+		ctx := makeContext(t, rp, nil, nil)
+		rewrite, err := ctx.LatestHeadRewrite()
+		require.NoError(t, err)
+
+		require.NotNil(t, rewrite)
+		assert.Equal(t, time.Date(2020, 9, 30, 18, 5, 0, 0, time.UTC), rewrite.At)
+		assert.Empty(t, rewrite.SHA)
+	})
+
+	t.Run("none", func(t *testing.T) {
+		rp := &ResponsePlayer{}
+		rp.AddRule(matcher, "testdata/responses/pull_timeline_none.yml")
+
+		ctx := makeContext(t, rp, nil, nil)
+		rewrite, err := ctx.LatestHeadRewrite()
+		require.NoError(t, err)
+		assert.Nil(t, rewrite)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		rp := &ResponsePlayer{}
+		rp.AddRule(matcher, "testdata/responses/pull_timeline_error.yml")
+
+		ctx := makeContext(t, rp, nil, nil)
+		_, err := ctx.LatestHeadRewrite()
+		assert.Error(t, err)
 	})
 }
 
@@ -737,7 +824,7 @@ func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest, gc Gl
 		Repo:   pr.GetBase().GetRepo().GetName(),
 		Number: pr.GetNumber(),
 		Value:  pr,
-	})
+	}, "policy-bot")
 	require.NoError(t, err, "failed to create github context")
 
 	return prctx
@@ -788,11 +875,11 @@ func NewMockGlobalCache() *MockGlobalCache {
 	}
 }
 
-func (c *MockGlobalCache) GetPushedAt(repoID int64, sha string) (time.Time, bool) {
-	t, ok := c.PushedAt[fmt.Sprintf("%d:%s", repoID, sha)]
+func (c *MockGlobalCache) GetPushedAt(repoID int64, number int, sha string) (time.Time, bool) {
+	t, ok := c.PushedAt[fmt.Sprintf("%d:%d:%s", repoID, number, sha)]
 	return t, ok
 }
 
-func (c *MockGlobalCache) SetPushedAt(repoID int64, sha string, t time.Time) {
-	c.PushedAt[fmt.Sprintf("%d:%s", repoID, sha)] = t
+func (c *MockGlobalCache) SetPushedAt(repoID int64, number int, sha string, t time.Time) {
+	c.PushedAt[fmt.Sprintf("%d:%d:%s", repoID, number, sha)] = t
 }

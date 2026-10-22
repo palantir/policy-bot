@@ -160,7 +160,7 @@ func (h *Simulate) newSimulatedContext(ctx context.Context, installationID int64
 	}
 
 	mbrCtx := NewCrossOrgMembershipContext(ctx, client, loc.Owner, h.Installations, h.ClientCreator)
-	prctx, err := pull.NewGitHubContext(ctx, mbrCtx, h.GlobalCache, client, v4client, loc)
+	prctx, err := pull.NewGitHubContext(ctx, mbrCtx, h.GlobalCache, client, v4client, loc, h.PullOpts.StatusCheckContext)
 	if err != nil {
 		return nil, nil, err
 	}
