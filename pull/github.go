@@ -16,6 +16,7 @@ package pull
 
 import (
 	"context"
+	"fmt"
 	"maps"
 	"net/http"
 	"slices"
@@ -132,6 +133,8 @@ type GitHubContext struct {
 	number int
 	pr     *v4PullRequest
 
+	statusSource StatusSource
+
 	// cached fields
 	files                      []*File
 	commits                    []*Commit
@@ -144,8 +147,27 @@ type GitHubContext struct {
 	statuses                   map[string]string
 	labels                     []string
 	pushedAt                   map[string]time.Time
+	headRewrite                *HeadRewrite
+	headRewriteLoaded          bool
 	workflowRuns               map[string][]string
 	repositoryCustomProperties map[string]CustomProperty
+}
+
+// StatusSource identifies the statuses that policy-bot posts. Only these
+// statuses are used to estimate push times.
+type StatusSource struct {
+	// AppName is the slug of the GitHub App. Its statuses are created by the
+	// AppName + "[bot]" user.
+	AppName string
+
+	// Context is the context prefix of the statuses.
+	Context string
+}
+
+// DetailsPath returns the path of the details page for a pull request,
+// relative to the public URL of policy-bot.
+func DetailsPath(owner, repo string, number int) string {
+	return fmt.Sprintf("/details/%s/%s/%d", owner, repo, number)
 }
 
 // NewGitHubContext creates a new pull.Context that makes GitHub requests to
@@ -159,6 +181,7 @@ func NewGitHubContext(
 	client *github.Client,
 	v4client *githubv4.Client,
 	loc Locator,
+	statusSource StatusSource,
 ) (Context, error) {
 	if loc.Owner == "" || loc.Repo == "" || loc.Number == 0 {
 		panic("pull request object does not contain full identifying information")
@@ -183,6 +206,8 @@ func NewGitHubContext(
 		repo:   loc.Repo,
 		number: loc.Number,
 		pr:     pr,
+
+		statusSource: statusSource,
 	}, nil
 }
 
@@ -427,7 +452,7 @@ func (ghc *GitHubContext) PushedAt(sha string) (time.Time, error) {
 	for _, sha := range candidateSHAs {
 		ghc.pushedAt[sha] = pushedAt
 		if gc := ghc.globalCache; gc != nil {
-			gc.SetPushedAt(repoID, sha, pushedAt)
+			gc.SetPushedAt(repoID, ghc.number, sha, pushedAt)
 		}
 	}
 
@@ -448,7 +473,7 @@ func (ghc *GitHubContext) tryPushedAt(repoID int64, sha string) (time.Time, erro
 		return t, nil
 	}
 	if gc := ghc.globalCache; gc != nil {
-		if t, ok := gc.GetPushedAt(repoID, sha); ok {
+		if t, ok := gc.GetPushedAt(repoID, ghc.number, sha); ok {
 			ghc.pushedAt[sha] = t
 			return t, nil
 		}
@@ -1071,22 +1096,121 @@ func (ghc *GitHubContext) loadPushedAt(sha string) (time.Time, error) {
 	}
 
 	// ListStatuses returns statuses in reverse chronological order, so the
-	// last item on the last page is the oldest status, which must have been
-	// posted after someone pushed the commit.
+	// last matching item on the last page is the oldest status that
+	// policy-bot posted for this pull request, which must have been posted
+	// after someone pushed the commit to this pull request. Statuses from
+	// other contexts or pull requests may predate the push to this one.
+	var oldest time.Time
 	for {
 		statuses, resp, err := ghc.client.Repositories.ListStatuses(ghc.ctx, ghc.owner, ghc.repo, sha, opt)
 		if err != nil {
 			return time.Time{}, errors.Wrapf(err, "failed to list statuses for page %d", opt.Page)
 		}
-		if len(statuses) == 0 {
-			return time.Time{}, nil
+		for _, s := range statuses {
+			if ghc.isOwnStatus(s) {
+				oldest = s.GetCreatedAt().Time
+			}
 		}
 		if resp.NextPage == 0 {
-			last := statuses[len(statuses)-1]
-			return last.GetCreatedAt().Time, nil
+			return oldest, nil
 		}
 		opt.Page = resp.NextPage
 	}
+}
+
+// isOwnStatus returns true if the status was posted by policy-bot for this
+// pull request. Anyone with write access can post a status with any context
+// and target URL, so the creator is checked first.
+func (ghc *GitHubContext) isOwnStatus(s *github.RepoStatus) bool {
+	src := ghc.statusSource
+	if src.AppName == "" || src.Context == "" {
+		return false
+	}
+
+	if s.GetCreator().GetLogin() != src.AppName+"[bot]" {
+		return false
+	}
+
+	statusContext := s.GetContext()
+	if statusContext != src.Context && !strings.HasPrefix(statusContext, src.Context+": ") {
+		return false
+	}
+
+	detailsPath := DetailsPath(ghc.owner, ghc.repo, ghc.number)
+	return strings.HasSuffix(strings.ToLower(s.GetTargetURL()), strings.ToLower(detailsPath))
+}
+
+func (ghc *GitHubContext) LatestHeadRewrite() (*HeadRewrite, error) {
+	if ghc.headRewriteLoaded {
+		return ghc.headRewrite, nil
+	}
+
+	type eventTime struct {
+		CreatedAt time.Time
+	}
+
+	var q struct {
+		Repository struct {
+			PullRequest struct {
+				TimelineItems struct {
+					Nodes []struct {
+						Typename                string `graphql:"__typename"`
+						HeadRefForcePushedEvent struct {
+							CreatedAt   time.Time
+							AfterCommit *struct {
+								OID string
+							}
+						} `graphql:"... on HeadRefForcePushedEvent"`
+						HeadRefRestoredEvent eventTime `graphql:"... on HeadRefRestoredEvent"`
+						ReopenedEvent        eventTime `graphql:"... on ReopenedEvent"`
+						BaseRefChangedEvent  eventTime `graphql:"... on BaseRefChangedEvent"`
+					}
+				} `graphql:"timelineItems(last: 1, itemTypes: $itemTypes)"`
+			} `graphql:"pullRequest(number: $number)"`
+		} `graphql:"repository(owner: $owner, name: $name)"`
+	}
+	qvars := map[string]any{
+		"owner":  githubv4.String(ghc.owner),
+		"name":   githubv4.String(ghc.repo),
+		"number": githubv4.Int(ghc.number),
+		"itemTypes": []githubv4.PullRequestTimelineItemsItemType{
+			githubv4.PullRequestTimelineItemsItemTypeHeadRefForcePushedEvent,
+			githubv4.PullRequestTimelineItemsItemTypeHeadRefRestoredEvent,
+			githubv4.PullRequestTimelineItemsItemTypeReopenedEvent,
+			githubv4.PullRequestTimelineItemsItemTypeBaseRefChangedEvent,
+		},
+	}
+
+	if err := ghc.v4client.Query(ghc.ctx, &q, qvars); err != nil {
+		return nil, errors.Wrap(err, "failed to load pull request timeline")
+	}
+
+	var rewrite *HeadRewrite
+	if nodes := q.Repository.PullRequest.TimelineItems.Nodes; len(nodes) > 0 {
+		n := nodes[0]
+		switch n.Typename {
+		case "HeadRefForcePushedEvent":
+			rewrite = &HeadRewrite{At: n.HeadRefForcePushedEvent.CreatedAt}
+			if c := n.HeadRefForcePushedEvent.AfterCommit; c != nil {
+				rewrite.SHA = c.OID
+			}
+		case "HeadRefRestoredEvent":
+			rewrite = &HeadRewrite{At: n.HeadRefRestoredEvent.CreatedAt}
+		case "ReopenedEvent":
+			rewrite = &HeadRewrite{At: n.ReopenedEvent.CreatedAt}
+		case "BaseRefChangedEvent":
+			rewrite = &HeadRewrite{At: n.BaseRefChangedEvent.CreatedAt}
+		default:
+			return nil, errors.Errorf("unexpected timeline event type %q", n.Typename)
+		}
+		if rewrite.At.IsZero() {
+			return nil, errors.Errorf("timeline event %s has no creation time", n.Typename)
+		}
+	}
+
+	ghc.headRewrite = rewrite
+	ghc.headRewriteLoaded = true
+	return rewrite, nil
 }
 
 // if adding new fields to this struct, modify Locator#toV4() and Locator#IsComplete() as well

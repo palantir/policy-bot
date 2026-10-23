@@ -48,6 +48,9 @@ type Context struct {
 
 	PushedAtValue map[string]time.Time
 
+	LatestHeadRewriteValue *pull.HeadRewrite
+	LatestHeadRewriteError error
+
 	CommentsValue []*pull.Comment
 	CommentsError error
 
@@ -155,6 +158,10 @@ func (c *Context) Commits() ([]*pull.Commit, error) {
 
 func (c *Context) PushedAt(sha string) (time.Time, error) {
 	return c.PushedAtValue[sha], nil
+}
+
+func (c *Context) LatestHeadRewrite() (*pull.HeadRewrite, error) {
+	return c.LatestHeadRewriteValue, c.LatestHeadRewriteError
 }
 
 func (c *Context) IsTeamMember(team, user string) (bool, error) {
