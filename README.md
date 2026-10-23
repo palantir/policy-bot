@@ -29,6 +29,7 @@ UI to view the detailed approval status of any pull request.
   - [policy.yml Specification](#policyyml-specification)
   - [Approval Rules](#approval-rules)
   - [Approval Policies](#approval-policies)
+    - [Approval Slots](#approval-slots)
   - [Disapproval Policy](#disapproval-policy)
   - [Testing and Debugging Policies](#testing-and-debugging-policies)
     - [Simulation API](#simulation-api)
@@ -784,8 +785,8 @@ policy:
     - ...
 ```
 
-Each list entry may be the name of a rule, or one of the following
-conjunctions:
+Each list entry may be the name of a rule, an [approval slot](#approval-slots),
+or one of the following conjunctions:
 
 ```yaml
 or:
@@ -811,6 +812,49 @@ Conjunctions can contain more conjunctions (up to a maximum depth of 5):
         - rule3
         - rule4
 ```
+
+#### Approval Slots
+
+A slot is a named place in an approval policy that is filled by a list of rules
+from the same file. For example, this policy requires both platform and service
+review:
+
+```yaml
+policy:
+  approval:
+    - Platform review
+    - slot: service-review
+      required: true
+
+slots:
+  service-review:
+    - Service review
+
+approval_rules:
+  - name: Platform review
+    requires:
+      count: 1
+      teams: [example/platform]
+  - name: Service review
+    requires:
+      count: 1
+      teams: [example/service]
+```
+
+Slots may appear wherever a rule reference is allowed. Slot names must be unique,
+nonempty strings. Each `slots` value is a list of same-file rule names or
+`and`/`or` expressions, combined with `and`. It cannot contain slots. Thus,
+`Emergency OR slot(A, B)` means `Emergency OR (A AND B)`.
+
+An optional slot (the default) skips when its content is omitted or `[]`. With
+`required: true`, either case makes the whole policy invalid, including inside
+`or`. Null fills are invalid. Required means populated; the rules still use their
+usual predicates, defaults, options, and approval counting. If all approval
+entries skip, Policy Bot reports an error.
+
+Undeclared fills are validated but add no requirements or evaluation triggers.
+The details page labels filled slots and hides empty ones. Slots use one policy
+file; `approval_extends` is not supported.
 
 ### Disapproval Policy
 

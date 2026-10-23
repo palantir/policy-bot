@@ -94,7 +94,7 @@ func TestParsePolicy(t *testing.T) {
 		rulesByName[r.Name] = r
 	}
 
-	req, err := policy.Parse(rulesByName)
+	req, err := policy.Parse(rulesByName, nil)
 	require.NoError(t, err, "failed to parse policy")
 
 	expected := &evaluator{
@@ -267,5 +267,5 @@ func loadAndParsePolicy(t *testing.T, policyText string, ruleText string) (commo
 		rulesByName[r.Name] = r
 	}
 
-	return policy.Parse(rulesByName)
+	return policy.Parse(rulesByName, nil)
 }
