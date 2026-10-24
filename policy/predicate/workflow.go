@@ -78,7 +78,7 @@ func (pred HasWorkflowResult) Evaluate(ctx context.Context, prctx pull.Context) 
 
 	if len(failingWorkflows) > 0 {
 		predicateResult.Values = failingWorkflows
-		predicateResult.Description = fmt.Sprintf("One or more workflow runs have not concluded with %s: %s", pred.Conclusions.joinWithOr(), strings.Join(failingWorkflows, ","))
+		predicateResult.Description = fmt.Sprintf("One or more workflow runs have not concluded with %s: %s", allowedConclusions.joinWithOr(), strings.Join(failingWorkflows, ","))
 		predicateResult.Satisfied = false
 		return &predicateResult, nil
 	}
