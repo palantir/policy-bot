@@ -24,13 +24,20 @@ import (
 	"time"
 
 	"github.com/google/go-github/v92/github"
+	"github.com/pkg/errors"
 	"github.com/shurcooL/githubv4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+const comparePath = "/repos/testorg/testrepo/compare/develop...e05fcae367230ee709313dd2720da527d178ce43"
+
 func TestChangedFiles(t *testing.T) {
 	rp := &ResponsePlayer{}
+	compareRule := rp.AddRule(
+		ExactPathMatcher(comparePath),
+		"testdata/responses/compare_files.yml",
+	)
 	filesRule := rp.AddRule(
 		ExactPathMatcher("/repos/testorg/testrepo/pulls/123/files"),
 		"testdata/responses/pull_files.yml",
@@ -41,8 +48,68 @@ func TestChangedFiles(t *testing.T) {
 	files, err := ctx.ChangedFiles()
 	require.NoError(t, err)
 
+	assertTestFiles(t, files)
+	assert.Equal(t, 1, compareRule.Count, "incorrect http request count")
+	assert.Equal(t, 0, filesRule.Count, "files were listed for the live head")
+
+	// verify that the file list is cached
+	files, err = ctx.ChangedFiles()
+	require.NoError(t, err)
+
 	require.Len(t, files, 5, "incorrect number of files")
-	assert.Equal(t, 2, filesRule.Count, "no http request was made")
+	assert.Equal(t, 1, compareRule.Count, "cached files were not used")
+}
+
+func TestChangedFilesManyFiles(t *testing.T) {
+	headMatcher := GraphQLNodePrefixMatcher("repository.pullRequest.headRefOid")
+
+	newContext := func(t *testing.T, rp *ResponsePlayer) Context {
+		pr := defaultTestPR()
+		*pr.ChangedFiles = MaxCompareFiles
+		return makeContext(t, rp, pr, nil)
+	}
+
+	t.Run("headUnchanged", func(t *testing.T) {
+		rp := &ResponsePlayer{}
+		compareRule := rp.AddRule(ExactPathMatcher(comparePath), "testdata/responses/compare_no_files.yml")
+		filesRule := rp.AddRule(ExactPathMatcher("/repos/testorg/testrepo/pulls/123/files"), "testdata/responses/pull_files.yml")
+		headRule := rp.AddRule(headMatcher, "testdata/responses/pull_head_unchanged.yml")
+
+		files, err := newContext(t, rp).ChangedFiles()
+		require.NoError(t, err)
+
+		assertTestFiles(t, files)
+		assert.Equal(t, 0, compareRule.Count, "incorrect http request count")
+		assert.Equal(t, 2, filesRule.Count, "incorrect http request count")
+		assert.Equal(t, 2, headRule.Count, "head was not checked before and after listing files")
+	})
+
+	t.Run("headChangedBefore", func(t *testing.T) {
+		rp := &ResponsePlayer{}
+		filesRule := rp.AddRule(ExactPathMatcher("/repos/testorg/testrepo/pulls/123/files"), "testdata/responses/pull_files.yml")
+		rp.AddRule(headMatcher, "testdata/responses/pull_head_changed.yml")
+
+		_, err := newContext(t, rp).ChangedFiles()
+		require.Error(t, err)
+
+		assert.IsType(t, &TemporaryError{}, errors.Cause(err))
+		assert.Equal(t, 0, filesRule.Count, "incorrect http request count")
+	})
+
+	t.Run("headChangedDuring", func(t *testing.T) {
+		rp := &ResponsePlayer{}
+		rp.AddRule(ExactPathMatcher("/repos/testorg/testrepo/pulls/123/files"), "testdata/responses/pull_files.yml")
+		rp.AddRule(headMatcher, "testdata/responses/pull_head_changed_during_list.yml")
+
+		_, err := newContext(t, rp).ChangedFiles()
+		require.Error(t, err)
+
+		assert.IsType(t, &TemporaryError{}, errors.Cause(err))
+	})
+}
+
+func assertTestFiles(t *testing.T, files []*File) {
+	require.Len(t, files, 5, "incorrect number of files")
 
 	assert.Equal(t, "path/foo.txt", files[0].Filename)
 	assert.Equal(t, FileAdded, files[0].Status)
@@ -62,13 +129,6 @@ func TestChangedFiles(t *testing.T) {
 	assert.Equal(t, FileAdded, files[4].Status)
 	assert.Equal(t, 2, files[4].Additions)
 	assert.Equal(t, 4, files[4].Deletions)
-
-	// verify that the file list is cached
-	files, err = ctx.ChangedFiles()
-	require.NoError(t, err)
-
-	require.Len(t, files, 5, "incorrect number of files")
-	assert.Equal(t, 2, filesRule.Count, "cached files were not used")
 }
 
 func TestChangedFilesExceedsLimit(t *testing.T) {
@@ -94,9 +154,9 @@ func TestChangedFilesExceedsLimit(t *testing.T) {
 
 func TestChangedFilesNoFiles(t *testing.T) {
 	rp := &ResponsePlayer{}
-	filesRule := rp.AddRule(
-		ExactPathMatcher("/repos/testorg/testrepo/pulls/123/files"),
-		"testdata/responses/pull_no_files.yml",
+	compareRule := rp.AddRule(
+		ExactPathMatcher(comparePath),
+		"testdata/responses/compare_no_files.yml",
 	)
 
 	ctx := makeContext(t, rp, nil, nil)
@@ -105,14 +165,14 @@ func TestChangedFilesNoFiles(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, files, 0, "incorrect number of files")
-	assert.Equal(t, 1, filesRule.Count, "no http request was made")
+	assert.Equal(t, 1, compareRule.Count, "no http request was made")
 
 	// verify that the file list is cached
 	files, err = ctx.ChangedFiles()
 	require.NoError(t, err)
 
 	require.Len(t, files, 0, "incorrect number of files")
-	assert.Equal(t, 1, filesRule.Count, "cached files were not used")
+	assert.Equal(t, 1, compareRule.Count, "cached files were not used")
 }
 
 func TestCommits(t *testing.T) {
