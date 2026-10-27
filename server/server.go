@@ -50,6 +50,7 @@ const (
 
 	DefaultHTTPCacheSize     = 50 * datasize.MB
 	DefaultPushedAtCacheSize = 100_000
+	DefaultFallbackTTL       = 1 * time.Hour
 )
 
 type Server struct {
@@ -151,6 +152,12 @@ func New(c *Config) (*Server, error) {
 
 	seenPolicyCache := handler.NewSeenPolicyCache()
 
+	fallbackTTL := c.Cache.FallbackTTL
+	if fallbackTTL == 0 {
+		fallbackTTL = DefaultFallbackTTL
+	}
+	lastGoodCache := handler.NewLastGoodConfigCache(fallbackTTL)
+
 	policyPaths := []string{c.Options.PolicyPath}
 	if c.Options.ForceSharedPolicy {
 		policyPaths = []string{}
@@ -179,6 +186,7 @@ func New(c *Config) (*Server, error) {
 		ConfigFetcher: &handler.ConfigFetcher{
 			Loader:          appconfig.NewLoader(policyPaths, loaderOptions...),
 			SeenPolicyCache: seenPolicyCache,
+			LastGoodCache:   lastGoodCache,
 		},
 
 		AppName: app.GetSlug(),
