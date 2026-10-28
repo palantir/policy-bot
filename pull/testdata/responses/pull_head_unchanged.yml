@@ -4,7 +4,14 @@
       "data": {
         "repository": {
           "pullRequest": {
-            "headRefOid": "e05fcae367230ee709313dd2720da527d178ce43"
+            "headRefOid": "e05fcae367230ee709313dd2720da527d178ce43",
+            "timelineItems": {
+              "nodes": [
+                {
+                  "id": "HRFPE_lADOAAAAAc4AAAABzwAAAAEAAAAB"
+                }
+              ]
+            }
           }
         }
       }

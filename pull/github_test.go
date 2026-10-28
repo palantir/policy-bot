@@ -30,7 +30,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const comparePath = "/repos/testorg/testrepo/compare/develop...e05fcae367230ee709313dd2720da527d178ce43"
+const comparePath = "/repos/testorg/testrepo/compare/refs/heads/develop...e05fcae367230ee709313dd2720da527d178ce43"
 
 func TestChangedFiles(t *testing.T) {
 	rp := &ResponsePlayer{}
@@ -100,6 +100,17 @@ func TestChangedFilesManyFiles(t *testing.T) {
 		rp := &ResponsePlayer{}
 		rp.AddRule(ExactPathMatcher("/repos/testorg/testrepo/pulls/123/files"), "testdata/responses/pull_files.yml")
 		rp.AddRule(headMatcher, "testdata/responses/pull_head_changed_during_list.yml")
+
+		_, err := newContext(t, rp).ChangedFiles()
+		require.Error(t, err)
+
+		assert.IsType(t, &TemporaryError{}, errors.Cause(err))
+	})
+
+	t.Run("headRewrittenDuring", func(t *testing.T) {
+		rp := &ResponsePlayer{}
+		rp.AddRule(ExactPathMatcher("/repos/testorg/testrepo/pulls/123/files"), "testdata/responses/pull_files.yml")
+		rp.AddRule(headMatcher, "testdata/responses/pull_head_rewritten_during_list.yml")
 
 		_, err := newContext(t, rp).ChangedFiles()
 		require.Error(t, err)
