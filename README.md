@@ -1099,7 +1099,7 @@ When this option is enabled, an approval is only valid if:
 
 - For GitHub reviews, the review was submitted on the most recent relevant
   commit, or on a later commit that is ignored by `ignore_update_merges` or
-  `ignore_commits_by`. The review time does not matter.
+  `ignore_commits_by`. The review time is not compared with the push time.
 - For comments and pull request bodies, the comment was created after an
   estimate of the push time of the most recent relevant commit. The estimate
   uses the time of the oldest status that `policy-bot` posted on the commit

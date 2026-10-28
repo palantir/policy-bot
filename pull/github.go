@@ -46,6 +46,11 @@ type Locator struct {
 	Number int
 
 	Value *github.PullRequest
+
+	// PreviousHeadSHA is the head commit before the push that triggered the
+	// evaluation, if known. If it is set, Value must be from the same event,
+	// so that its update time is the time of the push.
+	PreviousHeadSHA string
 }
 
 type TemporaryError struct {
@@ -135,6 +140,9 @@ type GitHubContext struct {
 
 	statusSource StatusSource
 
+	pushBefore string
+	pushAt     time.Time
+
 	// cached fields
 	files                      []*File
 	commits                    []*Commit
@@ -208,6 +216,9 @@ func NewGitHubContext(
 		pr:     pr,
 
 		statusSource: statusSource,
+
+		pushBefore: loc.PreviousHeadSHA,
+		pushAt:     loc.Value.GetUpdatedAt().Time,
 	}, nil
 }
 
@@ -1208,9 +1219,40 @@ func (ghc *GitHubContext) LatestHeadRewrite() (*HeadRewrite, error) {
 		}
 	}
 
+	pushRewrite, err := ghc.pushRewrite()
+	if err != nil {
+		return nil, err
+	}
+	if pushRewrite != nil && (rewrite == nil || rewrite.At.Before(pushRewrite.At)) {
+		rewrite = pushRewrite
+	}
+
 	ghc.headRewrite = rewrite
 	ghc.headRewriteLoaded = true
 	return rewrite, nil
+}
+
+// pushRewrite returns a rewrite for the push that triggered the evaluation if
+// the push removed the previous head from the pull request, like a force-push.
+// The timeline may not contain the event for the push yet.
+func (ghc *GitHubContext) pushRewrite() (*HeadRewrite, error) {
+	if ghc.pushBefore == "" {
+		return nil, nil
+	}
+
+	commits, err := ghc.Commits()
+	if err != nil {
+		return nil, err
+	}
+	if slices.ContainsFunc(commits, func(c *Commit) bool { return c.SHA == ghc.pushBefore }) {
+		return nil, nil
+	}
+
+	at := ghc.pushAt
+	if at.IsZero() {
+		at = ghc.EvaluationTimestamp()
+	}
+	return &HeadRewrite{At: at, SHA: ghc.HeadSHA()}, nil
 }
 
 // if adding new fields to this struct, modify Locator#toV4() and Locator#IsComplete() as well

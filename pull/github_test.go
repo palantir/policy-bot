@@ -738,6 +738,54 @@ func TestLatestHeadRewrite(t *testing.T) {
 		_, err := ctx.LatestHeadRewrite()
 		assert.Error(t, err)
 	})
+
+	newPushContext := func(t *testing.T, timeline, before string, pushedAt time.Time) Context {
+		rp := &ResponsePlayer{}
+		rp.AddRule(matcher, timeline)
+		rp.AddRule(
+			GraphQLNodePrefixMatcher("repository.pullRequest.commits"),
+			"testdata/responses/pull_commits_comments_reviews.yml",
+		)
+
+		pr := defaultTestPR()
+		pr.UpdatedAt = &github.Timestamp{Time: pushedAt}
+
+		loc := defaultTestLocator(pr)
+		loc.PreviousHeadSHA = before
+		return makeLocatorContext(t, rp, loc, nil)
+	}
+
+	t.Run("pushRemovedPreviousHead", func(t *testing.T) {
+		pushedAt := time.Date(2020, 9, 30, 18, 10, 0, 0, time.UTC)
+		ctx := newPushContext(t, "testdata/responses/pull_timeline_none.yml", "9f7a2b1c0d4e5f60718293a4b5c6d7e8f9012345", pushedAt)
+
+		rewrite, err := ctx.LatestHeadRewrite()
+		require.NoError(t, err)
+
+		require.NotNil(t, rewrite, "push without a timeline event was not a rewrite")
+		assert.Equal(t, pushedAt, rewrite.At)
+		assert.Equal(t, "e05fcae367230ee709313dd2720da527d178ce43", rewrite.SHA)
+	})
+
+	t.Run("pushFastForward", func(t *testing.T) {
+		pushedAt := time.Date(2020, 9, 30, 18, 10, 0, 0, time.UTC)
+		ctx := newPushContext(t, "testdata/responses/pull_timeline_none.yml", "1fc89f1cedf8e3f3ce516ab75b5952295c8ea5e9", pushedAt)
+
+		rewrite, err := ctx.LatestHeadRewrite()
+		require.NoError(t, err)
+		assert.Nil(t, rewrite)
+	})
+
+	t.Run("timelineAfterPush", func(t *testing.T) {
+		pushedAt := time.Date(2020, 9, 30, 17, 50, 0, 0, time.UTC)
+		ctx := newPushContext(t, "testdata/responses/pull_timeline_force_pushed.yml", "9f7a2b1c0d4e5f60718293a4b5c6d7e8f9012345", pushedAt)
+
+		rewrite, err := ctx.LatestHeadRewrite()
+		require.NoError(t, err)
+
+		require.NotNil(t, rewrite)
+		assert.Equal(t, time.Date(2020, 9, 30, 18, 0, 0, 0, time.UTC), rewrite.At)
+	})
 }
 
 func TestLatestWorkflowRunsNoRuns(t *testing.T) {
@@ -805,6 +853,13 @@ func TestLatestStatuses(t *testing.T) {
 }
 
 func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest, gc GlobalCache) Context {
+	if pr == nil {
+		pr = defaultTestPR()
+	}
+	return makeLocatorContext(t, rp, defaultTestLocator(pr), gc)
+}
+
+func makeLocatorContext(t *testing.T, rp *ResponsePlayer, loc Locator, gc GlobalCache) Context {
 	ctx := context.Background()
 	baseURL := "http://github.localhost/"
 	client, err := github.NewClient(
@@ -815,19 +870,20 @@ func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest, gc Gl
 	v4client := githubv4.NewClient(&http.Client{Transport: rp})
 
 	mbrCtx := NewGitHubMembershipContext(ctx, client)
-	if pr == nil {
-		pr = defaultTestPR()
-	}
 
-	prctx, err := NewGitHubContext(ctx, mbrCtx, gc, client, v4client, Locator{
+	prctx, err := NewGitHubContext(ctx, mbrCtx, gc, client, v4client, loc, StatusSource{AppName: "policy-bot", Context: "policy-bot"})
+	require.NoError(t, err, "failed to create github context")
+
+	return prctx
+}
+
+func defaultTestLocator(pr *github.PullRequest) Locator {
+	return Locator{
 		Owner:  pr.GetBase().GetRepo().GetOwner().GetLogin(),
 		Repo:   pr.GetBase().GetRepo().GetName(),
 		Number: pr.GetNumber(),
 		Value:  pr,
-	}, StatusSource{AppName: "policy-bot", Context: "policy-bot"})
-	require.NoError(t, err, "failed to create github context")
-
-	return prctx
+	}
 }
 
 func defaultTestPR() *github.PullRequest {
