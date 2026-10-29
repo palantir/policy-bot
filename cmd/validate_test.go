@@ -57,3 +57,17 @@ slots: {service: []}`, false},
 		})
 	}
 }
+
+func TestValidateExtensionOffline(t *testing.T) {
+	originalPath := validateCmdConfig.Path
+	t.Cleanup(func() { validateCmdConfig.Path = originalPath })
+	validateCmdConfig.Path = filepath.Join(t.TempDir(), "policy.yml")
+	require.NoError(t, os.WriteFile(validateCmdConfig.Path, []byte("policy: {approval_extends: {remote: example/shared}}"), 0600))
+	err := validationCmd(ValidationCmd, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "parent")
+	assert.Contains(t, err.Error(), "simulation")
+
+	require.NoError(t, os.WriteFile(validateCmdConfig.Path, []byte("remote: example/shared"), 0600))
+	assert.NoError(t, validationCmd(ValidationCmd, nil))
+}

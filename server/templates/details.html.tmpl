@@ -46,7 +46,7 @@
     </div>
     <div class="pl-8 overflow-auto grow">
       <ul class="tree px-4 pb-4" data-hide-status="skipped">
-        {{template "results" (args $ .Result)}}
+        {{template "results" (args $ .Result "")}}
       </ul>
     </div>
   {{end}}
@@ -55,14 +55,17 @@
 {{define "results"}}
 {{ $root := index . 0 }}
 {{ $result := index . 1}}
+{{ $slot := index . 2}}
 {{ $children := $result.Children | withoutEmptySlots | sortByStatus }}
-{{range $i, $c := $children}}{{template "result" (args $root $c (nextStatus $i $children))}}{{end}}
+{{range $i, $c := $children}}{{template "result" (args $root $c (nextStatus $i $children) $slot)}}{{end}}
 {{end}}
 
 {{define "result"}}
 {{ $root := index . 0}}
 {{ $nextStatus := index . 2}}
+{{ $slot := index . 3}}
 {{with index . 1}}
+{{with .Slot}}{{ $slot = .Name }}{{end}}
 {{ $s := (or (and .Error "error") (.Status | print)) }}
 {{ $showReviewers := (and $root.ExpandRequiredReviewers (eq $s "pending")) }}
 <li class="node" data-status="{{$s}}" {{if not (eq $s $nextStatus)}}data-next-status="{{$nextStatus}}"{{end}}>
@@ -72,7 +75,7 @@
     <details
       class="bg-light-gray5 dark:bg-dark-gray2 p-2 mt-2 text-sm"
       {{if $showReviewers}}
-      hx-get="{{$root.BasePath}}/details/{{$root.PullRequest.GetBase.GetRepo.GetFullName}}/{{$root.PullRequest.GetNumber}}/reviewers?rule={{.Name | urlencode}}"
+      hx-get="{{$root.BasePath}}/details/{{$root.PullRequest.GetBase.GetRepo.GetFullName}}/{{$root.PullRequest.GetNumber}}/reviewers?rule={{.Name | urlencode}}{{if $slot}}&slot={{$slot | urlencode}}{{end}}"
       hx-trigger="toggle once"
       hx-target="find .reviewers"
       {{end}}
@@ -119,7 +122,7 @@
   </div>
   {{if .Children}}
   <ul class="tree">
-    {{template "results" (args $root .)}}
+    {{template "results" (args $root . $slot)}}
   </ul>
   {{end}}
 </li>

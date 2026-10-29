@@ -30,6 +30,7 @@ UI to view the detailed approval status of any pull request.
   - [Approval Rules](#approval-rules)
   - [Approval Policies](#approval-policies)
     - [Approval Slots](#approval-slots)
+    - [Extending a Shared Approval Policy](#extending-a-shared-approval-policy)
   - [Disapproval Policy](#disapproval-policy)
   - [Testing and Debugging Policies](#testing-and-debugging-policies)
     - [Simulation API](#simulation-api)
@@ -815,9 +816,9 @@ Conjunctions can contain more conjunctions (up to a maximum depth of 5):
 
 #### Approval Slots
 
-A slot is a named place in an approval policy that is filled by a list of rules
-from the same file. For example, this policy requires both platform and service
-review:
+A slot is a named place in an approval policy that is filled by a list of rules.
+The fill can come from the same file or an extending policy. For example, this
+policy requires both platform and service review:
 
 ```yaml
 policy:
@@ -853,8 +854,93 @@ usual predicates, defaults, options, and approval counting. If all approval
 entries skip, Policy Bot reports an error.
 
 Undeclared fills are validated but add no requirements or evaluation triggers.
-The details page labels filled slots and hides empty ones. Slots use one policy
-file; `approval_extends` is not supported.
+The details page labels filled slots and hides empty ones. Fills can also be
+supplied by a child policy as described below.
+
+#### Extending a Shared Approval Policy
+
+A repository can extend one shared approval policy and supply its slot content.
+For example, `.policy.yml` in `example/review-policies` defines the shared
+structure:
+
+```yaml
+policy:
+  approval:
+    - Platform review
+    - slot: repository-checks
+      required: true
+
+approval_rules:
+  - name: Platform review
+    requires:
+      count: 1
+      teams: ["example/platform"]
+```
+
+The application repository supplies its additional requirements:
+
+```yaml
+policy:
+  approval_extends:
+    remote: example/review-policies
+    path: .policy.yml
+    ref: develop
+
+slots:
+  repository-checks:
+    - Service review
+    - Security review
+
+approval_rules:
+  - name: Service review
+    requires:
+      count: 1
+      teams: ["example/service"]
+  - name: Security review
+    requires:
+      count: 1
+      teams: ["example/security"]
+```
+
+This requires `Platform review AND (Service review AND Security review)`. Each
+fill uses rules and approval defaults from the file defining it. Identical rule
+names in different files remain independent; a child rule cannot replace an
+ordinary parent requirement by name. Server defaults and overrides still apply
+to both files. Existing approval counting is unchanged: a reviewer eligible for
+multiple rules may satisfy each of them.
+
+Omitting a child fill retains the parent's default fill. A supplied fill
+replaces the entire default group; `[]` clears it. Null fills are invalid.
+Required slots must be populated after replacement, so a parent template with
+an unfilled required slot can work when extended even though standalone
+validation rejects it. All fills are validated, including unmatched or replaced
+fills. Unmatched fills add no requirements.
+
+Only approval is inherited. The child defines its own `policy.disapproval`, if
+needed. A child cannot specify both `approval` and `approval_extends`, including
+empty or null values. The parent must be a literal policy: it cannot contain
+another `approval_extends` or a top-level `remote` pointer. An ordinary remote
+pointer may lead to a child that extends a parent.
+
+The parent reference uses the same path/ref defaults as
+[remote configuration](#remote-policy-configuration). Parent loading starts with
+the pull request repository's installation and follows the remote access
+settings, even when a remote pointer supplies the child policy. Discovery still
+uses the pull request's base branch and honors `force_shared_policy`. This is
+explicit extension, not automatic merging with an organization default. Changes
+to a parent branch appear on later evaluations; pinned commits stay fixed.
+Updating a parent does not automatically reevaluate all dependent pull requests.
+
+To migrate, put the shared approval structure and slot declarations in the
+parent, then replace the repository's `approval` block with `approval_extends`
+and move repository-specific requirements into its fills. Keep each file's rule
+definitions and defaults alongside the expressions that use them.
+
+The CLI `validate` command and unauthenticated `/api/validate` endpoint never
+fetch parents. They report an unresolved-parent error for extension files; use
+the authenticated [simulation API](#simulation-api) to validate and evaluate the
+complete policy. Ordinary top-level remote pointers retain syntax-only
+validation.
 
 ### Disapproval Policy
 

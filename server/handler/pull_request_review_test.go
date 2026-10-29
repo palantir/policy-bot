@@ -53,10 +53,11 @@ approval_rules:
 		ChangedFiles: new(1),
 	}
 	for _, source := range []struct {
-		name, input string
+		name, child, parent string
 	}{
-		{"ordinary", standalone},
-		{"slotted", slotted},
+		{"standalone", standalone, ""},
+		{"standalone slot", slotted, ""},
+		{"parent slot default", extensionPolicy, slotted},
 	} {
 		t.Run(source.name, func(t *testing.T) {
 			for _, test := range []struct {
@@ -109,7 +110,10 @@ approval_rules:
 						ConfigFetcher: &ConfigFetcher{Loader: mockConfigLoader{
 							loadConfig: func(context.Context, *github.Client, string, string, string) (appconfig.Config, error) {
 								loads++
-								return appconfig.Config{Content: []byte(source.input), Source: "example/service@main", Path: ".policy.yml"}, nil
+								return appconfig.Config{Content: []byte(source.child), Source: "example/service@main", Path: ".policy.yml"}, nil
+							},
+							loadRemoteRef: func(context.Context, *github.Client, string, appconfig.RemoteRef) (appconfig.Config, error) {
+								return appconfig.Config{Content: []byte(source.parent), Source: "example/shared@main", Path: ".policy.yml"}, nil
 							},
 						}},
 					}}

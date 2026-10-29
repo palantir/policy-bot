@@ -57,12 +57,18 @@ func TestSimulateSlotsWithoutMutations(t *testing.T) {
 	client, err := github.NewClient(github.WithHTTPClient(server.Client()), github.WithURLs(&baseURL, nil))
 	require.NoError(t, err)
 	input := strings.Replace(slotPolicy, "ignore_edited_comments: false", "ignore_edited_comments: false\n      request_review: {enabled: true, mode: all-users}", 1)
+	var parentInput string
 	h := &Simulate{Base: Base{
 		ClientCreator: testClients{client: client, v4client: githubv4.NewEnterpriseClient(server.URL+"/graphql", server.Client())},
 		PullOpts:      &PullEvaluationOptions{IgnoreEditedComments: new(true)},
-		ConfigFetcher: &ConfigFetcher{Loader: mockConfigLoader{loadConfig: func(context.Context, *github.Client, string, string, string) (appconfig.Config, error) {
-			return appconfig.Config{Content: []byte(input), Source: "example/service", Path: ".policy.yml"}, nil
-		}}},
+		ConfigFetcher: &ConfigFetcher{Loader: mockConfigLoader{
+			loadConfig: func(context.Context, *github.Client, string, string, string) (appconfig.Config, error) {
+				return appconfig.Config{Content: []byte(input), Source: "example/service", Path: ".policy.yml"}, nil
+			},
+			loadRemoteRef: func(context.Context, *github.Client, string, appconfig.RemoteRef) (appconfig.Config, error) {
+				return appconfig.Config{Content: []byte(parentInput), Source: "example/shared", Path: ".policy.yml"}, nil
+			},
+		}},
 	}}
 	repo := &github.Repository{ID: new(int64(1)), Name: new("service"), Owner: &github.User{Login: new("example")}}
 	loc := pull.Locator{Owner: "example", Repo: "service", Number: 1, Value: &github.PullRequest{
@@ -85,6 +91,23 @@ func TestSimulateSlotsWithoutMutations(t *testing.T) {
 	require.NotNil(t, leaf.ReviewRequestRule)
 	require.Len(t, leaf.Dismissals, 1)
 	assert.Equal(t, "simulated-review", leaf.Dismissals[0].Candidate.ReviewID)
+
+	parentInput = "policy: {approval: [{slot: service, required: true}]}"
+	input = strings.Replace(input, "policy:\n  approval: [{slot: service, required: true}]", extensionPolicy, 1)
+	extendedResult, err := h.getSimulatedResult(ctx, githubapp.Installation{ID: 1}, loc, options)
+	require.NoError(t, err)
+	require.NoError(t, extendedResult.Error)
+	assert.Equal(t, result, extendedResult, "child fills preserve options, requests, and dismissals")
+
+	simulatedContext, fetched, err := h.newSimulatedContext(ctx, 1, loc, options)
+	require.NoError(t, err)
+	ec := &EvalContext{Config: *fetched, Options: h.PullOpts, PullContext: simulatedContext, SkipPostStatus: true}
+	parsed, err := ec.ParseConfig(ctx, common.TriggerAll)
+	require.NoError(t, err)
+	normal, err := ec.EvaluatePolicy(ctx, parsed)
+	require.NoError(t, err)
+	assert.Equal(t, extendedResult, &normal, "normal evaluation and simulation share the composed policy")
+	assert.Equal(t, "pending", ec.Status.GetState())
 
 	input = "policy: {approval: [{slot: service, required: true}]}"
 	result, err = h.getSimulatedResult(ctx, githubapp.Installation{ID: 1}, loc, options)

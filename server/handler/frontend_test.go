@@ -105,21 +105,73 @@ approval_rules:
 		link, err := url.Parse(html.UnescapeString(match[1]))
 		require.NoError(t, err)
 		assert.Equal(t, "/policy-bot/details/example/service/123/reviewers", link.Path)
-		assert.Len(t, link.Query(), 1)
+		if link.Query().Get("rule") == ruleName {
+			assert.Equal(t, slotName, link.Query().Get("slot"))
+		} else {
+			assert.Empty(t, link.Query().Get("slot"))
+		}
 		linkedRules = append(linkedRules, link.Query().Get("rule"))
 	}
 	assert.ElementsMatch(t, []string{ruleName, "Nested review"}, linkedRules)
-	assert.Same(t, &ec.Config.Config.ApprovalRules[1].Requires, findRuleRequires(ec.Config.Config, ruleName))
+	assert.Same(t, &ec.Config.Config.ApprovalRules[1].Requires, &eval.FindApprovalRule(slotName, ruleName).Requires)
 
 	// Empty slots must not keep a rendered branch open.
 	nested := result.Children[0].Children[3]
 	require.Equal(t, "or", nested.Name)
 	var branch bytes.Buffer
-	require.NoError(t, templates["details.html.tmpl"].ExecuteTemplate(&branch, "results", []any{data, nested}))
+	require.NoError(t, templates["details.html.tmpl"].ExecuteTemplate(&branch, "results", []any{data, nested, ""}))
 	assert.Equal(t, 1, strings.Count(branch.String(), `<li class="node"`))
 	assert.Contains(t, branch.String(), `<li class="node" data-status="pending" data-next-status="">`)
 
 	after, err := json.Marshal(result)
 	require.NoError(t, err)
 	assert.Equal(t, original, after, "rendering must not reorder or remove evaluation results")
+}
+
+func TestDetailsExtensionSlotContext(t *testing.T) {
+	ec := extensionEvalContext(t, extensionPolicy+`
+slots:
+  service:
+    - and: [Review, {or: [Review]}]
+approval_rules:
+  - name: Review
+    requires: {count: 1, users: [child-reviewer]}
+`, `
+policy:
+  approval: [Review, {slot: service}, {slot: default}, After]
+slots:
+  default: [{or: [Review]}]
+approval_rules:
+  - name: Review
+    requires: {count: 1, users: [parent-reviewer]}
+  - name: After
+    requires: {count: 1, users: [other-reviewer]}
+`)
+	parsed, err := ec.ParseConfig(context.Background(), common.TriggerAll)
+	require.NoError(t, err)
+	result := parsed.Evaluate(context.Background(), ec.PullContext)
+	require.NoError(t, result.Error)
+	templates, err := LoadTemplates(&FilesConfig{Templates: "../templates", Static: t.TempDir()}, "", "https://github.com")
+	require.NoError(t, err)
+	data := map[string]any{
+		"BasePath": "", "ExpandRequiredReviewers": true,
+		"PullRequest": &github.PullRequest{Number: new(1), Base: &github.PullRequestBranch{Repo: &github.Repository{FullName: new("example/service")}}},
+	}
+	var body bytes.Buffer
+	require.NoError(t, templates["details.html.tmpl"].ExecuteTemplate(&body, "results", []any{data, &result, ""}))
+	var links []string
+	for _, match := range regexp.MustCompile(`hx-get="([^"]+)"`).FindAllStringSubmatch(body.String(), -1) {
+		link, err := url.Parse(html.UnescapeString(match[1]))
+		require.NoError(t, err)
+		rule, slot := link.Query().Get("rule"), link.Query().Get("slot")
+		links = append(links, slot+":"+rule)
+		resolved := parsed.FindApprovalRule(slot, rule)
+		require.NotNil(t, resolved)
+		if slot == "service" {
+			assert.Equal(t, []string{"child-reviewer"}, resolved.Requires.Actors.Users)
+		} else if rule == "Review" {
+			assert.Equal(t, []string{"parent-reviewer"}, resolved.Requires.Actors.Users)
+		}
+	}
+	assert.ElementsMatch(t, []string{":Review", "service:Review", "service:Review", "default:Review", ":After"}, links)
 }

@@ -47,17 +47,23 @@ func TestIssueCommentAuditsInitializedPolicy(t *testing.T) {
 	for _, test := range []struct {
 		name, input, body, status string
 		defaults                  *approval.Defaults
+		parent                    string
 	}{
-		{"hardcoded method", slotPolicy, ":+1:", "failure", nil},
-		{"server default", slotPolicy, "ship", "failure", defaults},
-		{"policy default", slotPolicy + "\napproval_defaults: {options: {methods: {comments: [ship]}}}", "ship", "failure", nil},
-		{"rule method", strings.Replace(slotPolicy, "ignore_edited_comments: false", "methods: {comments: [ship]}", 1), "ship", "failure", nil},
-		{"ordinary rule", strings.Replace(slotPolicy, "[{slot: service, required: true}]", "[Service review]", 1), ":+1:", "failure", nil},
-		{"unused rule with no comment trigger", strings.Replace(slotPolicy, "[{slot: service, required: true}]", "[]", 1), "ship", "failure", defaults},
-		{"unrelated edit", slotPolicy, "unrelated", "", nil},
-		{"missing required", "policy: {approval: [{slot: service, required: true}]}", ":+1:", "error", nil},
-		{"null rule", "approval_rules: [null]", ":+1:", "error", nil},
-		{"invalid yaml", "approval_rules: [", ":+1:", "error", nil},
+		{"hardcoded method", slotPolicy, ":+1:", "failure", nil, ""},
+		{"server default", slotPolicy, "ship", "failure", defaults, ""},
+		{"policy default", slotPolicy + "\napproval_defaults: {options: {methods: {comments: [ship]}}}", "ship", "failure", nil, ""},
+		{"rule method", strings.Replace(slotPolicy, "ignore_edited_comments: false", "methods: {comments: [ship]}", 1), "ship", "failure", nil, ""},
+		{"ordinary rule", strings.Replace(slotPolicy, "[{slot: service, required: true}]", "[Service review]", 1), ":+1:", "failure", nil, ""},
+		{"unused rule with no comment trigger", strings.Replace(slotPolicy, "[{slot: service, required: true}]", "[]", 1), "ship", "failure", defaults, ""},
+		{"unrelated edit", slotPolicy, "unrelated", "", nil, ""},
+		{"missing required", "policy: {approval: [{slot: service, required: true}]}", ":+1:", "error", nil, ""},
+		{"null rule", "approval_rules: [null]", ":+1:", "error", nil, ""},
+		{"invalid yaml", "approval_rules: [", ":+1:", "error", nil, ""},
+		{"parent default", extensionPolicy, "ship", "failure", nil, slotPolicy + "\napproval_defaults: {options: {methods: {comments: [ship]}}}"},
+		{"parent without comment trigger", extensionPolicy, "ship", "failure", defaults, strings.Replace(slotPolicy, "count: 1", "count: 0", 1)},
+		{"child override", extensionPolicy + childSlotFill, "child", "failure", nil, slotPolicy},
+		{"replaced parent method", extensionPolicy + childSlotFill, ":+1:", "", nil, slotPolicy},
+		{"null parent rule", extensionPolicy, ":+1:", "error", nil, "approval_rules: [null]"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			statuses := make(chan *github.RepoStatus, 4)
@@ -85,9 +91,14 @@ func TestIssueCommentAuditsInitializedPolicy(t *testing.T) {
 				ClientCreator: testClients{client: client},
 				BaseConfig:    &baseapp.HTTPConfig{PublicURL: "https://policy-bot.example.com"},
 				PullOpts:      &PullEvaluationOptions{StatusCheckContext: "policy-bot", ApprovalDefaults: test.defaults},
-				ConfigFetcher: &ConfigFetcher{Loader: mockConfigLoader{loadConfig: func(context.Context, *github.Client, string, string, string) (appconfig.Config, error) {
-					return appconfig.Config{Content: []byte(test.input), Source: "example/service@main", Path: ".policy.yml"}, nil
-				}}},
+				ConfigFetcher: &ConfigFetcher{Loader: mockConfigLoader{
+					loadConfig: func(context.Context, *github.Client, string, string, string) (appconfig.Config, error) {
+						return appconfig.Config{Content: []byte(test.input), Source: "example/service@main", Path: ".policy.yml"}, nil
+					},
+					loadRemoteRef: func(context.Context, *github.Client, string, appconfig.RemoteRef) (appconfig.Config, error) {
+						return appconfig.Config{Content: []byte(test.parent), Source: "example/shared@main", Path: ".policy.yml"}, nil
+					},
+				}},
 			}}
 			event := github.IssueCommentEvent{
 				Action: new("edited"), Repo: repo, Installation: &github.Installation{ID: new(int64(1))},
