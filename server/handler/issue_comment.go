@@ -74,20 +74,19 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 		return err
 	}
 
-	switch {
-	case evalCtx.Config.LoadError != nil || evalCtx.Config.ParseError != nil:
-		logger.Warn().Str(LogKeyAudit, "issue_comment").Msg("Skipping tampering check because the policy is not valid")
-	case evalCtx.Config.Config != nil:
+	evaluator, err := evalCtx.ParseConfig(ctx, common.TriggerComment)
+	if err != nil {
+		return err
+	}
+
+	// Audit unused rules too, even when ParseConfig found no comment trigger.
+	if evalCtx.Config.Config != nil {
 		tampered := h.detectAndLogTampering(ctx, evalCtx, event)
 		if tampered {
 			return nil
 		}
 	}
 
-	evaluator, err := evalCtx.ParseConfig(ctx, common.TriggerComment)
-	if err != nil {
-		return err
-	}
 	if evaluator == nil {
 		return nil
 	}
