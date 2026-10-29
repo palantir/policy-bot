@@ -20,7 +20,6 @@ import (
 
 	"github.com/google/go-github/v92/github"
 	"github.com/palantir/go-githubapp/githubapp"
-	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
@@ -63,7 +62,9 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 		return err
 	}
 
-	evaluator, err := evalCtx.ParseConfig(ctx, common.TriggerReview)
+	// COMMENTED reviews also supply approval comments, and dismissing a review
+	// can remove one even when GitHub review approvals are disabled.
+	evaluator, err := evalCtx.ParseConfig(ctx, common.TriggerReview|common.TriggerComment)
 	if err != nil {
 		return err
 	}
@@ -71,7 +72,7 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 		return nil
 	}
 
-	if !h.affectsApproval(event.GetReview(), evalCtx.Config.Config) {
+	if !h.affectsApproval(event, evaluator.Methods()) {
 		logger.Debug().Msg("Skipping evaluation because this review does not impact approval")
 		return nil
 	}
@@ -85,29 +86,18 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 	return nil
 }
 
-func (h *PullRequestReview) affectsApproval(review *github.PullRequestReview, config *policy.Config) bool {
+func (h *PullRequestReview) affectsApproval(event github.PullRequestReviewEvent, methods []*common.Methods) bool {
 	// States contains the review states that may affect approval. Always consider dismissed
 	// reviews because they can revert the overall approval or disapproval to a previous state.
 	states := map[pull.ReviewState]bool{
 		pull.ReviewDismissed: true,
 	}
 
-	var methods []*common.Methods
-	for _, rule := range config.ApprovalRules {
-		m := rule.Options.GetMethods()
+	for _, m := range methods {
 		states[m.GithubReviewState] = true
-		methods = append(methods, m)
-	}
-	if disapproval := config.Policy.Disapproval; disapproval != nil {
-		md := disapproval.Options.GetDisapproveMethods()
-		states[md.GithubReviewState] = true
-		methods = append(methods, md)
-
-		mr := disapproval.Options.GetRevokeMethods()
-		states[mr.GithubReviewState] = true
-		methods = append(methods, mr)
 	}
 
+	review := event.GetReview()
 	reviewState := pull.ReviewState(review.GetState())
 	if states[reviewState] {
 		return true
@@ -116,8 +106,12 @@ func (h *PullRequestReview) affectsApproval(review *github.PullRequestReview, co
 	// Reviews with the COMMENTED state are also processed as normal comments, so also consider
 	// methods that match on comments in this case.
 	if reviewState == pull.ReviewCommented {
+		originalBody := review.GetBody()
+		if event.GetAction() == "edited" {
+			originalBody = event.GetChanges().GetBody().GetFrom()
+		}
 		for _, m := range methods {
-			if m.CommentMatches(review.GetBody()) {
+			if m.CommentMatches(review.GetBody()) || m.CommentMatches(originalBody) {
 				return true
 			}
 		}

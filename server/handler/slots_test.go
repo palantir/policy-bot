@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -25,6 +26,7 @@ import (
 	"time"
 
 	"github.com/google/go-github/v92/github"
+	"github.com/palantir/go-githubapp/appconfig"
 	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/approval"
 	"github.com/palantir/policy-bot/policy/common"
@@ -120,9 +122,9 @@ func TestSlotEventMethodsAndServerOverride(t *testing.T) {
 		Comment: &github.IssueComment{Body: new("removed")},
 		Changes: &github.EditChange{Body: &github.EditBody{From: new("ship it")}},
 	}
-	assert.True(t, commentHandler.affectsApproval(event, ec.Config.Config), "removing an approval must reevaluate")
+	assert.True(t, commentHandler.affectsApproval(event, evaluator.Methods()), "removing an approval must reevaluate")
 	event.Action = new("created")
-	assert.False(t, commentHandler.affectsApproval(event, ec.Config.Config))
+	assert.False(t, commentHandler.affectsApproval(event, evaluator.Methods()))
 	result, err := ec.EvaluatePolicy(ctx, evaluator)
 	require.NoError(t, err)
 	assert.Equal(t, common.StatusPending, result.Status, "server override rejects an edited approval")
@@ -142,9 +144,11 @@ func TestSlotEventMethodsAndServerOverride(t *testing.T) {
 		{State: new("dismissed")},
 		{State: new("commented"), Body: new("ship it")},
 	} {
-		assert.True(t, reviewHandler.affectsApproval(review, ec.Config.Config))
+		assert.True(t, reviewHandler.affectsApproval(github.PullRequestReviewEvent{Review: review}, evaluator.Methods()))
 	}
-	assert.False(t, reviewHandler.affectsApproval(&github.PullRequestReview{State: new("commented"), Body: new("unrelated")}, ec.Config.Config))
+	assert.False(t, reviewHandler.affectsApproval(github.PullRequestReviewEvent{Review: &github.PullRequestReview{
+		State: new("commented"), Body: new("unrelated"),
+	}}, evaluator.Methods()))
 	result, err = ec.EvaluatePolicy(ctx, evaluator)
 	require.NoError(t, err)
 	assert.Equal(t, common.StatusApproved, result.Status)
@@ -172,7 +176,9 @@ func TestSlotEventMethodsAndServerOverride(t *testing.T) {
 }
 
 func TestSlotReviewerRequestsRespectApprovedBranches(t *testing.T) {
-	ec := slotEvalContext(t, `
+	for _, extension := range []bool{false, true} {
+		t.Run(fmt.Sprintf("extension=%t", extension), func(t *testing.T) {
+			ec := slotEvalContext(t, `
 policy:
   approval:
     - Always
@@ -184,28 +190,44 @@ approval_defaults:
     request_review: {enabled: true, mode: all-users}
 approval_rules:
   - name: Always
-    requires: {count: 1, users: [reviewer]}
+    requires: {count: 1, users: [parent-reviewer]}
   - name: Automatic
   - name: Service
-    requires: {count: 1, users: [reviewer]}
+    requires: {count: 1, users: [child-reviewer]}
 `)
-	evaluator, err := ec.ParseConfig(context.Background(), common.TriggerAll)
-	require.NoError(t, err)
-	result := evaluator.Evaluate(context.Background(), ec.PullContext)
-	require.Equal(t, common.StatusPending, result.Status)
-	requests := reviewer.FindRequests(&result)
-	require.Len(t, requests, 1)
-	assert.Equal(t, "Always", requests[0].Name)
+			rules := ec.Config.Config.ApprovalRules
+			if extension {
+				ec.Config.Parent = &policy.Config{
+					Policy:           ec.Config.Config.Policy,
+					ApprovalDefaults: ec.Config.Config.ApprovalDefaults,
+					ApprovalRules:    rules[:2],
+				}
+				ec.Config.Config.Policy = policy.Policy{ApprovalExtends: &appconfig.RemoteRef{Remote: "example/shared"}}
+				ec.Config.Config.ApprovalRules = rules[2:]
+			}
+			evaluator, err := ec.ParseConfig(context.Background(), common.TriggerAll)
+			require.NoError(t, err)
+			result := evaluator.Evaluate(context.Background(), ec.PullContext)
+			require.NoError(t, result.Error)
+			require.Equal(t, common.StatusPending, result.Status)
+			requests := reviewer.FindRequests(&result)
+			require.Len(t, requests, 1)
+			assert.Equal(t, "Always", requests[0].Name)
 
-	ec.Config.Config.ApprovalRules[1].Requires.Count = 1
-	result = evaluator.Evaluate(context.Background(), ec.PullContext)
-	requests = reviewer.FindRequests(&result)
-	require.Len(t, requests, 3)
-	assert.Equal(t, "Service", requests[2].Name)
+			rules[1].Requires.Count = 1
+			result = evaluator.Evaluate(context.Background(), ec.PullContext)
+			requests = reviewer.FindRequests(&result)
+			require.Len(t, requests, 3)
+			assert.Equal(t, "Service", requests[2].Name)
+			assert.Equal(t, []string{"child-reviewer"}, requests[2].ReviewRequestRule.Users)
+		})
+	}
 }
 
 func TestSlotDismissalPreservesApproversAndCandidates(t *testing.T) {
-	ec := slotEvalContext(t, `
+	for _, extension := range []bool{false, true} {
+		t.Run(fmt.Sprintf("extension=%t", extension), func(t *testing.T) {
+			ec := slotEvalContext(t, `
 policy:
   approval: [{slot: service}]
 slots:
@@ -220,40 +242,54 @@ approval_rules:
     options: {invalidate_on_push: false}
     requires: {count: 1, users: [reviewer]}
 `)
-	prctx := ec.PullContext.(*pulltest.Context)
-	prctx.CommitsValue = []*pull.Commit{{SHA: prctx.HeadSHA()}}
-	prctx.PushedAtValue = map[string]time.Time{prctx.HeadSHA(): time.Unix(2, 0)}
-	prctx.ReviewsValue = []*pull.Review{{ID: "stale-review", Author: "reviewer", State: pull.ReviewApproved, CreatedAt: time.Unix(1, 0)}}
-	evaluator, err := ec.ParseConfig(context.Background(), common.TriggerAll)
-	require.NoError(t, err)
-	result := evaluator.Evaluate(context.Background(), prctx)
-	require.NoError(t, result.Error)
-	assert.Equal(t, map[string]bool{"reviewer": true}, findAllApprovers(&result))
-	require.Len(t, findAllDismissals(&result), 2)
+			if extension {
+				parent := slotEvalContext(t, `
+policy:
+  approval: [{slot: service}, Current]
+approval_rules:
+  - name: Current
+    requires: {count: 1, users: [reviewer]}
+`)
+				ec.Config.Parent = parent.Config.Config
+				ec.Config.Config.Policy = policy.Policy{ApprovalExtends: &appconfig.RemoteRef{Remote: "example/shared"}}
+				ec.Config.Config.Slots["service"] = []any{"Stale", "Stale"}
+			}
+			prctx := ec.PullContext.(*pulltest.Context)
+			prctx.CommitsValue = []*pull.Commit{{SHA: prctx.HeadSHA()}}
+			prctx.PushedAtValue = map[string]time.Time{prctx.HeadSHA(): time.Unix(2, 0)}
+			prctx.ReviewsValue = []*pull.Review{{ID: "stale-review", Author: "reviewer", State: pull.ReviewApproved, CreatedAt: time.Unix(1, 0)}}
+			evaluator, err := ec.ParseConfig(context.Background(), common.TriggerAll)
+			require.NoError(t, err)
+			result := evaluator.Evaluate(context.Background(), prctx)
+			require.NoError(t, result.Error)
+			assert.Equal(t, map[string]bool{"reviewer": true}, findAllApprovers(&result))
+			require.Len(t, findAllDismissals(&result), 2)
 
-	var dismissed []string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var request struct {
-			Variables struct {
-				Input struct {
-					ReviewID string `json:"pullRequestReviewId"`
-				} `json:"input"`
-			} `json:"variables"`
-		}
-		if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&request)) {
-			return
-		}
-		dismissed = append(dismissed, request.Variables.Input.ReviewID)
-		_, err := w.Write([]byte(`{"data":{"dismissPullRequestReview":{"clientMutationId":null}}}`))
-		assert.NoError(t, err)
-	}))
-	defer server.Close()
-	ec.V4Client = githubv4.NewEnterpriseClient(server.URL, server.Client())
-	require.NoError(t, ec.dismissStaleReviewsForResult(context.Background(), result))
-	assert.Empty(t, dismissed, "a current approver is protected by non-strict dismissal")
-	ec.Options.StrictReviewDismissal = true
-	require.NoError(t, ec.dismissStaleReviewsForResult(context.Background(), result))
-	assert.Equal(t, []string{"stale-review"}, dismissed, "strict dismissal still deduplicates reviews")
+			var dismissed []string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var request struct {
+					Variables struct {
+						Input struct {
+							ReviewID string `json:"pullRequestReviewId"`
+						} `json:"input"`
+					} `json:"variables"`
+				}
+				if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&request)) {
+					return
+				}
+				dismissed = append(dismissed, request.Variables.Input.ReviewID)
+				_, err := w.Write([]byte(`{"data":{"dismissPullRequestReview":{"clientMutationId":null}}}`))
+				assert.NoError(t, err)
+			}))
+			defer server.Close()
+			ec.V4Client = githubv4.NewEnterpriseClient(server.URL, server.Client())
+			require.NoError(t, ec.dismissStaleReviewsForResult(context.Background(), result))
+			assert.Empty(t, dismissed, "a current approver is protected by non-strict dismissal")
+			ec.Options.StrictReviewDismissal = true
+			require.NoError(t, ec.dismissStaleReviewsForResult(context.Background(), result))
+			assert.Equal(t, []string{"stale-review"}, dismissed, "strict dismissal still deduplicates reviews")
+		})
+	}
 }
 
 func TestValidateSlots(t *testing.T) {
