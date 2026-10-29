@@ -142,9 +142,11 @@ func TestSlotEventMethodsAndServerOverride(t *testing.T) {
 		{State: new("dismissed")},
 		{State: new("commented"), Body: new("ship it")},
 	} {
-		assert.True(t, reviewHandler.affectsApproval(review, ec.Config.Config))
+		assert.True(t, reviewHandler.affectsApproval(github.PullRequestReviewEvent{Review: review}, ec.Config.Config))
 	}
-	assert.False(t, reviewHandler.affectsApproval(&github.PullRequestReview{State: new("commented"), Body: new("unrelated")}, ec.Config.Config))
+	assert.False(t, reviewHandler.affectsApproval(github.PullRequestReviewEvent{Review: &github.PullRequestReview{
+		State: new("commented"), Body: new("unrelated"),
+	}}, ec.Config.Config))
 	result, err = ec.EvaluatePolicy(ctx, evaluator)
 	require.NoError(t, err)
 	assert.Equal(t, common.StatusApproved, result.Status)

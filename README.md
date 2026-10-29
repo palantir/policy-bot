@@ -834,11 +834,11 @@ approval_rules:
   - name: Platform review
     requires:
       count: 1
-      teams: [example/platform]
+      teams: ["example/platform"]
   - name: Service review
     requires:
       count: 1
-      teams: [example/service]
+      teams: ["example/service"]
 ```
 
 Slots may appear wherever a rule reference is allowed. Slot names must be unique,
