@@ -43,7 +43,7 @@ approval_rules:
   - name: Comment approval
     requires: {count: 1, users: [reviewer]}
 `
-	parent := strings.Replace(standalone, "approval: [Comment approval]", "approval: [{slot: service}]", 1) + "\nslots: {service: [Comment approval]}"
+	slotted := strings.Replace(standalone, "approval: [Comment approval]", "approval: [{slot: service}]", 1) + "\nslots: {service: [Comment approval]}"
 	repo := &github.Repository{ID: new(int64(1)), Name: new("service"), Owner: &github.User{Login: new("example")}}
 	pr := &github.PullRequest{
 		Title: new("Change"), State: new("open"), Number: new(1), Draft: new(false),
@@ -56,7 +56,8 @@ approval_rules:
 		name, child, parent string
 	}{
 		{"standalone", standalone, ""},
-		{"parent slot default", extensionPolicy, parent},
+		{"standalone slot", slotted, ""},
+		{"parent slot default", extensionPolicy, slotted},
 	} {
 		t.Run(source.name, func(t *testing.T) {
 			for _, test := range []struct {
