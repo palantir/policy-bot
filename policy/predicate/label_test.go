@@ -34,9 +34,9 @@ func TestHasLabels(t *testing.T) {
 				LabelsValue: []string{"foo", "bar"},
 			},
 			&common.PredicateResult{
-				Satisfied:       true,
-				Values:          []string{"foo", "bar"},
-				ConditionValues: []string{"foo", "bar"},
+				Satisfied:     true,
+				Values:        []string{"foo", "bar"},
+				ConditionsMap: map[string][]string{"has all of": {"foo", "bar"}},
 			},
 		},
 		{
@@ -45,9 +45,9 @@ func TestHasLabels(t *testing.T) {
 				LabelsValue: []string{"foo"},
 			},
 			&common.PredicateResult{
-				Satisfied:       false,
-				Values:          []string{"foo"},
-				ConditionValues: []string{"bar"},
+				Satisfied:     false,
+				Values:        []string{"foo"},
+				ConditionsMap: map[string][]string{"has all of": {"foo", "bar"}},
 			},
 		},
 		{
@@ -56,9 +56,9 @@ func TestHasLabels(t *testing.T) {
 				LabelsValue: []string{},
 			},
 			&common.PredicateResult{
-				Satisfied:       false,
-				Values:          []string{},
-				ConditionValues: []string{"foo"},
+				Satisfied:     false,
+				Values:        []string{},
+				ConditionsMap: map[string][]string{"has all of": {"foo", "bar"}},
 			},
 		},
 	})
