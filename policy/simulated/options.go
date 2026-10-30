@@ -53,9 +53,8 @@ func NewOptionsFromRequest(r *http.Request) (Options, error) {
 func (o *Options) setDefaults() {
 	for i, review := range o.AddReviews {
 		id := fmt.Sprintf("simulated-reviewID-%d", i)
-		sha := fmt.Sprintf("simulated-reviewSHA-%d", i)
 
-		review.setDefaults(id, sha)
+		review.setDefaults(id)
 		o.AddReviews[i] = review
 	}
 
@@ -95,7 +94,6 @@ func (c *Comment) toPullComment() *pull.Comment {
 
 type Review struct {
 	ID           string     `json:"-"`
-	SHA          string     `json:"-"`
 	CreatedAt    *time.Time `json:"created_at"`
 	LastEditedAt *time.Time `json:"last_edited_at"`
 	Author       string     `json:"author"`
@@ -105,7 +103,7 @@ type Review struct {
 }
 
 // setDefaults sets the createdAt and lastEdtedAt values to time.Now() if they are otherwise unset
-func (r *Review) setDefaults(id, sha string) {
+func (r *Review) setDefaults(id string) {
 	now := time.Now()
 	if r.CreatedAt == nil {
 		r.CreatedAt = &now
@@ -116,13 +114,12 @@ func (r *Review) setDefaults(id, sha string) {
 	}
 
 	r.ID = id
-	r.SHA = sha
 }
 
-func (r *Review) toPullReview() *pull.Review {
+func (r *Review) toPullReview(sha string) *pull.Review {
 	return &pull.Review{
 		ID:           r.ID,
-		SHA:          r.SHA,
+		SHA:          sha,
 		CreatedAt:    *r.CreatedAt,
 		LastEditedAt: *r.LastEditedAt,
 		Author:       r.Author,
