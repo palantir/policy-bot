@@ -66,8 +66,8 @@ github.com/palantir/go-baseapp v0.7.1 h1:PEoZ8NZIF8EMT+jGFhkVCts9JMflRYiXehkeScL
 github.com/palantir/go-baseapp v0.7.1/go.mod h1:KBqHCakdBYFZMGt55N3iOp0IrgZGHPPgkHxUleOcius=
 github.com/palantir/go-githubapp v0.49.0 h1:zSUS4ZSogBSFDDtIleAixY8cPJxlLFWUAy0I9L6z/aM=
 github.com/palantir/go-githubapp v0.49.0/go.mod h1:Ln8mJPWsw1YUOXFMBgnksgY51WW3QbOCTCMlkWUM12c=
-github.com/pandatix/go-abnf v0.5.4 h1:Ds32m+31oMVBw/vJB2uCI0qGa0zwmEftl0ZQkXClYDQ=
-github.com/pandatix/go-abnf v0.5.4/go.mod h1:AE0KD3/VNoCjGzc1gqetRKshbI4SYErXQ/8kPenR5mc=
+github.com/pandatix/go-abnf v0.5.5 h1:EXex5KkRQx4Dm6GnpAcQnIMBs9KiK0uf8p/wq+4t9PM=
+github.com/pandatix/go-abnf v0.5.5/go.mod h1:AE0KD3/VNoCjGzc1gqetRKshbI4SYErXQ/8kPenR5mc=
 github.com/patrickmn/go-cache v2.1.0+incompatible h1:HRMgzkcYKYpi3C8ajMPV8OFXaaRUnok+kx1WdO15EQc=
 github.com/patrickmn/go-cache v2.1.0+incompatible/go.mod h1:3Qf8kWWT7OJRJbdiICTKqZju1ZixQ/KpMGzzAfe6+WQ=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
