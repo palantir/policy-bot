@@ -1095,17 +1095,31 @@ By default, `policy-bot` does not invalidate existing approvals when users add
 new commits to a pull request. You can control this behavior for each rule in a
 policy using the `invalidate_on_push` option.
 
-To invalidate approvals, `policy-bot` compares an estimate of the push time of
-each commit with the time of each approval comment or review. The push time
-estimate uses the time of the oldest status check, or the current time during
-evaluation if there are no status checks. This is guaranteed to be after the
-actual push time, but the delay may be arbitrarily large based on GitHub
-webhook delivery behavior and processing time in `policy-bot`.
+When this option is enabled, an approval is only valid if:
 
-In practice, this means that adding an approval immediately after (within a few
-seconds of) a push may not approve the pull request. If this happens, leave a
-second approval comment or review after `policy-bot` adds the "pending" status
-check.
+- For GitHub reviews, the review was submitted on the most recent relevant
+  commit, or on a later commit that is ignored by `ignore_update_merges` or
+  `ignore_commits_by`. The review time is not compared with the push time.
+- For comments and pull request bodies, the comment was created after an
+  estimate of the push time of the most recent relevant commit. The estimate
+  uses the time of the oldest status that `policy-bot` posted on the commit
+  for this pull request, or the current time during evaluation if there is no
+  such status. Statuses posted by other users or tools, even with the same
+  context and details link, or for other pull requests, are not used.
+- For all approvals, the approval happened after the most recent force-push,
+  head branch restore, reopen, or base branch change of the pull request.
+
+If a commit that was already part of the pull request before a force-push is
+pushed again after it, `policy-bot` cannot know when the second push happened.
+In this case, comments are not accepted until another commit is pushed, but
+reviews on the commit are still accepted.
+
+The push time estimate is after the actual push time, but the delay may be
+arbitrarily large based on GitHub webhook delivery behavior and processing time
+in `policy-bot`. In practice, this means that adding an approval comment
+immediately after (within a few seconds of) a push may not approve the pull
+request. If this happens, leave a second approval comment after `policy-bot`
+adds the "pending" status check.
 
 `policy-bot` caches push times in memory to improve performance and reduce API
 requests.
