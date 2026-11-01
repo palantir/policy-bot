@@ -1,0 +1,5 @@
+- status: 200
+  body: |
+    {
+      "files": []
+    }
