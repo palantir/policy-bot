@@ -28,6 +28,7 @@ type Index struct {
 
 	GithubConfig *githubapp.Config
 	Templates    templatetree.Tree[*template.Template]
+	Config       *githubapp.Config
 }
 
 func (h *Index) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
@@ -36,6 +37,11 @@ func (h *Index) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 		Version    string
 		GitHubURL  string
 		PolicyPath string
+	}
+
+	if h.Config.HideRootPath {
+		http.NotFound(w, r)
+		return nil
 	}
 
 	data.AppName = h.AppName
