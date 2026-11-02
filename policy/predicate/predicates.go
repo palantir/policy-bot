@@ -42,6 +42,7 @@ type Predicates struct {
 	HasWorkflowResult *HasWorkflowResult `yaml:"has_workflow_result,omitempty"`
 
 	HasLabels *HasLabels `yaml:"has_labels,omitempty"`
+	HasTopics *HasTopics `yaml:"has_topics,omitempty"`
 
 	Repository *Repository `yaml:"repository,omitempty"`
 	Title      *Title      `yaml:"title,omitempty"`
@@ -123,6 +124,10 @@ func (p *Predicates) Predicates() []Predicate {
 
 	if p.HasLabels != nil {
 		ps = append(ps, Predicate(p.HasLabels))
+	}
+
+	if p.HasTopics != nil {
+		ps = append(ps, Predicate(p.HasTopics))
 	}
 
 	if p.Repository != nil {

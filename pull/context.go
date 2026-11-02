@@ -59,6 +59,9 @@ type Context interface {
 	// For an unset property, the key is _not_ present in the map.
 	RepositoryCustomProperties() (map[string]CustomProperty, error)
 
+	// RepositoryTopics returns the topics of the repo that the pull request targets.
+	RepositoryTopics() ([]string, error)
+
 	// Number returns the number of the pull request.
 	Number() int
 
