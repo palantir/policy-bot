@@ -60,6 +60,9 @@ type Context struct {
 	TeamsValue map[string]pull.Permission
 	TeamsError error
 
+	TeamPermissionsValue map[string]pull.Permission
+	TeamPermissionsError error
+
 	OrgMemberships     map[string][]string
 	OrgMembershipError error
 
@@ -253,6 +256,13 @@ func (c *Context) Reviews() ([]*pull.Review, error) {
 
 func (c *Context) Teams() (map[string]pull.Permission, error) {
 	return c.TeamsValue, c.TeamsError
+}
+
+func (c *Context) TeamPermission(team string) (pull.Permission, error) {
+	if c.TeamPermissionsError != nil {
+		return pull.PermissionNone, c.TeamPermissionsError
+	}
+	return c.TeamPermissionsValue[team], nil
 }
 
 func (c *Context) LatestStatuses() (map[string]string, error) {
