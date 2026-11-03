@@ -461,11 +461,27 @@ if:
       - ".github/workflows/a.yml"
       - ".github/workflows/b.yml"
 
+  # DEPRECATED: Use "labels" below instead, which is more flexible.
   # "has_labels" is satisfied if the pull request has the specified labels
   # applied
   has_labels:
     - "label-1"
     - "label-2"
+
+  # "labels" is satisfied based on the labels applied to the pull request.
+  # Each sub-key is optional; when more than one is set, all must be
+  # satisfied. Label matching is case-insensitive.
+  labels:
+    # satisfied if the pull request has at least one of these labels
+    has_any:
+      - "label-1"
+      - "label-2"
+    # satisfied if the pull request has all of these labels
+    has_all:
+      - "label-3"
+    # satisfied if the pull request has none of these labels
+    has_none:
+      - "do-not-merge"
 
   # "repository" is satisfied if the pull request repository matches any one of the
   # patterns within the "matches" list or does not match all of the patterns
