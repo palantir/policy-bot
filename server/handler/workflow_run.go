@@ -80,7 +80,7 @@ func (h *WorkflowRun) Handle(ctx context.Context, eventType, deliveryID string, 
 			continue
 		}
 
-		if err := h.EvaluateWithWorkflowRun(ctx, installationID, common.TriggerStatus, pull.Locator{
+		if err := h.EvaluateCoalesced(ctx, installationID, common.TriggerStatus, pull.Locator{
 			Owner:  ownerName,
 			Repo:   repoName,
 			Number: pr.GetNumber(),

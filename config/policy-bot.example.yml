@@ -77,6 +77,13 @@ workers:
 #   pending_age: 1m
 #   max_evaluations: 10
 
+# Hold the evaluations that events ask for during the window after one runs on the same
+# pull request, then run them as one. A push completes every workflow within a minute or
+# two, each with its own event, so this costs one more evaluation instead of one each.
+# Negative turns it off. Can also be set by the POLICYBOT_COALESCE_WINDOW environment variable.
+# coalesce:
+#   window: 30s
+
 # Options for connecting to GitHub
 github:
   # The URL of the GitHub homepage. Can also be set by the GITHUB_WEB_URL

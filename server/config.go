@@ -45,6 +45,7 @@ type Config struct {
 	Prometheus prometheus.Config             `yaml:"prometheus"`
 	Workers    WorkerConfig                  `yaml:"workers"`
 	Sweep      handler.SweepConfig           `yaml:"sweep"`
+	Coalesce   handler.CoalesceConfig        `yaml:"coalesce"`
 }
 
 type LoggingConfig struct {
@@ -101,6 +102,7 @@ func ParseConfig(bytes []byte) (*Config, error) {
 	c.Logging.SetValuesFromEnv(envPrefix)
 	c.Github.SetValuesFromEnv("")
 	c.Sweep.SetValuesFromEnv(envPrefix + "SWEEP_")
+	c.Coalesce.SetValuesFromEnv(envPrefix + "COALESCE_")
 
 	if v, ok := os.LookupEnv(envPrefix + "SESSIONS_KEY"); ok {
 		c.Sessions.Key = v

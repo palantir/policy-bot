@@ -17,8 +17,11 @@ package handler
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/google/go-github/v92/github"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/pull/pulltest"
@@ -101,6 +104,53 @@ func TestEvaluatePolicyStatusState(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, ec.Status)
 			assert.Equal(t, test.Expected, ec.Status.GetState())
+		})
+	}
+}
+
+func TestPostStatusKeepsAnUnchangedStatus(t *testing.T) {
+	posted := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		posted++
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte("{}"))
+	}))
+	defer server.Close()
+	baseURL := server.URL + "/"
+	client, err := github.NewClient(github.WithURLs(&baseURL, nil))
+	require.NoError(t, err)
+
+	detailsURL := "https://policy-bot.example.com/details/testorg/testrepo/42"
+	current := func(state, description string) map[string]*pull.CommitStatus {
+		return map[string]*pull.CommitStatus{
+			"policy-bot: main": {State: state, Description: description, TargetURL: detailsURL},
+		}
+	}
+
+	tests := map[string]struct {
+		Current            map[string]*pull.CommitStatus
+		State, Description string
+		Posts              bool
+	}{
+		"noStatusYet":        {nil, "pending", "Waiting", true},
+		"samePending":        {current("pending", "Waiting"), "pending", "Waiting", false},
+		"sameSuccess":        {current("success", "All rules are approved"), "success", "All rules are approved", false},
+		"newDescription":     {current("pending", "Waiting: lint"), "pending", "Waiting", true},
+		"newState":           {current("pending", "Waiting"), "success", "Waiting", true},
+		"sameFailureReposts": {current("failure", "Failed: lint"), "failure", "Failed: lint", true},
+		"sameErrorReposts":   {current("error", "Invalid policy"), "error", "Invalid policy", true},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			posted = 0
+			ec := makeEvalContext(true)
+			ec.SkipPostStatus = false
+			ec.Client = client
+			ec.PullContext.(*pulltest.Context).CommitStatusesValue = test.Current
+
+			ec.PostStatus(context.Background(), test.State, test.Description)
+			assert.Equal(t, test.Posts, posted == 1)
 		})
 	}
 }

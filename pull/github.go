@@ -142,6 +142,7 @@ type GitHubContext struct {
 	permissions                map[string]Permission
 	teams                      map[string]Permission
 	statuses                   map[string]string
+	commitStatuses             map[string]*CommitStatus
 	labels                     []string
 	pushedAt                   map[string]time.Time
 	workflowRuns               map[string][]string
@@ -802,25 +803,48 @@ func (ghc *GitHubContext) LatestStatuses() (map[string]string, error) {
 }
 
 func (ghc *GitHubContext) getStatuses() (map[string]string, error) {
+	if err := ghc.loadCommitStatuses(); err != nil {
+		return nil, err
+	}
+	statuses := make(map[string]string, len(ghc.commitStatuses))
+	for name, s := range ghc.commitStatuses {
+		statuses[name] = s.State
+	}
+	return statuses, nil
+}
+
+func (ghc *GitHubContext) LatestCommitStatus(context string) (*CommitStatus, error) {
+	if err := ghc.loadCommitStatuses(); err != nil {
+		return nil, err
+	}
+	return ghc.commitStatuses[context], nil
+}
+
+// loadCommitStatuses reads the latest status of each context on the head commit once
+func (ghc *GitHubContext) loadCommitStatuses() error {
+	if ghc.commitStatuses != nil {
+		return nil
+	}
 	opt := &github.ListOptions{
 		PerPage: 100,
 	}
 	// get all pages of results
-	statuses := make(map[string]string)
+	statuses := make(map[string]*CommitStatus)
 	for {
 		combinedStatus, resp, err := ghc.client.Repositories.GetCombinedStatus(ghc.ctx, ghc.owner, ghc.repo, ghc.HeadSHA(), opt)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get statuses for page %d", opt.Page)
+			return errors.Wrapf(err, "failed to get statuses for page %d", opt.Page)
 		}
 		for _, s := range combinedStatus.Statuses {
-			statuses[s.GetContext()] = s.GetState()
+			statuses[s.GetContext()] = &CommitStatus{State: s.GetState(), Description: s.GetDescription(), TargetURL: s.GetTargetURL()}
 		}
 		if resp.NextPage == 0 {
 			break
 		}
 		opt.Page = resp.NextPage
 	}
-	return statuses, nil
+	ghc.commitStatuses = statuses
+	return nil
 }
 
 func (ghc *GitHubContext) getCheckStatuses() (map[string]string, error) {

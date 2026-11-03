@@ -184,6 +184,9 @@ func New(c *Config) (*Server, error) {
 
 		AppName: app.GetSlug(),
 	}
+	if c.Coalesce.Window > 0 {
+		basePolicyHandler.Coalescer = handler.NewCoalescer(c.Coalesce.Window)
+	}
 
 	queueSize := c.Workers.QueueSize
 	if queueSize < 1 {
