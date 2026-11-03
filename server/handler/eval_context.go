@@ -24,6 +24,7 @@ import (
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
+	"github.com/rcrowley/go-metrics"
 	"github.com/rs/zerolog"
 	"github.com/shurcooL/githubv4"
 )
@@ -39,14 +40,22 @@ type EvalContext struct {
 	Options   *PullEvaluationOptions
 	PublicURL string
 
+	// RulesetChecks finds the ruleset checks to post when ruleset status
+	// checks are enabled.
+	RulesetChecks RulesetChecks
+	Registry      metrics.Registry
+
 	PullContext pull.Context
 	Config      FetchedConfig
 
-	// If true, store statuses in the Status field instead of posting them to
-	// GitHub. Only the last status is saved, so when this option is enabled,
-	// callers should check for a non-nil status after each method call.
+	// If true, store statuses in the Status and StatusContexts fields instead
+	// of posting them to GitHub. Only the last status is saved, so when this
+	// option is enabled, callers should check for a non-nil status after each
+	// method call. Status.Context is the first of StatusContexts, or nil if
+	// there are no contexts to post.
 	SkipPostStatus bool
 	Status         *github.RepoStatus
+	StatusContexts []string
 }
 
 // Evaluate runs the full process for evaluating a pull request.
@@ -180,7 +189,8 @@ func (ec *EvalContext) RunPostEvaluateActions(ctx context.Context, result common
 	}
 }
 
-// PostStatus posts a status for the evaluated PR.
+// PostStatus posts a status for the evaluated PR to every enabled status
+// context. If there are no contexts, nothing is posted.
 func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 	logger := zerolog.Ctx(ctx)
 
@@ -189,28 +199,49 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 	sha := ec.PullContext.HeadSHA()
 	base, _ := ec.PullContext.Branches()
 
+	if !ec.SkipPostStatus && !ec.PullContext.IsOpen() {
+		logger.Info().Msg("Skipping status update because PR state is not open")
+		return
+	}
+
+	contexts, err := statusContexts(ctx, ec.Options, ec.RulesetChecks, ec.Client, owner, repo, base)
+	if err != nil {
+		logger.Error().Err(err).Msg("Failed to find ruleset status checks, not posting ruleset checks")
+	}
+
 	publicURL := strings.TrimSuffix(ec.PublicURL, "/")
 	detailsURL := fmt.Sprintf("%s/details/%s/%s/%d", publicURL, owner, repo, ec.PullContext.Number())
 
 	status := github.RepoStatus{
 		State:       &state,
-		Context:     new(fmt.Sprintf("%s: %s", ec.Options.StatusCheckContext, base)),
 		Description: &message,
 		TargetURL:   &detailsURL,
 	}
 
 	if ec.SkipPostStatus {
+		if len(contexts) > 0 {
+			status.Context = new(contexts[0])
+		}
 		ec.Status = &status
+		ec.StatusContexts = contexts
 		return
 	}
 
-	if !ec.PullContext.IsOpen() {
-		logger.Info().Msg("Skipping status update because PR state is not open")
+	if len(contexts) == 0 {
+		logger.Debug().Msgf("No status checks to post for base branch %q", base)
 		return
 	}
 
-	if err := PostStatus(ctx, ec.Client, owner, repo, sha, status); err != nil {
-		logger.Err(err).Msg("Failed to post repo status")
+	rulesetPrefix := RulesetContext(ec.Options.StatusCheckContext, "")
+	for _, c := range contexts {
+		status.Context = new(c)
+		if err := PostStatus(ctx, ec.Client, owner, repo, sha, status); err != nil {
+			logger.Err(err).Msg("Failed to post repo status")
+			continue
+		}
+		if strings.HasPrefix(c, rulesetPrefix) {
+			metrics.GetOrRegisterCounter(MetricsKeyRulesetChecksPosted, ec.Registry).Inc(1)
+		}
 	}
 	if ec.Options.PostInsecureStatusChecks {
 		status.Context = new(ec.Options.StatusCheckContext)

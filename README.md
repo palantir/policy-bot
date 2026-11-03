@@ -1161,6 +1161,91 @@ approve and merge a pull request before `policy-bot` can detect the problem.
 Organizations concerned about this case should monitor and alert on the
 relevant audit logs or minimize write access to repositories.
 
+### Ruleset Status Checks <!-- omit in toc -->
+
+By default, `policy-bot` posts one status per pull request with the context
+`<status_check_context>: <base branch>` (for example, `policy-bot: develop`).
+Classic branch protection can require this check for each branch, but GitHub
+[repository rulesets][] require fixed check names shared by every branch the
+ruleset targets (for example, all `release/*` branches).
+
+To support rulesets, set the `status_checks` server option:
+
+```yaml
+options:
+  # "branch" posts "<status_check_context>: <base branch>" (the default)
+  # "ruleset" posts "<status_check_context>: ruleset:<ruleset name>"
+  status_checks: [branch, ruleset]
+```
+
+The option can also be set with the `POLICYBOT_OPTIONS_STATUS_CHECKS`
+environment variable as a comma-separated list. It cannot be empty, and
+`post_insecure_status_checks` is not supported with `ruleset`.
+
+With `ruleset` enabled, `policy-bot` posts `<status_check_context>:
+ruleset:<ruleset name>` (for example, `policy-bot: ruleset:release-branches`)
+only when **all** of these are true:
+
+- The ruleset is active for the pull request's base branch.
+- The ruleset requires a status check with exactly that context, using the
+  ruleset's own name.
+- The required check is **pinned to the `policy-bot` GitHub App** (the
+  expected source is set to the app). `policy-bot` ignores unpinned checks and
+  checks pinned to other apps.
+
+A ruleset that requires the check of a different ruleset is ignored. Because a
+branch name cannot contain `:`, ruleset checks never collide with per-branch
+checks. Ignored checks are logged with the reason. If `policy-bot` cannot load
+the rules for a branch after retrying, it posts no ruleset checks for that
+evaluation, and the pull request gets them on its next event. The per-branch
+check is still posted if enabled. Ruleset checks are never posted for merge groups.
+
+Ruleset lookups use the same HTTP cache as other GitHub requests, and GitHub
+allows caching these responses for up to 60 seconds. Ruleset changes take
+effect on the next event for each pull request (for example, a push, review,
+or comment) after the cached responses expire.
+
+#### Security requirements <!-- omit in toc -->
+
+A commit status belongs to a commit, not to a pull request or branch. A shared
+check name is only safe if no unprotected branch can produce it for the same
+commit. `policy-bot` only posts a ruleset check for branches covered by that
+ruleset, but each ruleset that requires a shared check must also:
+
+- **Require a pull request** before merging.
+- **Block force pushes and deletions.**
+- **Restrict who can create matching branches**, for example with a ruleset
+  that restricts creation for the same branch patterns. `policy-bot` loads the
+  policy from the base branch, so anyone who can create a matching branch can
+  add a permissive policy to it, open a pull request into it, and get a passing
+  shared check for a commit that also targets a protected branch.
+- Only set **do not enforce on create** (`do_not_enforce_on_create`) for the
+  required status checks rule where branch creation is restricted.
+- **Restrict tags** too, if automation creates branches from tags.
+
+Within one ruleset, all targeted branches share the check. Code approved for
+one branch can be merged into another branch in the same ruleset, either with
+a second pull request whose head commit already has a passing check, or by a
+direct push from a bypass actor. Only group branches that are interchangeable
+from an approval perspective, and use separate rulesets for branches that need
+different approvals.
+
+`policy-bot` does not yet re-evaluate pull requests when their base branch
+changes. A retargeted pull request keeps the ruleset checks from its previous
+base until its next event.
+
+#### Migrating from branch protection <!-- omit in toc -->
+
+1. Set `status_checks: [branch, ruleset]` so both checks are posted.
+2. Create the rulesets. Require `<status_check_context>: ruleset:<ruleset name>`
+   pinned to the `policy-bot` app, and follow the security requirements above.
+3. Wait for open pull requests to get the new check. They get it on their next
+   event, for example a push, review, or comment.
+4. Remove the classic branch protection rules that require the per-branch check.
+5. Set `status_checks: [ruleset]`.
+
+[repository rulesets]: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets
+
 ### Comment Edits <!-- omit in toc -->
 
 GitHub users with sufficient permissions can edit the comments of other users,

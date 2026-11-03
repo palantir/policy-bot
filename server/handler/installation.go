@@ -98,15 +98,21 @@ func (h *Installation) postRepoInstallationStatus(ctx context.Context, client *g
 	}
 
 	head := branch.GetCommit().GetSHA()
-	contextWithBranch := fmt.Sprintf("%s: %s", h.PullOpts.StatusCheckContext, defaultBranch)
+	contexts, err := statusContexts(ctx, h.PullOpts, h.RulesetChecks, client, owner, repo, defaultBranch)
+	if err != nil {
+		logger.Error().Err(err).Msg("Failed to find ruleset status checks, not posting ruleset checks")
+	}
+
 	state := "success"
 	message := fmt.Sprintf("%s successfully installed.", h.AppName)
-	status := github.RepoStatus{
-		Context:     &contextWithBranch,
-		State:       &state,
-		Description: &message,
-	}
-	if err := PostStatus(ctx, client, owner, repo, head, status); err != nil {
-		logger.Err(errors.WithStack(err)).Msg("Failed to post repo status")
+	for _, c := range contexts {
+		status := github.RepoStatus{
+			Context:     new(c),
+			State:       &state,
+			Description: &message,
+		}
+		if err := PostStatus(ctx, client, owner, repo, head, status); err != nil {
+			logger.Err(errors.WithStack(err)).Msg("Failed to post repo status")
+		}
 	}
 }

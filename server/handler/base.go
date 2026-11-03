@@ -16,6 +16,7 @@ package handler
 
 import (
 	"context"
+	"slices"
 
 	"github.com/google/go-github/v93/github"
 	"github.com/palantir/go-baseapp/baseapp"
@@ -23,6 +24,7 @@ import (
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
+	"github.com/rcrowley/go-metrics"
 	"github.com/rs/zerolog"
 )
 
@@ -38,6 +40,8 @@ type Base struct {
 	ConfigFetcher *ConfigFetcher
 	BaseConfig    *baseapp.HTTPConfig
 	PullOpts      *PullEvaluationOptions
+	RulesetChecks RulesetChecks
+	Registry      metrics.Registry
 
 	AppName string
 }
@@ -47,6 +51,32 @@ func PostStatus(ctx context.Context, client *github.Client, owner, repo, ref str
 	zerolog.Ctx(ctx).Info().Msgf("Setting %q status on %s to %s: %s", status.GetContext(), ref, status.GetState(), status.GetDescription())
 	_, _, err := client.Repositories.CreateStatus(ctx, owner, repo, ref, status)
 	return errors.WithStack(err)
+}
+
+// statusContexts returns the de-duplicated status contexts to post for a pull
+// request targeting branch, based on the enabled status check types. If the
+// ruleset lookup fails, the returned contexts exclude all ruleset checks and
+// the error is returned with them.
+func statusContexts(ctx context.Context, opts *PullEvaluationOptions, rulesets RulesetChecks, client *github.Client, owner, repo, branch string) ([]string, error) {
+	var contexts []string
+	if opts.HasStatusCheck(StatusCheckBranch) {
+		contexts = append(contexts, opts.BranchStatusContext(branch))
+	}
+	if opts.HasStatusCheck(StatusCheckRuleset) {
+		if rulesets == nil {
+			return contexts, errors.New("ruleset status checks are enabled but no ruleset lookup is configured")
+		}
+		checks, err := rulesets.RequiredChecks(ctx, client, owner, repo, branch)
+		if err != nil {
+			return contexts, err
+		}
+		for _, c := range checks {
+			if !slices.Contains(contexts, c) {
+				contexts = append(contexts, c)
+			}
+		}
+	}
+	return contexts, nil
 }
 
 func (b *Base) PreparePRContext(ctx context.Context, installationID int64, pr *github.PullRequest) (context.Context, zerolog.Logger) {
@@ -85,8 +115,10 @@ func (b *Base) NewEvalContext(ctx context.Context, installationID int64, loc pul
 		Client:   client,
 		V4Client: v4client,
 
-		Options:   b.PullOpts,
-		PublicURL: b.BaseConfig.PublicURL,
+		Options:       b.PullOpts,
+		PublicURL:     b.BaseConfig.PublicURL,
+		RulesetChecks: b.RulesetChecks,
+		Registry:      b.Registry,
 
 		PullContext: prctx,
 		Config:      fetchedConfig,
