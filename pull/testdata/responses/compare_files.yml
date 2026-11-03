@@ -1,0 +1,35 @@
+- status: 200
+  body: |
+    {
+      "files": [
+        {
+          "filename": "path/foo.txt",
+          "status": "added",
+          "additions": 103,
+          "deletions": 0,
+          "changes": 103
+        },
+        {
+          "filename": "path/bar.txt",
+          "status": "removed",
+          "additions": 0,
+          "deletions": 21,
+          "changes": 21
+        },
+        {
+          "filename": "README.md",
+          "status": "modified",
+          "additions": 103,
+          "deletions": 21,
+          "changes": 124
+        },
+        {
+          "filename": "path/new.txt",
+          "status": "renamed",
+          "additions": 2,
+          "deletions": 4,
+          "changes": 6,
+          "previous_filename": "path/old.txt"
+        }
+      ]
+    }
