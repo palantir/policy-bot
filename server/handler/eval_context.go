@@ -212,13 +212,29 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 		return
 	}
 
-	if err := PostStatus(ctx, ec.Client, owner, repo, sha, status); err != nil {
+	if err := ec.postUnlessUnchanged(ctx, owner, repo, sha, status); err != nil {
 		logger.Err(err).Msg("Failed to post repo status")
 	}
 	if ec.Options.PostsSeparateInsecureStatus() {
 		status.Context = new(ec.Options.StatusCheckContext)
-		if err := PostStatus(ctx, ec.Client, owner, repo, sha, status); err != nil {
+		if err := ec.postUnlessUnchanged(ctx, owner, repo, sha, status); err != nil {
 			logger.Err(err).Msg("Failed to post insecure repo status")
 		}
 	}
+}
+
+// postUnlessUnchanged posts status, unless the commit already carries the same pending or success status.
+// A failure or error is always posted, since the sweep reads their age to decide whether to re-evaluate.
+func (ec *EvalContext) postUnlessUnchanged(ctx context.Context, owner, repo, sha string, status github.RepoStatus) error {
+	logger := zerolog.Ctx(ctx)
+	if status.GetState() == "pending" || status.GetState() == "success" {
+		current, err := ec.PullContext.LatestCommitStatus(status.GetContext())
+		if err != nil {
+			logger.Warn().Err(err).Msg("Failed to read the current status, posting without comparing")
+		} else if current != nil && current.State == status.GetState() && current.Description == status.GetDescription() && current.TargetURL == status.GetTargetURL() {
+			logger.Info().Msgf("Keeping %q status on %s at %s: %s", status.GetContext(), sha, status.GetState(), status.GetDescription())
+			return nil
+		}
+	}
+	return PostStatus(ctx, ec.Client, owner, repo, sha, status)
 }

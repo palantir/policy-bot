@@ -39,6 +39,7 @@ type Base struct {
 	ConfigFetcher *ConfigFetcher
 	BaseConfig    *baseapp.HTTPConfig
 	PullOpts      *PullEvaluationOptions
+	Coalescer     *Coalescer
 
 	AppName string
 }
@@ -109,24 +110,31 @@ func (b *Base) NewEvalContext(ctx context.Context, installationID int64, loc pul
 	}, nil
 }
 
-// EvaluateWithWorkflowRun evaluates a pull request knowing the result of run, rather than relying on the runs API to have caught up with it.
-func (b *Base) EvaluateWithWorkflowRun(ctx context.Context, installationID int64, trigger common.Trigger, loc pull.Locator, run *github.WorkflowRun) error {
-	evalCtx, err := b.NewEvalContext(ctx, installationID, loc)
+// EvaluateCoalesced evaluates a pull request for an event, held behind a recent evaluation of it when there is a Coalescer.
+// runs are workflow runs the event reported, which the runs API may not list yet.
+func (b *Base) EvaluateCoalesced(ctx context.Context, installationID int64, trigger common.Trigger, loc pull.Locator, runs ...*github.WorkflowRun) error {
+	e := &evaluation{installationID: installationID, trigger: trigger, loc: loc, runs: runs, run: b.evaluate, events: 1}
+	if b.Coalescer == nil {
+		return b.evaluate(ctx, e)
+	}
+	return b.Coalescer.Evaluate(ctx, e)
+}
+
+func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger common.Trigger, loc pull.Locator) error {
+	return b.evaluate(ctx, &evaluation{installationID: installationID, trigger: trigger, loc: loc})
+}
+
+func (b *Base) evaluate(ctx context.Context, e *evaluation) error {
+	evalCtx, err := b.NewEvalContext(ctx, e.installationID, e.loc)
 	if err != nil {
 		return errors.Wrap(err, "failed to create evaluation context")
 	}
 	if ghc, ok := evalCtx.PullContext.(*pull.GitHubContext); ok {
-		ghc.AddWorkflowRun(run)
+		for _, run := range e.runs {
+			ghc.AddWorkflowRun(run)
+		}
 	}
-	return evalCtx.Evaluate(ctx, trigger)
-}
-
-func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger common.Trigger, loc pull.Locator) error {
-	evalCtx, err := b.NewEvalContext(ctx, installationID, loc)
-	if err != nil {
-		return errors.Wrap(err, "failed to create evaluation context")
-	}
-	return evalCtx.Evaluate(ctx, trigger)
+	return evalCtx.Evaluate(ctx, e.trigger)
 }
 
 // ignoresStatus reports whether the policy on baseRef, or the default branch when empty, reads no status or check named name.

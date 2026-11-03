@@ -55,7 +55,7 @@ func (h *PullRequest) Handle(ctx context.Context, eventType, deliveryID string, 
 		h.invalidateStatus(ctx, installationID, event.GetPullRequest())
 	}
 
-	return h.Evaluate(ctx, installationID, t, pull.Locator{
+	return h.EvaluateCoalesced(ctx, installationID, t, pull.Locator{
 		Owner:  event.GetRepo().GetOwner().GetLogin(),
 		Repo:   event.GetRepo().GetName(),
 		Number: event.GetPullRequest().GetNumber(),

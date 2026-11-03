@@ -148,7 +148,7 @@ func (h *Status) processOthers(ctx context.Context, event github.StatusEvent) er
 			continue
 		}
 
-		err = h.Evaluate(ctx, installationID, common.TriggerStatus, pull.Locator{
+		err = h.EvaluateCoalesced(ctx, installationID, common.TriggerStatus, pull.Locator{
 			Owner:  ownerName,
 			Repo:   repoName,
 			Number: pr.GetNumber(),

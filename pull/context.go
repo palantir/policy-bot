@@ -18,6 +18,13 @@ import (
 	"time"
 )
 
+// CommitStatus is a commit status as posted on the head commit
+type CommitStatus struct {
+	State       string
+	Description string
+	TargetURL   string
+}
+
 // MembershipContext defines methods to get information
 // about about user membership in Github organizations and teams.
 type MembershipContext interface {
@@ -129,6 +136,9 @@ type Context interface {
 
 	// LatestStatuses returns a map of status check names to the latest result
 	LatestStatuses() (map[string]string, error)
+
+	// LatestCommitStatus returns the latest commit status with the given context on the head commit, or nil when there is none
+	LatestCommitStatus(context string) (*CommitStatus, error)
 
 	// LatestWorkflowRuns returns the latest GitHub Actions workflow runs for
 	// the pull request. The keys of the map are paths to the workflow files and
