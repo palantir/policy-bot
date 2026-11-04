@@ -66,6 +66,11 @@ func (h *WorkflowRun) Handle(ctx context.Context, eventType, deliveryID string, 
 			continue
 		}
 
+		if !isHeadCommit(pr, commitSHA) {
+			logger.Debug().Msgf("Skipping pull request '%d' because SHA '%s' is not its head commit", pr.GetNumber(), commitSHA)
+			continue
+		}
+
 		if err := h.Evaluate(ctx, installationID, common.TriggerStatus, pull.Locator{
 			Owner:  ownerName,
 			Repo:   repoName,

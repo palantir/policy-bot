@@ -131,6 +131,10 @@ func (h *Status) processOthers(ctx context.Context, event github.StatusEvent) er
 
 	evaluationFailures := 0
 	for _, pr := range prs {
+		if !isHeadCommit(pr, commitSHA) {
+			logger.Debug().Msgf("Skipping pull request '%d' because SHA '%s' is not its head commit", pr.GetNumber(), commitSHA)
+			continue
+		}
 		if pr.GetState() == "open" {
 			err = h.Evaluate(ctx, installationID, common.TriggerStatus, pull.Locator{
 				Owner:  ownerName,

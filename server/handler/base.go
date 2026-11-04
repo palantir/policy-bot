@@ -49,6 +49,21 @@ func PostStatus(ctx context.Context, client *github.Client, owner, repo, ref str
 	return errors.WithStack(err)
 }
 
+// isHeadCommit reports whether sha is the head commit of pr.
+//
+// The status, check_run, and workflow_run events are for a commit, not a pull
+// request, and can be associated with every open pull request that contains
+// the commit. With stacked pull requests, an event for a commit low in the
+// stack can list every pull request above it. Statuses, checks, and
+// workflow runs only affect a policy when they are on the head commit, so
+// evaluating the other pull requests cannot change their result and only
+// spends API requests. If pr does not include a head SHA, assume it matches so
+// the pull request is still evaluated.
+func isHeadCommit(pr *github.PullRequest, sha string) bool {
+	head := pr.GetHead().GetSHA()
+	return head == "" || sha == "" || head == sha
+}
+
 func (b *Base) PreparePRContext(ctx context.Context, installationID int64, pr *github.PullRequest) (context.Context, zerolog.Logger) {
 	ctx, logger := githubapp.PreparePRContext(ctx, installationID, pr.GetBase().GetRepo(), pr.GetNumber())
 
