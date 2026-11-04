@@ -16,6 +16,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -139,6 +140,9 @@ func TestPostStatusKeepsAnUnchangedStatus(t *testing.T) {
 		"newState":           {current("pending", "Waiting"), "success", "Waiting", true},
 		"sameFailureReposts": {current("failure", "Failed: lint"), "failure", "Failed: lint", true},
 		"sameErrorReposts":   {current("error", "Invalid policy"), "error", "Invalid policy", true},
+		"overriddenPending":  {current("success", "Overridden by tommy"), "pending", "Waiting", false},
+		"overriddenFailure":  {current("success", "Overridden by tommy"), "failure", "Failed: lint", false},
+		"overriddenError":    {current("success", "Overridden by tommy"), "error", "Invalid policy", false},
 	}
 
 	for name, test := range tests {
@@ -153,4 +157,44 @@ func TestPostStatusKeepsAnUnchangedStatus(t *testing.T) {
 			assert.Equal(t, test.Posts, posted == 1)
 		})
 	}
+}
+
+func TestPostOverride(t *testing.T) {
+	var posted []github.RepoStatus
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var status github.RepoStatus
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&status))
+		posted = append(posted, status)
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte("{}"))
+	}))
+	defer server.Close()
+	baseURL := server.URL + "/"
+	client, err := github.NewClient(github.WithURLs(&baseURL, nil))
+	require.NoError(t, err)
+
+	ec := makeEvalContext(true)
+	ec.SkipPostStatus = false
+	ec.Client = client
+	ec.Options.OverrideUsers = []string{"Tommy"}
+
+	assert.True(t, ec.Options.CanOverride("tommy"))
+	assert.False(t, ec.Options.CanOverride("dan"))
+
+	overriddenBy, err := ec.OverriddenBy()
+	require.NoError(t, err)
+	assert.Equal(t, "", overriddenBy)
+
+	require.NoError(t, ec.PostOverride(context.Background(), "tommy"))
+	require.Len(t, posted, 1)
+	assert.Equal(t, "success", posted[0].GetState())
+	assert.Equal(t, "policy-bot: main", posted[0].GetContext())
+	assert.Equal(t, "Overridden by tommy", posted[0].GetDescription())
+
+	ec.PullContext.(*pulltest.Context).CommitStatusesValue = map[string]*pull.CommitStatus{
+		"policy-bot: main": {State: posted[0].GetState(), Description: posted[0].GetDescription()},
+	}
+	overriddenBy, err = ec.OverriddenBy()
+	require.NoError(t, err)
+	assert.Equal(t, "tommy", overriddenBy)
 }

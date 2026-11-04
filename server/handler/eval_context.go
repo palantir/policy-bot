@@ -223,18 +223,70 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 	}
 }
 
-// postUnlessUnchanged posts status, unless the commit already carries the same pending or success status.
-// A failure or error is always posted, since the sweep reads their age to decide whether to re-evaluate.
+// postUnlessUnchanged posts status, unless the commit already carries the same pending or success status, or an override.
+// A failure or error is otherwise always posted, since the sweep reads their age to decide whether to re-evaluate.
 func (ec *EvalContext) postUnlessUnchanged(ctx context.Context, owner, repo, sha string, status github.RepoStatus) error {
 	logger := zerolog.Ctx(ctx)
-	if status.GetState() == "pending" || status.GetState() == "success" {
-		current, err := ec.PullContext.LatestCommitStatus(status.GetContext())
-		if err != nil {
-			logger.Warn().Err(err).Msg("Failed to read the current status, posting without comparing")
-		} else if current != nil && current.State == status.GetState() && current.Description == status.GetDescription() && current.TargetURL == status.GetTargetURL() {
-			logger.Info().Msgf("Keeping %q status on %s at %s: %s", status.GetContext(), sha, status.GetState(), status.GetDescription())
-			return nil
-		}
+	current, err := ec.PullContext.LatestCommitStatus(status.GetContext())
+	switch {
+	case err != nil:
+		logger.Warn().Err(err).Msg("Failed to read the current status, posting without comparing")
+	case current == nil:
+	case overrideUser(current) != "":
+		logger.Info().Msgf("Keeping %q status on %s overridden by %s", status.GetContext(), sha, overrideUser(current))
+		return nil
+	case status.GetState() != "pending" && status.GetState() != "success":
+	case current.State == status.GetState() && current.Description == status.GetDescription() && current.TargetURL == status.GetTargetURL():
+		logger.Info().Msgf("Keeping %q status on %s at %s: %s", status.GetContext(), sha, status.GetState(), status.GetDescription())
+		return nil
 	}
 	return PostStatus(ctx, ec.Client, owner, repo, sha, status)
+}
+
+// overridePrefix starts the description of a status posted by PostOverride
+const overridePrefix = "Overridden by "
+
+// overrideUser returns the user who overrode status, or "" when it is a normal status.
+func overrideUser(status *pull.CommitStatus) string {
+	if status != nil && status.State == "success" && strings.HasPrefix(status.Description, overridePrefix) {
+		return strings.TrimPrefix(status.Description, overridePrefix)
+	}
+	return ""
+}
+
+// OverriddenBy returns the user who overrode the status on the head commit, or "" when nobody has.
+func (ec *EvalContext) OverriddenBy() (string, error) {
+	base, _ := ec.PullContext.Branches()
+	current, err := ec.PullContext.LatestCommitStatus(ec.Options.StatusContextFor(base))
+	if err != nil {
+		return "", err
+	}
+	return overrideUser(current), nil
+}
+
+// PostOverride marks the head commit successful on behalf of user, whatever the policy says.
+// Evaluations keep the override until a new commit is pushed.
+func (ec *EvalContext) PostOverride(ctx context.Context, user string) error {
+	owner := ec.PullContext.RepositoryOwner()
+	repo := ec.PullContext.RepositoryName()
+	sha := ec.PullContext.HeadSHA()
+	base, _ := ec.PullContext.Branches()
+
+	publicURL := strings.TrimSuffix(ec.PublicURL, "/")
+	detailsURL := fmt.Sprintf("%s/details/%s/%s/%d", publicURL, owner, repo, ec.PullContext.Number())
+
+	status := github.RepoStatus{
+		State:       new("success"),
+		Context:     new(ec.Options.StatusContextFor(base)),
+		Description: new(overridePrefix + user),
+		TargetURL:   &detailsURL,
+	}
+	if err := PostStatus(ctx, ec.Client, owner, repo, sha, status); err != nil {
+		return err
+	}
+	if ec.Options.PostsSeparateInsecureStatus() {
+		status.Context = new(ec.Options.StatusCheckContext)
+		return PostStatus(ctx, ec.Client, owner, repo, sha, status)
+	}
+	return nil
 }

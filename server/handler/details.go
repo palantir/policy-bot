@@ -69,6 +69,10 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 
 		ExpandRequiredReviewers bool
 
+		// CanOverride shows the override button; OverriddenBy names who pressed it for this commit
+		CanOverride  bool
+		OverriddenBy string
+
 		Error            error
 		IsTemporaryError bool
 
@@ -80,7 +84,14 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	data.User = state.Username
 	data.PolicyURL = getPolicyURL(state.PullRequest, evalCtx.Config)
 	data.ExpandRequiredReviewers = h.PullOpts.ExpandRequiredReviewers
+	data.CanOverride = h.PullOpts.CanOverride(state.Username) && state.PullRequest.GetState() == "open"
 	data.PullRequest = state.PullRequest
+
+	if overriddenBy, err := evalCtx.OverriddenBy(); err != nil {
+		state.Logger.Warn().Err(err).Msg("Failed to read the current status")
+	} else {
+		data.OverriddenBy = overriddenBy
+	}
 
 	evaluator, err := evalCtx.ParseConfig(ctx, common.TriggerAll)
 	if err != nil {
@@ -180,6 +191,45 @@ func (h *Details) getStateIfAllowed(w http.ResponseWriter, r *http.Request) *Det
 		PullRequest: pr,
 		Username:    user,
 	}
+}
+
+// DetailsOverride marks a pull request's head commit successful for a user in OverrideUsers.
+type DetailsOverride struct {
+	Details
+}
+
+func (h *DetailsOverride) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
+	state := h.getStateIfAllowed(w, r)
+	if state == nil {
+		return nil
+	}
+
+	if !h.PullOpts.CanOverride(state.Username) {
+		http.Error(w, "You are not allowed to override statuses", http.StatusForbidden)
+		return nil
+	}
+	if state.PullRequest.GetState() != "open" {
+		http.Error(w, "The pull request is not open", http.StatusBadRequest)
+		return nil
+	}
+	// The form carries the commit it was rendered for, so a push since then is not overridden unseen
+	if sha := r.FormValue("sha"); sha != state.PullRequest.GetHead().GetSHA() {
+		http.Error(w, "The pull request has changed since the page was loaded, reload it and try again", http.StatusConflict)
+		return nil
+	}
+
+	state.Logger.Warn().
+		Str(LogKeyAudit, "override").
+		Str(LogKeyGitHubSHA, state.PullRequest.GetHead().GetSHA()).
+		Msgf("User '%s' overrode the status to success", state.Username)
+
+	if err := state.EvalContext.PostOverride(state.Ctx, state.Username); err != nil {
+		return errors.Wrap(err, "failed to post override status")
+	}
+
+	owner, repo, number, _ := parsePullParams(r)
+	http.Redirect(w, r, fmt.Sprintf("%s/details/%s/%s/%d", getBasePath(h.BaseConfig.PublicURL), owner, repo, number), http.StatusSeeOther)
+	return nil
 }
 
 func (h *Details) render(w http.ResponseWriter, data any) error {

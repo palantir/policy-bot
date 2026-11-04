@@ -1161,6 +1161,17 @@ approve and merge a pull request before `policy-bot` can detect the problem.
 Organizations concerned about this case should monitor and alert on the
 relevant audit logs or minimize write access to repositories.
 
+#### Overrides <!-- omit in toc -->
+
+When the `options.override_users` server option lists GitHub logins, those
+users see an "Override" button on the details page of a pull request whose
+status is not yet successful. Pressing it posts a successful status for the
+head commit with the description "Overridden by <login>", and later
+evaluations keep that status instead of replacing it. Pushing a new commit
+clears the override, since it belongs to the commit. Each override is logged
+as an audit event. Use it when a status cannot pass for reasons outside the
+pull request, such as a GitHub outage leaving a workflow run unfinished.
+
 ### Comment Edits <!-- omit in toc -->
 
 GitHub users with sufficient permissions can edit the comments of other users,

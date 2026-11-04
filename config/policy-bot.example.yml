@@ -163,6 +163,11 @@ sessions:
 #   # environment variable.
 #   expand_required_reviewers: false
 #
+#   # GitHub logins who may mark a pull request's status successful from the details UI.
+#   # The override lasts until a new commit is pushed. Can also be set as a comma-separated
+#   # list by the POLICYBOT_OPTIONS_OVERRIDE_USERS environment variable.
+#   override_users: []
+#
 #   # If true, forces the use of the shared repository policy for all repositories,
 #   # even if they define their own local policy file.
 #   # Can also be set by the POLICYBOT_OPTIONS_FORCE_SHARED_POLICY

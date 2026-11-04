@@ -61,6 +61,10 @@ type PullEvaluationOptions struct {
 	// Merge queue pull requests are based on each other's branches, which the queue deletes as it merges them.
 	PolicyFromDefaultBranchHeadPrefix string `yaml:"policy_from_default_branch_head_prefix"`
 
+	// OverrideUsers are the GitHub logins allowed to mark a pull request's status successful from the details page.
+	// The override lasts until a new commit is pushed. Empty disables it.
+	OverrideUsers []string `yaml:"override_users"`
+
 	// ExpandRequiredReviewers enables a UI feature where the details page
 	// shows a list of the users who can approve each rule. Enabling this
 	// feature can leak information about team membership and permissions that
@@ -116,6 +120,16 @@ func (p *PullEvaluationOptions) PolicyBranch(baseBranch, headBranch string) stri
 	return baseBranch
 }
 
+// CanOverride reports whether user may override statuses from the details page.
+func (p *PullEvaluationOptions) CanOverride(user string) bool {
+	for _, u := range p.OverrideUsers {
+		if strings.EqualFold(u, user) {
+			return true
+		}
+	}
+	return false
+}
+
 // PostsSeparateInsecureStatus reports whether a second, branchless status is worth posting.
 // It is redundant when the branch is already left out of every context.
 func (p *PullEvaluationOptions) PostsSeparateInsecureStatus() bool {
@@ -161,6 +175,7 @@ func (p *PullEvaluationOptions) SetValuesFromEnv(prefix string) {
 	setStringFromEnv("POLICY_FROM_DEFAULT_BRANCH_HEAD_PREFIX", prefix, &p.PolicyFromDefaultBranchHeadPrefix)
 	setBoolFromEnv("FORCE_SHARED_POLICY", prefix, &p.ForceSharedPolicy)
 	setBoolFromEnv("ALLOW_PRIVATE_REMOTES", prefix, &p.AllowPrivateRemotes)
+	setStringListFromEnv("OVERRIDE_USERS", prefix, &p.OverrideUsers)
 	setBoolFromEnv("EXPAND_REQUIRED_REVIEWERS", prefix, &p.ExpandRequiredReviewers)
 	setBoolFromEnv("STRICT_REVIEW_DISMISSAL", prefix, &p.StrictReviewDismissal)
 	setBoolFromEnv("POST_INSECURE_STATUS_CHECKS", prefix, &p.PostInsecureStatusChecks)

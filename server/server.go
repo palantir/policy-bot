@@ -279,6 +279,9 @@ func New(c *Config) (*Server, error) {
 	details := goji.SubMux()
 	details.Use(handler.RequireLogin(sessions, basePath))
 	details.Handle(pat.Get("/:owner/:repo/:number"), hatpear.Try(&detailsHandler))
+	if len(c.Options.OverrideUsers) > 0 {
+		details.Handle(pat.Post("/:owner/:repo/:number/override"), hatpear.Try(&handler.DetailsOverride{Details: detailsHandler}))
+	}
 
 	if c.Options.ExpandRequiredReviewers {
 		details.Handle(pat.Get("/:owner/:repo/:number/reviewers"), hatpear.Try(&handler.DetailsReviewers{

@@ -32,15 +32,32 @@
     </div>
   {{else}}
     {{ $s := (or (and .Result.Error "error") (.Result.Status | print)) }}
-    <div class="status-banner {{$s}} flex flex-wrap items-center justify-between">
+    <div class="status-banner {{if .OverriddenBy}}approved{{else}}{{$s}}{{end}} flex flex-wrap items-center justify-between gap-2">
       <div>
+        {{if .OverriddenBy}}
+        <h2 class="mb-1 text-lg font-bold">Status: Overridden by {{.OverriddenBy}}</h2>
+        <p>The status is successful until a new commit is pushed. The policy says: {{or .Result.Error .Result.StatusDescription}}</p>
+        {{else}}
         <h2 class="mb-1 text-lg font-bold">Status: {{$s | toFirstUpper}}</h2>
         <p>{{or .Result.Error .Result.StatusDescription}}</p>
+        {{end}}
       </div>
-      <div class="p-2 rounded-md bg-white dark:bg-dark-gray3 text-dark-gray1 dark:text-light-gray4 text-sm text-shadow-none">
-        <div class="toggle">
-            <input id="filter-toggle" type="checkbox" autocomplete="off" checked/>
-            <label for="filter-toggle">Hide skipped rules</label>
+      <div class="flex items-center gap-2">
+        {{if and .CanOverride (not .OverriddenBy) (ne $s "approved")}}
+        <form method="post" action="{{.BasePath}}/details/{{.PullRequest.GetBase.GetRepo.GetFullName}}/{{.PullRequest.GetNumber}}/override"
+              onsubmit="return confirm('Mark this commit successful whatever the policy says? The override lasts until a new commit is pushed.')">
+          <input type="hidden" name="sha" value="{{.PullRequest.GetHead.GetSHA}}"/>
+          <button type="submit" title="Mark this commit successful until a new commit is pushed"
+                  class="px-3 py-2 rounded-md bg-white dark:bg-dark-gray3 text-dark-gray1 dark:text-light-gray4 text-sm font-semibold text-shadow-none border border-light-gray2 dark:border-dark-gray5 hover:bg-light-gray3 dark:hover:bg-dark-gray4 cursor-pointer">
+            Override
+          </button>
+        </form>
+        {{end}}
+        <div class="p-2 rounded-md bg-white dark:bg-dark-gray3 text-dark-gray1 dark:text-light-gray4 text-sm text-shadow-none">
+          <div class="toggle">
+              <input id="filter-toggle" type="checkbox" autocomplete="off" checked/>
+              <label for="filter-toggle">Hide skipped rules</label>
+          </div>
         </div>
       </div>
     </div>
