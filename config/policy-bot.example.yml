@@ -122,7 +122,13 @@ sessions:
 #   # POLICYBOT_OPTIONS_STATUS_CHECK_CONTEXT environment variable.
 #   status_check_context: policy-bot
 #
-#   # If true, expand teams, organizations, and permissions in the detils UI to
+#   # Load the policy from the default branch instead of the base branch and
+#   # drop the branch name from the status context. Assumes the default branch
+#   # is protected. Can also be set by the
+#   # POLICYBOT_OPTIONS_POLICY_FROM_DEFAULT_BRANCH environment variable.
+#   policy_from_default_branch: false
+#
+#   # If true, expand teams, organizations, and permissions in the details UI to
 #   # a list of users. This option has security implications; see the README.
 #   # Can also be set by the POLICYBOT_OPTIONS_EXPAND_REQUIRED_REVIEWERS
 #   # environment variable.
