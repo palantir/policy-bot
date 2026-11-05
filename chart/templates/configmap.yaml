@@ -1,0 +1,72 @@
+{{- if .Values.config.create }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "policy-bot.configMapName" . }}
+  labels:
+    {{- include "policy-bot.labels" . | nindent 4 }}
+data:
+  policy-bot.yml: |
+    # Server configuration
+    server:
+      address: {{ .Values.config.server.address | quote }}
+      port: {{ .Values.config.server.port }}
+      public_url: {{ include "policy-bot.publicUrl" . | quote }}
+
+    # Logging configuration
+    logging:
+      text: {{ .Values.config.logging.text }}
+      level: {{ .Values.config.logging.level | quote }}
+
+    # Cache configuration
+    cache:
+      max_size: {{ .Values.config.cache.maxSize | quote }}
+
+    # Worker configuration
+    workers:
+      workers: {{ .Values.config.workers.workers }}
+      queue_size: {{ .Values.config.workers.queueSize }}
+      github_timeout: {{ .Values.config.workers.githubTimeout | quote }}
+
+    # GitHub configuration
+    # Note: Sensitive values (integration_id, webhook_secret, private_key, oauth)
+    # are injected via environment variables from Kubernetes Secrets
+    github:
+      web_url: {{ .Values.config.github.webUrl | quote }}
+      v3_api_url: {{ .Values.config.github.v3ApiUrl | quote }}
+      v4_api_url: {{ .Values.config.github.v4ApiUrl | quote }}
+      app:
+        integration_id: 0  # Overridden by GITHUB_APP_INTEGRATION_ID env var
+        webhook_secret: ""  # Overridden by GITHUB_APP_WEBHOOK_SECRET env var
+        private_key: ""  # Overridden by GITHUB_APP_PRIVATE_KEY env var
+      oauth:
+        client_id: ""  # Overridden by GITHUB_OAUTH_CLIENT_ID env var
+        client_secret: ""  # Overridden by GITHUB_OAUTH_CLIENT_SECRET env var
+
+    # Session configuration
+    # Note: Session key is injected via environment variable from Kubernetes Secrets
+    sessions:
+      key: ""  # Overridden by POLICYBOT_SESSIONS_KEY env var
+
+    # Application options
+    options:
+      policy_path: {{ .Values.config.options.policyPath | quote }}
+      shared_repository: {{ .Values.config.options.sharedRepository | quote }}
+      shared_policy_path: {{ .Values.config.options.sharedPolicyPath | quote }}
+      status_check_context: {{ .Values.config.options.statusCheckContext | quote }}
+      expand_required_reviewers: {{ .Values.config.options.expandRequiredReviewers }}
+      force_shared_policy: {{ .Values.config.options.forceSharedPolicy }}
+
+    {{- if .Values.config.metrics.quantiles.enabled }}
+    # Prometheus metrics quantile configuration (optional)
+    prometheus:
+      histogram_quantiles: {{ .Values.config.metrics.quantiles.histogram | toJson }}
+      timer_quantiles: {{ .Values.config.metrics.quantiles.timer | toJson }}
+      {{- if .Values.config.metrics.labels }}
+      labels:
+        {{- range $key, $value := .Values.config.metrics.labels }}
+        {{ $key }}: {{ $value | quote }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+{{- end }}
