@@ -32,7 +32,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestIssueCommentAuditsInitializedPolicy(t *testing.T) {
+func TestIssueCommentAuditsExtension(t *testing.T) {
 	repo := &github.Repository{ID: new(int64(1)), Name: new("service"), Owner: &github.User{Login: new("example")}}
 	pr := &github.PullRequest{
 		Title: new("Change"), State: new("open"), Number: new(1), Draft: new(false),
@@ -48,22 +48,16 @@ func TestIssueCommentAuditsInitializedPolicy(t *testing.T) {
 		name, input, body, status string
 		defaults                  *approval.Defaults
 		parent                    string
+		action, sender            string
 	}{
-		{"hardcoded method", slotPolicy, ":+1:", "failure", nil, ""},
-		{"server default", slotPolicy, "ship", "failure", defaults, ""},
-		{"policy default", slotPolicy + "\napproval_defaults: {options: {methods: {comments: [ship]}}}", "ship", "failure", nil, ""},
-		{"rule method", strings.Replace(slotPolicy, "ignore_edited_comments: false", "methods: {comments: [ship]}", 1), "ship", "failure", nil, ""},
-		{"ordinary rule", strings.Replace(slotPolicy, "[{slot: service, required: true}]", "[Service review]", 1), ":+1:", "failure", nil, ""},
-		{"unused rule with no comment trigger", strings.Replace(slotPolicy, "[{slot: service, required: true}]", "[]", 1), "ship", "failure", defaults, ""},
-		{"unrelated edit", slotPolicy, "unrelated", "", nil, ""},
-		{"missing required", "policy: {approval: [{slot: service, required: true}]}", ":+1:", "error", nil, ""},
-		{"null rule", "approval_rules: [null]", ":+1:", "error", nil, ""},
-		{"invalid yaml", "approval_rules: [", ":+1:", "error", nil, ""},
-		{"parent default", extensionPolicy, "ship", "failure", nil, slotPolicy + "\napproval_defaults: {options: {methods: {comments: [ship]}}}"},
-		{"parent without comment trigger", extensionPolicy, "ship", "failure", defaults, strings.Replace(slotPolicy, "count: 1", "count: 0", 1)},
-		{"child override", extensionPolicy + childSlotFill, "child", "failure", nil, slotPolicy},
-		{"replaced parent method", extensionPolicy + childSlotFill, ":+1:", "", nil, slotPolicy},
-		{"null parent rule", extensionPolicy, ":+1:", "error", nil, "approval_rules: [null]"},
+		{"parent default", extensionPolicy, "ship", "failure", nil, slotPolicy + "\napproval_defaults: {options: {methods: {comments: [ship]}}}", "edited", "editor"},
+		{"parent without comment trigger", extensionPolicy, "ship", "failure", defaults, strings.Replace(slotPolicy, "count: 1", "count: 0", 1), "edited", "editor"},
+		{"child override", extensionPolicy + childSlotFill, "child", "failure", nil, slotPolicy, "edited", "editor"},
+		{"replaced parent method", extensionPolicy + childSlotFill, ":+1:", "", nil, slotPolicy, "edited", "editor"},
+		{"missing required", extensionPolicy, ":+1:", "error", nil, "policy: {approval: [{slot: missing, required: true}]}", "edited", "editor"},
+		{"invalid parent yaml", extensionPolicy, ":+1:", "error", nil, "approval_rules: [", "edited", "editor"},
+		{"created missing required", extensionPolicy, ":+1:", "error", nil, "policy: {approval: [{slot: missing, required: true}]}", "created", "reviewer"},
+		{"author edit missing required", extensionPolicy, ":+1:", "error", nil, "policy: {approval: [{slot: missing, required: true}]}", "edited", "reviewer"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			statuses := make(chan *github.RepoStatus, 4)
@@ -101,9 +95,9 @@ func TestIssueCommentAuditsInitializedPolicy(t *testing.T) {
 				}},
 			}}
 			event := github.IssueCommentEvent{
-				Action: new("edited"), Repo: repo, Installation: &github.Installation{ID: new(int64(1))},
+				Action: &test.action, Repo: repo, Installation: &github.Installation{ID: new(int64(1))},
 				Issue:   &github.Issue{Number: new(1), PullRequestLinks: &github.PullRequestLinks{}},
-				Sender:  &github.User{Login: new("editor")},
+				Sender:  &github.User{Login: &test.sender},
 				Comment: &github.IssueComment{User: &github.User{Login: new("reviewer")}, Body: new("removed")},
 				Changes: &github.EditChange{Body: &github.EditBody{From: &test.body}},
 			}

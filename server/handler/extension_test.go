@@ -79,8 +79,8 @@ approval_defaults:
 				assert.Equal(t, expected, (&IssueComment{}).affectsApproval(github.IssueCommentEvent{
 					Action: new("created"), Comment: &github.IssueComment{Body: &body},
 				}, parsed.Methods()), body)
-				assert.Equal(t, expected, (&PullRequestReview{}).affectsApproval(github.PullRequestReviewEvent{
-					Review: &github.PullRequestReview{State: new("commented"), Body: &body},
+				assert.Equal(t, expected, (&PullRequestReview{}).affectsApproval(&github.PullRequestReview{
+					State: new("commented"), Body: &body,
 				}, parsed.Methods()), body)
 			}
 		})

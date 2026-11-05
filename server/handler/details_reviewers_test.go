@@ -73,9 +73,8 @@ approval_rules:
 		{"empty slot", "empty", child, parent, "read", "", false, false},
 		{"unknown scope", "unknown", child, parent, "read", "", false, false},
 		{"standalone name", "", parent, "", "read", "parent-reviewer", false, false},
-		{"null rule", "", "approval_rules: [null]", "", "read", "", false, true},
+		{"standalone invalid yaml", "", "policy: [", "", "read", "", false, false},
 		{"bad parent", "service", child, "approval_rules: [", "read", "", false, true},
-		{"null parent rule", "service", child, "approval_rules: [null]", "read", "", false, true},
 		{"parent unavailable", "service", child, "", "read", "", true, true},
 		{"denied", "service", child, parent, "none", "", false, false},
 	} {

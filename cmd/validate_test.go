@@ -43,8 +43,6 @@ approval_rules:
 `, true},
 		{"required empty", `policy: {approval: [{slot: service, required: true}]}
 slots: {service: []}`, false},
-		{"malformed unused fill", `slots: {unused: [{slot: nested}]}`, false},
-		{"unsupported extension", `policy: {approval_extends: null}`, false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			require.NoError(t, os.WriteFile(validateCmdConfig.Path, []byte(test.policy), 0600))

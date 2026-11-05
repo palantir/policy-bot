@@ -73,23 +73,27 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 		return err
 	}
 
-	evaluator, err := evalCtx.PrepareConfig(ctx)
+	switch {
+	case evalCtx.Config.LoadError != nil || evalCtx.Config.ParseError != nil:
+		logger.Warn().Str(LogKeyAudit, "issue_comment").Msg("Skipping tampering check because the policy is not valid")
+	case evalCtx.Config.Config != nil:
+		tampered, err := h.detectAndLogTampering(ctx, evalCtx, event)
+		if err != nil {
+			return err
+		}
+		if tampered {
+			return nil
+		}
+	}
+
+	evaluator, err := evalCtx.ParseConfig(ctx, common.TriggerComment)
 	if err != nil {
 		return err
 	}
 	if evaluator == nil {
 		return nil
 	}
-
-	// Audit initialized methods before trigger filtering, including unused standalone rules.
-	methods := evaluator.Methods()
-	if h.detectAndLogTampering(ctx, evalCtx, event, methods) {
-		return nil
-	}
-	if !common.TriggerComment.Matches(evaluator.Trigger()) {
-		return nil
-	}
-	if !h.affectsApproval(event, methods) {
+	if !h.affectsApproval(event, evaluator.Methods()) {
 		logger.Debug().Msg("Skipping evaluation because this comment does not impact approval")
 		return nil
 	}
@@ -103,17 +107,36 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 	return nil
 }
 
-func (h *IssueComment) detectAndLogTampering(ctx context.Context, evalCtx *EvalContext, event github.IssueCommentEvent, methods []*common.Methods) bool {
+func (h *IssueComment) detectAndLogTampering(ctx context.Context, evalCtx *EvalContext, event github.IssueCommentEvent) (bool, error) {
 	logger := zerolog.Ctx(ctx)
 
 	if event.GetAction() == "created" {
-		return false
+		return false, nil
 	}
 
 	eventAuthor := event.GetSender().GetLogin()
 	commentAuthor := event.GetComment().GetUser().GetLogin()
 	if eventAuthor == commentAuthor {
-		return false
+		return false, nil
+	}
+
+	var methods []*common.Methods
+	if evalCtx.Config.Parent != nil {
+		// Compose first so replaced parent fills cannot affect the audit.
+		parsed, err := evalCtx.PrepareConfig(ctx)
+		if err != nil {
+			return false, err
+		}
+		methods = parsed.Methods()
+	} else {
+		config := evalCtx.Config.Config
+		for _, rule := range config.ApprovalRules {
+			methods = append(methods, rule.Options.GetMethods())
+		}
+		if disapproval := config.Policy.Disapproval; disapproval != nil {
+			methods = append(methods, disapproval.Options.GetDisapproveMethods())
+			methods = append(methods, disapproval.Options.GetRevokeMethods())
+		}
 	}
 
 	if h.affectsApproval(event, methods) {
@@ -121,11 +144,11 @@ func (h *IssueComment) detectAndLogTampering(ctx context.Context, evalCtx *EvalC
 		logger.Warn().Str(LogKeyAudit, "issue_comment").Msg(msg)
 
 		evalCtx.PostStatus(ctx, "failure", msg)
-		return true
+		return true, nil
 	}
 
 	logger.Warn().Str(LogKeyAudit, "issue_comment").Msgf("The comment_editor=%s is not the author=%s", eventAuthor, commentAuthor)
-	return true
+	return true, nil
 }
 
 func (h *IssueComment) affectsApproval(event github.IssueCommentEvent, methods []*common.Methods) bool {

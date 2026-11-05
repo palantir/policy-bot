@@ -88,9 +88,6 @@ func parsePolicyR(policy any, rules map[string]*Rule, slots map[string]*SlotRule
 		}
 
 		op := ops[0]
-		if op != "and" && op != "or" {
-			return nil, errors.Errorf("invalid conjunction '%s', allowed values: [or, and]", op)
-		}
 		values, ok := conjunction[op].([]any)
 		if !ok {
 			return nil, errors.Errorf("expected list of subconditions, but got %T", conjunction[op])
@@ -108,10 +105,14 @@ func parsePolicyR(policy any, rules map[string]*Rule, slots map[string]*SlotRule
 			subrequirements = append(subrequirements, subreq)
 		}
 
-		if op == "or" {
+		switch op {
+		case "or":
 			return &OrRequirement{requirements: subrequirements}, nil
+		case "and":
+			return &AndRequirement{requirements: subrequirements}, nil
+		default:
+			return nil, errors.Errorf("invalid conjunction '%s', allowed values: [or, and]", op)
 		}
-		return &AndRequirement{requirements: subrequirements}, nil
 	}
 
 	return nil, errors.Errorf("malformed policy, expected string or map, but encountered %T", policy)

@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/google/go-github/v93/github"
@@ -129,11 +130,7 @@ func loadConfigWithRetry(ctx context.Context, load func() (appconfig.Config, err
 	delay := time.Second
 	for retries := 0; ; retries++ {
 		c, err := load()
-		timeout, isTimeout := errors.AsType[interface {
-			error
-			Timeout() bool
-		}](err)
-		retryable := (isTimeout && timeout.Timeout()) || isServerError(err)
+		retryable := os.IsTimeout(err) || isServerError(err)
 		if !retryable || retries == 3 {
 			return c, err
 		}

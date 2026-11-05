@@ -53,7 +53,7 @@ func (h *DetailsReviewers) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 			Incomplete:  true,
 		})
 
-	case config.ParseError != nil:
+	case config.Config != nil && config.ParseError != nil:
 		logger.Warn().Err(config.ParseError).Msg("Invalid policy, reviewers will be incomplete")
 		return h.renderReviewers(w, r, DetailsReviewersData{PullRequest: state.PullRequest, Incomplete: true})
 

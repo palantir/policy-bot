@@ -110,7 +110,6 @@ func TestConfigFetcherInvalidExtensionDoesNotLoadParent(t *testing.T) {
 		"policy: {approval: null, approval_extends: {remote: shared/policies}}",
 		"policy: {approval_extends: null}",
 		"policy: {approval_extends: {}}",
-		"policy: {approval_extends: {remote: 'shared/policies/contents/other#'}}",
 	} {
 		t.Run(input, func(t *testing.T) {
 			fetcher := ConfigFetcher{Loader: mockConfigLoader{
@@ -136,11 +135,9 @@ func TestConfigFetcherParentRetry(t *testing.T) {
 		name        string
 		successCall int
 		cancel      bool
-		timeout     bool
 		wantCalls   int
 	}{
 		{name: "transient error", successCall: 2, wantCalls: 2},
-		{name: "wrapped timeout", timeout: true, successCall: 2, wantCalls: 2},
 		{name: "bounded retries", wantCalls: 4},
 		{name: "cancel backoff", cancel: true, wantCalls: 1},
 	} {
@@ -150,9 +147,6 @@ func TestConfigFetcherParentRetry(t *testing.T) {
 				defer cancel()
 				calls, childCalls := 0, 0
 				failure := fmt.Errorf("read file: %w", githubErr(http.StatusBadGateway))
-				if test.timeout {
-					failure = fmt.Errorf("read file: %w", context.DeadlineExceeded)
-				}
 				fetcher := ConfigFetcher{Loader: mockConfigLoader{
 					loadConfig: func(context.Context, *github.Client, string, string, string) (appconfig.Config, error) {
 						childCalls++

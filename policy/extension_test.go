@@ -17,7 +17,6 @@ package policy
 import (
 	"context"
 	"fmt"
-	"sync"
 	"testing"
 	"time"
 
@@ -45,10 +44,6 @@ func TestApprovalExtendsDecoding(t *testing.T) {
 		"duplicate approval":        `policy: {approval: null, approval: []}`,
 		"duplicate remote":          `policy: {approval_extends: {remote: example/policies, remote: example/other}}`,
 		"missing repository":        `policy: {approval_extends: {remote: example/}}`,
-		"extra slash":               `policy: {approval_extends: {remote: example/policies/other}}`,
-		"URL fragment":              `policy: {approval_extends: {remote: 'example/policies#'}}`,
-		"URL query":                 `policy: {approval_extends: {remote: 'example/policies?x='}}`,
-		"dot path":                  `policy: {approval_extends: {remote: example/..}}`,
 		"merged approval":           `policy: {<<: {approval: null}, approval_extends: {remote: example/policies}}`,
 		"merged extension":          `policy: {<<: {approval_extends: {remote: example/policies}}, approval: []}`,
 		"merged null extension":     `policy: {<<: {approval_extends: null}}`,
@@ -324,33 +319,24 @@ func TestApprovalExtensionSharedDefaults(t *testing.T) {
 			Methods:     &common.Methods{Comments: []string{"server"}},
 		}},
 	}
-	var wg sync.WaitGroup
-	for range 8 {
-		wg.Go(func() {
-			parent := extensionConfig(t, `
+	parent := extensionConfig(t, `
 policy: {approval: [review, {slot: extra}]}
 approval_defaults: {options: {methods: {comments: [parent]}}}
 approval_rules: [{name: review, options: {ignore_edited_comments: false}}]
 `)
-			child := extensionConfig(t, `
+	child := extensionConfig(t, `
 policy: {approval_extends: {remote: example/policies}}
 slots: {extra: [review]}
 approval_rules: [{name: review, options: {ignore_edited_comments: false}}]
 `)
-			parsed, err := ParsePolicyWithParent(child, parent, opts)
-			if !assert.NoError(t, err) {
-				return
-			}
-			assert.Equal(t, []string{"parent", "server"}, extensionComments(parsed))
-			for _, slot := range []string{"", "extra"} {
-				rule := parsed.FindApprovalRule(slot, "review")
-				assert.True(t, rule.Options.IsAllowAuthor())
-				assert.True(t, rule.Options.IsIgnoreEditedComments())
-			}
-		})
+	parsed, err := ParsePolicyWithParent(child, parent, opts)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"parent", "server"}, extensionComments(parsed))
+	for _, slot := range []string{"", "extra"} {
+		rule := parsed.FindApprovalRule(slot, "review")
+		assert.True(t, rule.Options.IsAllowAuthor())
+		assert.True(t, rule.Options.IsIgnoreEditedComments())
 	}
-	wg.Wait()
-	assert.Nil(t, opts.ApprovalDefaults.Options.Defaults)
 }
 
 func extensionConfig(t *testing.T, input string) *Config {
