@@ -914,7 +914,8 @@ func TestTrigger(t *testing.T) {
 		Trigger    common.Trigger
 	}{
 		{
-			Name: "noStatusOrWorkflowTriggerWithoutPredicates",
+			Name:    "noTriggerWithNoPredicates",
+			Trigger: common.TriggerStatic,
 		},
 		{
 			Name: "triggerStatusesForStatuses",
