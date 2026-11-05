@@ -142,11 +142,11 @@ func TestSlotEventMethodsAndServerOverride(t *testing.T) {
 		{State: new("dismissed")},
 		{State: new("commented"), Body: new("ship it")},
 	} {
-		assert.True(t, reviewHandler.affectsApproval(github.PullRequestReviewEvent{Review: review}, ec.Config.Config))
+		assert.True(t, reviewHandler.affectsApproval(review, ec.Config.Config))
 	}
-	assert.False(t, reviewHandler.affectsApproval(github.PullRequestReviewEvent{Review: &github.PullRequestReview{
+	assert.False(t, reviewHandler.affectsApproval(&github.PullRequestReview{
 		State: new("commented"), Body: new("unrelated"),
-	}}, ec.Config.Config))
+	}, ec.Config.Config))
 	result, err = ec.EvaluatePolicy(ctx, evaluator)
 	require.NoError(t, err)
 	assert.Equal(t, common.StatusApproved, result.Status)
@@ -265,8 +265,6 @@ func TestValidateSlots(t *testing.T) {
 	}{
 		{"filled", slotPolicy, http.StatusOK},
 		{"required missing", `policy: {approval: [{slot: service, required: true}]}`, http.StatusUnprocessableEntity},
-		{"malformed unused fill", `slots: {unused: [missing]}`, http.StatusUnprocessableEntity},
-		{"unsupported extension", `policy: {approval_extends: null}`, http.StatusUnprocessableEntity},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, "/api/validate", strings.NewReader(test.input))

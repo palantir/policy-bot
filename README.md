@@ -853,8 +853,7 @@ usual predicates, defaults, options, and approval counting. If all approval
 entries skip, Policy Bot reports an error.
 
 Undeclared fills are validated but add no requirements or evaluation triggers.
-The details page labels filled slots and hides empty ones. Slots use one policy
-file; `approval_extends` is not supported.
+The details page labels filled slots and hides empty ones.
 
 ### Disapproval Policy
 

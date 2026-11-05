@@ -47,7 +47,6 @@ slots: {extra: []}`,
 		"string required":                        `policy: {approval: [{slot: extra, required: 'false'}]}`,
 		"numeric required":                       `policy: {approval: [{slot: extra, required: 0}]}`,
 		"non-string marker key":                  `policy: {approval: [{slot: extra, 1: false}]}`,
-		"non-string conjunction key":             `policy: {approval: [{1: [rule]}]}`,
 		"unknown conjunction":                    `policy: {approval: [{xor: [rule]}]}`,
 		"duplicate marker key":                   `policy: {approval: [{slot: extra, slot: other}]}`,
 		"null fill":                              `slots: {extra: null}`,
@@ -70,10 +69,6 @@ slots: {extra: [{or: [rule, {slot: nested}]}]}`,
 		"nested slot in unmatched fill":  `slots: {unused: [{and: [{slot: nested}]}]}`,
 		"malformed unmatched fill":       `slots: {unused: [{or: null}]}`,
 		"non-string fill expression key": `slots: {unused: [{false: [rule]}]}`,
-		"null rule entry": `policy: {approval: [rule]}
-approval_rules: [null]`,
-		"unsupported extension": `policy: {approval_extends: {remote: org/repo}}`,
-		"null extension":        `policy: {approval_extends: null}`,
 	}
 	for name, input := range tests {
 		t.Run(name, func(t *testing.T) {

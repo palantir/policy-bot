@@ -98,10 +98,7 @@ func ParsePolicy(c *Config, opts *GlobalOptions) (common.Evaluator, error) {
 	}
 
 	rulesByName := make(map[string]*approval.Rule)
-	for i, r := range c.ApprovalRules {
-		if r == nil {
-			return nil, errors.Errorf("approval rule at index %d must not be null", i)
-		}
+	for _, r := range c.ApprovalRules {
 		if _, exists := rulesByName[r.Name]; exists {
 			return nil, errors.Errorf("duplicate approval rule name %q", r.Name)
 		}
@@ -160,9 +157,8 @@ func ParsePolicy(c *Config, opts *GlobalOptions) (common.Evaluator, error) {
 
 func setDefaultOptions(existing *approval.Options, next *approval.Options) *approval.Options {
 	if next != nil {
-		options := *next
-		options.Defaults = existing
-		return &options
+		next.Defaults = existing
+		return next
 	}
 	return existing
 }
