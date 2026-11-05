@@ -908,20 +908,65 @@ func TestTrigger(t *testing.T) {
 		assert.True(t, r.Trigger().Matches(common.TriggerPullRequest), "expected %s to match %s", r.Trigger(), common.TriggerPullRequest)
 	})
 
-	t.Run("triggerStatusesForStatuses", func(t *testing.T) {
-		r := &Rule{
-			Options: Options{
-				Defaults: &defaultOptions,
+	predicateTests := []struct {
+		Name       string
+		Predicates predicate.Predicates
+		Trigger    common.Trigger
+	}{
+		{
+			Name: "noStatusOrWorkflowTriggerWithoutPredicates",
+		},
+		{
+			Name: "triggerStatusesForStatuses",
+			Predicates: predicate.Predicates{
+				HasStatus: predicate.NewHasStatus([]string{"status1"}, []string{"skipped", "success"}),
 			},
-			Requires: Requires{
-				Conditions: predicate.Predicates{
-					HasStatus: predicate.NewHasStatus([]string{"status1"}, []string{"skipped", "success"}),
-				},
+			Trigger: common.TriggerStatus,
+		},
+		{
+			Name: "triggerStatusesForSuccessfulStatuses",
+			Predicates: predicate.Predicates{
+				HasSuccessfulStatus: &predicate.HasSuccessfulStatus{"status1"},
 			},
-		}
+			Trigger: common.TriggerStatus,
+		},
+		{
+			Name: "triggerWorkflowRunsForWorkflowResults",
+			Predicates: predicate.Predicates{
+				HasWorkflowResult: predicate.NewHasWorkflowResult([]string{".github/workflows/test.yml"}, []string{"success"}),
+			},
+			Trigger: common.TriggerWorkflowRun,
+		},
+		{
+			Name: "triggerStatusesAndWorkflowRunsForBothPredicates",
+			Predicates: predicate.Predicates{
+				HasStatus:         predicate.NewHasStatus([]string{"status1"}, []string{"success"}),
+				HasWorkflowResult: predicate.NewHasWorkflowResult([]string{".github/workflows/test.yml"}, []string{"success"}),
+			},
+			Trigger: common.TriggerStatus | common.TriggerWorkflowRun,
+		},
+	}
 
-		assert.True(t, r.Trigger().Matches(common.TriggerStatus), "expected %s to match %s", r.Trigger(), common.TriggerStatus)
-	})
+	for _, test := range predicateTests {
+		t.Run(test.Name, func(t *testing.T) {
+			for _, location := range []string{"predicates", "conditions"} {
+				t.Run(location, func(t *testing.T) {
+					r := &Rule{
+						Options: Options{
+							Defaults: &defaultOptions,
+						},
+					}
+					if location == "predicates" {
+						r.Predicates = test.Predicates
+					} else {
+						r.Requires.Conditions = test.Predicates
+					}
+
+					assert.Equal(t, common.TriggerCommit|test.Trigger, r.Trigger())
+				})
+			}
+		})
+	}
 }
 
 func TestSortCommits(t *testing.T) {

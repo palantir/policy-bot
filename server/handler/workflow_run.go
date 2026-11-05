@@ -66,7 +66,7 @@ func (h *WorkflowRun) Handle(ctx context.Context, eventType, deliveryID string, 
 			continue
 		}
 
-		if err := h.Evaluate(ctx, installationID, common.TriggerStatus, pull.Locator{
+		if err := h.Evaluate(ctx, installationID, common.TriggerWorkflowRun, pull.Locator{
 			Owner:  ownerName,
 			Repo:   repoName,
 			Number: pr.GetNumber(),
