@@ -71,6 +71,13 @@ type CachingConfig struct {
 	// The size of the global cache for commit push times. Each entry uses
 	// roughly 100 bytes of memory.
 	PushedAtSize int `yaml:"pushed_at_size"`
+
+	// The TTL for the last-good-policy cache. When a transient error (GitHub
+	// 5xx or timeout) prevents policy-bot from loading a policy after
+	// exhausting retries, the last successfully loaded policy is served from
+	// this cache instead of failing the evaluation. A value of zero uses the
+	// default TTL; a negative value disables the cache entirely.
+	FallbackTTL time.Duration `yaml:"fallback_ttl"`
 }
 
 type WorkerConfig struct {
