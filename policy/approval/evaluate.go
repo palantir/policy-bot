@@ -179,7 +179,7 @@ func (r *AndRequirement) Evaluate(ctx context.Context, prctx pull.Context) commo
 	switch {
 	case approved > 0 && pending == 0:
 		status = common.StatusApproved
-		description = fmt.Sprintf("All rules are approved")
+		description = "All rules are approved"
 	case pending > 0:
 		status = common.StatusPending
 		description = fmt.Sprintf("%d/%d rules approved", approved, approved+pending)
