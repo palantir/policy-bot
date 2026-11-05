@@ -24,9 +24,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
-	"github.com/google/go-github/v92/github"
+	"github.com/google/go-github/v93/github"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/rs/zerolog"
 )
@@ -55,7 +56,14 @@ func (r RemoteRef) SplitRemote() (owner, repo string, err error) {
 	if slash <= 0 || slash >= len(r.Remote)-1 {
 		return "", "", fmt.Errorf("invalid remote value: %s", r.Remote)
 	}
-	return r.Remote[:slash], r.Remote[slash+1:], nil
+	owner, repo = r.Remote[:slash], r.Remote[slash+1:]
+	// github clients turn these into urls, so ensuring valid URLs
+	for _, part := range []string{owner, repo} {
+		if part == "." || part == ".." || url.PathEscape(part) != part {
+			return "", "", fmt.Errorf("invalid remote value: %s", r.Remote)
+		}
+	}
+	return owner, repo, nil
 }
 
 // Config contains unparsed configuration data and metadata about where it was found.
@@ -161,6 +169,20 @@ func (ld *Loader) LoadConfig(ctx context.Context, client *github.Client, owner, 
 
 	// couldn't find configuration anyhere, so return an empty/undefined one
 	return Config{}, nil
+}
+
+// LoadRemoteRef returns a literal file without parsing references or searching
+// other paths or owner defaults. Path and ref defaults are defined by [RemoteRef].
+// Missing files are errors; empty files retain their source metadata.
+//
+// clientOwner must be client's original installation owner, not a loaded file's
+// owner. It is trusted caller context. See [WithPrivateRemotes] for cross-owner
+// access and its information disclosure warning.
+//
+// On load errors, Config identifies the remote file, with a ref once resolved.
+// An invalid remote repository value returns an empty Config and an error.
+func (ld *Loader) LoadRemoteRef(ctx context.Context, client *github.Client, clientOwner string, remote RemoteRef) (Config, error) {
+	return ld.loadRemoteConfig(ctx, client, clientOwner, remote, Config{})
 }
 
 func (ld *Loader) loadRemoteConfig(ctx context.Context, client *github.Client, sourceOwner string, remote RemoteRef, c Config) (Config, error) {
