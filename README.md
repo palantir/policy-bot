@@ -1177,6 +1177,99 @@ approve and merge a pull request before `policy-bot` can detect the problem.
 Organizations concerned about this case should monitor and alert on the
 relevant audit logs or minimize write access to repositories.
 
+### Ruleset Status Checks <!-- omit in toc -->
+
+By default, `policy-bot` posts one status per pull request named
+`policy-bot: <base branch>`. GitHub [repository rulesets][] instead require a
+fixed check name shared by every branch they target (for example, all
+`release/*` branches). To support rulesets, set the `status_checks` server
+option (or the `POLICYBOT_OPTIONS_STATUS_CHECKS` environment variable):
+
+```yaml
+options:
+  # Assuming "policy-bot" is the status_check_context,
+  # [branch] posts "policy-bot: <base branch>" (the default)
+  # [ruleset] posts "policy-bot: ruleset:<ruleset name>"
+  # [branch, ruleset] posts both
+  status_checks: [branch, ruleset]
+```
+
+To use a ruleset check, the required status check of the ruleset must:
+
+- Be named `policy-bot: ruleset:<ruleset name>`, using the name of the ruleset
+  itself.
+- Be **pinned to the `policy-bot` GitHub App**.
+- Not reuse the name of a broader ruleset: a repository ruleset cannot use the
+  same name as an organization or enterprise ruleset that applies to the
+  repository.
+
+`policy-bot` ignores and logs checks that don't meet these requirements.
+
+Limitations:
+
+- `ruleset` is not compatible with `post_insecure_status_checks`.
+- **Merge queues are not supported.** Merge groups never get ruleset checks,
+  so branches that use a [merge queue][] must keep requiring the per-branch
+  check, with `branch` enabled.
+- **Changes apply on the next event.** Ruleset changes and retargeted pull
+  requests take effect on each pull request's next event, such as a push,
+  review, or comment.
+- **Renaming a ruleset changes its check name.** Update the required check to
+  `policy-bot: ruleset:<new name>` at the same time, or pull requests will
+  block.
+
+[merge queue]: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue
+
+#### Approval domains <!-- omit in toc -->
+
+Each ruleset that requires a `policy-bot` ruleset check defines an **approval
+domain**: all branches that match the ruleset pattern (e.g. `release/*`) share
+the same status check. `policy-bot` guarantees that:
+
+1. A pull request that targets a branch outside an approval domain cannot pass
+   against a branch in the approval domain without a full re-evaluation.
+2. A pull request that targets a branch in one approval domain cannot pass
+   against a branch in a different approval domain without a full
+   re-evaluation.
+3. `policy-bot` makes a **best-effort** attempt to prevent a pull request that
+   targets a branch in one approval domain from passing against a different
+   branch in the same approval domain without a full re-evaluation. GitHub
+   feature limitations make this difficult to prevent in all situations.
+
+You control how strict this is by choosing how many rulesets to create. **Only
+group branches into a ruleset that are interchangeable from an approval
+perspective, and use separate rulesets for branches that need different
+approvals.** Assume that a PR targeting one branch in a ruleset, if approved,
+could be merged into another branch in the ruleset. Use a shared or remote
+policy so that all branches in a ruleset use the same policy.
+
+#### Security requirements <!-- omit in toc -->
+
+The guarantees above depend on each ruleset that requires a `policy-bot`
+ruleset check also being configured to:
+
+- **Require a pull request** before merging.
+- **Block force pushes and deletions.**
+- **Restrict who can create matching branches**, for example with a ruleset
+  that restricts creation for the same branch patterns. Anyone who can create a
+  matching branch can add it to the approval domain.
+- Only enable "Do not require status checks on creation" where branch creation
+  is restricted.
+- **Restrict tags** too, if automation creates branches from tags.
+
+#### Migrating from branch protection <!-- omit in toc -->
+
+1. Set `status_checks: [branch, ruleset]` so both checks are posted.
+2. Create the rulesets. Require `policy-bot: ruleset:<ruleset name>` pinned to
+   the `policy-bot` app, and follow the security requirements above.
+3. Wait for open pull requests to get the new check. They get it on their next
+   event, for example a push, review, or comment. To update a pull request
+   sooner, open its `policy-bot` details page.
+4. Remove the classic branch protection rules that require the per-branch check.
+5. Set `status_checks: [ruleset]`.
+
+[repository rulesets]: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets
+
 ### Comment Edits <!-- omit in toc -->
 
 GitHub users with sufficient permissions can edit the comments of other users,

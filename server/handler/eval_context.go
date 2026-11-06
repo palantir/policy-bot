@@ -17,13 +17,16 @@ package handler
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/google/go-github/v93/github"
+	"github.com/palantir/go-baseapp/baseapp"
 	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
+	"github.com/rcrowley/go-metrics"
 	"github.com/rs/zerolog"
 	"github.com/shurcooL/githubv4"
 )
@@ -39,14 +42,21 @@ type EvalContext struct {
 	Options   *PullEvaluationOptions
 	PublicURL string
 
+	// RulesetChecks finds the ruleset checks to post when ruleset status
+	// checks are enabled.
+	RulesetChecks RulesetChecks
+
 	PullContext pull.Context
 	Config      FetchedConfig
 
-	// If true, store statuses in the Status field instead of posting them to
-	// GitHub. Only the last status is saved, so when this option is enabled,
-	// callers should check for a non-nil status after each method call.
+	// If true, store statuses in the Status and StatusContexts fields instead
+	// of posting them to GitHub. Only the last status is saved, so when this
+	// option is enabled, callers should check for a non-nil status after each
+	// method call. Status.Context is the first of StatusContexts, or nil if
+	// there are no contexts to post.
 	SkipPostStatus bool
 	Status         *github.RepoStatus
+	StatusContexts []string
 }
 
 // Evaluate runs the full process for evaluating a pull request.
@@ -180,7 +190,8 @@ func (ec *EvalContext) RunPostEvaluateActions(ctx context.Context, result common
 	}
 }
 
-// PostStatus posts a status for the evaluated PR.
+// PostStatus posts a status for the evaluated PR to every enabled status
+// context. If there are no contexts, nothing is posted.
 func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 	logger := zerolog.Ctx(ctx)
 
@@ -189,28 +200,64 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 	sha := ec.PullContext.HeadSHA()
 	base, _ := ec.PullContext.Branches()
 
+	if !ec.SkipPostStatus && !ec.PullContext.IsOpen() {
+		logger.Info().Msg("Skipping status update because PR state is not open")
+		return
+	}
+
+	contexts, err := statusContexts(ctx, ec.Options, ec.RulesetChecks, ec.Client, owner, repo, base)
+	if err != nil {
+		logger.Error().Err(err).Msg("Failed to find ruleset status checks")
+
+		// without the rules, a success can't be posted to ruleset checks, but
+		// any other state can safely replace the checks posted previously so
+		// that a revoked approval does not leave a stale success
+		if !ec.SkipPostStatus && state != "success" {
+			previous, err := ec.previousRulesetContexts(ctx, owner, repo, sha)
+			if err != nil {
+				logger.Error().Err(err).Msg("Failed to find previous ruleset status checks")
+			}
+			for _, c := range previous {
+				if !slices.Contains(contexts, c) {
+					contexts = append(contexts, c)
+				}
+			}
+		}
+	}
+
 	publicURL := strings.TrimSuffix(ec.PublicURL, "/")
 	detailsURL := fmt.Sprintf("%s/details/%s/%s/%d", publicURL, owner, repo, ec.PullContext.Number())
 
 	status := github.RepoStatus{
 		State:       &state,
-		Context:     new(fmt.Sprintf("%s: %s", ec.Options.StatusCheckContext, base)),
 		Description: &message,
 		TargetURL:   &detailsURL,
 	}
 
 	if ec.SkipPostStatus {
+		if len(contexts) > 0 {
+			status.Context = new(contexts[0])
+		}
 		ec.Status = &status
+		ec.StatusContexts = contexts
 		return
 	}
 
-	if !ec.PullContext.IsOpen() {
-		logger.Info().Msg("Skipping status update because PR state is not open")
+	if len(contexts) == 0 {
+		logger.Debug().Msgf("No status checks to post for base branch %q", base)
 		return
 	}
 
-	if err := PostStatus(ctx, ec.Client, owner, repo, sha, status); err != nil {
-		logger.Err(err).Msg("Failed to post repo status")
+	rulesetPrefix := RulesetContext(ec.Options.StatusCheckContext, "")
+	for _, c := range contexts {
+		status.Context = new(c)
+		if err := PostStatus(ctx, ec.Client, owner, repo, sha, status); err != nil {
+			logger.Err(err).Msg("Failed to post repo status")
+			continue
+		}
+		if strings.HasPrefix(c, rulesetPrefix) {
+			metrics.GetOrRegisterCounter(MetricsKeyRulesetChecksPosted, baseapp.MetricsCtx(ctx)).Inc(1)
+		}
 	}
 	if ec.Options.PostInsecureStatusChecks {
 		status.Context = new(ec.Options.StatusCheckContext)
@@ -218,4 +265,32 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 			logger.Err(err).Msg("Failed to post insecure repo status")
 		}
 	}
+}
+
+// previousRulesetContexts returns the ruleset contexts that have a status on
+// the commit. Statuses are matched by prefix only, because posting a state
+// other than success to a context is safe regardless of who posted before.
+func (ec *EvalContext) previousRulesetContexts(ctx context.Context, owner, repo, sha string) ([]string, error) {
+	prefix := RulesetContext(ec.Options.StatusCheckContext, "")
+
+	var contexts []string
+	opts := &github.ListOptions{PerPage: 100}
+	for {
+		combined, res, err := ec.Client.Repositories.GetCombinedStatus(ctx, owner, repo, sha, opts)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get combined status")
+		}
+		for _, s := range combined.Statuses {
+			if c := s.GetContext(); strings.HasPrefix(c, prefix) && !slices.Contains(contexts, c) {
+				contexts = append(contexts, c)
+			}
+		}
+		if res.NextPage == 0 {
+			break
+		}
+		opts.Page = res.NextPage
+	}
+
+	slices.Sort(contexts)
+	return contexts, nil
 }
