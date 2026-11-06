@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/go-github/v93/github"
+	"github.com/palantir/go-baseapp/baseapp"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/pull/pulltest"
@@ -125,9 +126,9 @@ func TestPostStatus(t *testing.T) {
 			ec.Client = gh.Client()
 			ec.Options.StatusChecks = test.StatusChecks
 			ec.RulesetChecks = test.Rulesets
-			ec.Registry = metrics.NewRegistry()
 
-			ec.PostStatus(context.Background(), "success", "approved")
+			registry := metrics.NewRegistry()
+			ec.PostStatus(baseapp.WithMetricsCtx(context.Background(), registry), "success", "approved")
 
 			statuses := gh.Statuses()
 			assert.Equal(t, test.Expected, statusContextsOf(statuses))
@@ -146,7 +147,7 @@ func TestPostStatus(t *testing.T) {
 					expectedRulesets++
 				}
 			}
-			assert.Equal(t, expectedRulesets, metrics.GetOrRegisterCounter(MetricsKeyRulesetChecksPosted, ec.Registry).Count())
+			assert.Equal(t, expectedRulesets, metrics.GetOrRegisterCounter(MetricsKeyRulesetChecksPosted, registry).Count())
 		})
 	}
 }

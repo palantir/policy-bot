@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/google/go-github/v93/github"
+	"github.com/palantir/go-baseapp/baseapp"
 	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
 	"github.com/rs/zerolog"
@@ -35,8 +36,6 @@ const (
 	MetricsKeyRulesetLookupLatency = "rulesets.lookup.latency"
 	MetricsKeyRulesetChecksPosted  = "rulesets.checks.posted"
 	MetricsKeyRulesetChecksIgnored = "rulesets.checks.ignored"
-
-	rulesetContextInfix = "ruleset:"
 )
 
 // reasons for ignoring a required check that uses the policy-bot prefix
@@ -45,7 +44,27 @@ const (
 	ignoreReasonWrongIntegration = "wrong_integration"
 	ignoreReasonUnknownRuleset   = "unknown_ruleset"
 	ignoreReasonNameMismatch     = "name_mismatch"
+	ignoreReasonShadowed         = "shadowed"
 )
+
+// rulesetInfo is the metadata of a ruleset that applies to a repository.
+type rulesetInfo struct {
+	name  string
+	scope int
+}
+
+// rulesetScope ranks ruleset sources so that rulesets owned by broader scopes
+// take precedence. Unknown sources rank lowest.
+func rulesetScope(t github.RulesetSourceType) int {
+	switch t {
+	case github.RulesetSourceTypeEnterprise:
+		return 2
+	case github.RulesetSourceTypeOrganization:
+		return 1
+	default:
+		return 0
+	}
+}
 
 // RulesetChecks finds the ruleset status checks that policy-bot should post
 // for pull requests targeting a branch.
@@ -58,7 +77,7 @@ type RulesetChecks interface {
 
 // RulesetContext returns the status context for the named ruleset.
 func RulesetContext(statusCheckContext, rulesetName string) string {
-	return statusCheckContext + ": " + rulesetContextInfix + rulesetName
+	return fmt.Sprintf("%s: ruleset:%s", statusCheckContext, rulesetName)
 }
 
 // RulesetCheckFinder implements RulesetChecks using the GitHub rules API.
@@ -72,16 +91,14 @@ func RulesetContext(statusCheckContext, rulesetName string) string {
 type RulesetCheckFinder struct {
 	AppID              int64
 	StatusCheckContext string
-	Registry           metrics.Registry
 
 	retryDelay time.Duration
 }
 
-func NewRulesetCheckFinder(appID int64, statusCheckContext string, registry metrics.Registry) *RulesetCheckFinder {
+func NewRulesetCheckFinder(appID int64, statusCheckContext string) *RulesetCheckFinder {
 	return &RulesetCheckFinder{
 		AppID:              appID,
 		StatusCheckContext: statusCheckContext,
-		Registry:           registry,
 		retryDelay:         rulesetLookupRetryDelay,
 	}
 }
@@ -102,33 +119,42 @@ func (f *RulesetCheckFinder) RequiredChecks(ctx context.Context, client *github.
 		return nil, nil
 	}
 
-	names, err := f.getRulesetNames(ctx, client, owner, repo, false)
+	rulesets, err := f.getRulesets(ctx, client, owner, repo, false)
 	if err != nil {
 		return nil, err
 	}
 
-	// the cached names may be stale if a ruleset was created after the rules
+	// the cached rulesets may be stale if a ruleset was created after the rules
 	if slices.ContainsFunc(rules, func(r *github.RequiredStatusChecksBranchRule) bool {
-		_, ok := names[r.RulesetID]
+		_, ok := rulesets[r.RulesetID]
 		return !ok
 	}) {
-		if names, err = f.getRulesetNames(ctx, client, owner, repo, true); err != nil {
+		if rulesets, err = f.getRulesets(ctx, client, owner, repo, true); err != nil {
 			return nil, err
 		}
 	}
 
-	return f.selectChecks(ctx, rules, names), nil
+	return f.selectChecks(ctx, rules, rulesets), nil
 }
 
 // selectChecks returns the contexts of the required checks in rules that
 // policy-bot should post, logging and counting any ignored checks.
-func (f *RulesetCheckFinder) selectChecks(ctx context.Context, rules []*github.RequiredStatusChecksBranchRule, names map[int64]string) []string {
+func (f *RulesetCheckFinder) selectChecks(ctx context.Context, rules []*github.RequiredStatusChecksBranchRule, rulesets map[int64]rulesetInfo) []string {
 	logger := zerolog.Ctx(ctx)
 	prefix := RulesetContext(f.StatusCheckContext, "")
 
+	// a name used by a broader-scope ruleset belongs to that ruleset, so a
+	// repository admin can't reuse an organization ruleset's name to post its
+	// check for branches the organization ruleset does not protect
+	topScope := make(map[string]int)
+	for _, rs := range rulesets {
+		topScope[rs.name] = max(topScope[rs.name], rs.scope)
+	}
+
 	var checks []string
 	for _, rule := range rules {
-		rulesetName, hasName := names[rule.RulesetID]
+		ruleset, hasName := rulesets[rule.RulesetID]
+		rulesetName := ruleset.name
 
 		for _, check := range rule.Parameters.RequiredStatusChecks {
 			requiredName, ok := strings.CutPrefix(check.Context, prefix)
@@ -146,6 +172,8 @@ func (f *RulesetCheckFinder) selectChecks(ctx context.Context, rules []*github.R
 				reason = ignoreReasonUnknownRuleset
 			case requiredName != rulesetName:
 				reason = ignoreReasonNameMismatch
+			case ruleset.scope < topScope[rulesetName]:
+				reason = ignoreReasonShadowed
 			}
 
 			if reason != "" {
@@ -156,7 +184,7 @@ func (f *RulesetCheckFinder) selectChecks(ctx context.Context, rules []*github.R
 					Str("ruleset_source", rule.RulesetSource).
 					Str("reason", reason).
 					Msg("Ignoring required ruleset status check")
-				metrics.GetOrRegisterCounter(fmt.Sprintf("%s[reason:%s]", MetricsKeyRulesetChecksIgnored, reason), f.Registry).Inc(1)
+				metrics.GetOrRegisterCounter(fmt.Sprintf("%s[reason:%s]", MetricsKeyRulesetChecksIgnored, reason), baseapp.MetricsCtx(ctx)).Inc(1)
 				continue
 			}
 
@@ -172,7 +200,7 @@ func (f *RulesetCheckFinder) selectChecks(ctx context.Context, rules []*github.R
 
 func (f *RulesetCheckFinder) getRules(ctx context.Context, client *github.Client, owner, repo, branch string) ([]*github.RequiredStatusChecksBranchRule, error) {
 	var rules []*github.RequiredStatusChecksBranchRule
-	err := f.timeLookup(func() error {
+	err := f.timeLookup(ctx, func() error {
 		opts := &github.ListOptions{PerPage: 100}
 		for {
 			var page *github.BranchRules
@@ -200,12 +228,12 @@ func (f *RulesetCheckFinder) getRules(ctx context.Context, client *github.Client
 	return rules, nil
 }
 
-// getRulesetNames returns a map from ruleset ID to name for all rulesets
-// that apply to the repository. If revalidate is true, cached responses are
-// revalidated with GitHub before use.
-func (f *RulesetCheckFinder) getRulesetNames(ctx context.Context, client *github.Client, owner, repo string, revalidate bool) (map[int64]string, error) {
-	names := make(map[int64]string)
-	err := f.timeLookup(func() error {
+// getRulesets returns the rulesets that apply to the repository, including
+// organization and enterprise rulesets, by ID. If revalidate is true, cached
+// responses are revalidated with GitHub before use.
+func (f *RulesetCheckFinder) getRulesets(ctx context.Context, client *github.Client, owner, repo string, revalidate bool) (map[int64]rulesetInfo, error) {
+	infos := make(map[int64]rulesetInfo)
+	err := f.timeLookup(ctx, func() error {
 		page := 1
 		for {
 			var rulesets []*github.RepositoryRuleset
@@ -230,7 +258,11 @@ func (f *RulesetCheckFinder) getRulesetNames(ctx context.Context, client *github
 				return errors.Wrap(err, "failed to list rulesets")
 			}
 			for _, rs := range rulesets {
-				names[rs.GetID()] = rs.Name
+				var source github.RulesetSourceType
+				if rs.SourceType != nil {
+					source = *rs.SourceType
+				}
+				infos[rs.GetID()] = rulesetInfo{name: rs.Name, scope: rulesetScope(source)}
 			}
 			if res.NextPage == 0 {
 				return nil
@@ -241,7 +273,7 @@ func (f *RulesetCheckFinder) getRulesetNames(ctx context.Context, client *github
 	if err != nil {
 		return nil, err
 	}
-	return names, nil
+	return infos, nil
 }
 
 // retry calls fn once more after a short delay if it returns a server error.
@@ -262,12 +294,14 @@ func (f *RulesetCheckFinder) retry(ctx context.Context, fn func() error) error {
 	}
 }
 
-func (f *RulesetCheckFinder) timeLookup(fn func() error) error {
+func (f *RulesetCheckFinder) timeLookup(ctx context.Context, fn func() error) error {
+	registry := baseapp.MetricsCtx(ctx)
+
 	start := time.Now()
 	err := fn()
-	metrics.GetOrRegisterTimer(MetricsKeyRulesetLookupLatency, f.Registry).UpdateSince(start)
+	metrics.GetOrRegisterTimer(MetricsKeyRulesetLookupLatency, registry).UpdateSince(start)
 	if err != nil {
-		metrics.GetOrRegisterCounter(MetricsKeyRulesetLookupErrors, f.Registry).Inc(1)
+		metrics.GetOrRegisterCounter(MetricsKeyRulesetLookupErrors, registry).Inc(1)
 	}
 	return err
 }

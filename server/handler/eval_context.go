@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/google/go-github/v93/github"
+	"github.com/palantir/go-baseapp/baseapp"
 	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
@@ -44,7 +45,6 @@ type EvalContext struct {
 	// RulesetChecks finds the ruleset checks to post when ruleset status
 	// checks are enabled.
 	RulesetChecks RulesetChecks
-	Registry      metrics.Registry
 
 	PullContext pull.Context
 	Config      FetchedConfig
@@ -256,7 +256,7 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 			continue
 		}
 		if strings.HasPrefix(c, rulesetPrefix) {
-			metrics.GetOrRegisterCounter(MetricsKeyRulesetChecksPosted, ec.Registry).Inc(1)
+			metrics.GetOrRegisterCounter(MetricsKeyRulesetChecksPosted, baseapp.MetricsCtx(ctx)).Inc(1)
 		}
 	}
 	if ec.Options.PostInsecureStatusChecks {

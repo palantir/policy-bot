@@ -122,13 +122,12 @@ sessions:
 #   # POLICYBOT_OPTIONS_STATUS_CHECK_CONTEXT environment variable.
 #   status_check_context: policy-bot
 #
-#   # The status checks to post for each pull request. "branch" posts
-#   # "<status_check_context>: <base branch>". "ruleset" posts
-#   # "<status_check_context>: ruleset:<ruleset name>" for each ruleset that
-#   # covers the base branch and requires the check. See the README for the
-#   # security requirements of ruleset checks. Can also be set by the
-#   # POLICYBOT_OPTIONS_STATUS_CHECKS environment variable as a comma-separated
-#   # list.
+#   # The status checks types to post for each pull request. Valid options are [branch], [ruleset], or [branch, ruleset]
+#   # [branch] posts "policy-bot: <base branch>" (the app default)
+#   # [ruleset] posts "policy-bot: ruleset:<ruleset name>" for each ruleset that covers the base branch and requires
+#   # the check; see the README for its security requirements.
+#   # [branch, ruleset] posts both, intended to help migrate between branch and ruleset status checks
+#   # Can also be set by the POLICYBOT_OPTIONS_STATUS_CHECKS environment variable as a comma-separated list.
 #   status_checks: [branch]
 #
 #   # If true, expand teams, organizations, and permissions in the detils UI to

@@ -24,7 +24,6 @@ import (
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
-	"github.com/rcrowley/go-metrics"
 	"github.com/rs/zerolog"
 )
 
@@ -41,7 +40,6 @@ type Base struct {
 	BaseConfig    *baseapp.HTTPConfig
 	PullOpts      *PullEvaluationOptions
 	RulesetChecks RulesetChecks
-	Registry      metrics.Registry
 
 	AppName string
 }
@@ -118,7 +116,6 @@ func (b *Base) NewEvalContext(ctx context.Context, installationID int64, loc pul
 		Options:       b.PullOpts,
 		PublicURL:     b.BaseConfig.PublicURL,
 		RulesetChecks: b.RulesetChecks,
-		Registry:      b.Registry,
 
 		PullContext: prctx,
 		Config:      fetchedConfig,

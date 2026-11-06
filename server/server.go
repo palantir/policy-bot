@@ -169,7 +169,7 @@ func New(c *Config) (*Server, error) {
 		loaderOptions = append(loaderOptions, appconfig.WithPrivateRemotes(cc, installations))
 	}
 
-	rulesetChecks := handler.NewRulesetCheckFinder(c.Github.App.IntegrationID, c.Options.StatusCheckContext, base.Registry())
+	rulesetChecks := handler.NewRulesetCheckFinder(c.Github.App.IntegrationID, c.Options.StatusCheckContext)
 
 	basePolicyHandler := handler.Base{
 		ClientCreator: cc,
@@ -179,7 +179,6 @@ func New(c *Config) (*Server, error) {
 
 		PullOpts:      &c.Options,
 		RulesetChecks: rulesetChecks,
-		Registry:      base.Registry(),
 		ConfigFetcher: &handler.ConfigFetcher{
 			Loader:          appconfig.NewLoader(policyPaths, loaderOptions...),
 			SeenPolicyCache: seenPolicyCache,

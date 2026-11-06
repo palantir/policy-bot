@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/google/go-github/v93/github"
+	"github.com/palantir/go-baseapp/baseapp"
 	"github.com/rcrowley/go-metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -190,7 +191,7 @@ func rulesets(names map[int64]string) []map[string]any {
 }
 
 func newTestFinder(t *testing.T) *RulesetCheckFinder {
-	f := NewRulesetCheckFinder(testAppID, "policy-bot", metrics.NewRegistry())
+	f := NewRulesetCheckFinder(testAppID, "policy-bot")
 	f.retryDelay = time.Millisecond
 	return f
 }
@@ -255,15 +256,95 @@ func TestRulesetCheckFinder(t *testing.T) {
 			gh.Respond(rulesPath, 0, fakeResponse{body: test.Rules})
 			gh.Respond(rulesetsPath, 0, fakeResponse{body: rulesets(names)})
 
-			finder := newTestFinder(t)
-			checks, err := finder.RequiredChecks(context.Background(), gh.Client(), "testorg", "testrepo", "main")
+			registry := metrics.NewRegistry()
+			ctx := baseapp.WithMetricsCtx(context.Background(), registry)
+
+			checks, err := newTestFinder(t).RequiredChecks(ctx, gh.Client(), "testorg", "testrepo", "main")
 			require.NoError(t, err)
 			assert.Equal(t, test.Expected, checks)
 
-			for _, reason := range []string{ignoreReasonUnpinned, ignoreReasonWrongIntegration, ignoreReasonNameMismatch, ignoreReasonUnknownRuleset} {
-				counter := metrics.GetOrRegisterCounter(fmt.Sprintf("%s[reason:%s]", MetricsKeyRulesetChecksIgnored, reason), finder.Registry)
+			for _, reason := range []string{ignoreReasonUnpinned, ignoreReasonWrongIntegration, ignoreReasonNameMismatch, ignoreReasonUnknownRuleset, ignoreReasonShadowed} {
+				counter := metrics.GetOrRegisterCounter(fmt.Sprintf("%s[reason:%s]", MetricsKeyRulesetChecksIgnored, reason), registry)
 				assert.Equal(t, test.Ignored[reason], counter.Count(), "incorrect ignored count for %s", reason)
 			}
+		})
+	}
+}
+
+type testRuleset struct {
+	id         int64
+	name       string
+	sourceType string
+}
+
+func scopedRulesets(rulesets ...testRuleset) []map[string]any {
+	var rs []map[string]any
+	for _, r := range rulesets {
+		rs = append(rs, map[string]any{"id": r.id, "name": r.name, "source_type": r.sourceType, "source": "testorg", "enforcement": "active"})
+	}
+	return rs
+}
+
+func TestRulesetCheckFinderScopePrecedence(t *testing.T) {
+	const rulesPath = "/repos/testorg/testrepo/rules/branches/main"
+	const rulesetsPath = "/repos/testorg/testrepo/rulesets"
+
+	repo := func(id int64, name string) testRuleset { return testRuleset{id, name, "Repository"} }
+	org := func(id int64, name string) testRuleset { return testRuleset{id, name, "Organization"} }
+	enterprise := func(id int64, name string) testRuleset { return testRuleset{id, name, "Enterprise"} }
+
+	tests := map[string]struct {
+		Rulesets []testRuleset
+		Rules    []map[string]any
+		Expected []string
+		Shadowed int64
+	}{
+		"repoShadowedByOrg": {
+			Rulesets: []testRuleset{org(1, "release-branches"), repo(2, "release-branches")},
+			Rules: []map[string]any{
+				statusChecksRule(2, testCheck{"policy-bot: ruleset:release-branches", testAppID}),
+			},
+			Shadowed: 1,
+		},
+		"orgPostedWhenRepoUsesSameName": {
+			Rulesets: []testRuleset{org(1, "release-branches"), repo(2, "release-branches")},
+			Rules: []map[string]any{
+				statusChecksRule(1, testCheck{"policy-bot: ruleset:release-branches", testAppID}),
+			},
+			Expected: []string{"policy-bot: ruleset:release-branches"},
+		},
+		"orgShadowedByEnterprise": {
+			Rulesets: []testRuleset{enterprise(1, "release-branches"), org(2, "release-branches")},
+			Rules: []map[string]any{
+				statusChecksRule(2, testCheck{"policy-bot: ruleset:release-branches", testAppID}),
+			},
+			Shadowed: 1,
+		},
+		"distinctNamesAcrossScopes": {
+			Rulesets: []testRuleset{org(1, "release-branches"), repo(2, "hotfix-branches")},
+			Rules: []map[string]any{
+				statusChecksRule(1, testCheck{"policy-bot: ruleset:release-branches", testAppID}),
+				statusChecksRule(2, testCheck{"policy-bot: ruleset:hotfix-branches", testAppID}),
+			},
+			Expected: []string{"policy-bot: ruleset:hotfix-branches", "policy-bot: ruleset:release-branches"},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			gh := newFakeGitHub(t)
+			gh.Respond(rulesPath, 0, fakeResponse{body: test.Rules})
+			gh.Respond(rulesetsPath, 0, fakeResponse{body: scopedRulesets(test.Rulesets...)})
+
+			registry := metrics.NewRegistry()
+			ctx := baseapp.WithMetricsCtx(context.Background(), registry)
+
+			checks, err := newTestFinder(t).RequiredChecks(ctx, gh.Client(), "testorg", "testrepo", "main")
+			require.NoError(t, err)
+			assert.Equal(t, test.Expected, checks)
+
+			counter := metrics.GetOrRegisterCounter(fmt.Sprintf("%s[reason:%s]", MetricsKeyRulesetChecksIgnored, ignoreReasonShadowed), registry)
+			assert.Equal(t, test.Shadowed, counter.Count())
 		})
 	}
 }
@@ -366,11 +447,13 @@ func TestRulesetCheckFinderErrors(t *testing.T) {
 		gh := newFakeGitHub(t)
 		gh.Respond(rulesPath, 0, fakeResponse{status: http.StatusInternalServerError, body: map[string]any{}})
 
-		finder := newTestFinder(t)
-		checks, err := finder.RequiredChecks(context.Background(), gh.Client(), "testorg", "testrepo", "main")
+		registry := metrics.NewRegistry()
+		ctx := baseapp.WithMetricsCtx(context.Background(), registry)
+
+		checks, err := newTestFinder(t).RequiredChecks(ctx, gh.Client(), "testorg", "testrepo", "main")
 		require.Error(t, err)
 		assert.Nil(t, checks)
-		assert.Equal(t, int64(1), metrics.GetOrRegisterCounter(MetricsKeyRulesetLookupErrors, finder.Registry).Count())
+		assert.Equal(t, int64(1), metrics.GetOrRegisterCounter(MetricsKeyRulesetLookupErrors, registry).Count())
 	})
 
 	t.Run("names", func(t *testing.T) {

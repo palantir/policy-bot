@@ -16,6 +16,7 @@ package handler
 
 import (
 	"encoding"
+	"fmt"
 	"os"
 	"slices"
 	"strconv"
@@ -172,7 +173,7 @@ func (p *PullEvaluationOptions) HasStatusCheck(t StatusCheckType) bool {
 
 // BranchStatusContext returns the context of the legacy per-branch status.
 func (p *PullEvaluationOptions) BranchStatusContext(branch string) string {
-	return p.StatusCheckContext + ": " + branch
+	return fmt.Sprintf("%s: %s", p.StatusCheckContext, branch)
 }
 
 // normalizeStatusChecks trims and de-duplicates values while preserving order.
