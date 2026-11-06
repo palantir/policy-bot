@@ -34,6 +34,9 @@ func (p Policy) Parse(rules map[string]*Rule, slots map[string]*SlotRule) (commo
 
 // ParseFill parses an implicitly ANDed list of rules without allowing slots.
 func (p Policy) ParseFill(rules map[string]*Rule) (common.Evaluator, error) {
+	if len(p) == 1 {
+		return parsePolicyR(p[0], rules, nil, 1)
+	}
 	return p.parseTree(rules, nil)
 }
 

@@ -81,7 +81,7 @@ func TestSimulateSlotsWithoutMutations(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, result.Error)
 	assert.Equal(t, common.StatusPending, result.Status)
-	leaf := result.Children[0].Children[0].Children[0]
+	leaf := result.Children[0].Children[0]
 	require.NotNil(t, leaf.ReviewRequestRule)
 	require.Len(t, leaf.Dismissals, 1)
 	assert.Equal(t, "simulated-review", leaf.Dismissals[0].Candidate.ReviewID)

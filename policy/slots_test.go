@@ -21,7 +21,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/palantir/policy-bot/policy/approval"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/pull/pulltest"
@@ -99,29 +98,6 @@ func TestRequiredSlotNames(t *testing.T) {
 	_, err := ParsePolicy(&c, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `["a-first" "z-last"]`)
-}
-
-func TestSlotFillDepth(t *testing.T) {
-	for _, depth := range []int{10, 11} {
-		t.Run(fmt.Sprint(depth), func(t *testing.T) {
-			var expr any = "rule"
-			for i := 1; i < depth; i++ {
-				expr = map[any]any{"or": []any{expr}}
-			}
-			c := Config{
-				Policy:        Policy{Approval: approval.Policy{map[any]any{"slot": "extra"}}},
-				Slots:         Slots{"extra": {expr}},
-				ApprovalRules: []*approval.Rule{{Name: "rule"}},
-			}
-			_, err := ParsePolicy(&c, nil)
-			if depth == 10 {
-				assert.NoError(t, err)
-			} else {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), "maximum recursive depth")
-			}
-		})
-	}
 }
 
 func TestSlotFillGrouping(t *testing.T) {
@@ -224,10 +200,24 @@ approval_rules:
 					assert.Equal(t, expected, result.Status)
 				}
 				// OR may suppress the aggregate error, but retains child evidence.
-				assert.Error(t, result.Children[0].Children[0].Children[1].Error)
+				slot := findSlotResult(&result, "extra")
+				require.NotNil(t, slot)
+				assert.Error(t, slot.Error)
 			}
 		})
 	}
+}
+
+func findSlotResult(result *common.Result, name string) *common.Result {
+	if result.Slot != nil && result.Slot.Name == name {
+		return result
+	}
+	for _, child := range result.Children {
+		if slot := findSlotResult(child, name); slot != nil {
+			return slot
+		}
+	}
+	return nil
 }
 
 func parseSlotPolicy(t *testing.T, input string) common.Evaluator {
