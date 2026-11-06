@@ -1196,9 +1196,23 @@ only when **all** of these are true:
 A ruleset that requires the check of a different ruleset is ignored. Because a
 branch name cannot contain `:`, ruleset checks never collide with per-branch
 checks. Ignored checks are logged with the reason. If `policy-bot` cannot load
-the rules for a branch after retrying, it posts no ruleset checks for that
-evaluation, and the pull request gets them on its next event. The per-branch
-check is still posted if enabled. Ruleset checks are never posted for merge groups.
+the rules for a branch after retrying, it never posts a successful ruleset
+check for that evaluation. If the result is not a success (pending, failure, or
+error), it posts the result to the ruleset checks that already have a status on
+the head commit, so that a revoked approval or a disapproval does not leave a
+stale success. If the result is a success, it posts no ruleset checks, and the
+pull request gets them on its next event. The per-branch check is still posted
+if enabled.
+
+Ruleset checks are never posted for merge groups or on installation, because
+`policy-bot` posts those statuses without evaluating a policy. Merge queues are
+not supported with ruleset checks: a [merge queue][] for a branch whose ruleset
+requires a ruleset check will block, because the merge group never gets that
+check. With `status_checks: [ruleset]`, `policy-bot` posts nothing at all for
+merge groups. Branches that use a merge queue must keep requiring the
+per-branch check, which requires keeping `branch` in `status_checks`.
+
+[merge queue]: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue
 
 Ruleset lookups use the same HTTP cache as other GitHub requests, and GitHub
 allows caching these responses for up to 60 seconds. Ruleset changes take

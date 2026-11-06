@@ -79,6 +79,14 @@ func (h *Installation) Handle(ctx context.Context, eventType, deliveryID string,
 }
 
 func (h *Installation) postRepoInstallationStatus(ctx context.Context, client *github.Client, r *github.Repository) {
+	// Ruleset checks are never posted on installation: this posts success on
+	// the default branch head without evaluating anything, and a shared
+	// ruleset check on that commit could satisfy other branches in the
+	// ruleset. Only the per-branch status is posted, if enabled.
+	if !h.PullOpts.HasStatusCheck(StatusCheckBranch) {
+		return
+	}
+
 	logger := zerolog.Ctx(ctx)
 
 	repoFullName := strings.Split(r.GetFullName(), "/")
@@ -98,21 +106,15 @@ func (h *Installation) postRepoInstallationStatus(ctx context.Context, client *g
 	}
 
 	head := branch.GetCommit().GetSHA()
-	contexts, err := statusContexts(ctx, h.PullOpts, h.RulesetChecks, client, owner, repo, defaultBranch)
-	if err != nil {
-		logger.Error().Err(err).Msg("Failed to find ruleset status checks, not posting ruleset checks")
-	}
-
+	contextWithBranch := h.PullOpts.BranchStatusContext(defaultBranch)
 	state := "success"
 	message := fmt.Sprintf("%s successfully installed.", h.AppName)
-	for _, c := range contexts {
-		status := github.RepoStatus{
-			Context:     new(c),
-			State:       &state,
-			Description: &message,
-		}
-		if err := PostStatus(ctx, client, owner, repo, head, status); err != nil {
-			logger.Err(errors.WithStack(err)).Msg("Failed to post repo status")
-		}
+	status := github.RepoStatus{
+		Context:     &contextWithBranch,
+		State:       &state,
+		Description: &message,
+	}
+	if err := PostStatus(ctx, client, owner, repo, head, status); err != nil {
+		logger.Err(errors.WithStack(err)).Msg("Failed to post repo status")
 	}
 }

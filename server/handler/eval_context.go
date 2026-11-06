@@ -17,6 +17,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/google/go-github/v93/github"
@@ -206,7 +207,22 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 
 	contexts, err := statusContexts(ctx, ec.Options, ec.RulesetChecks, ec.Client, owner, repo, base)
 	if err != nil {
-		logger.Error().Err(err).Msg("Failed to find ruleset status checks, not posting ruleset checks")
+		logger.Error().Err(err).Msg("Failed to find ruleset status checks")
+
+		// without the rules, a success can't be posted to ruleset checks, but
+		// any other state can safely replace the checks posted previously so
+		// that a revoked approval does not leave a stale success
+		if !ec.SkipPostStatus && state != "success" {
+			previous, err := ec.previousRulesetContexts(ctx, owner, repo, sha)
+			if err != nil {
+				logger.Error().Err(err).Msg("Failed to find previous ruleset status checks")
+			}
+			for _, c := range previous {
+				if !slices.Contains(contexts, c) {
+					contexts = append(contexts, c)
+				}
+			}
+		}
 	}
 
 	publicURL := strings.TrimSuffix(ec.PublicURL, "/")
@@ -249,4 +265,32 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 			logger.Err(err).Msg("Failed to post insecure repo status")
 		}
 	}
+}
+
+// previousRulesetContexts returns the ruleset contexts that have a status on
+// the commit. Statuses are matched by prefix only, because posting a state
+// other than success to a context is safe regardless of who posted before.
+func (ec *EvalContext) previousRulesetContexts(ctx context.Context, owner, repo, sha string) ([]string, error) {
+	prefix := RulesetContext(ec.Options.StatusCheckContext, "")
+
+	var contexts []string
+	opts := &github.ListOptions{PerPage: 100}
+	for {
+		combined, res, err := ec.Client.Repositories.GetCombinedStatus(ctx, owner, repo, sha, opts)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get combined status")
+		}
+		for _, s := range combined.Statuses {
+			if c := s.GetContext(); strings.HasPrefix(c, prefix) && !slices.Contains(contexts, c) {
+				contexts = append(contexts, c)
+			}
+		}
+		if res.NextPage == 0 {
+			break
+		}
+		opts.Page = res.NextPage
+	}
+
+	slices.Sort(contexts)
+	return contexts, nil
 }

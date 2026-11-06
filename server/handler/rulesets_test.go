@@ -331,13 +331,23 @@ func TestRulesetCheckFinderRetriesServerErrors(t *testing.T) {
 		statusChecksRule(1, testCheck{"policy-bot: ruleset:release-branches", testAppID}),
 	}})
 	gh.Respond(rulesetsPath, 0, fakeResponse{body: rulesets(map[int64]string{1: "release-branches"})})
-	gh.Fail(rulesPath, 2)
+	gh.Fail(rulesPath, 1)
 	gh.Fail(rulesetsPath, 1)
 
 	checks, err := newTestFinder(t).RequiredChecks(context.Background(), gh.Client(), "testorg", "testrepo", "main")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"policy-bot: ruleset:release-branches"}, checks)
-	assert.Len(t, gh.Requests(), 5)
+	assert.Len(t, gh.Requests(), 4)
+
+	t.Run("onlyOnce", func(t *testing.T) {
+		gh := newFakeGitHub(t)
+		gh.Respond(rulesPath, 0, fakeResponse{body: []map[string]any{}})
+		gh.Fail(rulesPath, 2)
+
+		_, err := newTestFinder(t).RequiredChecks(context.Background(), gh.Client(), "testorg", "testrepo", "main")
+		require.Error(t, err)
+		assert.Len(t, gh.Requests(), 2)
+	})
 }
 
 func TestRulesetCheckFinderDoesNotRetryClientErrors(t *testing.T) {

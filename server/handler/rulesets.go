@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"slices"
 	"strings"
 	"time"
@@ -30,10 +29,7 @@ import (
 )
 
 const (
-	// lookups retry timeouts and server errors with exponential backoff,
-	// matching the behavior of ConfigFetcher
-	rulesetLookupRetries    = 3
-	rulesetLookupRetryDelay = 1 * time.Second
+	rulesetLookupRetryDelay = 500 * time.Millisecond
 
 	MetricsKeyRulesetLookupErrors  = "rulesets.lookup.errors"
 	MetricsKeyRulesetLookupLatency = "rulesets.lookup.latency"
@@ -248,23 +244,21 @@ func (f *RulesetCheckFinder) getRulesetNames(ctx context.Context, client *github
 	return names, nil
 }
 
-// retry calls fn until it succeeds, returns an error that is not a timeout or
-// server error, or exhausts its retries.
+// retry calls fn once more after a short delay if it returns a server error.
+// Timeouts are not retried because they already waited for the full client
+// timeout, and pull requests get their checks on their next event anyway.
 func (f *RulesetCheckFinder) retry(ctx context.Context, fn func() error) error {
-	delay := f.retryDelay
-	for retries := 0; ; retries++ {
-		err := fn()
-		if err == nil || (!os.IsTimeout(err) && !isServerError(err)) || retries >= rulesetLookupRetries {
-			return err
-		}
+	err := fn()
+	if err == nil || !isServerError(err) {
+		return err
+	}
 
-		zerolog.Ctx(ctx).Debug().Err(err).Msgf("Retrying ruleset lookup in %s", delay)
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(delay):
-			delay *= 2
-		}
+	zerolog.Ctx(ctx).Debug().Err(err).Msgf("Retrying ruleset lookup in %s", f.retryDelay)
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(f.retryDelay):
+		return fn()
 	}
 }
 

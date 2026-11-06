@@ -194,26 +194,117 @@ func TestPostStatusClosedPullRequest(t *testing.T) {
 
 func TestPostStatusRulesetLookupError(t *testing.T) {
 	const rulesPath = "/repos/testorg/testrepo/rules/branches/main"
+	const combinedPath = "/repos/testorg/testrepo/commits/abc123/status"
 
+	combinedStatus := func(contexts ...string) map[string]any {
+		var statuses []map[string]any
+		for _, c := range contexts {
+			statuses = append(statuses, map[string]any{"context": c, "state": "success"})
+		}
+		return map[string]any{"state": "success", "statuses": statuses}
+	}
+
+	tests := map[string]struct {
+		StatusChecks []StatusCheckType
+		State        string
+		Combined     map[int]fakeResponse // by page
+		Expected     []string
+	}{
+		"successPostsOnlyBranch": {
+			StatusChecks: []StatusCheckType{StatusCheckBranch, StatusCheckRuleset},
+			State:        "success",
+			Combined:     map[int]fakeResponse{0: {body: combinedStatus("policy-bot: ruleset:a")}},
+			Expected:     []string{"policy-bot: main"},
+		},
+		"successRulesetOnlyPostsNothing": {
+			StatusChecks: []StatusCheckType{StatusCheckRuleset},
+			State:        "success",
+			Combined:     map[int]fakeResponse{0: {body: combinedStatus("policy-bot: ruleset:a")}},
+		},
+		"pendingDowngradesPrevious": {
+			StatusChecks: []StatusCheckType{StatusCheckBranch, StatusCheckRuleset},
+			State:        "pending",
+			Combined: map[int]fakeResponse{0: {body: combinedStatus(
+				"ci/build",
+				"policy-bot: main",
+				"policy-bot: ruleset:b",
+				"policy-bot: ruleset:a",
+				"other-bot: ruleset:c",
+			)}},
+			Expected: []string{"policy-bot: main", "policy-bot: ruleset:a", "policy-bot: ruleset:b"},
+		},
+		"failureRulesetOnlyDowngradesPrevious": {
+			StatusChecks: []StatusCheckType{StatusCheckRuleset},
+			State:        "failure",
+			Combined:     map[int]fakeResponse{0: {body: combinedStatus("policy-bot: ruleset:a")}},
+			Expected:     []string{"policy-bot: ruleset:a"},
+		},
+		"errorDowngradesAllPages": {
+			StatusChecks: []StatusCheckType{StatusCheckRuleset},
+			State:        "error",
+			Combined: map[int]fakeResponse{
+				0: {body: combinedStatus("policy-bot: ruleset:a"), nextPage: 2},
+				2: {body: combinedStatus("policy-bot: ruleset:b")},
+			},
+			Expected: []string{"policy-bot: ruleset:a", "policy-bot: ruleset:b"},
+		},
+		"noPrevious": {
+			StatusChecks: []StatusCheckType{StatusCheckRuleset},
+			State:        "failure",
+			Combined:     map[int]fakeResponse{0: {body: combinedStatus("ci/build")}},
+		},
+		"combinedStatusError": {
+			StatusChecks: []StatusCheckType{StatusCheckBranch, StatusCheckRuleset},
+			State:        "failure",
+			Combined:     map[int]fakeResponse{0: {status: http.StatusInternalServerError, body: map[string]any{}}},
+			Expected:     []string{"policy-bot: main"},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			gh := newFakeGitHub(t)
+			gh.Respond(rulesPath, 0, fakeResponse{status: http.StatusInternalServerError, body: map[string]any{}})
+			for page, res := range test.Combined {
+				gh.Respond(combinedPath, page, res)
+			}
+
+			ec := makeEvalContext(true)
+			ec.SkipPostStatus = false
+			ec.Client = gh.Client()
+			ec.Options.StatusChecks = test.StatusChecks
+			ec.RulesetChecks = newTestFinder(t)
+
+			ec.PostStatus(context.Background(), test.State, "message")
+
+			statuses := gh.Statuses()
+			assert.Equal(t, test.Expected, statusContextsOf(statuses))
+			for _, s := range statuses {
+				assert.Equal(t, test.State, s.GetState())
+			}
+
+			requests := gh.Requests()
+			require.GreaterOrEqual(t, len(requests), 2)
+			assert.Equal(t, []string{"GET " + rulesPath, "GET " + rulesPath}, requests[:2], "rules lookup should be retried once")
+			if test.State == "success" {
+				assert.NotContains(t, requests, "GET "+combinedPath, "success should not read previous statuses")
+			}
+		})
+	}
+}
+
+func TestPostStatusRulesetLookupErrorSkipPostStatus(t *testing.T) {
 	gh := newFakeGitHub(t)
-	gh.Respond(rulesPath, 0, fakeResponse{status: http.StatusInternalServerError, body: map[string]any{}})
 
 	ec := makeEvalContext(true)
-	ec.SkipPostStatus = false
 	ec.Client = gh.Client()
 	ec.Options.StatusChecks = []StatusCheckType{StatusCheckBranch, StatusCheckRuleset}
-	ec.RulesetChecks = newTestFinder(t)
+	ec.RulesetChecks = &fakeRulesetChecks{err: errors.New("lookup failed")}
 
-	ec.PostStatus(context.Background(), "success", "approved")
+	ec.PostStatus(context.Background(), "failure", "message")
 
-	assert.Equal(t, []string{"policy-bot: main"}, statusContextsOf(gh.Statuses()))
-	assert.Equal(t, []string{
-		"GET " + rulesPath,
-		"GET " + rulesPath,
-		"GET " + rulesPath,
-		"GET " + rulesPath,
-		"POST /repos/testorg/testrepo/statuses/abc123",
-	}, gh.Requests())
+	assert.Equal(t, []string{"policy-bot: main"}, ec.StatusContexts)
+	assert.Empty(t, gh.Requests(), "details evaluations should not read previous statuses")
 }
 
 func TestEvaluateWithoutStatusContexts(t *testing.T) {
