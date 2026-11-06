@@ -104,6 +104,10 @@ type Candidate struct {
 	User         string
 	CreatedAt    time.Time
 	LastEditedAt time.Time
+
+	// SHA is the commit a review candidate was submitted on. It is empty for
+	// other candidate types.
+	SHA string
 }
 
 type CandidatesByCreationTime []*Candidate
@@ -169,6 +173,7 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 							User:         r.Author,
 							CreatedAt:    r.CreatedAt,
 							LastEditedAt: r.LastEditedAt,
+							SHA:          r.SHA,
 						})
 					}
 				} else {
@@ -178,6 +183,7 @@ func (m *Methods) Candidates(ctx context.Context, prctx pull.Context) ([]*Candid
 						User:         r.Author,
 						CreatedAt:    r.CreatedAt,
 						LastEditedAt: r.LastEditedAt,
+						SHA:          r.SHA,
 					})
 				}
 			}

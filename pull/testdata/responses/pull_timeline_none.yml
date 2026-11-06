@@ -1,0 +1,13 @@
+- status: 200
+  body: |
+    {
+      "data": {
+        "repository": {
+          "pullRequest": {
+            "timelineItems": {
+              "nodes": []
+            }
+          }
+        }
+      }
+    }

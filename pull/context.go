@@ -96,9 +96,17 @@ type Context interface {
 	// commit order is implementation dependent.
 	Commits() ([]*Commit, error)
 
-	// PushedAt returns the time at which the commit with sha was pushed. The
-	// returned time may be after the actual push time, but must not be before.
+	// PushedAt returns the time at which the commit with sha was first pushed
+	// to this pull request. The returned time may be after the actual push
+	// time, but must not be before. If the same SHA was pushed to the pull
+	// request more than once, the returned time is for the first push; use
+	// LatestHeadRewrite to detect later pushes of a previously seen SHA.
 	PushedAt(sha string) (time.Time, error)
+
+	// LatestHeadRewrite returns the most recent event that may have reset the
+	// head of the pull request to an arbitrary commit, like a force-push, or
+	// nil if no such event exists.
+	LatestHeadRewrite() (*HeadRewrite, error)
 
 	// Comments lists all comments on a Pull Request. The comment order is
 	// implementation dependent.
@@ -170,6 +178,15 @@ type Commit struct {
 	// Signature is the signature and details that was extracted from the commit.
 	// It is nil if the commit has no signature
 	Signature *Signature
+}
+
+type HeadRewrite struct {
+	// At is the time of the event.
+	At time.Time
+
+	// SHA is the head commit set by the event. It is empty for events that do
+	// not set a known commit, like reopening the pull request.
+	SHA string
 }
 
 // Users returns the login names of the users associated with this commit.

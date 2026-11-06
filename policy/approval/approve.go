@@ -17,6 +17,7 @@ package approval
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -337,32 +338,136 @@ func (r *Rule) filterInvalidCandidates(ctx context.Context, prctx pull.Context, 
 	if len(commits) == 0 {
 		return candidates, nil, nil
 	}
-
 	sha := commits[0].SHA
-	lastPushedAt, err := prctx.PushedAt(sha)
+
+	allCommits, err := prctx.Commits()
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to get last push timestamp")
+		return nil, nil, errors.Wrap(err, "failed to list commits")
 	}
+	chain := headChain(sortCommits(allCommits, prctx.HeadSHA()), sha)
+
+	rewrite, err := prctx.LatestHeadRewrite()
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to get latest head rewrite")
+	}
+	var rewriteAt time.Time
+	if rewrite != nil {
+		rewriteAt = rewrite.At
+	}
+	rewriteReason := fmt.Sprintf("Invalidated by force-push or other rewrite at %s", rewriteAt.Format(time.RFC3339))
+
+	var pushLoaded bool
+	var lastPushedAt time.Time
+	var pushReason string
 
 	var allowed []*common.Candidate
 	var dismissed []*common.Dismissal
 	for _, c := range candidates {
-		if c.CreatedAt.After(lastPushedAt) {
+		var reason string
+		if c.Type == common.ReviewCandidate {
+			switch {
+			case !slices.Contains(chain, c.SHA):
+				reason = fmt.Sprintf("Review was not for the current head (%.7s)", sha)
+			case !c.CreatedAt.After(rewriteAt):
+				reason = rewriteReason
+			}
+		} else {
+			if !pushLoaded {
+				lastPushedAt, pushReason, err = commentPushedAt(prctx, allCommits, sha, rewrite)
+				if err != nil {
+					return nil, nil, err
+				}
+				if pushReason == "" {
+					pushReason = rewriteReason
+				}
+				pushLoaded = true
+			}
+			if !c.CreatedAt.After(lastPushedAt) {
+				reason = pushReason
+			}
+		}
+
+		if reason == "" {
 			allowed = append(allowed, c)
 		} else {
 			dismissed = append(dismissed, &common.Dismissal{
 				Candidate: c,
-				Reason:    fmt.Sprintf("Invalidated by push of %.7s", sha),
+				Reason:    reason,
 			})
 		}
 	}
 
 	log.Debug().Msgf(
-		"discarded %d candidates invalidated by push of %s on or before %s",
-		len(dismissed), sha, lastPushedAt.Format(time.RFC3339),
+		"discarded %d candidates invalidated by push of %s or rewrite on or before %s",
+		len(dismissed), sha, rewriteAt.Format(time.RFC3339),
 	)
 
 	return allowed, dismissed, nil
+}
+
+// commentPushedAt returns the time after which candidates without a commit,
+// like comments, must be created to approve the commit with sha, and the
+// reason to use when dismissing earlier candidates. The reason is empty if
+// the time comes from the head rewrite.
+func commentPushedAt(prctx pull.Context, commits []*pull.Commit, sha string, rewrite *pull.HeadRewrite) (time.Time, string, error) {
+	pushedAt, err := prctx.PushedAt(sha)
+	if err != nil {
+		return time.Time{}, "", errors.Wrap(err, "failed to get last push timestamp")
+	}
+
+	if rewrite == nil || !pushedAt.Before(rewrite.At) {
+		return pushedAt, fmt.Sprintf("Invalidated by push of %.7s", sha), nil
+	}
+
+	// A commit seen before a force-push that is not part of the forced head
+	// was pushed again after the rewrite, at an unknown time. Its recorded
+	// push time is from the first push, so it would accept earlier approvals.
+	if rewrite.SHA != "" && !isAncestorOrSelf(commits, sha, rewrite.SHA) {
+		reason := fmt.Sprintf("Invalidated because %.7s was pushed again after a force-push", sha)
+		return prctx.EvaluationTimestamp(), reason, nil
+	}
+
+	return rewrite.At, "", nil
+}
+
+// headChain returns the SHAs of the commits from the head to the commit with
+// sha, inclusive, given commits sorted by sortCommits.
+func headChain(sorted []*pull.Commit, sha string) []string {
+	var chain []string
+	for _, c := range sorted {
+		chain = append(chain, c.SHA)
+		if c.SHA == sha {
+			break
+		}
+	}
+	return chain
+}
+
+// isAncestorOrSelf returns true if the commit with ancestor is the commit with
+// sha or one of its ancestors in commits.
+func isAncestorOrSelf(commits []*pull.Commit, ancestor, sha string) bool {
+	commitsBySHA := make(map[string]*pull.Commit, len(commits))
+	for _, c := range commits {
+		commitsBySHA[c.SHA] = c
+	}
+
+	seen := make(map[string]bool)
+	queue := []string{sha}
+	for len(queue) > 0 {
+		next := queue[0]
+		queue = queue[1:]
+		if next == ancestor {
+			return true
+		}
+		if seen[next] {
+			continue
+		}
+		seen[next] = true
+		if c, ok := commitsBySHA[next]; ok {
+			queue = append(queue, c.Parents...)
+		}
+	}
+	return false
 }
 
 // filteredCommits returns the relevant commits for the evaluation ordered in
