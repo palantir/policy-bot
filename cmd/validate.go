@@ -32,7 +32,7 @@ var validateCmdConfig struct {
 var ValidationCmd = &cobra.Command{
 	Use:   "validate",
 	Short: "Validates the syntax and structure of a policy file.",
-	Long:  "Validates the YAML syntax and logical structure of a local policy file. It does not support remote policy references.",
+	Long:  "Validates the YAML syntax and logical structure of a local policy file without fetching remote policies. Remote pointers receive syntax-only validation; approval extensions require authenticated simulation.",
 
 	RunE: validationCmd,
 }

@@ -81,11 +81,16 @@ func TestConfigFetcherRetriesServerError(t *testing.T) {
 }
 
 type mockConfigLoader struct {
-	loadConfig func(ctx context.Context, client *github.Client, owner, repo, ref string) (appconfig.Config, error)
+	loadConfig    func(ctx context.Context, client *github.Client, owner, repo, ref string) (appconfig.Config, error)
+	loadRemoteRef func(ctx context.Context, client *github.Client, clientOwner string, remote appconfig.RemoteRef) (appconfig.Config, error)
 }
 
 func (s mockConfigLoader) LoadConfig(ctx context.Context, client *github.Client, owner, repo, ref string) (appconfig.Config, error) {
 	return s.loadConfig(ctx, client, owner, repo, ref)
+}
+
+func (s mockConfigLoader) LoadRemoteRef(ctx context.Context, client *github.Client, clientOwner string, remote appconfig.RemoteRef) (appconfig.Config, error) {
+	return s.loadRemoteRef(ctx, client, clientOwner, remote)
 }
 
 func TestConfigFetcherMarksSeenPolicy(t *testing.T) {

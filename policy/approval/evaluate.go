@@ -27,6 +27,34 @@ type evaluator struct {
 	root common.Evaluator
 }
 
+// Rules returns the rules retained in the approval tree, including selected
+// slot fills. It does not evaluate predicates, so future relevant events still
+// trigger evaluation when a rule is currently skipped.
+func Rules(eval common.Evaluator) []*Rule {
+	var rules []*Rule
+	var visit func(common.Evaluator)
+	visit = func(eval common.Evaluator) {
+		switch eval := eval.(type) {
+		case *evaluator:
+			visit(eval.root)
+		case *RuleRequirement:
+			rules = append(rules, eval.rule)
+		case *SlotRule:
+			visit(eval.Child)
+		case *AndRequirement:
+			for _, child := range eval.requirements {
+				visit(child)
+			}
+		case *OrRequirement:
+			for _, child := range eval.requirements {
+				visit(child)
+			}
+		}
+	}
+	visit(eval)
+	return rules
+}
+
 func (eval *evaluator) Trigger() common.Trigger {
 	if eval.root != nil {
 		return eval.root.Trigger()

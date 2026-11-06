@@ -64,8 +64,8 @@ github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/palantir/go-baseapp v0.7.1 h1:PEoZ8NZIF8EMT+jGFhkVCts9JMflRYiXehkeScLmwzs=
 github.com/palantir/go-baseapp v0.7.1/go.mod h1:KBqHCakdBYFZMGt55N3iOp0IrgZGHPPgkHxUleOcius=
-github.com/palantir/go-githubapp v0.49.0 h1:zSUS4ZSogBSFDDtIleAixY8cPJxlLFWUAy0I9L6z/aM=
-github.com/palantir/go-githubapp v0.49.0/go.mod h1:Ln8mJPWsw1YUOXFMBgnksgY51WW3QbOCTCMlkWUM12c=
+github.com/palantir/go-githubapp v0.49.1-0.20261105180042-43cde26b8ba5 h1:MsZAwscqkE4HzGPw9A31mZVqYHlHdZCwxDaUA4jnW/s=
+github.com/palantir/go-githubapp v0.49.1-0.20261105180042-43cde26b8ba5/go.mod h1:Ln8mJPWsw1YUOXFMBgnksgY51WW3QbOCTCMlkWUM12c=
 github.com/pandatix/go-abnf v0.5.5 h1:EXex5KkRQx4Dm6GnpAcQnIMBs9KiK0uf8p/wq+4t9PM=
 github.com/pandatix/go-abnf v0.5.5/go.mod h1:AE0KD3/VNoCjGzc1gqetRKshbI4SYErXQ/8kPenR5mc=
 github.com/patrickmn/go-cache v2.1.0+incompatible h1:HRMgzkcYKYpi3C8ajMPV8OFXaaRUnok+kx1WdO15EQc=
