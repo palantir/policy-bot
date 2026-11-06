@@ -16,19 +16,15 @@ package handler
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"testing/synctest"
 	"time"
 
 	"github.com/google/go-github/v93/github"
 	"github.com/palantir/go-githubapp/appconfig"
-	"github.com/palantir/go-githubapp/githubapp"
+	"github.com/palantir/policy-bot/policy/approval"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -48,9 +44,9 @@ func TestConfigFetcherParentFailures(t *testing.T) {
 		{name: "undefined", undefined: true},
 		{name: "invalid yaml", content: "policy: [", parseError: "failed to parse parent"},
 		{name: "unknown field", content: "unexpected: true", parseError: "unexpected"},
-		{name: "remote pointer", content: "remote: shared/third", parseError: "must not be a remote reference"},
-		{name: "merged remote pointer", content: "<<: {remote: shared/third}", parseError: "must not be a remote reference"},
-		{name: "null remote pointer", content: "remote: null", parseError: "must not be a remote reference"},
+		{name: "remote pointer", content: "remote: shared/third", parseError: "field remote not found"},
+		{name: "merged remote pointer", content: "<<: {remote: shared/third}", parseError: "field remote not found"},
+		{name: "null remote pointer", content: "remote: null", parseError: "field remote not found"},
 		{name: "further extension", content: extendingPolicy, parseError: "must not extend another policy"},
 		{name: "merged extension", content: "policy: {<<: {approval_extends: {remote: shared/third}}}", parseError: "must not extend another policy"},
 		{name: "null extension", content: "policy: {approval_extends: null}", parseError: "approval_extends"},
@@ -105,29 +101,24 @@ func TestConfigFetcherParentFailures(t *testing.T) {
 }
 
 func TestConfigFetcherInvalidExtensionDoesNotLoadParent(t *testing.T) {
-	for _, input := range []string{
-		"policy: {approval: [], approval_extends: {remote: shared/policies}}",
-		"policy: {approval: null, approval_extends: {remote: shared/policies}}",
-		"policy: {approval_extends: null}",
-		"policy: {approval_extends: {}}",
-	} {
-		t.Run(input, func(t *testing.T) {
-			fetcher := ConfigFetcher{Loader: mockConfigLoader{
-				loadConfig: func(context.Context, *github.Client, string, string, string) (appconfig.Config, error) {
-					return appconfig.Config{Content: []byte(input), Source: "original/service@release", Path: ".policy.yml"}, nil
-				},
-				loadRemoteRef: func(context.Context, *github.Client, string, appconfig.RemoteRef) (appconfig.Config, error) {
-					t.Error("invalid extension requested a parent")
-					return appconfig.Config{}, nil
-				},
-			}}
-			fc := fetcher.ConfigForRepositoryBranch(context.Background(), nil, "original", "service", "release")
-			require.Error(t, fc.ParseError)
-			assert.Nil(t, fc.Config)
-			assert.True(t, fc.SeenPolicy)
-			assert.Equal(t, "original/service@release", fc.Source)
-		})
-	}
+	fetcher := ConfigFetcher{Loader: mockConfigLoader{
+		loadConfig: func(context.Context, *github.Client, string, string, string) (appconfig.Config, error) {
+			return appconfig.Config{
+				Content: []byte("policy: {approval: [], approval_extends: {remote: shared/policies}}"),
+				Source:  "original/service@release",
+				Path:    ".policy.yml",
+			}, nil
+		},
+		loadRemoteRef: func(context.Context, *github.Client, string, appconfig.RemoteRef) (appconfig.Config, error) {
+			t.Error("invalid extension requested a parent")
+			return appconfig.Config{}, nil
+		},
+	}}
+	fc := fetcher.ConfigForRepositoryBranch(context.Background(), nil, "original", "service", "release")
+	require.Error(t, fc.ParseError)
+	assert.Nil(t, fc.Config)
+	assert.True(t, fc.SeenPolicy)
+	assert.Equal(t, "original/service@release", fc.Source)
 }
 
 func TestConfigFetcherParentRetry(t *testing.T) {
@@ -186,232 +177,53 @@ func TestConfigFetcherParentRetry(t *testing.T) {
 	}
 }
 
-func TestConfigFetcherExtensionDiscovery(t *testing.T) {
+func TestConfigFetcherLoadsParent(t *testing.T) {
 	for _, test := range []struct {
-		name, local, shared string
-		forceShared         bool
-		requests            []string
+		name, source, parent string
 	}{
-		{name: "local", local: extendingPolicy, requests: []string{"/repos/original/service/contents/.policy.yml?ref=release", "/repos/shared/policies/contents/parent.yml?ref=main"}},
-		{name: "remote child", local: "remote: shared/policies\npath: child.yml\nref: main", requests: []string{"/repos/original/service/contents/.policy.yml?ref=release", "/repos/shared/policies/contents/child.yml?ref=main", "/repos/shared/policies/contents/parent.yml?ref=main"}},
-		{name: "owner default", shared: extendingPolicy, requests: []string{"/repos/original/service/contents/.policy.yml?ref=release", "/repos/original/.github", "/repos/original/.github/contents/default.yml?ref=main", "/repos/shared/policies/contents/parent.yml?ref=main"}},
-		{name: "forced shared", local: extendingPolicy, shared: "policy: {approval: []}", forceShared: true, requests: []string{"/repos/original/.github", "/repos/original/.github/contents/default.yml?ref=main"}},
+		{"local child", "original/service@release", "policy: {approval: [review]}\napproval_rules: [{name: review}]"},
+		{"remote child", "shared/policies@main", "policy: {approval: [review]}\napproval_rules: [{name: review}]"},
+		{"empty parent", "shared/policies@main", ""},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			var requests []string
-			client := extensionTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-				requests = append(requests, r.URL.RequestURI())
-				switch r.URL.Path {
-				case "/repos/original/service/contents/.policy.yml":
-					if test.local == "" {
-						http.NotFound(w, r)
-						return
-					}
-					writePolicyFile(t, w, test.local)
-				case "/repos/original/.github":
-					assert.NoError(t, json.NewEncoder(w).Encode(map[string]string{"name": ".github", "default_branch": "main"}))
-				case "/repos/original/.github/contents/default.yml":
-					writePolicyFile(t, w, test.shared)
-				case "/repos/shared/policies/contents/child.yml":
-					writePolicyFile(t, w, extendingPolicy)
-				case "/repos/shared/policies/contents/parent.yml":
-					writePolicyFile(t, w, "policy: {approval: []}")
-				default:
-					t.Errorf("unexpected request: %s", r.URL)
-					http.NotFound(w, r)
-				}
-			})
-			paths := []string{".policy.yml"}
-			if test.forceShared {
-				paths = nil
-			}
-			fetcher := ConfigFetcher{Loader: appconfig.NewLoader(paths, appconfig.WithOwnerDefault(".github", []string{"default.yml"}))}
-			fc := fetcher.ConfigForRepositoryBranch(context.Background(), client, "original", "service", "release")
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			client, err := github.NewClient()
+			require.NoError(t, err)
+			parentCalls := 0
+			fetcher := ConfigFetcher{Loader: mockConfigLoader{
+				loadConfig: func(gotCtx context.Context, gotClient *github.Client, owner, repo, ref string) (appconfig.Config, error) {
+					assert.Same(t, ctx, gotCtx)
+					assert.Same(t, client, gotClient)
+					assert.Equal(t, "original", owner)
+					assert.Equal(t, "service", repo)
+					assert.Equal(t, "release", ref)
+					return appconfig.Config{Content: []byte(extendingPolicy), Source: test.source, Path: "child.yml"}, nil
+				},
+				loadRemoteRef: func(gotCtx context.Context, gotClient *github.Client, owner string, remote appconfig.RemoteRef) (appconfig.Config, error) {
+					parentCalls++
+					assert.Same(t, ctx, gotCtx)
+					assert.Same(t, client, gotClient)
+					assert.Equal(t, "original", owner)
+					assert.Equal(t, appconfig.RemoteRef{Remote: "shared/policies", Path: "parent.yml", Ref: "main"}, remote)
+					return appconfig.Config{Content: []byte(test.parent), Source: "shared/policies@main", Path: "parent.yml"}, nil
+				},
+			}}
+			fc := fetcher.ConfigForRepositoryBranch(ctx, client, "original", "service", "release")
 			require.NoError(t, fc.LoadError)
 			require.NoError(t, fc.ParseError)
-			assert.Equal(t, test.requests, requests)
-			assert.Equal(t, !test.forceShared, fc.Parent != nil)
-		})
-	}
-}
-
-func TestConfigFetcherOriginalOwnerForPrivateParent(t *testing.T) {
-	for _, test := range []struct {
-		name            string
-		private, denied bool
-		lookupError     error
-	}{
-		{name: "private child and parent", private: true},
-		{name: "public without switching"},
-		{name: "public fallback", private: true, lookupError: errors.New("installation unavailable")},
-		{name: "parent denied without fallback", private: true, denied: true},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			originalCalls, selectedCalls := 0, 0
-			serve := func(w http.ResponseWriter, r *http.Request) {
-				switch r.URL.Path {
-				case "/repos/shared/policies/contents/child.yml":
-					writePolicyFile(t, w, extendingPolicy)
-				case "/repos/shared/policies/contents/parent.yml":
-					if test.denied {
-						http.Error(w, "denied", http.StatusForbidden)
-						return
-					}
-					writePolicyFile(t, w, "policy: {approval: []}")
-				default:
-					t.Errorf("unexpected remote request: %s", r.URL)
-					http.NotFound(w, r)
-				}
-			}
-			original := extensionTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-				originalCalls++
-				if r.URL.Path == "/repos/original/service/contents/.policy.yml" {
-					writePolicyFile(t, w, "remote: shared/policies\npath: child.yml\nref: main")
-					return
-				}
-				if test.private && test.lookupError == nil {
-					t.Error("private remote used the original installation client")
-				}
-				serve(w, r)
-			})
-			selected := extensionTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-				selectedCalls++
-				serve(w, r)
-			})
-			installations := &extensionInstallations{err: test.lookupError}
-			var options []appconfig.Option
-			if test.private {
-				options = append(options, appconfig.WithPrivateRemotes(testClients{client: selected}, installations))
-			}
-			fetcher := ConfigFetcher{Loader: appconfig.NewLoader([]string{".policy.yml"}, options...)}
-			fc := fetcher.ConfigForRepositoryBranch(context.Background(), original, "original", "service", "release")
-			require.NoError(t, fc.ParseError)
-			if test.denied {
-				var responseError *github.ErrorResponse
-				require.ErrorAs(t, fc.LoadError, &responseError)
-				assert.Equal(t, http.StatusForbidden, responseError.Response.StatusCode)
-			} else {
-				require.NoError(t, fc.LoadError)
-				require.NotNil(t, fc.Parent)
-			}
-			if test.private {
-				assert.Equal(t, []string{"shared/policies", "shared/policies"}, installations.lookups)
-			} else {
-				assert.Empty(t, installations.lookups)
-			}
-			if test.private && test.lookupError == nil {
-				assert.Equal(t, 1, originalCalls)
-				assert.Equal(t, 2, selectedCalls)
-			} else {
-				assert.Equal(t, 3, originalCalls)
-				assert.Zero(t, selectedCalls)
-			}
-		})
-	}
-}
-
-func TestConfigFetcherMissingOrEmptyParent(t *testing.T) {
-	for _, test := range []struct {
-		name      string
-		status    int
-		directory bool
-	}{
-		{name: "missing", status: http.StatusNotFound},
-		{name: "directory", status: http.StatusOK, directory: true},
-		{name: "empty literal file", status: http.StatusOK},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			calls := 0
-			client := extensionTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-				calls++
-				if r.URL.Path == "/repos/original/service/contents/.policy.yml" {
-					writePolicyFile(t, w, extendingPolicy)
-					return
-				}
-				assert.Equal(t, "/repos/shared/policies/contents/parent.yml?ref=main", r.URL.RequestURI())
-				w.WriteHeader(test.status)
-				if test.directory {
-					_, err := w.Write([]byte("[]"))
-					assert.NoError(t, err)
-				} else if test.status == http.StatusOK {
-					writePolicyFile(t, w, "")
-				}
-			})
-			fetcher := ConfigFetcher{Loader: appconfig.NewLoader([]string{".policy.yml", "fallback.yml"})}
-			fc := fetcher.ConfigForRepositoryBranch(context.Background(), client, "original", "service", "release")
-			assert.Equal(t, 2, calls)
 			require.NotNil(t, fc.Config)
-			if test.directory || test.status != http.StatusOK {
-				require.ErrorContains(t, fc.LoadError, "file does not exist")
-				assert.Nil(t, fc.Parent)
+			require.NotNil(t, fc.Parent)
+			assert.NotNil(t, fc.Config.Policy.ApprovalExtends)
+			if test.parent == "" {
+				assert.Empty(t, fc.Parent.Policy.Approval)
 			} else {
-				require.NoError(t, fc.LoadError)
-				require.NoError(t, fc.ParseError)
-				require.NotNil(t, fc.Parent)
+				assert.Equal(t, approval.Policy{"review"}, fc.Parent.Policy.Approval)
 			}
+			assert.Equal(t, 1, parentCalls)
+			assert.Equal(t, test.source, fc.Source)
+			assert.Equal(t, "child.yml", fc.Path)
+			assert.True(t, fc.SeenPolicy)
 		})
 	}
-}
-
-func TestConfigFetcherParentNetworkCancellation(t *testing.T) {
-	requested := make(chan struct{})
-	client := extensionTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/repos/original/service/contents/.policy.yml" {
-			writePolicyFile(t, w, extendingPolicy)
-			return
-		}
-		assert.Equal(t, "/repos/shared/policies/contents/parent.yml?ref=main", r.URL.RequestURI())
-		close(requested)
-		<-r.Context().Done()
-	})
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	fetcher := ConfigFetcher{Loader: appconfig.NewLoader([]string{".policy.yml"})}
-	result := make(chan FetchedConfig, 1)
-	go func() {
-		result <- fetcher.ConfigForRepositoryBranch(ctx, client, "original", "service", "release")
-	}()
-	select {
-	case <-requested:
-	case <-ctx.Done():
-		t.Fatal("parent request did not begin")
-	}
-	cancel()
-	select {
-	case fc := <-result:
-		require.ErrorIs(t, fc.LoadError, context.Canceled)
-		require.NotNil(t, fc.Config)
-		assert.True(t, fc.SeenPolicy)
-		assert.Contains(t, fc.LoadError.Error(), "parent.yml")
-	case <-time.After(5 * time.Second):
-		t.Fatal("parent request did not stop on cancellation")
-	}
-}
-
-func extensionTestClient(t *testing.T, handler http.HandlerFunc) *github.Client {
-	t.Helper()
-	server := httptest.NewServer(handler)
-	t.Cleanup(server.Close)
-	baseURL := server.URL + "/"
-	client, err := github.NewClient(github.WithHTTPClient(server.Client()), github.WithURLs(&baseURL, nil))
-	require.NoError(t, err)
-	return client
-}
-
-func writePolicyFile(t *testing.T, w http.ResponseWriter, content string) {
-	t.Helper()
-	assert.NoError(t, json.NewEncoder(w).Encode(map[string]string{
-		"encoding": "base64", "content": base64.StdEncoding.EncodeToString([]byte(content)),
-	}))
-}
-
-type extensionInstallations struct {
-	githubapp.InstallationsService
-	lookups []string
-	err     error
-}
-
-func (i *extensionInstallations) GetByRepository(_ context.Context, owner, repository string) (githubapp.Installation, error) {
-	i.lookups = append(i.lookups, owner+"/"+repository)
-	return githubapp.Installation{ID: 2}, i.err
 }

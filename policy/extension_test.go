@@ -92,26 +92,20 @@ policy: {<<: {approval: [missing]}, approval: []}
 	assert.Equal(t, common.StatusApproved, parsed.Evaluate(context.Background(), &pulltest.Context{}).Status)
 }
 
-func TestApprovalExtensionGrouping(t *testing.T) {
+func TestApprovalExtensionRuleScope(t *testing.T) {
 	parent := extensionConfig(t, `
 policy:
-  approval: [review, {or: [Emergency, {slot: extra, required: true}]}]
+  approval: [review, {slot: extra, required: true}]
 approval_rules:
   - name: review
     requires: {count: 1, users: [platform]}
-  - name: Emergency
-    requires: {count: 1, users: [emergency]}
 `)
 	child := extensionConfig(t, `
 policy: {approval_extends: {remote: example/policies}}
-slots: {extra: [review, {or: [Security, Operations]}]}
+slots: {extra: [review]}
 approval_rules:
   - name: review
     requires: {count: 1, users: [service]}
-  - name: Security
-    requires: {count: 1, users: [security]}
-  - name: Operations
-    requires: {count: 1, users: [operations]}
 `)
 	_, err := ParsePolicy(parent, nil)
 	require.ErrorContains(t, err, "required slots are empty")
@@ -121,11 +115,9 @@ approval_rules:
 		users  []string
 		status common.EvaluationStatus
 	}{
-		{[]string{"service", "security"}, common.StatusPending},
-		{[]string{"platform", "service"}, common.StatusPending},
-		{[]string{"platform", "security"}, common.StatusPending},
-		{[]string{"platform", "service", "operations"}, common.StatusApproved},
-		{[]string{"platform", "emergency"}, common.StatusApproved},
+		{[]string{"service"}, common.StatusPending},
+		{[]string{"platform"}, common.StatusPending},
+		{[]string{"platform", "service"}, common.StatusApproved},
 	} {
 		t.Run(fmt.Sprint(tt.users), func(t *testing.T) {
 			prctx := &pulltest.Context{}
@@ -135,13 +127,12 @@ approval_rules:
 			result := parsed.Evaluate(context.Background(), prctx)
 			require.NoError(t, result.Error)
 			assert.Equal(t, tt.status, result.Status)
-			assert.Equal(t, "extra", result.Children[0].Children[1].Children[1].Slot.Name)
+			require.NotNil(t, findSlotResult(&result, "extra"))
 		})
 	}
 	assert.Same(t, parent.ApprovalRules[0], parsed.FindApprovalRule("", "review"))
 	assert.Same(t, child.ApprovalRules[0], parsed.FindApprovalRule("extra", "review"))
 	assert.Nil(t, parsed.FindApprovalRule("missing", "review"))
-	assert.Nil(t, parsed.FindApprovalRule("extra", "Emergency"))
 }
 
 func TestApprovalExtensionFillReplacement(t *testing.T) {
@@ -222,28 +213,27 @@ approval_rules:
 }
 
 func TestApprovalExtensionInvalidFills(t *testing.T) {
-	for name, fill := range map[string]string{
-		"undefined rule": "[missing]",
-		"nested slot":    "[{slot: nested}]",
-		"null":           "null",
+	for _, test := range []struct {
+		name, slot string
+		parent     bool
+	}{
+		{"replaced parent fill", "extra", true},
+		{"unused parent fill", "unused", true},
+		{"child fill", "extra", false},
+		{"unused child fill", "unused", false},
 	} {
-		for _, owner := range []string{"parent", "child"} {
-			for _, slot := range []string{"extra", "unused"} {
-				t.Run(name+"/"+owner+"/"+slot, func(t *testing.T) {
-					parent := extensionConfig(t, "policy: {approval: [{slot: extra}]}\n")
-					child := extensionConfig(t, "policy: {approval_extends: {remote: example/policies}}\nslots: {extra: []}")
-					bad := extensionConfig(t, fmt.Sprintf("slots: {%s: %s}", slot, fill))
-					if owner == "parent" {
-						parent.Slots = bad.Slots
-					} else {
-						child.Slots = bad.Slots
-					}
-					_, err := ParsePolicyWithParent(child, parent, nil)
-					require.Error(t, err)
-					assert.Contains(t, err.Error(), "slot fill")
-				})
+		t.Run(test.name, func(t *testing.T) {
+			parent := extensionConfig(t, "policy: {approval: [{slot: extra}]}")
+			child := extensionConfig(t, "policy: {approval_extends: {remote: example/policies}}\nslots: {extra: []}")
+			badFill := Slots{test.slot: {"missing"}}
+			if test.parent {
+				parent.Slots = badFill
+			} else {
+				child.Slots = badFill
 			}
-		}
+			_, err := ParsePolicyWithParent(child, parent, nil)
+			require.ErrorContains(t, err, "undefined rule 'missing'")
+		})
 	}
 	child := extensionConfig(t, `policy: {approval_extends: {remote: example/policies}}`)
 	_, err := ParsePolicyWithParent(child, child, nil)

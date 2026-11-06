@@ -68,6 +68,15 @@ approval_rules:
 	result := eval.Evaluate(context.Background(), ec.PullContext)
 	require.NoError(t, result.Error)
 	require.Equal(t, common.StatusPending, result.Status)
+	var filled *common.Result
+	for _, child := range result.Children[0].Children {
+		if child.Slot != nil && child.Slot.Name == slotName {
+			filled = child
+		}
+	}
+	require.NotNil(t, filled)
+	assert.Equal(t, ruleName, filled.Name)
+	assert.Empty(t, filled.Children, "a single-rule fill renders directly without an implicit and wrapper")
 	original, err := json.Marshal(result)
 	require.NoError(t, err)
 

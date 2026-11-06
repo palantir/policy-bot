@@ -79,7 +79,7 @@ approval_rules:
 		{"denied", "service", child, parent, "none", "", false, false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			client := extensionTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 				switch r.Method + " " + r.URL.Path {
 				case "GET /repos/example/service/collaborators/reader/permission":
 					assert.NoError(t, json.NewEncoder(w).Encode(github.RepositoryPermissionLevel{Permission: &test.permission}))
@@ -90,11 +90,7 @@ approval_rules:
 					t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 					http.Error(w, "unexpected request", http.StatusBadRequest)
 				}
-			}))
-			defer server.Close()
-			baseURL := server.URL + "/"
-			client, err := github.NewClient(github.WithHTTPClient(server.Client()), github.WithURLs(&baseURL, nil))
-			require.NoError(t, err)
+			})
 			h := &DetailsReviewers{Details: Details{
 				Sessions: sessions, Templates: templates,
 				Base: Base{

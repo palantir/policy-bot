@@ -18,7 +18,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"strings"
+	"slices"
 	"testing"
 
 	"github.com/google/go-github/v93/github"
@@ -72,10 +72,7 @@ approval_defaults:
 			require.NoError(t, err)
 			require.NotNil(t, parsed)
 			for _, body := range append(test.matches, test.excludes...) {
-				expected := false
-				for _, match := range test.matches {
-					expected = expected || body == match
-				}
+				expected := slices.Contains(test.matches, body)
 				assert.Equal(t, expected, (&IssueComment{}).affectsApproval(github.IssueCommentEvent{
 					Action: new("created"), Comment: &github.IssueComment{Body: &body},
 				}, parsed.Methods()), body)
@@ -87,16 +84,12 @@ approval_defaults:
 	}
 }
 
-func TestValidateExtensionOffline(t *testing.T) {
-	request := httptest.NewRequest(http.MethodPost, "/api/validate", strings.NewReader(extensionPolicy))
-	response := httptest.NewRecorder()
-	Validate().ServeHTTP(response, request)
-	assert.Equal(t, http.StatusUnprocessableEntity, response.Code)
-	assert.Contains(t, response.Body.String(), "parent")
-	assert.Contains(t, response.Body.String(), "simulation")
-
-	request = httptest.NewRequest(http.MethodPost, "/api/validate", strings.NewReader("remote: example/shared"))
-	response = httptest.NewRecorder()
-	Validate().ServeHTTP(response, request)
-	assert.Equal(t, http.StatusOK, response.Code)
+func extensionTestClient(t *testing.T, handler http.HandlerFunc) *github.Client {
+	t.Helper()
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	baseURL := server.URL + "/"
+	client, err := github.NewClient(github.WithHTTPClient(server.Client()), github.WithURLs(&baseURL, nil))
+	require.NoError(t, err)
+	return client
 }

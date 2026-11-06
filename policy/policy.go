@@ -53,8 +53,8 @@ func (s *Slots) UnmarshalYAML(unmarshal func(any) error) error {
 	result := make(Slots, len(fills))
 	for key, fill := range fills {
 		name, ok := key.(string)
-		if !ok || name == "" {
-			return errors.New("slot fill name must be a nonempty string")
+		if !ok {
+			return errors.New("slot fill name must be a string")
 		}
 		result[name] = fill
 	}

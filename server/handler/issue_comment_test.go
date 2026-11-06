@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -61,7 +60,7 @@ func TestIssueCommentAuditsExtension(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			statuses := make(chan *github.RepoStatus, 4)
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			client := extensionTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 				switch r.Method + " " + r.URL.Path {
 				case "GET /repos/example/service/pulls/1":
 					assert.NoError(t, json.NewEncoder(w).Encode(pr))
@@ -76,11 +75,7 @@ func TestIssueCommentAuditsExtension(t *testing.T) {
 					t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 					http.Error(w, "unexpected request", http.StatusBadRequest)
 				}
-			}))
-			defer server.Close()
-			baseURL := server.URL + "/"
-			client, err := github.NewClient(github.WithHTTPClient(server.Client()), github.WithURLs(&baseURL, nil))
-			require.NoError(t, err)
+			})
 			h := &IssueComment{Base: Base{
 				ClientCreator: testClients{client: client},
 				BaseConfig:    &baseapp.HTTPConfig{PublicURL: "https://policy-bot.example.com"},

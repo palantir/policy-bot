@@ -23,14 +23,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestValidateStandaloneSlots(t *testing.T) {
+func TestValidateSlots(t *testing.T) {
 	originalPath := validateCmdConfig.Path
 	t.Cleanup(func() { validateCmdConfig.Path = originalPath })
 	validateCmdConfig.Path = filepath.Join(t.TempDir(), "policy.yml")
 
 	for _, test := range []struct {
-		name, policy string
-		valid        bool
+		name, policy, errorMessage string
 	}{
 		{"filled", `
 policy:
@@ -40,32 +39,20 @@ slots:
 approval_rules:
   - name: Service review
     requires: {count: 1, users: [reviewer]}
-`, true},
+`, ""},
 		{"required empty", `policy: {approval: [{slot: service, required: true}]}
-slots: {service: []}`, false},
+slots: {service: []}`, "required slots are empty"},
+		{"extension", "policy: {approval_extends: {remote: example/shared}}", "approval_extends requires a resolved parent; use authenticated simulation"},
+		{"remote pointer", "remote: example/shared", ""},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			require.NoError(t, os.WriteFile(validateCmdConfig.Path, []byte(test.policy), 0600))
 			err := validationCmd(ValidationCmd, nil)
-			if test.valid {
+			if test.errorMessage == "" {
 				assert.NoError(t, err)
 			} else {
-				assert.Error(t, err)
+				assert.ErrorContains(t, err, test.errorMessage)
 			}
 		})
 	}
-}
-
-func TestValidateExtensionOffline(t *testing.T) {
-	originalPath := validateCmdConfig.Path
-	t.Cleanup(func() { validateCmdConfig.Path = originalPath })
-	validateCmdConfig.Path = filepath.Join(t.TempDir(), "policy.yml")
-	require.NoError(t, os.WriteFile(validateCmdConfig.Path, []byte("policy: {approval_extends: {remote: example/shared}}"), 0600))
-	err := validationCmd(ValidationCmd, nil)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "parent")
-	assert.Contains(t, err.Error(), "simulation")
-
-	require.NoError(t, os.WriteFile(validateCmdConfig.Path, []byte("remote: example/shared"), 0600))
-	assert.NoError(t, validationCmd(ValidationCmd, nil))
 }

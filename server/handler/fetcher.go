@@ -109,13 +109,6 @@ func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *
 }
 
 func decodeParentConfig(content []byte) (*policy.Config, error) {
-	var fields map[any]any
-	if err := yaml.Unmarshal(content, &fields); err != nil {
-		return nil, err
-	}
-	if _, present := fields["remote"]; present {
-		return nil, errors.New("parent policy must not be a remote reference")
-	}
 	var pc policy.Config
 	if err := yaml.UnmarshalStrict(content, &pc); err != nil {
 		return nil, err

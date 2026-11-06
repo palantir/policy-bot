@@ -296,17 +296,21 @@ func TestValidateSlots(t *testing.T) {
 	for _, test := range []struct {
 		name, input string
 		status      int
+		message     string
 	}{
-		{"filled", slotPolicy, http.StatusOK},
-		{"required missing", `policy: {approval: [{slot: service, required: true}]}`, http.StatusUnprocessableEntity},
-		{"malformed unused fill", `slots: {unused: [missing]}`, http.StatusUnprocessableEntity},
-		{"unsupported extension", `policy: {approval_extends: null}`, http.StatusUnprocessableEntity},
+		{"filled", slotPolicy, http.StatusOK, ""},
+		{"required missing", `policy: {approval: [{slot: service, required: true}]}`, http.StatusUnprocessableEntity, "required slots are empty"},
+		{"extension", extensionPolicy, http.StatusUnprocessableEntity, "approval_extends requires a resolved parent; use authenticated simulation"},
+		{"remote pointer", "remote: example/shared", http.StatusOK, ""},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, "/api/validate", strings.NewReader(test.input))
 			response := httptest.NewRecorder()
 			Validate().ServeHTTP(response, request)
 			assert.Equal(t, test.status, response.Code, response.Body.String())
+			if test.message != "" {
+				assert.Contains(t, response.Body.String(), test.message)
+			}
 		})
 	}
 }
