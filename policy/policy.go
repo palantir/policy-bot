@@ -16,6 +16,7 @@ package policy
 
 import (
 	"context"
+	"slices"
 
 	"github.com/palantir/policy-bot/policy/approval"
 	"github.com/palantir/policy-bot/policy/common"
@@ -38,6 +39,26 @@ type Config struct {
 	Policy           Policy             `yaml:"policy,omitempty"`
 	ApprovalDefaults *approval.Defaults `yaml:"approval_defaults,omitempty"`
 	ApprovalRules    []*approval.Rule   `yaml:"approval_rules,omitempty"`
+	Slots            Slots              `yaml:"slots,omitempty"`
+}
+
+type Slots map[string]approval.Policy
+
+func (s *Slots) UnmarshalYAML(unmarshal func(any) error) error {
+	var fills map[any]approval.Policy
+	if err := unmarshal(&fills); err != nil {
+		return err
+	}
+	result := make(Slots, len(fills))
+	for key, fill := range fills {
+		name, ok := key.(string)
+		if !ok {
+			return errors.New("slot fill name must be a string")
+		}
+		result[name] = fill
+	}
+	*s = result
+	return nil
 }
 
 type Policy struct {
@@ -95,9 +116,32 @@ func ParsePolicy(c *Config, opts *GlobalOptions) (common.Evaluator, error) {
 		rulesByName[r.Name] = r
 	}
 
-	evalApproval, err := c.Policy.Approval.Parse(rulesByName)
+	slots := make(map[string]*approval.SlotRule)
+	evalApproval, err := c.Policy.Approval.Parse(rulesByName, slots)
 	if err != nil {
 		return nil, errors.WithMessage(err, "failed to parse approval policy")
+	}
+	for name, fill := range c.Slots {
+		if name == "" || fill == nil {
+			return nil, errors.Errorf("slot fill %q must have a nonempty name and a non-null list of rules", name)
+		}
+		child, err := fill.ParseFill(rulesByName)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse slot fill %q", name)
+		}
+		if slot := slots[name]; slot != nil {
+			slot.Child = child
+		}
+	}
+	var missing []string
+	for name, slot := range slots {
+		if slot.Required && slot.Child == nil {
+			missing = append(missing, name)
+		}
+	}
+	if len(missing) > 0 {
+		slices.Sort(missing)
+		return nil, errors.Errorf("required slots are empty: %q", missing)
 	}
 
 	evalDisapproval := c.Policy.Disapproval

@@ -78,8 +78,16 @@ type Result struct {
 	Dismissals []*Dismissal
 
 	ReviewRequestRule *ReviewRequestRule
+	Slot              *SlotResult
 
 	Children []*Result
+}
+
+// SlotResult identifies a slot's evaluated content or an empty placeholder.
+// Populated slots may also be skipped when their rules' predicates do not match.
+type SlotResult struct {
+	Name  string
+	Empty bool
 }
 
 type RequiresResult struct {

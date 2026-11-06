@@ -38,6 +38,9 @@ func TestParsePolicy(t *testing.T) {
   - or:
     - rule8
     - rule9
+- slot: empty
+- slot: filled
+  required: true
 `
 
 	ruleText := `
@@ -94,8 +97,12 @@ func TestParsePolicy(t *testing.T) {
 		rulesByName[r.Name] = r
 	}
 
-	req, err := policy.Parse(rulesByName)
+	slots := make(map[string]*SlotRule)
+	req, err := policy.Parse(rulesByName, slots)
 	require.NoError(t, err, "failed to parse policy")
+	require.NotNil(t, slots["filled"])
+	slots["filled"].Child, err = (Policy{"rule1"}).ParseFill(rulesByName)
+	require.NoError(t, err, "failed to parse slot fill")
 
 	expected := &evaluator{
 		root: &AndRequirement{
@@ -142,6 +149,12 @@ func TestParsePolicy(t *testing.T) {
 							},
 						},
 					},
+				},
+				&SlotRule{Name: "empty"},
+				&SlotRule{
+					Name:     "filled",
+					Required: true,
+					Child:    &RuleRequirement{rule: rules[0]},
 				},
 			},
 		},
@@ -267,5 +280,5 @@ func loadAndParsePolicy(t *testing.T, policyText string, ruleText string) (commo
 		rulesByName[r.Name] = r
 	}
 
-	return policy.Parse(rulesByName)
+	return policy.Parse(rulesByName, nil)
 }
