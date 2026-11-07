@@ -241,6 +241,15 @@ func TestHasSuccessfulWorkflowRun(t *testing.T) {
 	runWorkflowTestCase(t, commonTestCases)
 }
 
+func TestHasWorkflowResultDefaultConclusionInFailureDescription(t *testing.T) {
+	predicateResult, err := (HasWorkflowResult{Workflows: []string{".github/workflows/ci.yml"}}).Evaluate(context.Background(), &pulltest.Context{
+		LatestWorkflowRunsValue: map[string][]string{".github/workflows/ci.yml": {"failure"}},
+	})
+
+	if assert.NoError(t, err) {
+		assert.Equal(t, "One or more workflow runs have not concluded with success: .github/workflows/ci.yml", predicateResult.Description)
+	}
+}
 func runWorkflowTestCase(t *testing.T, cases []WorkflowTestCase) {
 	ctx := context.Background()
 
