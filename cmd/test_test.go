@@ -93,6 +93,8 @@ func TestScenarioEvaluation(t *testing.T) {
 func TestScenarioToContext(t *testing.T) {
 	sc := scenario{
 		Author:       "alice",
+		BaseBranch:   "main",
+		HeadBranch:   "feature",
 		Labels:       []string{"enhancement"},
 		ChangedFiles: []scenarioFile{{Name: "a.go", Status: "added", Additions: 3}},
 		Comments:     []scenarioComment{{Author: "bob", Body: ":+1:"}},
@@ -101,7 +103,11 @@ func TestScenarioToContext(t *testing.T) {
 	ctx := sc.toContext()
 
 	assert.Equal(t, "alice", ctx.Author())
-	assert.True(t, ctx.IsOpen(), "state should default to open")
+	assert.True(t, ctx.IsOpen(), "scenarios are always open")
+
+	base, head := ctx.Branches()
+	assert.Equal(t, "main", base)
+	assert.Equal(t, "feature", head)
 
 	labels, err := ctx.Labels()
 	require.NoError(t, err)
@@ -130,7 +136,50 @@ func TestLoadFixtures(t *testing.T) {
 	fixtures, err := loadFixtures("testdata/fixtures.yml")
 	require.NoError(t, err)
 	assert.NotEmpty(t, fixtures.Scenarios)
-	for _, sc := range fixtures.Scenarios {
-		assert.True(t, validExpectations[sc.Expected], "scenario %q has a valid expectation", sc.Name)
+}
+
+func TestScenarioValidate(t *testing.T) {
+	cases := []struct {
+		name    string
+		sc      scenario
+		wantErr string
+	}{
+		{
+			"valid scenario",
+			scenario{
+				Name:         "ok",
+				Expected:     "approved",
+				ChangedFiles: []scenarioFile{{Name: "a.go"}, {Name: "b.go", Status: "deleted"}},
+				Reviews:      []scenarioReview{{Author: "bob", State: "changes_requested"}},
+			},
+			"",
+		},
+		{
+			"invalid expected",
+			scenario{Name: "bad", Expected: "passed"},
+			`invalid expected value "passed"`,
+		},
+		{
+			"invalid file status",
+			scenario{Name: "bad", Expected: "pending", ChangedFiles: []scenarioFile{{Name: "a.go", Status: "renamed"}}},
+			`invalid status "renamed"`,
+		},
+		{
+			"invalid review state",
+			scenario{Name: "bad", Expected: "pending", Reviews: []scenarioReview{{Author: "bob", State: "APPROVED"}}},
+			`invalid state "APPROVED"`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.sc.validate()
+			if tc.wantErr == "" {
+				assert.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.wantErr)
+		})
 	}
 }

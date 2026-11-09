@@ -17,7 +17,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"io/fs"
 	"os"
 
 	"github.com/palantir/go-githubapp/appconfig"
@@ -74,9 +73,6 @@ func testCmd(cmd *cobra.Command, args []string) error {
 		}
 		for _, sc := range fixtures.Scenarios {
 			total++
-			if !validExpectations[sc.Expected] {
-				return errors.Errorf("scenario %q has invalid expected value %q (want one of skipped, pending, approved, disapproved)", sc.Name, sc.Expected)
-			}
 			res := evaluator.Evaluate(context.Background(), sc.toContext())
 			if res.Error != nil {
 				failures++
@@ -105,9 +101,6 @@ func testCmd(cmd *cobra.Command, args []string) error {
 // cannot be evaluated offline and are rejected.
 func loadPolicyEvaluator(path string) (common.Evaluator, error) {
 	policyData, err := os.ReadFile(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, errors.Errorf("policy file does not exist: %s", path)
-	}
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to read policy file: %s", path)
 	}
@@ -142,11 +135,10 @@ type scenario struct {
 	Author string `yaml:"author,omitempty"`
 	Title  string `yaml:"title,omitempty"`
 	Body   string `yaml:"body,omitempty"`
-	State  string `yaml:"state,omitempty"`
 	Draft  bool   `yaml:"draft,omitempty"`
 
-	Base string `yaml:"base,omitempty"`
-	Head string `yaml:"head,omitempty"`
+	BaseBranch string `yaml:"base_branch,omitempty"`
+	HeadBranch string `yaml:"head_branch,omitempty"`
 
 	Labels       []string            `yaml:"labels,omitempty"`
 	ChangedFiles []scenarioFile      `yaml:"changed_files,omitempty"`
@@ -183,19 +175,41 @@ var fileStatuses = map[string]pull.FileStatus{
 	"deleted":  pull.FileDeleted,
 }
 
-func (s scenario) toContext() *pulltest.Context {
-	state := s.State
-	if state == "" {
-		state = "open"
-	}
+var validReviewStates = map[pull.ReviewState]bool{
+	pull.ReviewApproved:         true,
+	pull.ReviewChangesRequested: true,
+	pull.ReviewCommented:        true,
+	pull.ReviewDismissed:        true,
+	pull.ReviewPending:          true,
+}
 
+// validate rejects values that toContext cannot map, so mistakes in a
+// fixtures file fail loudly instead of evaluating against a default.
+func (s scenario) validate() error {
+	if !validExpectations[s.Expected] {
+		return errors.Errorf("scenario %q has invalid expected value %q (want one of skipped, pending, approved, disapproved)", s.Name, s.Expected)
+	}
+	for _, f := range s.ChangedFiles {
+		if _, ok := fileStatuses[f.Status]; !ok {
+			return errors.Errorf("scenario %q has file %q with invalid status %q (want one of added, modified, deleted)", s.Name, f.Name, f.Status)
+		}
+	}
+	for _, r := range s.Reviews {
+		if !validReviewStates[pull.ReviewState(r.State)] {
+			return errors.Errorf("scenario %q has review by %q with invalid state %q (want one of approved, changes_requested, commented, dismissed, pending)", s.Name, r.Author, r.State)
+		}
+	}
+	return nil
+}
+
+func (s scenario) toContext() *pulltest.Context {
 	ctx := &pulltest.Context{
 		AuthorValue:         s.Author,
 		TitleValue:          s.Title,
-		StateValue:          state,
+		StateValue:          "open",
 		Draft:               s.Draft,
-		BranchBaseName:      s.Base,
-		BranchHeadName:      s.Head,
+		BranchBaseName:      s.BaseBranch,
+		BranchHeadName:      s.HeadBranch,
 		LabelsValue:         s.Labels,
 		TeamMemberships:     s.TeamMembers,
 		OrgMemberships:      s.OrgMembers,
@@ -234,9 +248,6 @@ func (s scenario) toContext() *pulltest.Context {
 
 func loadFixtures(path string) (*fixtureFile, error) {
 	data, err := os.ReadFile(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, errors.Errorf("fixtures file does not exist: %s", path)
-	}
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to read fixtures file: %s", path)
 	}
@@ -247,6 +258,11 @@ func loadFixtures(path string) (*fixtureFile, error) {
 	}
 	if len(fixtures.Scenarios) == 0 {
 		return nil, errors.Errorf("fixtures file contains no scenarios: %s", path)
+	}
+	for _, sc := range fixtures.Scenarios {
+		if err := sc.validate(); err != nil {
+			return nil, errors.Wrapf(err, "invalid fixtures file: %s", path)
+		}
 	}
 	return &fixtures, nil
 }

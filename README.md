@@ -930,11 +930,15 @@ scenarios:
     expected: approved
 ```
 
-Supported scenario fields include `author`, `title`, `body`, `state`, `draft`,
-`base`/`head`, `labels`, `changed_files`, `comments`, `reviews`,
-`team_memberships`, `org_memberships`, and `latest_statuses`. `expected` is one
-of `skipped`, `pending`, `approved`, or `disapproved`. Remote policy references
-cannot be evaluated offline.
+Supported scenario fields include `author`, `title`, `body`, `draft`,
+`base_branch`/`head_branch`, `labels`, `changed_files`, `comments`, `reviews`,
+`team_memberships`, `org_memberships`, and `latest_statuses`. Scenarios always
+describe an open pull request. `expected` is one of `skipped`, `pending`,
+`approved`, or `disapproved`; a changed file's `status` is `added`, `modified`
+(the default), or `deleted`; and a review's `state` is `approved`,
+`changes_requested`, `commented`, `dismissed`, or `pending`. Invalid values are
+rejected before any scenario runs. Remote policy references cannot be evaluated
+offline.
 
 #### Simulation API
 
