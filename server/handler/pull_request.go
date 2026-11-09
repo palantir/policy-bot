@@ -42,17 +42,8 @@ func (h *PullRequest) Handle(ctx context.Context, eventType, deliveryID string, 
 	installationID := githubapp.GetInstallationIDFromEvent(&event)
 	ctx, _ = h.PreparePRContext(ctx, installationID, event.GetPullRequest())
 
-	var t common.Trigger
-	switch event.GetAction() {
-	case "opened", "reopened", "ready_for_review":
-		t = common.TriggerCommit | common.TriggerPullRequest
-	case "synchronize":
-		t = common.TriggerCommit
-	case "edited":
-		t = common.TriggerPullRequest
-	case "labeled", "unlabeled":
-		t = common.TriggerLabel
-	default:
+	t, ok := pullRequestTrigger(&event)
+	if !ok {
 		return nil
 	}
 
@@ -62,4 +53,24 @@ func (h *PullRequest) Handle(ctx context.Context, eventType, deliveryID string, 
 		Number: event.GetPullRequest().GetNumber(),
 		Value:  event.GetPullRequest(),
 	})
+}
+
+// pullRequestTrigger returns the trigger for a pull_request event and false if
+// the event action should not cause an evaluation.
+func pullRequestTrigger(event *github.PullRequestEvent) (common.Trigger, bool) {
+	switch event.GetAction() {
+	case "opened", "reopened", "ready_for_review":
+		return common.TriggerCommit | common.TriggerPullRequest, true
+	case "synchronize":
+		return common.TriggerCommit, true
+	case "edited":
+		// a base change alters the diff and policy but only produces an edited event
+		if event.GetChanges().GetBase() != nil {
+			return common.TriggerAll, true
+		}
+		return common.TriggerPullRequest, true
+	case "labeled", "unlabeled":
+		return common.TriggerLabel, true
+	}
+	return 0, false
 }
