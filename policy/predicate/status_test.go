@@ -257,3 +257,20 @@ func TestJoinWithOr(t *testing.T) {
 		})
 	}
 }
+
+func TestHasStatus_DefaultConclusionDescription(t *testing.T) {
+	ctx := context.Background()
+	pred := HasStatus{
+		Statuses: []string{"ci/test"},
+	}
+	prctx := &pulltest.Context{
+		LatestStatusesValue: map[string]string{
+			"ci/test": "failure",
+		},
+	}
+	result, err := pred.Evaluate(ctx, prctx)
+	if assert.NoError(t, err) {
+		assert.False(t, result.Satisfied)
+		assert.Equal(t, "One or more statuses has not concluded with success: ci/test", result.Description)
+	}
+}
