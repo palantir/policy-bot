@@ -1,0 +1,28 @@
+# Scenarios for the example policy. Run with:
+#   policy-bot test -p cmd/testdata/policy.yml -f cmd/testdata/fixtures.yml
+scenarios:
+  - name: no approvals yet
+    author: alice
+    expected: pending
+
+  - name: author cannot self-approve
+    author: alice
+    team_memberships:
+      alice: ["testorg/reviewers"]
+    reviews:
+      - { author: alice, state: approved }
+    expected: pending
+
+  - name: reviewer on the team approves
+    author: alice
+    team_memberships:
+      bob: ["testorg/reviewers"]
+    reviews:
+      - { author: bob, state: approved }
+    expected: approved
+
+  - name: approval from a non-member does not count
+    author: alice
+    reviews:
+      - { author: carol, state: approved }
+    expected: pending

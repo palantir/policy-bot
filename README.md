@@ -913,6 +913,49 @@ The `policy-bot` binary also includes a `validate` subcomand that can validate l
 policy-bot validate -p path/to/policy.yml
 ```
 
+#### Testing policies locally
+
+The `policy-bot` binary includes a `test` subcommand that evaluates a policy
+against scenario fixtures entirely offline (no GitHub calls), so policies can be
+unit tested in CI:
+
+```sh
+policy-bot test -p path/to/policy.yml -f path/to/fixtures.yml
+```
+
+Each fixtures file lists scenarios describing a pull request and the result the
+policy should produce. The command exits non-zero if any scenario does not match
+its expected result.
+
+```yaml
+scenarios:
+  - name: author cannot self-approve
+    author: alice
+    team_memberships:
+      alice: ["myorg/reviewers"]
+    reviews:
+      - { author: alice, state: approved }
+    expected: pending
+
+  - name: a reviewer on the team approves
+    author: alice
+    team_memberships:
+      bob: ["myorg/reviewers"]
+    reviews:
+      - { author: bob, state: approved }
+    expected: approved
+```
+
+Supported scenario fields include `author`, `title`, `body`, `draft`,
+`base_branch`/`head_branch`, `labels`, `changed_files`, `comments`, `reviews`,
+`team_memberships`, `org_memberships`, and `latest_statuses`. Scenarios always
+describe an open pull request. `expected` is one of `skipped`, `pending`,
+`approved`, or `disapproved`; a changed file's `status` is `added`, `modified`
+(the default), or `deleted`; and a review's `state` is `approved`,
+`changes_requested`, `commented`, `dismissed`, or `pending`. Invalid values are
+rejected before any scenario runs. Remote policy references cannot be evaluated
+offline.
+
 #### Simulation API
 
 It can be useful to simulate how Policy Bot would evaluate a pull request if certain conditions were changed. For example: adding a review from a specific user or group, or adjusting the base branch.
