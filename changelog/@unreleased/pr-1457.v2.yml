@@ -1,0 +1,5 @@
+type: fix
+fix:
+  description: Fix missing default conclusion in status and workflow failure descriptions
+  links:
+  - https://github.com/palantir/policy-bot/pull/1457
