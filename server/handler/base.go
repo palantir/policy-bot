@@ -33,11 +33,12 @@ const (
 type Base struct {
 	githubapp.ClientCreator
 
-	Installations githubapp.InstallationsService
-	GlobalCache   pull.GlobalCache
-	ConfigFetcher *ConfigFetcher
-	BaseConfig    *baseapp.HTTPConfig
-	PullOpts      *PullEvaluationOptions
+	Installations     githubapp.InstallationsService
+	GlobalCache       pull.GlobalCache
+	CompletionPRCache *CompletionPRCache
+	ConfigFetcher     *ConfigFetcher
+	BaseConfig        *baseapp.HTTPConfig
+	PullOpts          *PullEvaluationOptions
 
 	AppName string
 }

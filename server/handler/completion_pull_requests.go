@@ -16,20 +16,94 @@ package handler
 
 import (
 	"context"
+	"sync"
+	"time"
 
 	"github.com/google/go-github/v93/github"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/pkg/errors"
 )
+
+// CompletionPRCache bounds lookup traffic across check and workflow events.
+// It caches associations only; policy evaluations still load current PR state.
+type CompletionPRCache struct {
+	mu      sync.Mutex
+	entries *lru.Cache
+	pending map[completionKey]*completionLookup
+}
+
+type completionKey struct {
+	installationID int64
+	repoID         int64
+	sha            string
+}
+
+type completionLookup struct {
+	done    chan struct{}
+	prs     []*github.PullRequest
+	err     error
+	expires time.Time
+}
+
+func NewCompletionPRCache() *CompletionPRCache {
+	entries, _ := lru.New(1024)
+	return &CompletionPRCache{entries: entries, pending: make(map[completionKey]*completionLookup)}
+}
+
+func (c *CompletionPRCache) lookup(ctx context.Context, key completionKey, load func() ([]*github.PullRequest, error)) ([]*github.PullRequest, error) {
+	if c == nil {
+		return load()
+	}
+	c.mu.Lock()
+	if value, ok := c.entries.Get(key); ok {
+		entry := value.(*completionLookup)
+		if time.Now().Before(entry.expires) {
+			c.mu.Unlock()
+			return entry.prs, entry.err
+		}
+		c.entries.Remove(key)
+	}
+	if pending, ok := c.pending[key]; ok {
+		c.mu.Unlock()
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-pending.done:
+			return pending.prs, pending.err
+		}
+	}
+	result := &completionLookup{done: make(chan struct{})}
+	c.pending[key] = result
+	c.mu.Unlock()
+
+	result.prs, result.err = load()
+	c.mu.Lock()
+	delete(c.pending, key)
+	if result.err == nil {
+		ttl := 30 * time.Second
+		if len(result.prs) == 0 {
+			// Keep negative caching short because GitHub's commit index can lag.
+			ttl = 5 * time.Second
+		}
+		result.expires = time.Now().Add(ttl)
+		c.entries.Add(key, result)
+	}
+	close(result.done)
+	c.mu.Unlock()
+	return result.prs, result.err
+}
 
 func (b *Base) completionPullRequests(ctx context.Context, installationID int64, repo *github.Repository, sha string, prs []*github.PullRequest) ([]*github.PullRequest, error) {
 	if len(prs) > 0 || sha == "" {
 		return prs, nil
 	}
-	client, err := b.NewInstallationClient(installationID)
-	if err != nil {
-		return nil, err
-	}
-	return pullRequestsForHead(ctx, client, repo, sha)
+	return b.CompletionPRCache.lookup(ctx, completionKey{installationID, repo.GetID(), sha}, func() ([]*github.PullRequest, error) {
+		client, err := b.NewInstallationClient(installationID)
+		if err != nil {
+			return nil, err
+		}
+		return pullRequestsForHead(ctx, client, repo, sha)
+	})
 }
 
 func pullRequestsForHead(ctx context.Context, client *github.Client, repo *github.Repository, sha string) ([]*github.PullRequest, error) {

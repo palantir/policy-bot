@@ -71,11 +71,17 @@ func (h *WorkflowRun) Handle(ctx context.Context, eventType, deliveryID string, 
 			continue
 		}
 
+		value := pr
+		if len(event.GetWorkflowRun().PullRequests) == 0 {
+			// Cached associations must not supply stale state to policy evaluation.
+			value = nil
+		}
+
 		if err := h.Evaluate(ctx, installationID, common.TriggerWorkflowRun, pull.Locator{
 			Owner:  ownerName,
 			Repo:   repoName,
 			Number: pr.GetNumber(),
-			Value:  pr,
+			Value:  value,
 		}); err != nil {
 			evaluationFailures++
 			logger.Error().Err(err).Msgf("Failed to evaluate pull request '%d' for SHA '%s'", pr.GetNumber(), commitSHA)
