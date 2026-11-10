@@ -24,6 +24,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	completionPRPositiveTTL = 30 * time.Second
+	completionPRNegativeTTL = 5 * time.Second
+)
+
 // CompletionPRCache bounds lookup traffic across check and workflow events.
 // It caches associations only; policy evaluations still load current PR state.
 type CompletionPRCache struct {
@@ -80,10 +85,10 @@ func (c *CompletionPRCache) lookup(ctx context.Context, key completionKey, load 
 	c.mu.Lock()
 	delete(c.pending, key)
 	if result.err == nil {
-		ttl := 30 * time.Second
+		ttl := completionPRPositiveTTL
 		if len(result.prs) == 0 {
 			// Keep negative caching short because GitHub's commit index can lag.
-			ttl = 5 * time.Second
+			ttl = completionPRNegativeTTL
 		}
 		result.expires = time.Now().Add(ttl)
 		c.entries.Add(key, result)
