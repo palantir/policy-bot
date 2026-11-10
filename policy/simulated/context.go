@@ -116,7 +116,7 @@ func (c *Context) filterIgnoredReviews(prCtx pull.Context, reviews []*pull.Revie
 func (c *Context) addApprovalReview(reviews []*pull.Review) []*pull.Review {
 	var reviewsToAdd []*pull.Review
 	for _, review := range c.options.AddReviews {
-		reviewsToAdd = append(reviewsToAdd, review.toPullReview())
+		reviewsToAdd = append(reviewsToAdd, review.toPullReview(c.Context.HeadSHA()))
 	}
 
 	return append(reviews, reviewsToAdd...)

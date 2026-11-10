@@ -100,6 +100,7 @@ func TestIsApproved(t *testing.T) {
 					Author:       "disapprover",
 					State:        pull.ReviewChangesRequested,
 					Body:         "I _really_ don't like things!",
+					SHA:          "97d5ea26da319a987d80f6db0b7ef759f2f2e441",
 				},
 				{
 					CreatedAt:    now.Add(80 * time.Second),
@@ -107,6 +108,7 @@ func TestIsApproved(t *testing.T) {
 					Author:       "review-approver",
 					State:        pull.ReviewApproved,
 					Body:         "I LIKE THIS",
+					SHA:          "97d5ea26da319a987d80f6db0b7ef759f2f2e441",
 				},
 				{
 					CreatedAt:    now.Add(90 * time.Second),
@@ -114,6 +116,7 @@ func TestIsApproved(t *testing.T) {
 					Author:       "review-comment-editor",
 					State:        pull.ReviewApproved,
 					Body:         "I LIKE THIS",
+					SHA:          "97d5ea26da319a987d80f6db0b7ef759f2f2e441",
 				},
 			},
 			HeadSHAValue: "97d5ea26da319a987d80f6db0b7ef759f2f2e441",
@@ -148,6 +151,12 @@ func TestIsApproved(t *testing.T) {
 				"deploy": "pending",
 				"scan":   "success",
 			},
+		}
+	}
+
+	setReviewSHA := func(prctx *pulltest.Context, sha string) {
+		for _, r := range prctx.ReviewsValue {
+			r.SHA = sha
 		}
 	}
 
@@ -408,6 +417,7 @@ func TestIsApproved(t *testing.T) {
 			"c6ade256ecfc755d8bc877ef22cc9e01745d46bb": now.Add(25 * time.Second),
 		}
 		prctx.HeadSHAValue = "c6ade256ecfc755d8bc877ef22cc9e01745d46bb"
+		setReviewSHA(prctx, prctx.HeadSHAValue)
 		prctx.CommitsValue = []*pull.Commit{
 			{
 				SHA:       "c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
@@ -439,6 +449,7 @@ func TestIsApproved(t *testing.T) {
 			"c6ade256ecfc755d8bc877ef22cc9e01745d46bb": now.Add(85 * time.Second),
 		}
 		prctx.HeadSHAValue = "c6ade256ecfc755d8bc877ef22cc9e01745d46bb"
+		prctx.ReviewsValue[2].SHA = prctx.HeadSHAValue
 		prctx.CommitsValue = []*pull.Commit{
 			{
 				SHA:       "c6ade256ecfc755d8bc877ef22cc9e01745d46bb",
@@ -480,6 +491,7 @@ func TestIsApproved(t *testing.T) {
 			},
 			Author: "merge-committer",
 		})
+		setReviewSHA(prctx, prctx.HeadSHAValue)
 
 		r := &Rule{
 			Options: Options{
@@ -623,6 +635,7 @@ func TestIsApproved(t *testing.T) {
 			"7f4cd9d3999061605ce4cf261234e431b52e61ee": now,
 		}
 		prctx.HeadSHAValue = "584b9232835ae85a2d8216fb55fd9cad8389092c"
+		setReviewSHA(prctx, prctx.HeadSHAValue)
 		prctx.CommitsValue = []*pull.Commit{
 			{
 				SHA:       "584b9232835ae85a2d8216fb55fd9cad8389092c",

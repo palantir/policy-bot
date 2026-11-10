@@ -293,6 +293,27 @@ func TestReviews(t *testing.T) {
 	}
 }
 
+func TestAddedReviewsAreForHead(t *testing.T) {
+	options := Options{
+		AddReviews: []Review{
+			{Author: "sperson", State: "approved"},
+		},
+	}
+	options.setDefaults()
+
+	context := Context{
+		Context: &pulltest.Context{
+			HeadSHAValue: "a6f3f69b64eaafece5a0d854eb4af11c0d64394c",
+		},
+		options: options,
+	}
+
+	reviews, err := context.Reviews()
+	require.NoError(t, err)
+	require.Len(t, reviews, 1)
+	assert.Equal(t, "a6f3f69b64eaafece5a0d854eb4af11c0d64394c", reviews[0].SHA)
+}
+
 func getReviewAuthors(reviews []*pull.Review) []string {
 	var authors []string
 	for _, c := range reviews {
