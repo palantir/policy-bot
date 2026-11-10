@@ -179,7 +179,7 @@ approval_rules: [{name: review, requires: {count: 1}}]
 func TestApprovalExtensionSelectedMethods(t *testing.T) {
 	parent := extensionConfig(t, `
 policy: {approval: [retained, {slot: extra}]}
-slots: {extra: [retained, replaced], unused: [unused]}
+slots: {extra: [retained, replaced]}
 approval_rules:
   - name: retained
     options: {methods: {comments: [parent], github_review: false}}
@@ -235,6 +235,16 @@ func TestApprovalExtensionInvalidFills(t *testing.T) {
 			require.ErrorContains(t, err, "undefined rule 'missing'")
 		})
 	}
+	t.Run("undeclared parent default", func(t *testing.T) {
+		parent := extensionConfig(t, `
+policy: {approval: [{slot: extra}]}
+slots: {unused: [review]}
+approval_rules: [{name: review}]
+`)
+		child := extensionConfig(t, `policy: {approval_extends: {remote: example/policies}}`)
+		_, err := ParsePolicyWithParent(child, parent, nil)
+		require.ErrorContains(t, err, `slot fill "unused" does not match a declared slot`)
+	})
 	child := extensionConfig(t, `policy: {approval_extends: {remote: example/policies}}`)
 	_, err := ParsePolicyWithParent(child, child, nil)
 	assert.ErrorContains(t, err, "parent cannot specify approval_extends")

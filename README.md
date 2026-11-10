@@ -816,9 +816,10 @@ Conjunctions can contain more conjunctions (up to a maximum depth of 5):
 
 #### Approval Slots
 
-A slot is a named place in an approval policy that is filled by a list of rules.
-The fill can come from the same file or an extending policy. For example, this
-policy requires both platform and service review:
+A slot is a named place in an approval policy that is filled by a list of rules
+from the same file or an extending policy. The result behaves as if the new rules
+were placed directly in the policy at the location of the slot marker. For example,
+this policy requires both platform and service review:
 
 ```yaml
 policy:
@@ -844,24 +845,41 @@ approval_rules:
 
 Slots may appear wherever a rule reference is allowed. Slot names must be unique,
 nonempty strings. Each `slots` value is a list of same-file rule names or
-`and`/`or` expressions, combined with `and`. It cannot contain slots. Thus,
-`Emergency OR slot(A, B)` means `Emergency OR (A AND B)`.
+`and`/`or` expressions, combined with `and`. It cannot contain slots. For example,
+this policy requires either emergency approval or both service and security
+approval:
 
-An optional slot (the default) skips when its content is omitted or `[]`. With
-`required: true`, either case makes the whole policy invalid, including inside
-`or`. Null fills are invalid. Required means populated; the rules still use their
-usual predicates, defaults, options, and approval counting. If all approval
-entries skip, Policy Bot reports an error.
+```yaml
+policy:
+  approval:
+    - or:
+        - Emergency approval
+        - slot: additional-review
 
-Undeclared fills are validated but add no requirements or evaluation triggers.
-The details page labels filled slots and hides empty ones. Fills can also be
-supplied by a child policy as described below.
+slots:
+  additional-review:
+    - Service review
+    - Security review
+```
+
+An optional slot (the default) skips when it has no content. With `required: true`,
+the slot must contain at least one rule after defaults and child fills are applied.
+An empty required slot makes the whole policy invalid, including inside `or`.
+This does not require the rules in the slot to approve: they still use their usual
+predicates and approval requirements, and may be skipped or be part of an `or`
+expression. Null fills are invalid. If all approval entries skip, Policy Bot
+reports an error.
+
+In a standalone policy, every fill must match a declared slot; an undeclared
+fill makes the policy invalid. The details page labels filled slots and hides
+empty ones. Fills can also be supplied by a child policy as described below.
 
 #### Extending a Shared Approval Policy
 
 A repository can extend one shared approval policy and supply its slot content.
-For example, `.policy.yml` in `example/review-policies` defines the shared
-structure:
+Empty slots allow extending a policy with new rules. Slots with defaults allow
+replacing specific behavior in a policy. For example, `.policy.yml` in
+`example/review-policies` defines the shared structure:
 
 ```yaml
 policy:
@@ -902,10 +920,10 @@ approval_rules:
       teams: ["example/security"]
 ```
 
-This requires `Platform review AND (Service review AND Security review)`. Each
-fill uses rules and approval defaults from the file defining it. Identical rule
-names in different files remain independent; a child rule cannot replace an
-ordinary parent requirement by name. Server defaults and overrides still apply
+This requires platform, service, and security review. Each fill uses rules and
+approval defaults from the file defining it. Identical rule names in different
+files remain independent; a child rule cannot replace an ordinary parent
+requirement by name. Server defaults and overrides still apply
 to both files. Existing approval counting is unchanged: a reviewer eligible for
 multiple rules may satisfy each of them.
 
@@ -913,8 +931,10 @@ Omitting a child fill retains the parent's default fill. A supplied fill
 replaces the entire default group; `[]` clears it. Null fills are invalid.
 Required slots must be populated after replacement, so a parent template with
 an unfilled required slot can work when extended even though standalone
-validation rejects it. All fills are validated, including unmatched or replaced
-fills. Unmatched fills add no requirements.
+validation rejects it. All fills are validated, including replaced parent fills
+and unmatched child fills. A parent's default fills must match its declared slots.
+Child fills with no matching parent slot add no requirements or evaluation
+triggers.
 
 Only approval is inherited. The child defines its own `policy.disapproval`, if
 needed. A child cannot specify both `approval` and `approval_extends`, including
@@ -1032,6 +1052,9 @@ policy-bot validate -p path/to/policy.yml
 It can be useful to simulate how Policy Bot would evaluate a pull request if certain conditions were changed. For example: adding a review from a specific user or group, or adjusting the base branch.
 
 An API endpoint exists at `api/simulate/:org/:repo/:prNumber` to simulate the result of a pull request. Simulations using this endpoint will NOT write the result back to the pull request status check and will instead return the result.
+
+The response preserves the evaluation tree. Results from slots include an optional
+`slot` field containing the slot name; empty slots remain as skipped results.
 
 This API requires a GitHub token be passed as a bearer token. The token must be
 associated with a user who has `admin` or `maintain` permission on the

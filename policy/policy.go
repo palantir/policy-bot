@@ -287,13 +287,18 @@ func (p *ParsedPolicy) applyFills(c *Config, rulesByName map[string]*approval.Ru
 		if err != nil {
 			return errors.Wrapf(err, "failed to parse slot fill %q", name)
 		}
-		if slot := slots[name]; slot != nil {
-			slot.Child = child
-			if child == nil {
-				delete(p.slotRules, name)
-			} else {
-				p.slotRules[name] = rulesByName
+		slot := slots[name]
+		if slot == nil {
+			if c.Policy.ApprovalExtends == nil {
+				return errors.Errorf("slot fill %q does not match a declared slot", name)
 			}
+			continue
+		}
+		slot.Child = child
+		if child == nil {
+			delete(p.slotRules, name)
+		} else {
+			p.slotRules[name] = rulesByName
 		}
 	}
 	return nil
