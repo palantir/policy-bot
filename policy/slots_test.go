@@ -62,6 +62,11 @@ slots: {extra: []}`,
 slots: {extra: [missing]}`,
 		"unknown rule in unmatched fill": `policy: {approval: [rule]}
 slots: {unused: [missing]}`,
+		"undeclared fill": `policy: {approval: [rule, {slot: extra}]}
+slots: {extras: [rule]}`,
+		"undeclared empty fill": `policy: {approval: [{slot: extra}]}
+slots: {extras: []}`,
+		"fill without approval tree":         `slots: {unused: [rule]}`,
 		"unknown rule without approval tree": `slots: {unused: [missing]}`,
 		"nested slot in matched fill": `policy: {approval: [{slot: extra}]}
 slots: {extra: [{or: [rule, {slot: nested}]}]}`,
@@ -140,7 +145,7 @@ approval_rules:
 	}
 }
 
-func TestEmptyAndUnusedSlots(t *testing.T) {
+func TestEmptySlots(t *testing.T) {
 	rules := `
 approval_rules:
   - name: review
@@ -153,12 +158,10 @@ approval_rules:
 		status      common.EvaluationStatus
 		trigger     common.Trigger
 	}{
-		{"absent approval", `slots: {unused: [review]}`, common.StatusApproved, common.TriggerCommit},
 		{"omitted fill", `policy: {approval: [{slot: extra}]}`, common.StatusSkipped, common.TriggerCommit},
 		{"empty fill", "policy: {approval: [{slot: extra}]}\nslots: {extra: []}", common.StatusSkipped, common.TriggerCommit},
 		{"empty beside active", `policy: {approval: [{slot: extra}, review]}`, common.StatusPending, common.TriggerCommit | common.TriggerComment | common.TriggerReview},
 		{"required populated but skipped", "policy: {approval: [{slot: extra, required: true}]}\nslots: {extra: [conditional]}", common.StatusSkipped, common.TriggerCommit | common.TriggerLabel},
-		{"unmatched fill has no triggers", "policy: {approval: [{slot: extra}]}\nslots: {unused: [review]}", common.StatusSkipped, common.TriggerCommit},
 		{"quoted numeric name", "policy: {approval: [{slot: '1'}]}\nslots: {'1': [review]}", common.StatusPending, common.TriggerCommit | common.TriggerComment | common.TriggerReview},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

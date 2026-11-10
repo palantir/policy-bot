@@ -816,8 +816,9 @@ Conjunctions can contain more conjunctions (up to a maximum depth of 5):
 #### Approval Slots
 
 A slot is a named place in an approval policy that is filled by a list of rules
-from the same file. For example, this policy requires both platform and service
-review:
+from the same file. The result behaves as if the new rules were placed directly
+in the policy at the location of the slot marker. For example, this policy requires
+both platform and service review:
 
 ```yaml
 policy:
@@ -843,16 +844,31 @@ approval_rules:
 
 Slots may appear wherever a rule reference is allowed. Slot names must be unique,
 nonempty strings. Each `slots` value is a list of same-file rule names or
-`and`/`or` expressions, combined with `and`. It cannot contain slots. Thus,
-`Emergency OR slot(A, B)` means `Emergency OR (A AND B)`.
+`and`/`or` expressions, combined with `and`. It cannot contain slots. For example,
+this policy requires either emergency approval or both service and security
+approval:
+
+```yaml
+policy:
+  approval:
+    - or:
+        - Emergency approval
+        - slot: additional-review
+
+slots:
+  additional-review:
+    - Service review
+    - Security review
+```
 
 An optional slot (the default) skips when its content is omitted or `[]`. With
-`required: true`, either case makes the whole policy invalid, including inside
-`or`. Null fills are invalid. Required means populated; the rules still use their
-usual predicates, defaults, options, and approval counting. If all approval
-entries skip, Policy Bot reports an error.
+`required: true`, the slot must contain at least one rule. An omitted or empty
+fill makes the whole policy invalid, including inside `or`. This does not require
+the rules in the slot to approve: they still use their usual predicates and
+approval requirements, and may be skipped or be part of an `or` expression.
+Null fills are invalid. If all approval entries skip, Policy Bot reports an error.
 
-Undeclared fills are validated but add no requirements or evaluation triggers.
+Every fill must match a declared slot; an undeclared fill makes the policy invalid.
 The details page labels filled slots and hides empty ones.
 
 ### Disapproval Policy
@@ -945,6 +961,9 @@ policy-bot validate -p path/to/policy.yml
 It can be useful to simulate how Policy Bot would evaluate a pull request if certain conditions were changed. For example: adding a review from a specific user or group, or adjusting the base branch.
 
 An API endpoint exists at `api/simulate/:org/:repo/:prNumber` to simulate the result of a pull request. Simulations using this endpoint will NOT write the result back to the pull request status check and will instead return the result.
+
+The response preserves the evaluation tree. Results from slots include an optional
+`slot` field containing the slot name; empty slots remain as skipped results.
 
 This API requires a GitHub token be passed as a bearer token. The token must be
 associated with a user who has `admin` or `maintain` permission on the

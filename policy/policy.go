@@ -129,9 +129,11 @@ func ParsePolicy(c *Config, opts *GlobalOptions) (common.Evaluator, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to parse slot fill %q", name)
 		}
-		if slot := slots[name]; slot != nil {
-			slot.Child = child
+		slot := slots[name]
+		if slot == nil {
+			return nil, errors.Errorf("slot fill %q does not match a declared slot", name)
 		}
+		slot.Child = child
 	}
 	var missing []string
 	for name, slot := range slots {

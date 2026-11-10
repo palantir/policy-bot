@@ -44,6 +44,7 @@ type SimulationResponse struct {
 	StatusDescription string                `json:"status_description"`
 	Status            string                `json:"status"`
 	Error             string                `json:"error"`
+	Slot              string                `json:"slot,omitempty"`
 	Children          []*SimulationResponse `json:"children,omitempty"`
 }
 
@@ -184,6 +185,9 @@ func newSimulationResponse(result *common.Result) *SimulationResponse {
 		response.Description = result.Description
 		response.StatusDescription = result.StatusDescription
 		response.Status = result.Status.String()
+		if result.Slot != nil {
+			response.Slot = result.Slot.Name
+		}
 		response.Children = buildChildren(result.Children)
 	}
 
