@@ -52,8 +52,13 @@ func (h *CheckRun) Handle(ctx context.Context, eventType, deliveryID string, pay
 
 	logger.Debug().Msgf("Check run event is for '%s', found %d PRs", event.GetCheckRun().GetName(), len(event.GetCheckRun().PullRequests))
 
+	prs, err := h.completionPullRequests(ctx, installationID, repo, commitSHA, event.GetCheckRun().PullRequests)
+	if err != nil {
+		return err
+	}
+
 	evaluationFailures := 0
-	for _, pr := range event.GetCheckRun().PullRequests {
+	for _, pr := range prs {
 		// TODO(bkeyes): I'm assuming PRs in a check run are open at the time
 		// of the event, but I can't find confirmation of that in the GitHub
 		// docs. The PR object is a minimal version that is missing the "state"

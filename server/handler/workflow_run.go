@@ -52,8 +52,13 @@ func (h *WorkflowRun) Handle(ctx context.Context, eventType, deliveryID string, 
 
 	ctx, logger := githubapp.PrepareRepoContext(ctx, installationID, repo)
 
+	prs, err := h.completionPullRequests(ctx, installationID, repo, commitSHA, event.GetWorkflowRun().PullRequests)
+	if err != nil {
+		return err
+	}
+
 	evaluationFailures := 0
-	for _, pr := range event.GetWorkflowRun().PullRequests {
+	for _, pr := range prs {
 		// The `workflow_run` event includes pull requests that contain the SHA
 		// which is being checked. These can be pull requests _from_ our
 		// repository _to_ another one, for example if it's been forked and
