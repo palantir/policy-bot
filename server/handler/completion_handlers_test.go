@@ -67,10 +67,9 @@ func TestWorkflowRunEvaluatesFork(t *testing.T) {
 			client, err := github.NewClient(github.WithHTTPClient(server.Client()), github.WithURLs(new(server.URL+"/"), nil))
 			require.NoError(t, err)
 			base := Base{
-				ClientCreator:     completionClientCreator{client: client, v4: githubv4.NewEnterpriseClient(server.URL+"/graphql", server.Client())},
-				CompletionPRCache: NewCompletionPRCache(),
-				BaseConfig:        &baseapp.HTTPConfig{PublicURL: "https://policy.example.com"},
-				PullOpts:          &PullEvaluationOptions{StatusCheckContext: "policy-bot"},
+				ClientCreator: completionClientCreator{client: client, v4: githubv4.NewEnterpriseClient(server.URL+"/graphql", server.Client())},
+				BaseConfig:    &baseapp.HTTPConfig{PublicURL: "https://policy.example.com"},
+				PullOpts:      &PullEvaluationOptions{StatusCheckContext: "policy-bot"},
 				ConfigFetcher: &ConfigFetcher{Loader: mockConfigLoader{loadConfig: func(context.Context, *github.Client, string, string, string) (appconfig.Config, error) {
 					return appconfig.Config{Content: []byte(`policy:
   approval:
@@ -92,7 +91,7 @@ approval_rules:
 				"installation": map[string]any{"id": 1},
 				"workflow_run": map[string]any{"event": trigger, "head_sha": "head", "head_branch": "main", "conclusion": "success", "pull_requests": []any{}},
 			}
-			expectedLookups := 1
+			expectedLookups := 2
 			if trigger == "push" {
 				payload["workflow_run"].(map[string]any)["pull_requests"] = []any{map[string]any{"number": 42, "base": map[string]any{"repo": map[string]any{"id": 1}}}}
 				expectedLookups = 0
@@ -118,7 +117,7 @@ approval_rules:
 				err = (&WorkflowRun{Base: base}).Handle(context.Background(), "workflow_run", "delivery", data)
 				require.NoError(t, err)
 			}
-			require.Equal(t, expectedLookups, lookups)
+			require.Equal(t, 4, lookups)
 			require.Equal(t, 4, details)
 			require.Len(t, statuses, 2)
 

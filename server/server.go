@@ -170,11 +170,10 @@ func New(c *Config) (*Server, error) {
 	}
 
 	basePolicyHandler := handler.Base{
-		ClientCreator:     cc,
-		BaseConfig:        &c.Server,
-		Installations:     installations,
-		GlobalCache:       globalCache,
-		CompletionPRCache: handler.NewCompletionPRCache(),
+		ClientCreator: cc,
+		BaseConfig:    &c.Server,
+		Installations: installations,
+		GlobalCache:   globalCache,
 
 		PullOpts: &c.Options,
 		ConfigFetcher: &handler.ConfigFetcher{

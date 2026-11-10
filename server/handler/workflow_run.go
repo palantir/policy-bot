@@ -83,7 +83,7 @@ func (h *WorkflowRun) Handle(ctx context.Context, eventType, deliveryID string, 
 
 		value := pr
 		if fallback {
-			// Cached associations must not supply stale state to policy evaluation.
+			// Reload current PR state before evaluating a discovered association.
 			value = nil
 		}
 
@@ -112,7 +112,7 @@ func (h *WorkflowRun) evaluateWorkflowPullRequest(ctx context.Context, installat
 	if err != nil {
 		return err
 	}
-	// A cached association may have closed or moved to a new head.
+	// A discovered PR may have closed or moved since the lookup.
 	if !evalCtx.PullContext.IsOpen() || evalCtx.PullContext.HeadSHA() != sha {
 		return nil
 	}
