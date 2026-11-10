@@ -1,0 +1,78 @@
+- status: 200
+  body: |
+    {
+      "errors": [],
+      "data": {
+        "repository": {
+          "pullRequest": {
+            "reviewRequests": {
+              "pageInfo": {
+                "endCursor": "r1",
+                "hasNextPage": false
+              },
+              "nodes": [
+                {
+                  "requestedReviewer": {
+                    "__typename": "User",
+                    "login": "mhaypenny"
+                  }
+                }
+              ]
+            },
+            "timelineItems": {
+              "pageInfo": {
+                "endCursor": "t1",
+                "hasNextPage": true
+              },
+              "nodes": [
+                {
+                  "actor": {
+                    "__typename": "User",
+                    "login": "mhaypenny"
+                  },
+                  "requestedReviewer": {
+                    "slug": "team-reviewers"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+- status: 200
+  body: |
+    {
+      "errors": [],
+      "data": {
+        "repository": {
+          "pullRequest": {
+            "reviewRequests": {
+              "pageInfo": {
+                "endCursor": null,
+                "hasNextPage": false
+              },
+              "nodes": []
+            },
+            "timelineItems": {
+              "pageInfo": {
+                "endCursor": "t2",
+                "hasNextPage": false
+              },
+              "nodes": [
+                {
+                  "actor": {
+                    "__typename": "User",
+                    "login": "mhaypenny"
+                  },
+                  "requestedReviewer": {
+                    "__typename": "User",
+                    "login": "ttest"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
