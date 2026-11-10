@@ -16,6 +16,8 @@ package handler
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"testing"
@@ -24,6 +26,7 @@ import (
 
 	"github.com/google/go-github/v93/github"
 	"github.com/palantir/go-githubapp/appconfig"
+	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/approval"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/stretchr/testify/assert"
@@ -31,6 +34,65 @@ import (
 )
 
 const extendingPolicy = "policy: {approval_extends: {remote: shared/policies, path: parent.yml, ref: main}}"
+
+func TestConfigFetcherForcedSharedParentPath(t *testing.T) {
+	const policyPath = "config/approval.yml"
+	for _, test := range []struct {
+		name, parentPath, wantPath string
+	}{
+		{"configured default", "", policyPath},
+		{"explicit path", "custom.yml", "custom.yml"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			remote := "remote: shared/policies"
+			if test.parentPath != "" {
+				remote += ", path: " + test.parentPath
+			}
+			child := "policy: {approval_extends: {" + remote + "}}" + childSlotFill
+			client := extensionTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+				var content string
+				switch r.Method + " " + r.URL.Path {
+				case "GET /repos/original/.github":
+					assert.NoError(t, json.NewEncoder(w).Encode(github.Repository{Name: new(".github"), DefaultBranch: new("org-main")}))
+					return
+				case "GET /repos/original/.github/contents/policy.yml":
+					assert.Equal(t, "org-main", r.URL.Query().Get("ref"))
+					content = child
+				case "GET /repos/shared/policies":
+					assert.NoError(t, json.NewEncoder(w).Encode(github.Repository{Name: new("policies"), DefaultBranch: new("parent-main")}))
+					return
+				case "GET /repos/shared/policies/contents/" + test.wantPath:
+					assert.Equal(t, "parent-main", r.URL.Query().Get("ref"))
+					content = slotPolicy
+				default:
+					t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+					http.Error(w, "unexpected request", http.StatusBadRequest)
+					return
+				}
+				assert.NoError(t, json.NewEncoder(w).Encode(github.RepositoryContent{
+					Type: new("file"), Encoding: new("base64"),
+					Content: new(base64.StdEncoding.EncodeToString([]byte(content))),
+				}))
+			})
+			fetcher := ConfigFetcher{
+				Loader:            appconfig.NewLoader(nil, appconfig.WithOwnerDefault(".github", []string{"policy.yml"})),
+				DefaultParentPath: policyPath,
+				SeenPolicyCache:   NewSeenPolicyCache(),
+			}
+			fc := fetcher.ConfigForRepositoryBranch(context.Background(), client, "original", "service", "release")
+			require.NoError(t, fc.LoadError)
+			require.NoError(t, fc.ParseError)
+			require.NotNil(t, fc.Config)
+			require.NotNil(t, fc.Parent)
+			assert.Equal(t, "original/.github@org-main", fc.Source)
+			assert.Equal(t, "policy.yml", fc.Path)
+			assert.Equal(t, test.parentPath, fc.Config.Policy.ApprovalExtends.Path)
+			parsed, err := policy.ParsePolicyWithParent(fc.Config, fc.Parent, nil)
+			require.NoError(t, err)
+			assert.NotNil(t, parsed.FindApprovalRule("service", "Child"))
+		})
+	}
+}
 
 func TestConfigFetcherParentFailures(t *testing.T) {
 	denied := githubErr(http.StatusForbidden)

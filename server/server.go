@@ -177,8 +177,9 @@ func New(c *Config) (*Server, error) {
 
 		PullOpts: &c.Options,
 		ConfigFetcher: &handler.ConfigFetcher{
-			Loader:          appconfig.NewLoader(policyPaths, loaderOptions...),
-			SeenPolicyCache: seenPolicyCache,
+			Loader:            appconfig.NewLoader(policyPaths, loaderOptions...),
+			DefaultParentPath: c.Options.PolicyPath,
+			SeenPolicyCache:   seenPolicyCache,
 		},
 
 		AppName: app.GetSlug(),

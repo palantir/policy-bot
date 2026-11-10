@@ -46,8 +46,10 @@ type FetchedConfig struct {
 }
 
 type ConfigFetcher struct {
-	Loader          ConfigLoader
-	SeenPolicyCache *SeenPolicyCache
+	Loader ConfigLoader
+	// DefaultParentPath remains available when local policy discovery is disabled.
+	DefaultParentPath string
+	SeenPolicyCache   *SeenPolicyCache
 }
 
 func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *github.Client, owner, repository, branch string) FetchedConfig {
@@ -80,14 +82,17 @@ func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *
 		return fc
 	}
 	fc.Config = &pc
-	remote := pc.Policy.ApprovalExtends
-	if remote == nil {
+	if pc.Policy.ApprovalExtends == nil {
 		return fc
+	}
+	remote := *pc.Policy.ApprovalExtends
+	if remote.Path == "" {
+		remote.Path = cf.DefaultParentPath
 	}
 
 	parent, err := loadConfigWithRetry(ctx, func() (appconfig.Config, error) {
 		// The supplied client still belongs to owner, even when the child came from another owner.
-		return cf.Loader.LoadRemoteRef(ctx, client, owner, *remote)
+		return cf.Loader.LoadRemoteRef(ctx, client, owner, remote)
 	})
 	if err != nil {
 		if parent.IsUndefined() {
