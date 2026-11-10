@@ -134,7 +134,7 @@ func TestWorkflowRunLookupFailure(t *testing.T) {
 
 func TestCompletionHandlersSkipUnassociatedNonPREvents(t *testing.T) {
 	for _, kind := range []string{"check_run", "workflow_run"} {
-		for _, trigger := range []string{"push", "schedule", "workflow_dispatch", ""} {
+		for _, trigger := range []string{"push", "schedule", "workflow_dispatch", "workflow_run", ""} {
 			for _, branch := range []string{"main", "feature"} {
 				t.Run(kind+"/"+trigger+"/"+branch, func(t *testing.T) {
 					// A zero Base panics if the handler attempts any GitHub API access.

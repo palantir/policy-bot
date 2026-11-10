@@ -1356,9 +1356,13 @@ commit SHA. Each eligible completion event performs a lookup, and policy
 evaluations use current pull request state.
 
 This fallback supports policies using `has_workflow_result`. It does not run
-for check-run events or workflows triggered by `push`, schedules, or manual
-dispatch. Events that already contain pull request associations retain their
-normal evaluation behavior.
+for check-run events or workflows triggered by `push`, schedules, manual
+dispatch, or `workflow_run` (including privileged follow-up workflows chained
+from a pull request workflow). Third-party Checks API completions without PR
+associations remain unsupported by this fallback. Policies using only
+`has_status`, without a workflow-result condition, are not reevaluated by this
+workflow trigger. Events that already contain pull request associations
+retain their normal evaluation behavior.
 
 GitHub's commit-to-pull-request index can lag behind a push. If the lookup
 returns no matching pull request, its policy status can remain stale until a
