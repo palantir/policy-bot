@@ -52,9 +52,19 @@ func (h *WorkflowRun) Handle(ctx context.Context, eventType, deliveryID string, 
 
 	ctx, logger := githubapp.PrepareRepoContext(ctx, installationID, repo)
 
-	prs, err := h.completionPullRequests(ctx, installationID, repo, commitSHA, event.GetWorkflowRun().PullRequests)
-	if err != nil {
-		return err
+	prs := event.GetWorkflowRun().PullRequests
+	fallback := len(prs) == 0
+	if fallback {
+		switch event.GetWorkflowRun().GetEvent() {
+		case "pull_request", "pull_request_target":
+		default:
+			return nil
+		}
+		var err error
+		prs, err = h.completionPullRequests(ctx, installationID, repo, commitSHA, nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	evaluationFailures := 0
@@ -72,12 +82,12 @@ func (h *WorkflowRun) Handle(ctx context.Context, eventType, deliveryID string, 
 		}
 
 		value := pr
-		if len(event.GetWorkflowRun().PullRequests) == 0 {
+		if fallback {
 			// Cached associations must not supply stale state to policy evaluation.
 			value = nil
 		}
 
-		if err := h.Evaluate(ctx, installationID, common.TriggerWorkflowRun, pull.Locator{
+		if err := h.evaluateWorkflowPullRequest(ctx, installationID, commitSHA, pull.Locator{
 			Owner:  ownerName,
 			Repo:   repoName,
 			Number: pr.GetNumber(),
@@ -92,4 +102,19 @@ func (h *WorkflowRun) Handle(ctx context.Context, eventType, deliveryID string, 
 	}
 
 	return errors.Errorf("failed to evaluate %d pull requests", evaluationFailures)
+}
+
+func (h *WorkflowRun) evaluateWorkflowPullRequest(ctx context.Context, installationID int64, sha string, loc pull.Locator) error {
+	if loc.Value != nil {
+		return h.Evaluate(ctx, installationID, common.TriggerWorkflowRun, loc)
+	}
+	evalCtx, err := h.NewEvalContext(ctx, installationID, loc)
+	if err != nil {
+		return err
+	}
+	// A cached association may have closed or moved to a new head.
+	if !evalCtx.PullContext.IsOpen() || evalCtx.PullContext.HeadSHA() != sha {
+		return nil
+	}
+	return evalCtx.Evaluate(ctx, common.TriggerWorkflowRun)
 }

@@ -216,3 +216,36 @@ func TestCompletionPullRequestsLookup(t *testing.T) {
 	_, err = b.completionPullRequests(context.Background(), 1, repo, "other", nil)
 	require.ErrorContains(t, err, "client failure")
 }
+
+func TestCompletionPRCacheReleasesWaitersAfterPanic(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		cache := NewCompletionPRCache()
+		key := completionKey{1, 2, "head"}
+		release := make(chan struct{})
+		leaderDone := make(chan struct{})
+		go func() {
+			defer close(leaderDone)
+			defer func() {
+				if recover() != "lookup panic" {
+					t.Error("expected lookup panic")
+				}
+			}()
+			_, _ = cache.lookup(context.Background(), key, func() ([]*github.PullRequest, error) {
+				<-release
+				panic("lookup panic")
+			})
+		}()
+		synctest.Wait()
+		waiterDone := make(chan error, 1)
+		go func() {
+			_, err := cache.lookup(context.Background(), key, func() ([]*github.PullRequest, error) { panic("unexpected lookup") })
+			waiterDone <- err
+		}()
+		synctest.Wait()
+		close(release)
+		<-leaderDone
+		require.ErrorContains(t, <-waiterDone, "completion lookup aborted")
+		_, err := cache.lookup(context.Background(), key, func() ([]*github.PullRequest, error) { return nil, nil })
+		require.NoError(t, err)
+	})
+}

@@ -52,16 +52,12 @@ func (h *CheckRun) Handle(ctx context.Context, eventType, deliveryID string, pay
 
 	logger.Debug().Msgf("Check run event is for '%s', found %d PRs", event.GetCheckRun().GetName(), len(event.GetCheckRun().PullRequests))
 
-	prs, err := h.completionPullRequests(ctx, installationID, repo, commitSHA, event.GetCheckRun().PullRequests)
-	if err != nil {
-		return err
-	}
-
 	evaluationFailures := 0
-	for _, pr := range prs {
-		// The fallback lookup filters out closed PRs. PRs supplied by the
-		// event omit "state", so this path still assumes they are open;
-		// verifying that would require loading the full PR object.
+	for _, pr := range event.GetCheckRun().PullRequests {
+		// TODO(bkeyes): I'm assuming PRs in a check run are open at the time
+		// of the event, but I can't find confirmation of that in the GitHub
+		// docs. The PR object is a minimal version that is missing the "state"
+		// field, so we can't check without loading the full object.
 
 		// The `check_run` event includes pull requests that contain the SHA
 		// which is being checked. These can be pull requests _from_ our
@@ -75,17 +71,11 @@ func (h *CheckRun) Handle(ctx context.Context, eventType, deliveryID string, pay
 			continue
 		}
 
-		value := pr
-		if len(event.GetCheckRun().PullRequests) == 0 {
-			// Cached associations must not supply stale state to policy evaluation.
-			value = nil
-		}
-
 		if err := h.Evaluate(ctx, installationID, common.TriggerStatus, pull.Locator{
 			Owner:  ownerName,
 			Repo:   repoName,
 			Number: pr.GetNumber(),
-			Value:  value,
+			Value:  pr,
 		}); err != nil {
 			evaluationFailures++
 			logger.Error().Err(err).Msgf("Failed to evaluate pull request '%d' for SHA '%s'", pr.GetNumber(), commitSHA)

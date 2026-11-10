@@ -1349,11 +1349,16 @@ details.
 
 #### Pull requests from forks <!-- omit in toc -->
 
-GitHub can omit pull request associations from check-run and workflow-run
-completion events for forks. When this happens, `policy-bot` looks up open pull
-requests by the completed run's commit SHA. Lookup results are briefly cached
-to reduce repeated API requests; policy evaluations still use current pull
-request state.
+GitHub can omit pull request associations from workflow-run completion events
+for forks. For workflows triggered by `pull_request` or `pull_request_target`,
+`policy-bot` falls back to looking up open pull requests by the completed run's
+commit SHA. Lookup results are briefly cached to reduce repeated API requests;
+policy evaluations still use current pull request state.
+
+This fallback supports policies using `has_workflow_result`. It does not run
+for check-run events or workflows triggered by `push`, schedules, or manual
+dispatch. Events that already contain pull request associations retain their
+normal evaluation behavior.
 
 GitHub's commit-to-pull-request index can lag behind a push. If the lookup
 returns no matching pull request, its policy status can remain stale until a

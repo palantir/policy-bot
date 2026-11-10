@@ -29,7 +29,7 @@ const (
 	completionPRNegativeTTL = 5 * time.Second
 )
 
-// CompletionPRCache bounds lookup traffic across check and workflow events.
+// CompletionPRCache bounds lookup traffic across PR-triggered workflow events.
 // It caches associations only; policy evaluations still load current PR state.
 type CompletionPRCache struct {
 	mu      sync.Mutex
@@ -77,24 +77,26 @@ func (c *CompletionPRCache) lookup(ctx context.Context, key completionKey, load 
 			return pending.prs, pending.err
 		}
 	}
-	result := &completionLookup{done: make(chan struct{})}
+	result := &completionLookup{done: make(chan struct{}), err: errors.New("completion lookup aborted")}
 	c.pending[key] = result
 	c.mu.Unlock()
 
-	result.prs, result.err = load()
-	c.mu.Lock()
-	delete(c.pending, key)
-	if result.err == nil {
-		ttl := completionPRPositiveTTL
-		if len(result.prs) == 0 {
-			// Keep negative caching short because GitHub's commit index can lag.
-			ttl = completionPRNegativeTTL
+	defer func() {
+		c.mu.Lock()
+		delete(c.pending, key)
+		if result.err == nil {
+			ttl := completionPRPositiveTTL
+			if len(result.prs) == 0 {
+				// Keep negative caching short because GitHub's commit index can lag.
+				ttl = completionPRNegativeTTL
+			}
+			result.expires = time.Now().Add(ttl)
+			c.entries.Add(key, result)
 		}
-		result.expires = time.Now().Add(ttl)
-		c.entries.Add(key, result)
-	}
-	close(result.done)
-	c.mu.Unlock()
+		close(result.done)
+		c.mu.Unlock()
+	}()
+	result.prs, result.err = load()
 	return result.prs, result.err
 }
 
