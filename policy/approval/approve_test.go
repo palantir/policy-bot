@@ -35,6 +35,58 @@ var defaultOptions = Options{
 	Methods: DefaultMethods(),
 }
 
+func TestInvalidateReviewByCommit(t *testing.T) {
+	const head = "97d5ea26da319a987d80f6db0b7ef759f2f2e441"
+	const previous = "674832587eaaf416371b30f5bc5a47e377f534ec"
+	reviewTime := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	for _, tt := range []struct {
+		name           string
+		reviewSHA      string
+		pushTime       time.Time
+		commentPattern bool
+		approved       bool
+	}{
+		{"currentHeadBeforeEstimatedPush", head, reviewTime.Add(time.Minute), false, true},
+		{"currentHeadAtEstimatedPush", head, reviewTime, false, true},
+		{"currentHeadMatchingCommentPattern", head, reviewTime.Add(time.Minute), true, true},
+		{"previousHeadBeforePush", previous, reviewTime.Add(time.Minute), false, false},
+		{"missingReviewCommitBeforePush", "", reviewTime.Add(time.Minute), false, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			prctx := &pulltest.Context{
+				AuthorValue:   "author",
+				HeadSHAValue:  head,
+				CommitsValue:  []*pull.Commit{{SHA: head}},
+				PushedAtValue: map[string]time.Time{head: tt.pushTime},
+				ReviewsValue: []*pull.Review{{
+					ID: "review", Author: "reviewer", State: pull.ReviewApproved,
+					CreatedAt: reviewTime, SHA: tt.reviewSHA, Body: "LGTM",
+				}},
+			}
+			methods := &common.Methods{GithubReview: new(true), Comments: []string{}}
+			if tt.commentPattern {
+				methods.GithubReviewCommentPatterns = []common.Regexp{
+					common.NewCompiledRegexp(regexp.MustCompile("^LGTM$")),
+				}
+			}
+			rule := &Rule{
+				Options:  Options{InvalidateOnPush: new(true), Methods: methods},
+				Requires: Requires{Count: 1, Actors: common.Actors{Users: []string{"reviewer"}}},
+			}
+			result := rule.Evaluate(context.Background(), prctx)
+			require.NoError(t, result.Error)
+			if tt.approved {
+				assert.Equal(t, common.StatusApproved, result.Status)
+				assert.Empty(t, result.Dismissals)
+			} else {
+				assert.Equal(t, common.StatusPending, result.Status)
+				require.Len(t, result.Dismissals, 1)
+				assert.Equal(t, "review", result.Dismissals[0].Candidate.ReviewID)
+			}
+		})
+	}
+}
+
 func TestIsApproved(t *testing.T) {
 	logger := zerolog.New(os.Stdout)
 	ctx := logger.WithContext(context.Background())
