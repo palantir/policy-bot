@@ -59,10 +59,9 @@ func (h *CheckRun) Handle(ctx context.Context, eventType, deliveryID string, pay
 
 	evaluationFailures := 0
 	for _, pr := range prs {
-		// TODO(bkeyes): I'm assuming PRs in a check run are open at the time
-		// of the event, but I can't find confirmation of that in the GitHub
-		// docs. The PR object is a minimal version that is missing the "state"
-		// field, so we can't check without loading the full object.
+		// The fallback lookup filters out closed PRs. PRs supplied by the
+		// event omit "state", so this path still assumes they are open;
+		// verifying that would require loading the full PR object.
 
 		// The `check_run` event includes pull requests that contain the SHA
 		// which is being checked. These can be pull requests _from_ our
