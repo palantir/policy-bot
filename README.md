@@ -872,14 +872,14 @@ reports an error.
 
 In a standalone policy, every fill must match a declared slot; an undeclared
 fill makes the policy invalid. The details page labels filled slots and hides
-empty ones. Fills can also be supplied by a child policy as described below.
+empty ones.
 
 #### Extending a Shared Approval Policy
 
 A repository can extend one shared approval policy and supply its slot content.
 Empty slots allow extending a policy with new rules. Slots with defaults allow
 replacing specific behavior in a policy. For example, `.policy.yml` in
-`example/review-policies` defines the shared structure:
+`example/review-policies` defines a required slot:
 
 ```yaml
 policy:
@@ -907,60 +907,36 @@ policy:
 slots:
   repository-checks:
     - Service review
-    - Security review
 
 approval_rules:
   - name: Service review
     requires:
       count: 1
       teams: ["example/service"]
-  - name: Security review
-    requires:
-      count: 1
-      teams: ["example/security"]
 ```
 
-This requires platform, service, and security review. Each fill uses rules and
-approval defaults from the file defining it. Identical rule names in different
-files remain independent; a child rule cannot replace an ordinary parent
-requirement by name. Server defaults and overrides still apply
-to both files. Existing approval counting is unchanged: a reviewer eligible for
-multiple rules may satisfy each of them.
+This requires both platform and service review. Slot rules must be defined in
+the same file's `approval_rules` block and use that file's `approval_defaults`.
+A child cannot reference rules defined in its parent.
 
-Omitting a child fill retains the parent's default fill. A supplied fill
-replaces the entire default group; `[]` clears it. Null fills are invalid.
-Required slots must be populated after replacement, so a parent template with
-an unfilled required slot can work when extended even though standalone
-validation rejects it. All fills are validated, including replaced parent fills
-and unmatched child fills. A parent's default fills must match its declared slots.
-Child fills with no matching parent slot add no requirements or evaluation
-triggers.
+Omitting a child slot value keeps the parent's default. A supplied value fully
+replaces the default; `[]` clears it. A parent with an empty required slot is
+valid only when extended by a child that fills it. Parent defaults must match
+declared slots. Unmatched child values are ignored, but all values must be
+valid, including defaults that the child replaces.
 
-Only approval is inherited. The child defines its own `policy.disapproval`, if
-needed. A child cannot specify both `approval` and `approval_extends`, including
-empty or null values. The parent must be a literal policy: it cannot contain
-another `approval_extends` or a top-level `remote` pointer. An ordinary remote
-pointer may lead to a child that extends a parent.
+Use `approval_extends` instead of `approval`. The parent must be a literal
+policy: it cannot contain `approval_extends` or a top-level `remote` reference.
+An ordinary remote reference may point to an extending policy. Disapproval is
+not inherited; the child defines its own `policy.disapproval`, if needed.
 
-The parent reference uses the same path/ref defaults as
-[remote configuration](#remote-policy-configuration). Parent loading starts with
-the pull request repository's installation and follows the remote access
-settings, even when a remote pointer supplies the child policy. Discovery still
-uses the pull request's base branch and honors `force_shared_policy`. This is
-explicit extension, not automatic merging with an organization default. Changes
-to a parent branch appear on later evaluations; pinned commits stay fixed.
-Updating a parent does not automatically reevaluate all dependent pull requests.
+Parent references use the [remote configuration](#remote-policy-configuration)
+defaults and access settings, starting with the GitHub App installation for
+the pull request's repository.
 
-To migrate, put the shared approval structure and slot declarations in the
-parent, then replace the repository's `approval` block with `approval_extends`
-and move repository-specific requirements into its fills. Keep each file's rule
-definitions and defaults alongside the expressions that use them.
-
-The CLI `validate` command and unauthenticated `/api/validate` endpoint never
-fetch parents. They report an unresolved-parent error for extension files; use
-the authenticated [simulation API](#simulation-api) to validate and evaluate the
-complete policy. Ordinary top-level remote pointers retain syntax-only
-validation.
+Use the authenticated [simulation API](#simulation-api) to validate an extending
+policy. The CLI `validate` command and `/api/validate` endpoint cannot resolve
+parent policies.
 
 ### Disapproval Policy
 
