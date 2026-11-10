@@ -34,6 +34,8 @@ type Config struct {
 		ClientID     string `yaml:"client_id" json:"clientId"`
 		ClientSecret string `yaml:"client_secret" json:"clientSecret"`
 	} `yaml:"oauth" json:"oauth"`
+
+	HideRootPath bool `yaml:"hide_root_path" json:"hideRootPath"`
 }
 
 // SetValuesFromEnv sets values in the configuration from coresponding
@@ -50,6 +52,9 @@ func (c *Config) SetValuesFromEnv(prefix string) {
 
 	setStringFromEnv("GITHUB_OAUTH_CLIENT_ID", prefix, &c.OAuth.ClientID)
 	setStringFromEnv("GITHUB_OAUTH_CLIENT_SECRET", prefix, &c.OAuth.ClientSecret)
+
+	setBoolFromEnv("POLICYBOT_HIDE_ROOT_PATH", prefix, &c.HideRootPath)
+
 }
 
 func setStringFromEnv(key, prefix string, value *string) {
@@ -63,5 +68,11 @@ func setIntFromEnv(key, prefix string, value *int64) {
 		if i, err := strconv.ParseInt(v, 10, 0); err == nil {
 			*value = i
 		}
+	}
+}
+
+func setBoolFromEnv(key, prefix string, value *bool) {
+	if _, ok := os.LookupEnv(prefix + key); ok {
+		*value = true
 	}
 }

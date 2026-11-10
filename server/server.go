@@ -261,6 +261,7 @@ func New(c *Config) (*Server, error) {
 		Base:         basePolicyHandler,
 		GithubConfig: &c.Github,
 		Templates:    templates,
+		Config:       &c.Github,
 	}))
 
 	detailsHandler := handler.Details{
