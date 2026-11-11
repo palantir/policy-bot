@@ -193,7 +193,7 @@ approval_rules:
 `)
 	child := extensionConfig(t, `
 policy: {approval_extends: {remote: example/policies}}
-slots: {extra: [review], unused: [unused]}
+slots: {extra: [{or: [review]}], unused: [unused]}
 approval_rules:
   - name: review
     if: {has_labels: [service]}

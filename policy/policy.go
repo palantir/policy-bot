@@ -140,7 +140,7 @@ func ParsePolicy(c *Config, opts *GlobalOptions) (common.Evaluator, error) {
 }
 
 // ParsedPolicy provides the evaluator, event methods, and rule lookup for one
-// resolved policy. Slot rule lookup uses the file that supplied the selected fill.
+// resolved policy. Slot rule lookup uses the file that supplied the slot value.
 type ParsedPolicy struct {
 	evaluator
 	baseRules map[string]*approval.Rule
@@ -159,9 +159,9 @@ func (p *ParsedPolicy) FindApprovalRule(slot, name string) *approval.Rule {
 	return p.slotRules[slot][name]
 }
 
-// ParsePolicyWithParent composes a child's fills with its literal parent's
-// approval tree. Rules and defaults remain local to their defining file, and
-// only the child's disapproval policy applies.
+// ParsePolicyWithParent applies the child's slot values to the parent's approval
+// policy. Rules use the defaults from the file that defines them, and only the
+// child's disapproval policy applies. Pass a nil parent for a standalone policy.
 func ParsePolicyWithParent(child, parent *Config, opts *GlobalOptions) (*ParsedPolicy, error) {
 	base := child
 	if child.Policy.ApprovalExtends != nil {

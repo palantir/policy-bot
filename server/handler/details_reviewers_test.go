@@ -127,10 +127,11 @@ approval_rules:
 			assert.Equal(t, http.StatusOK, response.Code)
 			body := response.Body.String()
 			assert.Equal(t, test.incomplete, strings.Contains(body, "reviewer list may be incomplete"))
+			for _, reviewer := range []string{"parent-reviewer", "child-reviewer"} {
+				assert.Equal(t, reviewer == test.reviewer, strings.Contains(body, ">"+reviewer+"</a>"), reviewer)
+			}
 			if test.reviewer == "" {
 				assert.Contains(t, body, "No reviewers found")
-			} else {
-				assert.Contains(t, body, ">"+test.reviewer+"</a>")
 			}
 		})
 	}

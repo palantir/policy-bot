@@ -816,10 +816,10 @@ Conjunctions can contain more conjunctions (up to a maximum depth of 5):
 
 #### Approval Slots
 
-A slot is a named place in an approval policy that is filled by a list of rules
-from the same file or an extending policy. The result behaves as if the new rules
-were placed directly in the policy at the location of the slot marker. For example,
-this policy requires both platform and service review:
+A slot is a placeholder that can be replaced by a rule tree, defined in the same
+policy or in a child policy. The result behaves as if the new rules were placed
+directly in the policy at the location of the slot marker. For example, this
+policy requires both platform and service review:
 
 ```yaml
 policy:
@@ -863,23 +863,22 @@ slots:
 ```
 
 An optional slot (the default) skips when it has no content. With `required: true`,
-the slot must contain at least one rule after defaults and child fills are applied.
-An empty required slot makes the whole policy invalid, including inside `or`.
-This does not require the rules in the slot to approve: they still use their usual
-predicates and approval requirements, and may be skipped or be part of an `or`
-expression. Null fills are invalid. If all approval entries skip, Policy Bot
-reports an error.
+the slot must contain at least one rule after default rules and child slot values
+are applied. An empty required slot makes the whole policy invalid, including
+inside `or`. This does not require the rules in the slot to approve: they still
+use their usual predicates and approval requirements, and may be skipped or be
+part of an `or` expression. Null slot values are invalid. If all approval entries
+skip, Policy Bot reports an error.
 
-In a standalone policy, every fill must match a declared slot; an undeclared
-fill makes the policy invalid. The details page labels filled slots and hides
-empty ones.
+In a standalone policy, defining values for slots that do not exist makes the
+policy invalid. The details page labels filled slots and hides empty ones.
 
 #### Extending a Shared Approval Policy
 
-A repository can extend one shared approval policy and supply its slot content.
+A policy can extend exactly one other policy and provide values for its slots.
 Empty slots allow extending a policy with new rules. Slots with defaults allow
-replacing specific behavior in a policy. For example, `.policy.yml` in
-`example/review-policies` defines a required slot:
+replacing specific behavior in a policy. For example, `example/review-policies`
+contains this parent policy in `.policy.yml`:
 
 ```yaml
 policy:
@@ -895,7 +894,7 @@ approval_rules:
       teams: ["example/platform"]
 ```
 
-The application repository supplies its additional requirements:
+The child policy supplies its additional rules:
 
 ```yaml
 policy:
@@ -915,28 +914,31 @@ approval_rules:
       teams: ["example/service"]
 ```
 
-This requires both platform and service review. Slot rules must be defined in
-the same file's `approval_rules` block and use that file's `approval_defaults`.
-A child cannot reference rules defined in its parent.
+This requires both platform and service review. Rules referenced in a slot must
+be defined in the `approval_rules` block of the same policy. You cannot reference
+rules defined in a parent policy file. Rules in a slot use the `approval_defaults`
+from the file that defines the rules.
 
-Omitting a child slot value keeps the parent's default. A supplied value fully
-replaces the default; `[]` clears it. A parent with an empty required slot is
-valid only when extended by a child that fills it. Parent defaults must match
-declared slots. Unmatched child values are ignored, but all values must be
-valid, including defaults that the child replaces.
+If a child policy does not define a new value for a slot, the parent's default
+rules are used. A value from the child fully replaces the default content from
+the parent; `[]` clears it. A parent with an empty required slot is valid only
+when extended by a child that provides rules for that slot. Parent slot values
+must match defined slots. Child values for slots that do not exist are ignored,
+but all values must be valid, including default rules that the child replaces.
 
-Use `approval_extends` instead of `approval`. The parent must be a literal
-policy: it cannot contain `approval_extends` or a top-level `remote` reference.
-An ordinary remote reference may point to an extending policy. Disapproval is
-not inherited; the child defines its own `policy.disapproval`, if needed.
+`approval_extends` and `approval` are mutually exclusive. The parent must be a
+literal policy: it cannot contain `approval_extends` or a top-level `remote`
+reference. A standard top-level remote reference can point to a policy that
+contains `approval_extends`. Disapproval is not inherited from the parent;
+the child policy may define its own `policy.disapproval`.
 
 Parent references use the [remote configuration](#remote-policy-configuration)
 defaults and access settings, starting with the GitHub App installation for
 the pull request's repository.
 
-Use the authenticated [simulation API](#simulation-api) to validate an extending
-policy. The CLI `validate` command and `/api/validate` endpoint cannot resolve
-parent policies.
+Use the authenticated [simulation API](#simulation-api) on an existing pull request
+to test a child policy loaded from GitHub. The CLI `validate` command and
+`/api/validate` endpoint cannot resolve parent policies.
 
 ### Disapproval Policy
 

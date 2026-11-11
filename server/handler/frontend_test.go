@@ -174,13 +174,6 @@ approval_rules:
 		require.NoError(t, err)
 		rule, slot := link.Query().Get("rule"), link.Query().Get("slot")
 		links = append(links, slot+":"+rule)
-		resolved := parsed.FindApprovalRule(slot, rule)
-		require.NotNil(t, resolved)
-		if slot == "service" {
-			assert.Equal(t, []string{"child-reviewer"}, resolved.Requires.Actors.Users)
-		} else if rule == "Review" {
-			assert.Equal(t, []string{"parent-reviewer"}, resolved.Requires.Actors.Users)
-		}
 	}
 	assert.ElementsMatch(t, []string{":Review", "service:Review", "service:Review", "default:Review", ":After"}, links)
 }

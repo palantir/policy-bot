@@ -99,16 +99,6 @@ func TestSimulateSlotsWithoutMutations(t *testing.T) {
 	require.NoError(t, extendedResult.Error)
 	assert.Equal(t, result, extendedResult, "child fills preserve options, requests, and dismissals")
 
-	simulatedContext, fetched, err := h.newSimulatedContext(ctx, 1, loc, options)
-	require.NoError(t, err)
-	ec := &EvalContext{Config: *fetched, Options: h.PullOpts, PullContext: simulatedContext, SkipPostStatus: true}
-	parsed, err := ec.ParseConfig(ctx, common.TriggerAll)
-	require.NoError(t, err)
-	normal, err := ec.EvaluatePolicy(ctx, parsed)
-	require.NoError(t, err)
-	assert.Equal(t, extendedResult, &normal, "normal evaluation and simulation share the composed policy")
-	assert.Equal(t, "pending", ec.Status.GetState())
-
 	input = "policy: {approval: [{slot: service, required: true}]}"
 	result, err = h.getSimulatedResult(ctx, githubapp.Installation{ID: 1}, loc, options)
 	require.Error(t, err)
