@@ -462,11 +462,27 @@ if:
       - ".github/workflows/a.yml"
       - ".github/workflows/b.yml"
 
+  # DEPRECATED: Use "labels" below instead, which is more flexible.
   # "has_labels" is satisfied if the pull request has the specified labels
   # applied
   has_labels:
     - "label-1"
     - "label-2"
+
+  # "labels" is satisfied based on the labels applied to the pull request.
+  # Each sub-key is optional; when more than one is set, all must be
+  # satisfied. Label matching is case-insensitive.
+  labels:
+    # satisfied if the pull request has at least one of these labels
+    has_any:
+      - "label-1"
+      - "label-2"
+    # satisfied if the pull request has all of these labels
+    has_all:
+      - "label-3"
+    # satisfied if the pull request has none of these labels
+    has_none:
+      - "do-not-merge"
 
   # "repository" is satisfied if the pull request repository matches any one of the
   # patterns within the "matches" list or does not match all of the patterns
@@ -955,6 +971,49 @@ The `policy-bot` binary also includes a `validate` subcomand that can validate l
 ```sh
 policy-bot validate -p path/to/policy.yml
 ```
+
+#### Testing policies locally
+
+The `policy-bot` binary includes a `test` subcommand that evaluates a policy
+against scenario fixtures entirely offline (no GitHub calls), so policies can be
+unit tested in CI:
+
+```sh
+policy-bot test -p path/to/policy.yml -f path/to/fixtures.yml
+```
+
+Each fixtures file lists scenarios describing a pull request and the result the
+policy should produce. The command exits non-zero if any scenario does not match
+its expected result.
+
+```yaml
+scenarios:
+  - name: author cannot self-approve
+    author: alice
+    team_memberships:
+      alice: ["myorg/reviewers"]
+    reviews:
+      - { author: alice, state: approved }
+    expected: pending
+
+  - name: a reviewer on the team approves
+    author: alice
+    team_memberships:
+      bob: ["myorg/reviewers"]
+    reviews:
+      - { author: bob, state: approved }
+    expected: approved
+```
+
+Supported scenario fields include `author`, `title`, `body`, `draft`,
+`base_branch`/`head_branch`, `labels`, `changed_files`, `comments`, `reviews`,
+`team_memberships`, `org_memberships`, and `latest_statuses`. Scenarios always
+describe an open pull request. `expected` is one of `skipped`, `pending`,
+`approved`, or `disapproved`; a changed file's `status` is `added`, `modified`
+(the default), or `deleted`; and a review's `state` is `approved`,
+`changes_requested`, `commented`, `dismissed`, or `pending`. Invalid values are
+rejected before any scenario runs. Remote policy references cannot be evaluated
+offline.
 
 #### Simulation API
 

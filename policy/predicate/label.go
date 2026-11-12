@@ -17,41 +17,20 @@ package predicate
 import (
 	"context"
 	"slices"
-	"strings"
 
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
-	"github.com/pkg/errors"
 )
 
+// HasLabels checks that the pull request has all of the specified labels.
+//
+// Deprecated: use the more flexible `Labels` with `has_all` instead.
 type HasLabels []string
 
 var _ Predicate = HasLabels([]string{})
 
 func (pred HasLabels) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
-
-	predicateResult := common.PredicateResult{
-		ValuePhrase:     "labels",
-		ConditionPhrase: "contain the labels",
-	}
-	if len(pred) > 0 {
-		labels, err := prctx.Labels()
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to list pull request labels")
-		}
-		predicateResult.Values = labels
-		for _, requiredLabel := range pred {
-			if !contains(labels, strings.ToLower(requiredLabel)) {
-				predicateResult.ConditionValues = []string{requiredLabel}
-				predicateResult.Description = "Missing label: " + requiredLabel
-				predicateResult.Satisfied = false
-				return &predicateResult, nil
-			}
-		}
-	}
-	predicateResult.ConditionValues = pred
-	predicateResult.Satisfied = true
-	return &predicateResult, nil
+	return Labels{HasAll: pred}.Evaluate(ctx, prctx)
 }
 
 func (pred HasLabels) Trigger() common.Trigger {

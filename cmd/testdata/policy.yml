@@ -1,0 +1,11 @@
+# Example policy used by the `policy-bot test` fixtures: a pull request is
+# approved once a member of the testorg/reviewers team approves it.
+policy:
+  approval:
+  - a reviewer approves
+approval_rules:
+- name: a reviewer approves
+  requires:
+    count: 1
+    teams:
+    - "testorg/reviewers"
