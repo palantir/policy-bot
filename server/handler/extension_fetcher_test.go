@@ -134,6 +134,13 @@ func TestConfigFetcherParentFailures(t *testing.T) {
 			assert.True(t, fc.SeenPolicy)
 			assert.Equal(t, "shared/policies@main", fc.Source)
 			assert.Equal(t, "child.yml", fc.Path)
+			if test.undefined {
+				assert.Empty(t, fc.ParentSource)
+				assert.Empty(t, fc.ParentPath)
+			} else {
+				assert.Equal(t, "shared/policies@main", fc.ParentSource)
+				assert.Equal(t, "parent.yml", fc.ParentPath)
+			}
 			assert.Equal(t, 1, calls, "never load a grandparent or fall back to defaults")
 			switch {
 			case test.loadError != nil:

@@ -17,7 +17,6 @@ package handler
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
 	"slices"
 	"testing"
 
@@ -86,10 +85,7 @@ approval_defaults:
 
 func extensionTestClient(t *testing.T, handler http.HandlerFunc) *github.Client {
 	t.Helper()
-	server := httptest.NewServer(handler)
-	t.Cleanup(server.Close)
-	baseURL := server.URL + "/"
-	client, err := github.NewClient(github.WithHTTPClient(server.Client()), github.WithURLs(&baseURL, nil))
+	client, err := github.NewClient(github.WithHTTPClient(&http.Client{Transport: handlerTransport(handler)}))
 	require.NoError(t, err)
 	return client
 }

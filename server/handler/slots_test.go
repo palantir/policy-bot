@@ -53,6 +53,19 @@ approval_rules:
       users: [reviewer]
 `
 
+type handlerTransport http.HandlerFunc
+
+func (h handlerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.Body != nil {
+		defer func() { _ = req.Body.Close() }()
+	}
+	response := httptest.NewRecorder()
+	h(response, req)
+	result := response.Result()
+	result.Request = req
+	return result, nil
+}
+
 func slotEvalContext(t *testing.T, input string) *EvalContext {
 	t.Helper()
 	var config policy.Config
@@ -266,7 +279,7 @@ approval_rules:
 			require.Len(t, findAllDismissals(&result), 2)
 
 			var dismissed []string
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			client := &http.Client{Transport: handlerTransport(func(w http.ResponseWriter, r *http.Request) {
 				var request struct {
 					Variables struct {
 						Input struct {
@@ -280,9 +293,8 @@ approval_rules:
 				dismissed = append(dismissed, request.Variables.Input.ReviewID)
 				_, err := w.Write([]byte(`{"data":{"dismissPullRequestReview":{"clientMutationId":null}}}`))
 				assert.NoError(t, err)
-			}))
-			defer server.Close()
-			ec.V4Client = githubv4.NewEnterpriseClient(server.URL, server.Client())
+			})}
+			ec.V4Client = githubv4.NewClient(client)
 			require.NoError(t, ec.dismissStaleReviewsForResult(context.Background(), result))
 			assert.Empty(t, dismissed, "a current approver is protected by non-strict dismissal")
 			ec.Options.StrictReviewDismissal = true

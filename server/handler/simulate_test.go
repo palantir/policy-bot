@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -36,7 +35,7 @@ import (
 )
 
 func TestSimulateSlotsWithoutMutations(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpClient := &http.Client{Transport: handlerTransport(func(w http.ResponseWriter, r *http.Request) {
 		if !assert.Equal(t, "/graphql", r.URL.Path, "simulation must not post statuses or request reviewers") {
 			http.Error(w, "unexpected request", http.StatusBadRequest)
 			return
@@ -51,15 +50,13 @@ func TestSimulateSlotsWithoutMutations(t *testing.T) {
 		}
 		_, err := w.Write([]byte(`{"data":{"repository":{"pullRequest":{"commits":{"nodes":[{"commit":{"oid":"head"}}]},"comments":{"nodes":[]},"reviews":{"nodes":[]}}}}}`))
 		assert.NoError(t, err)
-	}))
-	defer server.Close()
-	baseURL := server.URL + "/"
-	client, err := github.NewClient(github.WithHTTPClient(server.Client()), github.WithURLs(&baseURL, nil))
+	})}
+	client, err := github.NewClient(github.WithHTTPClient(httpClient))
 	require.NoError(t, err)
 	input := strings.Replace(slotPolicy, "ignore_edited_comments: false", "ignore_edited_comments: false\n      request_review: {enabled: true, mode: all-users}", 1)
 	var parentInput string
 	h := &Simulate{Base: Base{
-		ClientCreator: testClients{client: client, v4client: githubv4.NewEnterpriseClient(server.URL+"/graphql", server.Client())},
+		ClientCreator: testClients{client: client, v4client: githubv4.NewClient(httpClient)},
 		PullOpts:      &PullEvaluationOptions{IgnoreEditedComments: new(true)},
 		ConfigFetcher: &ConfigFetcher{Loader: mockConfigLoader{
 			loadConfig: func(context.Context, *github.Client, string, string, string) (appconfig.Config, error) {

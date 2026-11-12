@@ -72,6 +72,8 @@ type Policy struct {
 	approvalSet bool
 }
 
+// UnmarshalYAML preserves key presence: null approval conflicts with an extension,
+// and a null extension is rejected instead of becoming a standalone policy.
 func (p *Policy) UnmarshalYAML(unmarshal func(any) error) error {
 	type plain Policy
 	decoded := plain(*p)
@@ -182,29 +184,39 @@ func ParsePolicyWithParent(child, parent *Config, opts *GlobalOptions) (*ParsedP
 		return nil, errors.New("a parent was supplied without approval_extends")
 	}
 
+	baseDescription := "approval policy"
+	if parent != nil {
+		baseDescription = "parent approval policy"
+	}
 	baseRules, err := prepareRules(base, opts)
 	if err != nil {
+		if parent != nil {
+			return nil, errors.WithMessage(err, "failed to parse parent approval policy")
+		}
 		return nil, err
 	}
 	slots := make(map[string]*approval.SlotRule)
 	evalApproval, err := base.Policy.Approval.Parse(baseRules, slots)
 	if err != nil {
-		return nil, errors.WithMessage(err, "failed to parse approval policy")
+		return nil, errors.Wrapf(err, "failed to parse %s", baseDescription)
 	}
 	parsed := &ParsedPolicy{
 		baseRules: baseRules,
 		slotRules: make(map[string]map[string]*approval.Rule),
 	}
 	if err := parsed.applyFills(base, baseRules, slots); err != nil {
+		if parent != nil {
+			return nil, errors.WithMessage(err, "failed to parse parent approval policy")
+		}
 		return nil, err
 	}
 	if parent != nil {
 		childRules, err := prepareRules(child, opts)
 		if err != nil {
-			return nil, err
+			return nil, errors.WithMessage(err, "failed to parse child approval rules")
 		}
 		if err := parsed.applyFills(child, childRules, slots); err != nil {
-			return nil, err
+			return nil, errors.WithMessage(err, "failed to parse child slot values")
 		}
 	}
 	var missing []string

@@ -65,7 +65,7 @@ func (h *DetailsReviewers) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		return h.renderReviewers(w, r, DetailsReviewersData{PullRequest: state.PullRequest})
 	}
 
-	parsed, err := policy.ParsePolicyWithParent(config.Config, config.Parent, &policy.GlobalOptions{
+	parsed, err := config.parsePolicy(&policy.GlobalOptions{
 		IgnoreEditedComments: evalctx.Options.IgnoreEditedComments,
 		ApprovalDefaults:     evalctx.Options.ApprovalDefaults,
 	})

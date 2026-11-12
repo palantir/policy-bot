@@ -938,7 +938,8 @@ the pull request's repository.
 
 Use the authenticated [simulation API](#simulation-api) on an existing pull request
 to test a child policy loaded from GitHub. The CLI `validate` command and
-`/api/validate` endpoint cannot resolve parent policies.
+`/api/validate` endpoint validate standalone policies, including slots, but cannot
+resolve parent policies.
 
 ### Disapproval Policy
 

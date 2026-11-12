@@ -31,7 +31,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestIssueCommentAuditsExtension(t *testing.T) {
+func TestIssueCommentAuditsPolicy(t *testing.T) {
 	repo := &github.Repository{ID: new(int64(1)), Name: new("service"), Owner: &github.User{Login: new("example")}}
 	pr := &github.PullRequest{
 		Title: new("Change"), State: new("open"), Number: new(1), Draft: new(false),
@@ -43,12 +43,26 @@ func TestIssueCommentAuditsExtension(t *testing.T) {
 	defaults := &approval.Defaults{Options: &approval.Options{
 		Methods: &common.Methods{Comments: []string{"ship"}},
 	}}
+	standalonePolicy := `
+policy: {approval: [Review]}
+approval_rules:
+  - name: Review
+    requires: {count: 1}
+`
 	for _, test := range []struct {
 		name, input, body, status string
 		defaults                  *approval.Defaults
 		parent                    string
 		action, sender            string
 	}{
+		{"standalone built-in default", standalonePolicy, ":+1:", "failure", nil, "", "edited", "editor"},
+		{"standalone policy default", standalonePolicy + "\napproval_defaults: {options: {methods: {comment_patterns: ['^ship$']}}}", "ship", "failure", nil, "", "edited", "editor"},
+		{"standalone server default", standalonePolicy, "ship", "failure", defaults, "", "edited", "editor"},
+		{"standalone unused rule without comment trigger", strings.Replace(standalonePolicy, "[Review]", "[]", 1), ":+1:", "failure", nil, "", "edited", "editor"},
+		{"standalone disabled comments", standalonePolicy + "    options: {methods: {comments: []}}", "ship", "", defaults, "", "edited", "editor"},
+		{"standalone explicit method", standalonePolicy + "    options: {methods: {comments: [local]}}", "local", "failure", defaults, "", "edited", "editor"},
+		{"standalone unrelated comment", standalonePolicy, "unrelated", "", nil, "", "edited", "editor"},
+		{"standalone undefined rule", "policy: {approval: [missing]}", ":+1:", "error", nil, "", "edited", "editor"},
 		{"parent default", extensionPolicy, "ship", "failure", nil, slotPolicy + "\napproval_defaults: {options: {methods: {comments: [ship]}}}", "edited", "editor"},
 		{"parent without comment trigger", extensionPolicy, "ship", "failure", defaults, strings.Replace(slotPolicy, "count: 1", "count: 0", 1), "edited", "editor"},
 		{"child override", extensionPolicy + childSlotFill, "child", "failure", nil, slotPolicy, "edited", "editor"},

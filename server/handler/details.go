@@ -63,9 +63,10 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	evalCtx := state.EvalContext
 
 	var data struct {
-		BasePath  string
-		User      string
-		PolicyURL string
+		BasePath        string
+		User            string
+		PolicyURL       string
+		ParentPolicyURL string
 
 		ExpandRequiredReviewers bool
 
@@ -79,6 +80,12 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	data.BasePath = getBasePath(h.BaseConfig.PublicURL)
 	data.User = state.Username
 	data.PolicyURL = getPolicyURL(state.PullRequest, evalCtx.Config)
+	if evalCtx.Config.ParentSource != "" {
+		data.ParentPolicyURL = getPolicyURL(state.PullRequest, FetchedConfig{
+			Source: evalCtx.Config.ParentSource,
+			Path:   evalCtx.Config.ParentPath,
+		})
+	}
 	data.ExpandRequiredReviewers = h.PullOpts.ExpandRequiredReviewers
 	data.PullRequest = state.PullRequest
 
@@ -200,6 +207,10 @@ func getPolicyURL(pr *github.PullRequest, config FetchedConfig) string {
 	base := pr.GetBase().GetRepo().GetHTMLURL()
 	if u, _ := url.Parse(base); u != nil {
 		srcParts := strings.Split(config.Source, "@")
+		if len(srcParts) == 1 && config.Source != "" {
+			u.Path = config.Source
+			return u.String()
+		}
 		if len(srcParts) != 2 {
 			return base
 		}

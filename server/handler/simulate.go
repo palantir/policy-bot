@@ -140,7 +140,7 @@ func (h *Simulate) getSimulatedResult(ctx context.Context, installation githubap
 		ApprovalDefaults:     h.PullOpts.ApprovalDefaults,
 	}
 
-	evaluator, err := policy.ParsePolicyWithParent(config.Config, config.Parent, opts)
+	evaluator, err := config.parsePolicy(opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get policy evaluator")
 	}

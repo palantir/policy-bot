@@ -93,9 +93,16 @@ func (ec *EvalContext) PrepareConfig(ctx context.Context) (*policy.ParsedPolicy,
 	logger := zerolog.Ctx(ctx)
 
 	fc := ec.Config
+	invalidPolicyMessage := fmt.Sprintf("Invalid policy in %s: %s", fc.Source, fc.Path)
+	if fc.Config != nil && fc.Config.Policy.ApprovalExtends != nil {
+		invalidPolicyMessage = "Invalid policy configuration"
+	}
 	switch {
 	case fc.LoadError != nil:
 		msg := fmt.Sprintf("Error loading policy from %s", fc.Source)
+		if fc.Config != nil && fc.Config.Policy.ApprovalExtends != nil {
+			msg = "Error loading parent policy"
+		}
 		logger.Warn().Err(fc.LoadError).Bool("seen_policy", fc.SeenPolicy).Msg(msg)
 
 		// If policy-bot has never seen a policy file for this base branch
@@ -106,10 +113,9 @@ func (ec *EvalContext) PrepareConfig(ctx context.Context) (*policy.ParsedPolicy,
 		return nil, errors.Wrapf(fc.LoadError, "failed to load policy: %s: %s", fc.Source, fc.Path)
 
 	case fc.ParseError != nil:
-		msg := fmt.Sprintf("Invalid policy in %s: %s", fc.Source, fc.Path)
-		logger.Warn().Err(fc.ParseError).Msg(msg)
+		logger.Warn().Err(fc.ParseError).Msg(invalidPolicyMessage)
 
-		ec.PostStatus(ctx, "error", msg)
+		ec.PostStatus(ctx, "error", invalidPolicyMessage)
 		return nil, errors.Wrapf(fc.ParseError, "failed to parse policy: %s: %s", fc.Source, fc.Path)
 
 	case fc.Config == nil:
@@ -122,13 +128,12 @@ func (ec *EvalContext) PrepareConfig(ctx context.Context) (*policy.ParsedPolicy,
 		ApprovalDefaults:     ec.Options.ApprovalDefaults,
 	}
 
-	evaluator, err := policy.ParsePolicyWithParent(fc.Config, fc.Parent, opts)
+	evaluator, err := fc.parsePolicy(opts)
 	if err != nil {
-		msg := fmt.Sprintf("Invalid policy in %s: %s", fc.Source, fc.Path)
-		logger.Warn().Err(err).Msg(msg)
+		logger.Warn().Err(err).Msg(invalidPolicyMessage)
 
-		ec.PostStatus(ctx, "error", msg)
-		return nil, errors.Wrapf(err, "failed to create evaluator: %s: %s", fc.Source, fc.Path)
+		ec.PostStatus(ctx, "error", invalidPolicyMessage)
+		return nil, errors.Wrap(err, "failed to create evaluator")
 	}
 
 	return evaluator, nil

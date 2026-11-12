@@ -120,26 +120,12 @@ func (h *IssueComment) detectAndLogTampering(ctx context.Context, evalCtx *EvalC
 		return false, nil
 	}
 
-	var methods []*common.Methods
-	if evalCtx.Config.Parent != nil {
-		// Compose first so replaced parent fills cannot affect the audit.
-		parsed, err := evalCtx.PrepareConfig(ctx)
-		if err != nil {
-			return false, err
-		}
-		methods = parsed.Methods()
-	} else {
-		config := evalCtx.Config.Config
-		for _, rule := range config.ApprovalRules {
-			methods = append(methods, rule.Options.GetMethods())
-		}
-		if disapproval := config.Policy.Disapproval; disapproval != nil {
-			methods = append(methods, disapproval.Options.GetDisapproveMethods())
-			methods = append(methods, disapproval.Options.GetRevokeMethods())
-		}
+	parsed, err := evalCtx.PrepareConfig(ctx)
+	if err != nil {
+		return false, err
 	}
 
-	if h.affectsApproval(event, methods) {
+	if h.affectsApproval(event, parsed.Methods()) {
 		msg := fmt.Sprintf("Entity %s edited approval comment by %s", eventAuthor, commentAuthor)
 		logger.Warn().Str(LogKeyAudit, "issue_comment").Msg(msg)
 

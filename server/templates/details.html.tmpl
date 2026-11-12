@@ -26,6 +26,12 @@
     <div class="status-banner error">
       <h2 class="mb-1 text-lg font-bold">Error</h2>
       <p>{{.Error}}</p>
+      {{if .ParentPolicyURL}}
+        <p class="mt-2">
+          <a href="{{.PolicyURL}}" class="underline">Child policy</a>
+          · <a href="{{.ParentPolicyURL}}" class="underline">Parent policy</a>
+        </p>
+      {{end}}
       {{if .IsTemporaryError}}
           <p class="status-temporary">This error may be temporary. Wait 30 seconds and refresh this page to retry.</p>
       {{end}}

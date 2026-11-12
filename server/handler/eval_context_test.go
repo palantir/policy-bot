@@ -19,6 +19,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/go-github/v93/github"
+	"github.com/palantir/go-githubapp/appconfig"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull/pulltest"
 	"github.com/stretchr/testify/assert"
@@ -44,6 +46,48 @@ func TestParseConfigPostsStatusForSeenPolicy(t *testing.T) {
 	assert.Equal(t, "error", ec.Status.GetState())
 	assert.Equal(t, "policy-bot: main", ec.Status.GetContext())
 	assert.Equal(t, "Error loading policy from testorg/testrepo@main", ec.Status.GetDescription())
+}
+
+func TestExtensionPolicyErrorSources(t *testing.T) {
+	const parentPolicy = "policy: {approval: [{slot: service, required: true}]}"
+	for _, test := range []struct {
+		name, child, parent, message string
+	}{
+		{"parent rule", extensionPolicy, "policy: {approval: [missing]}", "failed to parse parent approval policy"},
+		{"child slot", extensionPolicy + "\nslots: {service: [missing]}", parentPolicy, "failed to parse child slot values"},
+		{"required slot", extensionPolicy, parentPolicy, "required slots are empty"},
+		{"parent yaml", extensionPolicy, "policy: [", "failed to parse parent policy"},
+		{"standalone", "policy: {approval: [missing]}", "", "failed to parse approval policy"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			fetcher := ConfigFetcher{Loader: mockConfigLoader{
+				loadConfig: func(context.Context, *github.Client, string, string, string) (appconfig.Config, error) {
+					return appconfig.Config{Content: []byte(test.child), Source: "example/service@main", Path: "child.yml"}, nil
+				},
+				loadRemoteRef: func(context.Context, *github.Client, string, appconfig.RemoteRef) (appconfig.Config, error) {
+					require.NotEmpty(t, test.parent)
+					return appconfig.Config{Content: []byte(test.parent), Source: "shared/policies@release", Path: "rules/parent.yml"}, nil
+				},
+			}}
+			ec := makeEvalContext(false)
+			ec.Config = fetcher.ConfigForRepositoryBranch(context.Background(), nil, "example", "service", "main")
+			parsed, err := ec.ParseConfig(context.Background(), common.TriggerAll)
+			require.ErrorContains(t, err, test.message)
+			assert.Nil(t, parsed)
+			assert.Contains(t, err.Error(), "example/service@main")
+			assert.Contains(t, err.Error(), "child.yml")
+			require.NotNil(t, ec.Status)
+			assert.Equal(t, "error", ec.Status.GetState())
+			if test.parent != "" {
+				assert.Contains(t, err.Error(), "shared/policies@release")
+				assert.Contains(t, err.Error(), "rules/parent.yml")
+				assert.Equal(t, "Invalid policy configuration", ec.Status.GetDescription())
+			} else {
+				assert.NotContains(t, err.Error(), "parent")
+				assert.Equal(t, "Invalid policy in example/service@main: child.yml", ec.Status.GetDescription())
+			}
+		})
+	}
 }
 
 func makeEvalContext(seenPolicy bool) *EvalContext {

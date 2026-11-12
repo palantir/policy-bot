@@ -42,7 +42,22 @@ type FetchedConfig struct {
 	Source string
 	Path   string
 
+	ParentSource string
+	ParentPath   string
+
 	SeenPolicy bool
+}
+
+func (fc FetchedConfig) parsePolicy(opts *policy.GlobalOptions) (*policy.ParsedPolicy, error) {
+	parsed, err := policy.ParsePolicyWithParent(fc.Config, fc.Parent, opts)
+	if err != nil {
+		location := fmt.Sprintf("policy %q in %q", fc.Path, fc.Source)
+		if fc.ParentSource != "" {
+			location += fmt.Sprintf(" extending parent %q in %q", fc.ParentPath, fc.ParentSource)
+		}
+		return nil, fmt.Errorf("%s: %w", location, err)
+	}
+	return parsed, nil
 }
 
 type ConfigFetcher struct {
@@ -94,6 +109,8 @@ func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *
 		// The supplied client still belongs to owner, even when the child came from another owner.
 		return cf.Loader.LoadRemoteRef(ctx, client, owner, remote)
 	})
+	fc.ParentSource = parent.Source
+	fc.ParentPath = parent.Path
 	if err != nil {
 		if parent.IsUndefined() {
 			fc.LoadError = fmt.Errorf("failed to load parent policy requested by %q in %q: %w", c.Path, c.Source, err)
