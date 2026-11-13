@@ -17,20 +17,65 @@ package handler
 import (
 	"context"
 	"net/http"
+	"net/http/httptest"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/google/go-github/v93/github"
+	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/common"
+	"github.com/shurcooL/githubv4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 )
 
+const slotPolicy = `
+policy:
+  approval: [{slot: {name: service, required: true}}]
+slots:
+  service: [Service review]
+approval_rules:
+  - name: Service review
+    options:
+      ignore_edited_comments: false
+    requires:
+      count: 1
+      users: [reviewer]
+`
+
+type handlerTransport http.HandlerFunc
+
+func (h handlerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.Body != nil {
+		defer func() { _ = req.Body.Close() }()
+	}
+	response := httptest.NewRecorder()
+	h(response, req)
+	result := response.Result()
+	result.Request = req
+	return result, nil
+}
+
+type testClients struct {
+	githubapp.ClientCreator
+	client   *github.Client
+	v4client *githubv4.Client
+}
+
+func (c testClients) NewInstallationClient(int64) (*github.Client, error) {
+	return c.client, nil
+}
+
+func (c testClients) NewInstallationV4Client(int64) (*githubv4.Client, error) {
+	return c.v4client, nil
+}
+
 const extensionPolicy = `policy: {approval_extends: {remote: example/shared, path: .policy.yml, ref: main}}`
 
-const childSlotFill = `
+const childSlotContent = `
 slots: {service: [Child]}
 approval_defaults:
   options:
@@ -42,7 +87,10 @@ approval_rules:
 
 func extensionEvalContext(t *testing.T, child, parent string) *EvalContext {
 	t.Helper()
-	ec := slotEvalContext(t, child)
+	ec := makeEvalContext(true)
+	ec.Config.LoadError = nil
+	ec.Config.Config = new(policy.Config)
+	require.NoError(t, yaml.UnmarshalStrict([]byte(child), ec.Config.Config))
 	ec.Config.Parent = new(policy.Config)
 	require.NoError(t, yaml.UnmarshalStrict([]byte(parent), ec.Config.Parent))
 	return ec
@@ -60,7 +108,7 @@ approval_defaults:
 		excludes    []string
 	}{
 		{"parent default", extensionPolicy, []string{"parent"}, []string{"child"}},
-		{"child override", extensionPolicy + childSlotFill, []string{"child"}, []string{"parent", ":+1:"}},
+		{"child override", extensionPolicy + childSlotContent, []string{"child"}, []string{"parent", ":+1:"}},
 		{"child disapproval", `policy:
   approval_extends: {remote: example/shared}
   disapproval: {options: {methods: {disapprove: {comments: [block]}, revoke: {comments: [unblock]}}}}`, []string{"parent", "block", "unblock"}, nil},
@@ -88,4 +136,12 @@ func extensionTestClient(t *testing.T, handler http.HandlerFunc) *github.Client 
 	client, err := github.NewClient(github.WithHTTPClient(&http.Client{Transport: handlerTransport(handler)}))
 	require.NoError(t, err)
 	return client
+}
+
+func TestValidateExtension(t *testing.T) {
+	request := httptest.NewRequest(http.MethodPost, "/api/validate", strings.NewReader(extensionPolicy))
+	response := httptest.NewRecorder()
+	Validate().ServeHTTP(response, request)
+	assert.Equal(t, http.StatusUnprocessableEntity, response.Code)
+	assert.Contains(t, response.Body.String(), "approval_extends requires a resolved parent; use authenticated simulation")
 }

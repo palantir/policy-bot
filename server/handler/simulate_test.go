@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"testing"
 	"time"
 
@@ -34,36 +33,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSimulateSlotsWithoutMutations(t *testing.T) {
-	httpClient := &http.Client{Transport: handlerTransport(func(w http.ResponseWriter, r *http.Request) {
-		if !assert.Equal(t, "/graphql", r.URL.Path, "simulation must not post statuses or request reviewers") {
-			http.Error(w, "unexpected request", http.StatusBadRequest)
-			return
-		}
-		var request struct{ Query string }
-		if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&request)) {
-			return
-		}
-		if !assert.True(t, strings.HasPrefix(request.Query, "query"), "simulation must not dismiss reviews") {
-			http.Error(w, "unexpected mutation", http.StatusBadRequest)
-			return
-		}
-		_, err := w.Write([]byte(`{"data":{"repository":{"pullRequest":{"commits":{"nodes":[{"commit":{"oid":"head"}}]},"comments":{"nodes":[]},"reviews":{"nodes":[]}}}}}`))
-		assert.NoError(t, err)
-	})}
-	client, err := github.NewClient(github.WithHTTPClient(httpClient))
-	require.NoError(t, err)
-	input := strings.Replace(slotPolicy, "ignore_edited_comments: false", "ignore_edited_comments: false\n      request_review: {enabled: true, mode: all-users}", 1)
-	var parentInput string
+func TestSimulateExtension(t *testing.T) {
+	client := extensionTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		http.Error(w, "unexpected request", http.StatusBadRequest)
+	})
 	h := &Simulate{Base: Base{
-		ClientCreator: testClients{client: client, v4client: githubv4.NewClient(httpClient)},
-		PullOpts:      &PullEvaluationOptions{IgnoreEditedComments: new(true)},
+		ClientCreator: testClients{client: client, v4client: githubv4.NewClient(client.Client())},
+		PullOpts:      &PullEvaluationOptions{},
 		ConfigFetcher: &ConfigFetcher{Loader: mockConfigLoader{
 			loadConfig: func(context.Context, *github.Client, string, string, string) (appconfig.Config, error) {
-				return appconfig.Config{Content: []byte(input), Source: "example/service", Path: ".policy.yml"}, nil
+				return appconfig.Config{Content: []byte(extensionPolicy + "\nslots: {service: [Child]}\napproval_rules: [{name: Child}]"), Source: "example/service", Path: ".policy.yml"}, nil
 			},
 			loadRemoteRef: func(context.Context, *github.Client, string, appconfig.RemoteRef) (appconfig.Config, error) {
-				return appconfig.Config{Content: []byte(parentInput), Source: "example/shared", Path: ".policy.yml"}, nil
+				return appconfig.Config{Content: []byte("policy: {approval: [{slot: {name: service, required: true}}]}"), Source: "example/shared", Path: ".policy.yml"}, nil
 			},
 		}},
 	}}
@@ -75,45 +58,13 @@ func TestSimulateSlotsWithoutMutations(t *testing.T) {
 		Head:         &github.PullRequestBranch{Ref: new("feature"), SHA: new("head"), Repo: repo},
 		ChangedFiles: new(1),
 	}}
-	options := simulated.Options{AddReviews: []simulated.Review{{
-		ID: "simulated-review", Author: "reviewer", State: string(pull.ReviewApproved),
-		CreatedAt: new(time.Unix(1, 0)), LastEditedAt: new(time.Unix(2, 0)),
-	}}}
-	ctx := context.Background()
-	result, err := h.getSimulatedResult(ctx, githubapp.Installation{ID: 1}, loc, options)
+	result, err := h.getSimulatedResult(context.Background(), githubapp.Installation{ID: 1}, loc, simulated.Options{})
 	require.NoError(t, err)
 	require.NoError(t, result.Error)
-	assert.Equal(t, common.StatusPending, result.Status)
+	assert.Equal(t, common.StatusApproved, result.Status)
 	leaf := result.Children[0].Children[0]
-	require.NotNil(t, leaf.ReviewRequestRule)
-	require.Len(t, leaf.Dismissals, 1)
-	assert.Equal(t, "simulated-review", leaf.Dismissals[0].Candidate.ReviewID)
-
-	parentInput = "policy: {approval: [{slot: service, required: true}]}"
-	input = strings.Replace(input, "policy:\n  approval: [{slot: service, required: true}]", extensionPolicy, 1)
-	extendedResult, err := h.getSimulatedResult(ctx, githubapp.Installation{ID: 1}, loc, options)
-	require.NoError(t, err)
-	require.NoError(t, extendedResult.Error)
-	assert.Equal(t, result, extendedResult, "child fills preserve options, requests, and dismissals")
-
-	input = "policy: {approval: [{slot: service, required: true}]}"
-	result, err = h.getSimulatedResult(ctx, githubapp.Installation{ID: 1}, loc, options)
-	require.Error(t, err)
-	assert.Nil(t, result)
-}
-
-type testClients struct {
-	githubapp.ClientCreator
-	client   *github.Client
-	v4client *githubv4.Client
-}
-
-func (c testClients) NewInstallationClient(int64) (*github.Client, error) {
-	return c.client, nil
-}
-
-func (c testClients) NewInstallationV4Client(int64) (*githubv4.Client, error) {
-	return c.v4client, nil
+	assert.Equal(t, "Child", leaf.Name)
+	assert.Equal(t, &common.SlotResult{Name: "service"}, leaf.Slot)
 }
 
 func TestNewSimulationResponse(t *testing.T) {

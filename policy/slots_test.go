@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/palantir/policy-bot/policy/common"
@@ -30,63 +29,52 @@ import (
 )
 
 func TestSlotValidation(t *testing.T) {
-	tests := map[string]string{
-		"required missing under or": `policy: {approval: [{or: [rule, {slot: extra, required: true}]}]}`,
-		"required empty": `policy: {approval: [{slot: extra, required: true}]}
-slots: {extra: []}`,
-		"duplicate declarations across branches": `policy: {approval: [{or: [{slot: extra}, {and: [{slot: extra}]}]}]}`,
-		"unknown marker key":                     `policy: {approval: [{slot: extra, optional: true}]}`,
-		"mixed conjunction and slot":             `policy: {approval: [{slot: extra, and: [rule]}]}`,
-		"missing name":                           `policy: {approval: [{required: true}]}`,
-		"empty name":                             `policy: {approval: [{slot: ''}]}`,
-		"null name":                              `policy: {approval: [{slot: null}]}`,
-		"numeric name":                           `policy: {approval: [{slot: 123}]}`,
-		"boolean name":                           `policy: {approval: [{slot: true}]}`,
-		"null required":                          `policy: {approval: [{slot: extra, required: null}]}`,
-		"string required":                        `policy: {approval: [{slot: extra, required: 'false'}]}`,
-		"numeric required":                       `policy: {approval: [{slot: extra, required: 0}]}`,
-		"non-string marker key":                  `policy: {approval: [{slot: extra, 1: false}]}`,
-		"unknown conjunction":                    `policy: {approval: [{xor: [rule]}]}`,
-		"duplicate marker key":                   `policy: {approval: [{slot: extra, slot: other}]}`,
-		"null fill":                              `slots: {extra: null}`,
-		"scalar fill":                            `slots: {extra: rule}`,
-		"map fill":                               `slots: {extra: {and: [rule]}}`,
-		"empty fill name":                        `slots: {'': [rule]}`,
-		"numeric fill name":                      `slots: {1: [rule]}`,
-		"boolean fill name":                      `slots: {true: [rule]}`,
-		"null fill name":                         `slots: {null: [rule]}`,
-		"coercing duplicate names":               `slots: {1: [rule], '1': []}`,
-		"duplicate fill keys":                    `slots: {extra: [rule], extra: []}`,
-		"duplicate null fill keys":               `slots: {extra: null, extra: []}`,
-		"unknown rule in matched fill": `policy: {approval: [{slot: extra}]}
-slots: {extra: [missing]}`,
-		"unknown rule in unmatched fill": `policy: {approval: [rule]}
-slots: {unused: [missing]}`,
-		"undeclared fill": `policy: {approval: [rule, {slot: extra}]}
-slots: {extras: [rule]}`,
-		"undeclared empty fill": `policy: {approval: [{slot: extra}]}
-slots: {extras: []}`,
-		"fill without approval tree":         `slots: {unused: [rule]}`,
-		"unknown rule without approval tree": `slots: {unused: [missing]}`,
-		"nested slot in matched fill": `policy: {approval: [{slot: extra}]}
-slots: {extra: [{or: [rule, {slot: nested}]}]}`,
-		"nested slot in unmatched fill":  `slots: {unused: [{and: [{slot: nested}]}]}`,
-		"malformed unmatched fill":       `slots: {unused: [{or: null}]}`,
-		"non-string fill expression key": `slots: {unused: [{false: [rule]}]}`,
+	tests := map[string]struct{ input, message string }{
+		"required missing under or": {`policy: {approval: [{or: [rule, {slot: {name: extra, required: true}}]}]}`, "required slots are empty"},
+		"required empty": {`policy: {approval: [{slot: {name: extra, required: true}}]}
+slots: {extra: []}`, "required slots are empty"},
+		"required null": {`policy: {approval: [{slot: {name: extra, required: true}}]}
+slots: {extra: null}`, "required slots are empty"},
+		"duplicate declarations across branches": {`policy: {approval: [{or: [{slot: {name: extra}}, {and: [{slot: {name: extra}}]}]}]}`, `duplicate slot name "extra"`},
+		"unknown declaration key":                {`policy: {approval: [{slot: {name: extra, optional: true}}]}`, `unknown slot key "optional"`},
+		"mixed conjunction and slot":             {`policy: {approval: [{slot: {name: extra}, and: [rule]}]}`, "multiple keys found"},
+		"flat declaration":                       {`policy: {approval: [{slot: extra}]}`, "expected slot definition map"},
+		"null declaration":                       {`policy: {approval: [{slot: null}]}`, "expected slot definition map"},
+		"missing name":                           {`policy: {approval: [{slot: {required: true}}]}`, "slot name must be a nonempty string"},
+		"empty name":                             {`policy: {approval: [{slot: {name: ''}}]}`, "slot name must be a nonempty string"},
+		"null name":                              {`policy: {approval: [{slot: {name: null}}]}`, "slot name must be a nonempty string"},
+		"numeric name":                           {`policy: {approval: [{slot: {name: 123}}]}`, "slot name must be a nonempty string"},
+		"boolean name":                           {`policy: {approval: [{slot: {name: true}}]}`, "slot name must be a nonempty string"},
+		"null required":                          {`policy: {approval: [{slot: {name: extra, required: null}}]}`, "required flag must be a boolean"},
+		"string required":                        {`policy: {approval: [{slot: {name: extra, required: 'false'}}]}`, "required flag must be a boolean"},
+		"numeric required":                       {`policy: {approval: [{slot: {name: extra, required: 0}}]}`, "required flag must be a boolean"},
+		"non-string declaration key":             {`policy: {approval: [{slot: {name: extra, 1: false}}]}`, "expected string slot key"},
+		"unknown conjunction":                    {`policy: {approval: [{xor: [rule]}]}`, "invalid conjunction 'xor'"},
+		"empty content name":                     {`slots: {'': [rule]}`, "slot name must be nonempty"},
+		"null content name":                      {`slots: {null: [rule]}`, "slot name must be nonempty"},
+		"unknown rule in matched content": {`policy: {approval: [{slot: {name: extra}}]}
+slots: {extra: [missing]}`, "undefined rule 'missing'"},
+		"unknown rule in unmatched content": {`policy: {approval: [rule]}
+slots: {unused: [missing]}`, "undefined rule 'missing'"},
+		"undeclared slot": {`policy: {approval: [rule, {slot: {name: extra}}]}
+slots: {extras: [rule]}`, `slot content "extras" does not match a declared slot`},
+		"undeclared empty slot": {`policy: {approval: [{slot: {name: extra}}]}
+slots: {extras: []}`, `slot content "extras" does not match a declared slot`},
+		"content without approval tree":      {`slots: {unused: [rule]}`, `slot content "unused" does not match a declared slot`},
+		"unknown rule without approval tree": {`slots: {unused: [missing]}`, "undefined rule 'missing'"},
+		"nested slot in matched content": {`policy: {approval: [{slot: {name: extra}}]}
+slots: {extra: [{or: [rule, {slot: {name: nested}}]}]}`, "slot declarations are not allowed in slot content"},
+		"nested slot in unmatched content":  {`slots: {unused: [{and: [{slot: {name: nested}}]}]}`, "slot declarations are not allowed in slot content"},
+		"malformed unmatched content":       {`slots: {unused: [{or: null}]}`, "expected list of subconditions"},
+		"non-string content expression key": {`slots: {unused: [{false: [rule]}]}`, "expected string policy key"},
 	}
-	for name, input := range tests {
+	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			if !strings.Contains(input, "approval_rules:") {
-				input += "\napproval_rules: [{name: rule}]"
-			}
 			var c Config
-			err := yaml.UnmarshalStrict([]byte(input), &c)
-			if err == nil {
-				var eval common.Evaluator
-				eval, err = ParsePolicy(&c, nil)
-				assert.Nil(t, eval)
-			}
-			require.Error(t, err)
+			require.NoError(t, yaml.UnmarshalStrict([]byte(test.input+"\napproval_rules: [{name: rule}]"), &c))
+			eval, err := ParsePolicy(&c, nil)
+			assert.ErrorContains(t, err, test.message)
+			assert.Nil(t, eval)
 		})
 	}
 }
@@ -95,20 +83,22 @@ func TestRequiredSlotNames(t *testing.T) {
 	var c Config
 	require.NoError(t, yaml.UnmarshalStrict([]byte(`policy:
   approval:
-    - slot: z-last
-      required: true
-    - slot: a-first
-      required: true
+    - slot:
+        name: z-last
+        required: true
+    - slot:
+        name: a-first
+        required: true
 `), &c))
 	_, err := ParsePolicy(&c, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `["a-first" "z-last"]`)
 }
 
-func TestSlotFillGrouping(t *testing.T) {
+func TestSlotContentGrouping(t *testing.T) {
 	eval := parseSlotPolicy(t, `
 policy:
-  approval: [Base, {or: [Emergency, {slot: extra, required: true}]}]
+  approval: [Base, {or: [Emergency, {slot: {name: extra, required: true}}]}]
 slots:
   extra: [A, {or: [B, C]}]
 approval_rules:
@@ -154,15 +144,17 @@ approval_rules:
     if: {has_labels: [security]}
 `
 	for _, tt := range []struct {
-		name, input string
-		status      common.EvaluationStatus
-		trigger     common.Trigger
+		name, input, slotName string
+		status                common.EvaluationStatus
+		trigger               common.Trigger
+		empty                 bool
 	}{
-		{"omitted fill", `policy: {approval: [{slot: extra}]}`, common.StatusSkipped, common.TriggerCommit},
-		{"empty fill", "policy: {approval: [{slot: extra}]}\nslots: {extra: []}", common.StatusSkipped, common.TriggerCommit},
-		{"empty beside active", `policy: {approval: [{slot: extra}, review]}`, common.StatusPending, common.TriggerCommit | common.TriggerComment | common.TriggerReview},
-		{"required populated but skipped", "policy: {approval: [{slot: extra, required: true}]}\nslots: {extra: [conditional]}", common.StatusSkipped, common.TriggerCommit | common.TriggerLabel},
-		{"quoted numeric name", "policy: {approval: [{slot: '1'}]}\nslots: {'1': [review]}", common.StatusPending, common.TriggerCommit | common.TriggerComment | common.TriggerReview},
+		{"omitted content", `policy: {approval: [{slot: {name: extra}}]}`, "extra", common.StatusSkipped, common.TriggerCommit, true},
+		{"empty content", "policy: {approval: [{slot: {name: extra}}]}\nslots: {extra: []}", "extra", common.StatusSkipped, common.TriggerCommit, true},
+		{"null content", "policy: {approval: [{slot: {name: extra}}]}\nslots: {extra: null}", "extra", common.StatusSkipped, common.TriggerCommit, true},
+		{"empty beside active", `policy: {approval: [{slot: {name: extra}}, review]}`, "extra", common.StatusPending, common.TriggerCommit | common.TriggerComment | common.TriggerReview, true},
+		{"required populated but skipped", "policy: {approval: [{slot: {name: extra, required: true}}]}\nslots: {extra: [conditional]}", "extra", common.StatusSkipped, common.TriggerCommit | common.TriggerLabel, false},
+		{"numeric content name", "policy: {approval: [{slot: {name: '1'}}]}\nslots: {1: [review]}", "1", common.StatusPending, common.TriggerCommit | common.TriggerComment | common.TriggerReview, false},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			eval := parseSlotPolicy(t, tt.input+rules)
@@ -170,6 +162,9 @@ approval_rules:
 			result := eval.Evaluate(context.Background(), &pulltest.Context{})
 			require.NoError(t, result.Error)
 			assert.Equal(t, tt.status, result.Status)
+			slot := findSlotResult(&result, tt.slotName)
+			require.NotNil(t, slot)
+			assert.Equal(t, tt.empty, slot.Slot.Empty)
 		})
 	}
 }
@@ -185,7 +180,7 @@ approval_rules:
 `
 	for _, op := range []string{"and", "or"} {
 		t.Run(op, func(t *testing.T) {
-			eval := parseSlotPolicy(t, fmt.Sprintf(`policy: {approval: [{%s: [review, {slot: extra}]}]}`, op)+rules)
+			eval := parseSlotPolicy(t, fmt.Sprintf(`policy: {approval: [{%s: [review, {slot: {name: extra}}]}]}`, op)+rules)
 			for _, approved := range []bool{false, true} {
 				prctx := &pulltest.Context{LabelsError: errors.New("labels unavailable")}
 				if approved {

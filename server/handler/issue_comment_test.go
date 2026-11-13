@@ -65,12 +65,12 @@ approval_rules:
 		{"standalone undefined rule", "policy: {approval: [missing]}", ":+1:", "error", nil, "", "edited", "editor"},
 		{"parent default", extensionPolicy, "ship", "failure", nil, slotPolicy + "\napproval_defaults: {options: {methods: {comments: [ship]}}}", "edited", "editor"},
 		{"parent without comment trigger", extensionPolicy, "ship", "failure", defaults, strings.Replace(slotPolicy, "count: 1", "count: 0", 1), "edited", "editor"},
-		{"child override", extensionPolicy + childSlotFill, "child", "failure", nil, slotPolicy, "edited", "editor"},
-		{"replaced parent method", extensionPolicy + childSlotFill, ":+1:", "", nil, slotPolicy, "edited", "editor"},
-		{"missing required", extensionPolicy, ":+1:", "error", nil, "policy: {approval: [{slot: missing, required: true}]}", "edited", "editor"},
+		{"child override", extensionPolicy + childSlotContent, "child", "failure", nil, slotPolicy, "edited", "editor"},
+		{"replaced parent method", extensionPolicy + childSlotContent, ":+1:", "", nil, slotPolicy, "edited", "editor"},
+		{"missing required", extensionPolicy, ":+1:", "error", nil, "policy: {approval: [{slot: {name: missing, required: true}}]}", "edited", "editor"},
 		{"invalid parent yaml", extensionPolicy, ":+1:", "error", nil, "approval_rules: [", "edited", "editor"},
-		{"created missing required", extensionPolicy, ":+1:", "error", nil, "policy: {approval: [{slot: missing, required: true}]}", "created", "reviewer"},
-		{"author edit missing required", extensionPolicy, ":+1:", "error", nil, "policy: {approval: [{slot: missing, required: true}]}", "edited", "reviewer"},
+		{"created missing required", extensionPolicy, ":+1:", "error", nil, "policy: {approval: [{slot: {name: missing, required: true}}]}", "created", "reviewer"},
+		{"author edit missing required", extensionPolicy, ":+1:", "error", nil, "policy: {approval: [{slot: {name: missing, required: true}}]}", "edited", "reviewer"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			statuses := make(chan *github.RepoStatus, 4)

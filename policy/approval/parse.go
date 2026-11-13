@@ -23,17 +23,18 @@ import (
 
 type Policy []any
 
-// Parse records declared slots in slots. A nil registry disallows declarations.
-func (p Policy) Parse(rules map[string]*Rule, slots map[string]*SlotRule) (common.Evaluator, error) {
+// Parse builds an evaluator for the policy and returns its declared slots.
+func (p Policy) Parse(rules map[string]*Rule) (common.Evaluator, map[string]*SlotRule, error) {
+	slots := make(map[string]*SlotRule)
 	root, err := p.parseTree(rules, slots)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return &evaluator{root: root}, nil
+	return &evaluator{root: root}, slots, nil
 }
 
-// ParseFill parses an implicitly ANDed list of rules without allowing slots.
-func (p Policy) ParseFill(rules map[string]*Rule) (common.Evaluator, error) {
+// ParseAsSlotFill parses an implicitly ANDed list of rules without allowing slots.
+func (p Policy) ParseAsSlotFill(rules map[string]*Rule) (common.Evaluator, error) {
 	if len(p) == 1 {
 		return parsePolicyR(p[0], rules, nil, 1)
 	}
@@ -83,14 +84,14 @@ func parsePolicyR(policy any, rules map[string]*Rule, slots map[string]*SlotRule
 			}
 			ops = append(ops, key)
 		}
-		if _, exists := conjunction["slot"]; exists {
-			return parseSlot(conjunction, slots)
-		}
 		if len(ops) != 1 {
 			return nil, errors.Errorf("multiple keys found when one was expected: %v", ops)
 		}
 
 		op := ops[0]
+		if op == "slot" {
+			return parseSlot(conjunction[op], slots)
+		}
 		values, ok := conjunction[op].([]any)
 		if !ok {
 			return nil, errors.Errorf("expected list of subconditions, but got %T", conjunction[op])
@@ -121,16 +122,23 @@ func parsePolicyR(policy any, rules map[string]*Rule, slots map[string]*SlotRule
 	return nil, errors.Errorf("malformed policy, expected string or map, but encountered %T", policy)
 }
 
-func parseSlot(marker map[any]any, slots map[string]*SlotRule) (common.Evaluator, error) {
+func parseSlot(value any, slots map[string]*SlotRule) (common.Evaluator, error) {
 	if slots == nil {
-		return nil, errors.New("slot declarations are not allowed in slot fills")
+		return nil, errors.New("slot declarations are not allowed in slot content")
+	}
+	marker, ok := value.(map[any]any)
+	if !ok {
+		return nil, errors.Errorf("expected slot definition map, but got %T", value)
 	}
 	for key := range marker {
-		if key != "slot" && key != "required" {
+		if _, ok := key.(string); !ok {
+			return nil, errors.Errorf("expected string slot key, but got %T", key)
+		}
+		if key != "name" && key != "required" {
 			return nil, errors.Errorf("unknown slot key %q", key)
 		}
 	}
-	slotName, ok := marker["slot"].(string)
+	slotName, ok := marker["name"].(string)
 	if !ok || slotName == "" {
 		return nil, errors.New("slot name must be a nonempty string")
 	}

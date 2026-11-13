@@ -84,9 +84,10 @@ type Result struct {
 }
 
 // SlotResult identifies a slot's evaluated content or an empty placeholder.
-// Populated slots may also be skipped when their rules' predicates do not match.
 type SlotResult struct {
-	Name  string
+	Name string
+
+	// Empty indicates that the slot contains no rules.
 	Empty bool
 }
 

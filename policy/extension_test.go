@@ -95,7 +95,7 @@ policy: {<<: {approval: [missing]}, approval: []}
 func TestApprovalExtensionRuleScope(t *testing.T) {
 	parent := extensionConfig(t, `
 policy:
-  approval: [review, {slot: extra, required: true}]
+  approval: [review, {slot: {name: extra, required: true}}]
 approval_rules:
   - name: review
     requires: {count: 1, users: [platform]}
@@ -135,22 +135,23 @@ approval_rules:
 	assert.Nil(t, parsed.FindApprovalRule("missing", "review"))
 }
 
-func TestApprovalExtensionFillReplacement(t *testing.T) {
+func TestApprovalExtensionContentReplacement(t *testing.T) {
 	for _, tt := range []struct {
-		name, fill string
-		required   bool
-		comments   []string
-		wantError  bool
+		name, content string
+		required      bool
+		comments      []string
+		wantError     bool
 	}{
 		{"omitted", "", false, []string{"parent"}, false},
 		{"overridden", "slots: {extra: [review]}", true, []string{"child"}, false},
 		{"cleared", "slots: {extra: []}", false, nil, false},
 		{"required cleared", "slots: {extra: []}", true, nil, true},
-		{"null", "slots: {extra: null}", false, nil, true},
+		{"null", "slots: {extra: null}", false, nil, false},
+		{"required null", "slots: {extra: null}", true, nil, true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			parent := extensionConfig(t, fmt.Sprintf(`
-policy: {approval: [{slot: extra, required: %t}]}
+policy: {approval: [{slot: {name: extra, required: %t}}]}
 slots: {extra: [review]}
 approval_defaults: {options: {methods: {comments: [parent]}}}
 approval_rules: [{name: review, requires: {count: 1}}]
@@ -159,17 +160,17 @@ approval_rules: [{name: review, requires: {count: 1}}]
 policy: {approval_extends: {remote: example/policies}}
 approval_defaults: {options: {methods: {comments: [child]}}}
 approval_rules: [{name: review, requires: {count: 1}}]
-`+tt.fill)
+`+tt.content)
 			parsed, err := ParsePolicyWithParent(child, parent, nil)
 			if tt.wantError {
-				require.Error(t, err)
+				require.ErrorContains(t, err, "required slots are empty")
 				return
 			}
 			require.NoError(t, err)
 			assert.Equal(t, tt.comments, extensionComments(parsed))
 			if tt.name == "omitted" {
 				assert.Same(t, parent.ApprovalRules[0], parsed.FindApprovalRule("extra", "review"))
-			} else if tt.name == "cleared" {
+			} else if tt.name == "cleared" || tt.name == "null" {
 				assert.Nil(t, parsed.FindApprovalRule("extra", "review"))
 			}
 		})
@@ -178,7 +179,7 @@ approval_rules: [{name: review, requires: {count: 1}}]
 
 func TestApprovalExtensionSelectedMethods(t *testing.T) {
 	parent := extensionConfig(t, `
-policy: {approval: [retained, {slot: extra}]}
+policy: {approval: [retained, {slot: {name: extra}}]}
 slots: {extra: [retained, replaced]}
 approval_rules:
   - name: retained
@@ -212,24 +213,24 @@ approval_rules:
 	assert.Equal(t, []string{"parent", "replaced", "unused"}, extensionComments(standalone))
 }
 
-func TestApprovalExtensionInvalidFills(t *testing.T) {
+func TestApprovalExtensionInvalidSlotContents(t *testing.T) {
 	for _, test := range []struct {
 		name, slot string
 		parent     bool
 	}{
-		{"replaced parent fill", "extra", true},
-		{"unused parent fill", "unused", true},
-		{"child fill", "extra", false},
-		{"unused child fill", "unused", false},
+		{"replaced parent content", "extra", true},
+		{"unused parent content", "unused", true},
+		{"child content", "extra", false},
+		{"unused child content", "unused", false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			parent := extensionConfig(t, "policy: {approval: [{slot: extra}]}")
+			parent := extensionConfig(t, "policy: {approval: [{slot: {name: extra}}]}")
 			child := extensionConfig(t, "policy: {approval_extends: {remote: example/policies}}\nslots: {extra: []}")
-			badFill := Slots{test.slot: {"missing"}}
+			badContent := Slots{test.slot: {"missing"}}
 			if test.parent {
-				parent.Slots = badFill
+				parent.Slots = badContent
 			} else {
-				child.Slots = badFill
+				child.Slots = badContent
 			}
 			_, err := ParsePolicyWithParent(child, parent, nil)
 			require.ErrorContains(t, err, "undefined rule 'missing'")
@@ -237,28 +238,28 @@ func TestApprovalExtensionInvalidFills(t *testing.T) {
 	}
 	t.Run("undeclared parent default", func(t *testing.T) {
 		parent := extensionConfig(t, `
-policy: {approval: [{slot: extra}]}
+policy: {approval: [{slot: {name: extra}}]}
 slots: {unused: [review]}
 approval_rules: [{name: review}]
 `)
 		child := extensionConfig(t, `policy: {approval_extends: {remote: example/policies}}`)
 		_, err := ParsePolicyWithParent(child, parent, nil)
-		require.ErrorContains(t, err, `slot fill "unused" does not match a declared slot`)
+		require.ErrorContains(t, err, `slot content "unused" does not match a declared slot`)
 	})
 	child := extensionConfig(t, `policy: {approval_extends: {remote: example/policies}}`)
 	_, err := ParsePolicyWithParent(child, child, nil)
 	assert.ErrorContains(t, err, "parent cannot specify approval_extends")
 	_, err = ParsePolicyWithParent(&Config{}, child, nil)
 	assert.ErrorContains(t, err, "without approval_extends")
-	parent := extensionConfig(t, `policy: {approval: [{slot: extra, required: true}]}`)
+	parent := extensionConfig(t, `policy: {approval: [{slot: {name: extra, required: true}}]}`)
 	_, err = ParsePolicyWithParent(child, parent, nil)
 	assert.ErrorContains(t, err, "required slots are empty")
 
-	for _, fillOwner := range []string{"parent", "child"} {
-		t.Run("foreign rule in "+fillOwner+" fill", func(t *testing.T) {
-			parent := extensionConfig(t, `policy: {approval: [{slot: extra}]}`)
+	for _, contentOwner := range []string{"parent", "child"} {
+		t.Run("foreign rule in "+contentOwner+" content", func(t *testing.T) {
+			parent := extensionConfig(t, `policy: {approval: [{slot: {name: extra}}]}`)
 			child := extensionConfig(t, `policy: {approval_extends: {remote: example/policies}}`)
-			if fillOwner == "parent" {
+			if contentOwner == "parent" {
 				parent.Slots = Slots{"extra": {"foreign"}}
 				child.ApprovalRules = []*approval.Rule{{Name: "foreign"}}
 			} else {
@@ -320,7 +321,7 @@ func TestApprovalExtensionSharedDefaults(t *testing.T) {
 		}},
 	}
 	parent := extensionConfig(t, `
-policy: {approval: [review, {slot: extra}]}
+policy: {approval: [review, {slot: {name: extra}}]}
 approval_defaults: {options: {methods: {comments: [parent]}}}
 approval_rules: [{name: review, options: {ignore_edited_comments: false}}]
 `)

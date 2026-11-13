@@ -48,7 +48,7 @@ func TestConfigFetcherForcedSharedParentPath(t *testing.T) {
 			if test.parentPath != "" {
 				remote += ", path: " + test.parentPath
 			}
-			child := "policy: {approval_extends: {" + remote + "}}" + childSlotFill
+			child := "policy: {approval_extends: {" + remote + "}}" + childSlotContent
 			client := extensionTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 				var content string
 				switch r.Method + " " + r.URL.Path {

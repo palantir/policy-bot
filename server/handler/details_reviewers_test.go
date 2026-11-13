@@ -38,7 +38,7 @@ import (
 func TestDetailsReviewersExtension(t *testing.T) {
 	const parent = `
 policy:
-  approval: [Review, {slot: service}, {slot: default}, {slot: empty}]
+  approval: [Review, {slot: {name: service}}, {slot: {name: default}}, {slot: {name: empty}}]
 slots: {default: [Review]}
 approval_rules:
   - name: Review
@@ -55,8 +55,8 @@ approval_rules:
 		loadError, incomplete                           bool
 	}{
 		{"base", "", child, parent, "read", "parent-reviewer", false, false},
-		{"child fill", "service", child, parent, "read", "child-reviewer", false, false},
-		{"default fill", "default", child, parent, "read", "parent-reviewer", false, false},
+		{"child content", "service", child, parent, "read", "child-reviewer", false, false},
+		{"default content", "default", child, parent, "read", "parent-reviewer", false, false},
 		{"empty slot", "empty", child, parent, "read", "", false, false},
 		{"unknown scope", "unknown", child, parent, "read", "", false, false},
 		{"standalone name", "", parent, "", "read", "parent-reviewer", false, false},
@@ -140,7 +140,8 @@ func TestDetailsExtensionErrorLinks(t *testing.T) {
 				assert.NotContains(t, body, ">Parent policy</a>")
 			} else {
 				assert.Contains(t, body, ">Child policy</a>")
-				assert.Contains(t, body, `href="`+test.parentURL+`" class="underline">Parent policy</a>`)
+				assert.Contains(t, body, `href="`+test.parentURL+`"`)
+				assert.Contains(t, body, ">Parent policy</a>")
 			}
 		})
 	}

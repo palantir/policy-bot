@@ -49,7 +49,7 @@ func TestParseConfigPostsStatusForSeenPolicy(t *testing.T) {
 }
 
 func TestExtensionPolicyErrorSources(t *testing.T) {
-	const parentPolicy = "policy: {approval: [{slot: service, required: true}]}"
+	const parentPolicy = "policy: {approval: [{slot: {name: service, required: true}}]}"
 	for _, test := range []struct {
 		name, child, parent, message string
 	}{

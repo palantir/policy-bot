@@ -841,8 +841,9 @@ policy requires both platform and service review:
 policy:
   approval:
     - Platform review
-    - slot: service-review
-      required: true
+    - slot:
+        name: service-review
+        required: true
 
 slots:
   service-review:
@@ -870,7 +871,8 @@ policy:
   approval:
     - or:
         - Emergency approval
-        - slot: additional-review
+        - slot:
+            name: additional-review
 
 slots:
   additional-review:
@@ -878,16 +880,13 @@ slots:
     - Security review
 ```
 
-An optional slot (the default) skips when it has no content. With `required: true`,
-the slot must contain at least one rule after default rules and child slot values
-are applied. An empty required slot makes the whole policy invalid, including
-inside `or`. This does not require the rules in the slot to approve: they still
-use their usual predicates and approval requirements, and may be skipped or be
-part of an `or` expression. Null slot values are invalid. If all approval entries
-skip, Policy Bot reports an error.
+By default, slots are optional and may be left empty. If the slot sets
+`required: true`, the policy must define at least one rule that fills the slot.
+A policy is invalid if there is a required slot that is missing rules. In a
+standalone policy, every element in the `slots` map must match a declared slot
+in the policy.
 
-In a standalone policy, defining values for slots that do not exist makes the
-policy invalid. The details page labels filled slots and hides empty ones.
+The details page labels filled slots and hides empty ones.
 
 #### Extending a Shared Approval Policy
 
@@ -900,8 +899,9 @@ contains this parent policy in `.policy.yml`:
 policy:
   approval:
     - Platform review
-    - slot: repository-checks
-      required: true
+    - slot:
+        name: repository-checks
+        required: true
 
 approval_rules:
   - name: Platform review
@@ -937,8 +937,8 @@ from the file that defines the rules.
 
 If a child policy does not define a new value for a slot, the parent's default
 rules are used. A value from the child fully replaces the default content from
-the parent; `[]` clears it. A parent with an empty required slot is valid only
-when extended by a child that provides rules for that slot. Parent slot values
+the parent; `[]` or `null` clears it. A parent with an empty required slot is valid
+only when extended by a child that provides rules for that slot. Parent slot values
 must match defined slots. Child values for slots that do not exist are ignored,
 but all values must be valid, including default rules that the child replaces.
 

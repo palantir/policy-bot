@@ -28,7 +28,7 @@ type evaluator struct {
 }
 
 // Rules returns the rules retained in the approval tree, including selected
-// slot fills. It does not evaluate predicates, so future relevant events still
+// slot content. It does not evaluate predicates, so future relevant events still
 // trigger evaluation when a rule is currently skipped.
 func Rules(eval common.Evaluator) []*Rule {
 	var rules []*Rule

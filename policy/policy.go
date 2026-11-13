@@ -45,23 +45,6 @@ type Config struct {
 
 type Slots map[string]approval.Policy
 
-func (s *Slots) UnmarshalYAML(unmarshal func(any) error) error {
-	var fills map[any]approval.Policy
-	if err := unmarshal(&fills); err != nil {
-		return err
-	}
-	result := make(Slots, len(fills))
-	for key, fill := range fills {
-		name, ok := key.(string)
-		if !ok {
-			return errors.New("slot fill name must be a string")
-		}
-		result[name] = fill
-	}
-	*s = result
-	return nil
-}
-
 type Policy struct {
 	Approval        approval.Policy      `yaml:"approval,omitempty"`
 	ApprovalExtends *appconfig.RemoteRef `yaml:"approval_extends,omitempty"`
@@ -195,8 +178,7 @@ func ParsePolicyWithParent(child, parent *Config, opts *GlobalOptions) (*ParsedP
 		}
 		return nil, err
 	}
-	slots := make(map[string]*approval.SlotRule)
-	evalApproval, err := base.Policy.Approval.Parse(baseRules, slots)
+	evalApproval, slots, err := base.Policy.Approval.Parse(baseRules)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to parse %s", baseDescription)
 	}
@@ -204,7 +186,7 @@ func ParsePolicyWithParent(child, parent *Config, opts *GlobalOptions) (*ParsedP
 		baseRules: baseRules,
 		slotRules: make(map[string]map[string]*approval.Rule),
 	}
-	if err := parsed.applyFills(base, baseRules, slots); err != nil {
+	if err := parsed.applySlotContents(base, baseRules, slots); err != nil {
 		if parent != nil {
 			return nil, errors.WithMessage(err, "failed to parse parent approval policy")
 		}
@@ -215,7 +197,7 @@ func ParsePolicyWithParent(child, parent *Config, opts *GlobalOptions) (*ParsedP
 		if err != nil {
 			return nil, errors.WithMessage(err, "failed to parse child approval rules")
 		}
-		if err := parsed.applyFills(child, childRules, slots); err != nil {
+		if err := parsed.applySlotContents(child, childRules, slots); err != nil {
 			return nil, errors.WithMessage(err, "failed to parse child slot values")
 		}
 	}
@@ -290,19 +272,19 @@ func prepareRules(c *Config, opts *GlobalOptions) (map[string]*approval.Rule, er
 	return rulesByName, nil
 }
 
-func (p *ParsedPolicy) applyFills(c *Config, rulesByName map[string]*approval.Rule, slots map[string]*approval.SlotRule) error {
-	for name, fill := range c.Slots {
-		if name == "" || fill == nil {
-			return errors.Errorf("slot fill %q must have a nonempty name and a non-null list of rules", name)
+func (p *ParsedPolicy) applySlotContents(c *Config, rulesByName map[string]*approval.Rule, slots map[string]*approval.SlotRule) error {
+	for name, slotContent := range c.Slots {
+		if name == "" {
+			return errors.New("slot name must be nonempty")
 		}
-		child, err := fill.ParseFill(rulesByName)
+		child, err := slotContent.ParseAsSlotFill(rulesByName)
 		if err != nil {
-			return errors.Wrapf(err, "failed to parse slot fill %q", name)
+			return errors.Wrapf(err, "failed to parse slot content %q", name)
 		}
 		slot := slots[name]
 		if slot == nil {
 			if c.Policy.ApprovalExtends == nil {
-				return errors.Errorf("slot fill %q does not match a declared slot", name)
+				return errors.Errorf("slot content %q does not match a declared slot", name)
 			}
 			continue
 		}

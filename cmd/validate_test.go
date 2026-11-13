@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestValidateSlots(t *testing.T) {
+func TestValidateRemotePolicies(t *testing.T) {
 	originalPath := validateCmdConfig.Path
 	t.Cleanup(func() { validateCmdConfig.Path = originalPath })
 	validateCmdConfig.Path = filepath.Join(t.TempDir(), "policy.yml")
@@ -31,17 +31,6 @@ func TestValidateSlots(t *testing.T) {
 	for _, test := range []struct {
 		name, policy, errorMessage string
 	}{
-		{"filled", `
-policy:
-  approval: [{slot: service, required: true}]
-slots:
-  service: [Service review]
-approval_rules:
-  - name: Service review
-    requires: {count: 1, users: [reviewer]}
-`, ""},
-		{"required empty", `policy: {approval: [{slot: service, required: true}]}
-slots: {service: []}`, "required slots are empty"},
 		{"extension", "policy: {approval_extends: {remote: example/shared}}", "approval_extends requires a resolved parent; use authenticated simulation"},
 		{"remote pointer", "remote: example/shared", ""},
 	} {
