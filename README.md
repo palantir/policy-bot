@@ -840,8 +840,9 @@ both platform and service review:
 policy:
   approval:
     - Platform review
-    - slot: service-review
-      required: true
+    - slot:
+        name: service-review
+        required: true
 
 slots:
   service-review:
@@ -869,7 +870,8 @@ policy:
   approval:
     - or:
         - Emergency approval
-        - slot: additional-review
+        - slot:
+            name: additional-review
 
 slots:
   additional-review:
@@ -877,14 +879,11 @@ slots:
     - Security review
 ```
 
-An optional slot (the default) skips when its content is omitted or `[]`. With
-`required: true`, the slot must contain at least one rule. An omitted or empty
-fill makes the whole policy invalid, including inside `or`. This does not require
-the rules in the slot to approve: they still use their usual predicates and
-approval requirements, and may be skipped or be part of an `or` expression.
-Null fills are invalid. If all approval entries skip, Policy Bot reports an error.
+By default, slots are optional and may be left empty. If the slot sets
+`required: true`, the policy must define at least one rule that fills the slot.
+A policy is invalid if there is a required slot that is missing rules. Every
+element in the `slots` map must match a declared slot in the policy.
 
-Every fill must match a declared slot; an undeclared fill makes the policy invalid.
 The details page labels filled slots and hides empty ones.
 
 ### Disapproval Policy

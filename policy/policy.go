@@ -44,23 +44,6 @@ type Config struct {
 
 type Slots map[string]approval.Policy
 
-func (s *Slots) UnmarshalYAML(unmarshal func(any) error) error {
-	var fills map[any]approval.Policy
-	if err := unmarshal(&fills); err != nil {
-		return err
-	}
-	result := make(Slots, len(fills))
-	for key, fill := range fills {
-		name, ok := key.(string)
-		if !ok {
-			return errors.New("slot fill name must be a string")
-		}
-		result[name] = fill
-	}
-	*s = result
-	return nil
-}
-
 type Policy struct {
 	Approval    approval.Policy     `yaml:"approval,omitempty"`
 	Disapproval *disapproval.Policy `yaml:"disapproval,omitempty"`
@@ -116,22 +99,21 @@ func ParsePolicy(c *Config, opts *GlobalOptions) (common.Evaluator, error) {
 		rulesByName[r.Name] = r
 	}
 
-	slots := make(map[string]*approval.SlotRule)
-	evalApproval, err := c.Policy.Approval.Parse(rulesByName, slots)
+	evalApproval, slots, err := c.Policy.Approval.Parse(rulesByName)
 	if err != nil {
 		return nil, errors.WithMessage(err, "failed to parse approval policy")
 	}
-	for name, fill := range c.Slots {
-		if name == "" || fill == nil {
-			return nil, errors.Errorf("slot fill %q must have a nonempty name and a non-null list of rules", name)
+	for name, slotContent := range c.Slots {
+		if name == "" {
+			return nil, errors.New("slot name must be nonempty")
 		}
-		child, err := fill.ParseFill(rulesByName)
+		child, err := slotContent.ParseAsSlotFill(rulesByName)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to parse slot fill %q", name)
+			return nil, errors.Wrapf(err, "failed to parse slot content %q", name)
 		}
 		slot := slots[name]
 		if slot == nil {
-			return nil, errors.Errorf("slot fill %q does not match a declared slot", name)
+			return nil, errors.Errorf("slot content %q does not match a declared slot", name)
 		}
 		slot.Child = child
 	}
