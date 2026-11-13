@@ -1347,6 +1347,32 @@ generated values:
 standard metrics and structured log keys. Please see those projects for
 details.
 
+#### Pull requests from forks <!-- omit in toc -->
+
+GitHub can omit pull request associations from workflow-run completion events
+for forks. For workflows triggered by `pull_request` or `pull_request_target`,
+`policy-bot` falls back to looking up open pull requests by the completed run's
+commit SHA. Each eligible completion event performs a lookup, and policy
+evaluations use current pull request state.
+
+This fallback supports policies using `has_workflow_result`. It does not run
+for check-run events or workflows triggered by `push`, schedules, manual
+dispatch, or `workflow_run` (including privileged follow-up workflows chained
+from a pull request workflow). Third-party Checks API completions without PR
+associations remain unsupported by this fallback. Policies using only
+`has_status`, without a workflow-result condition, are not reevaluated by this
+workflow trigger. Events that already contain pull request associations
+retain their normal evaluation behavior.
+
+GitHub's commit-to-pull-request index can lag behind a push. If the lookup
+returns no matching pull request, its policy status can remain stale until a
+later event triggers another evaluation. No background retry is scheduled.
+
+If CI has finished but the policy status has not updated, open the policy-bot
+status check's **Details** link. An authorized user viewing that page triggers
+a fresh policy evaluation and updates the status for an open pull request.
+This does not bypass any policy requirements.
+
 ## Development
 
 To develop `policy-bot`, you will need a [Go installation](https://golang.org/doc/install).

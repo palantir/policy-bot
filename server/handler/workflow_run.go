@@ -52,8 +52,23 @@ func (h *WorkflowRun) Handle(ctx context.Context, eventType, deliveryID string, 
 
 	ctx, logger := githubapp.PrepareRepoContext(ctx, installationID, repo)
 
+	prs := event.GetWorkflowRun().PullRequests
+	fallback := len(prs) == 0
+	if fallback {
+		switch event.GetWorkflowRun().GetEvent() {
+		case "pull_request", "pull_request_target":
+		default:
+			return nil
+		}
+		var err error
+		prs, err = h.completionPullRequests(ctx, installationID, repo, commitSHA, nil)
+		if err != nil {
+			return err
+		}
+	}
+
 	evaluationFailures := 0
-	for _, pr := range event.GetWorkflowRun().PullRequests {
+	for _, pr := range prs {
 		// The `workflow_run` event includes pull requests that contain the SHA
 		// which is being checked. These can be pull requests _from_ our
 		// repository _to_ another one, for example if it's been forked and
@@ -66,11 +81,17 @@ func (h *WorkflowRun) Handle(ctx context.Context, eventType, deliveryID string, 
 			continue
 		}
 
-		if err := h.Evaluate(ctx, installationID, common.TriggerWorkflowRun, pull.Locator{
+		value := pr
+		if fallback {
+			// Reload current PR state before evaluating a discovered association.
+			value = nil
+		}
+
+		if err := h.evaluateWorkflowPullRequest(ctx, installationID, commitSHA, pull.Locator{
 			Owner:  ownerName,
 			Repo:   repoName,
 			Number: pr.GetNumber(),
-			Value:  pr,
+			Value:  value,
 		}); err != nil {
 			evaluationFailures++
 			logger.Error().Err(err).Msgf("Failed to evaluate pull request '%d' for SHA '%s'", pr.GetNumber(), commitSHA)
@@ -81,4 +102,19 @@ func (h *WorkflowRun) Handle(ctx context.Context, eventType, deliveryID string, 
 	}
 
 	return errors.Errorf("failed to evaluate %d pull requests", evaluationFailures)
+}
+
+func (h *WorkflowRun) evaluateWorkflowPullRequest(ctx context.Context, installationID int64, sha string, loc pull.Locator) error {
+	if loc.Value != nil {
+		return h.Evaluate(ctx, installationID, common.TriggerWorkflowRun, loc)
+	}
+	evalCtx, err := h.NewEvalContext(ctx, installationID, loc)
+	if err != nil {
+		return err
+	}
+	// A discovered PR may have closed or moved since the lookup.
+	if !evalCtx.PullContext.IsOpen() || evalCtx.PullContext.HeadSHA() != sha {
+		return nil
+	}
+	return evalCtx.Evaluate(ctx, common.TriggerWorkflowRun)
 }

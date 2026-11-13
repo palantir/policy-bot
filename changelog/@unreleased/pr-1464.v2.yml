@@ -1,0 +1,5 @@
+type: fix
+fix:
+  description: Reevaluate fork pull requests after PR-triggered GitHub Actions workflows complete without pull request associations.
+  links:
+  - https://github.com/palantir/policy-bot/pull/1464
