@@ -1161,10 +1161,15 @@ evaluation if there are no status checks. This is guaranteed to be after the
 actual push time, but the delay may be arbitrarily large based on GitHub
 webhook delivery behavior and processing time in `policy-bot`.
 
-In practice, this means that adding an approval immediately after (within a few
-seconds of) a push may not approve the pull request. If this happens, leave a
-second approval comment or review after `policy-bot` adds the "pending" status
-check.
+Reviews associated with the current head commit are not invalidated by the push
+time estimate. GitHub may also update a review's associated commit after a clean
+base-branch merge that leaves the reviewed diff unchanged. Such reviews remain
+valid without enabling `ignore_update_merges`.
+
+For approval comments and reviews without a matching head commit, adding an
+approval immediately after (within a few seconds of) a push may not approve the
+pull request. If this happens, leave a second approval comment or a review of the
+current head after `policy-bot` adds the "pending" status check.
 
 `policy-bot` caches push times in memory to improve performance and reduce API
 requests.
