@@ -90,6 +90,60 @@ func TestScenarioEvaluation(t *testing.T) {
 	}
 }
 
+func TestScenarioEvaluationBodyPatterns(t *testing.T) {
+	const bodyPolicy = `
+policy:
+  approval:
+  - the author self-approves
+approval_rules:
+- name: the author self-approves
+  options:
+    allow_author: true
+    methods:
+      body_patterns:
+      - "^no review needed$"
+  requires:
+    count: 1
+    users:
+    - "alice"
+`
+
+	var cfg policy.Config
+	require.NoError(t, yaml.UnmarshalStrict([]byte(bodyPolicy), &cfg))
+	eval, err := policy.ParsePolicy(&cfg, nil)
+	require.NoError(t, err)
+
+	cases := []struct {
+		name string
+		sc   scenario
+		want string
+	}{
+		{
+			"no body is pending",
+			scenario{Author: "alice"},
+			"pending",
+		},
+		{
+			"non-matching body is pending",
+			scenario{Author: "alice", Body: "please review"},
+			"pending",
+		},
+		{
+			"matching body approves",
+			scenario{Author: "alice", Body: "no review needed"},
+			"approved",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res := eval.Evaluate(context.Background(), tc.sc.toContext())
+			require.NoError(t, res.Error)
+			assert.Equal(t, tc.want, res.Status.String())
+		})
+	}
+}
+
 func TestScenarioToContext(t *testing.T) {
 	sc := scenario{
 		Author:       "alice",
