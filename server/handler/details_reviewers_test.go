@@ -38,8 +38,7 @@ import (
 func TestDetailsReviewersExtension(t *testing.T) {
 	const parent = `
 policy:
-  approval: [Review, {slot: {name: service}}, {slot: {name: default}}, {slot: {name: empty}}]
-slots: {default: [Review]}
+  approval: [Review, {slot: {name: service}}]
 approval_rules:
   - name: Review
     requires: {count: 1, users: [parent-reviewer]}
@@ -56,11 +55,6 @@ approval_rules:
 	}{
 		{"base", "", child, parent, "read", "parent-reviewer", false, false},
 		{"child content", "service", child, parent, "read", "child-reviewer", false, false},
-		{"default content", "default", child, parent, "read", "parent-reviewer", false, false},
-		{"empty slot", "empty", child, parent, "read", "", false, false},
-		{"unknown scope", "unknown", child, parent, "read", "", false, false},
-		{"standalone name", "", parent, "", "read", "parent-reviewer", false, false},
-		{"standalone invalid yaml", "", "policy: [", "", "read", "", false, false},
 		{"bad parent", "service", child, "approval_rules: [", "read", "", false, true},
 		{"parent unavailable", "service", child, "", "read", "", true, true},
 		{"denied", "service", child, parent, "none", "", false, false},

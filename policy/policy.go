@@ -125,7 +125,7 @@ func ParsePolicy(c *Config, opts *GlobalOptions) (common.Evaluator, error) {
 }
 
 // ParsedPolicy provides the evaluator, event methods, and rule lookup for one
-// resolved policy. Slot rule lookup uses the file that supplied the slot value.
+// resolved policy. Slot rule lookup uses the file that supplied the slot content.
 type ParsedPolicy struct {
 	evaluator
 	baseRules map[string]*approval.Rule
@@ -144,7 +144,7 @@ func (p *ParsedPolicy) FindApprovalRule(slot, name string) *approval.Rule {
 	return p.slotRules[slot][name]
 }
 
-// ParsePolicyWithParent applies the child's slot values to the parent's approval
+// ParsePolicyWithParent applies the child's slot content to the parent's approval
 // policy. Rules use the defaults from the file that defines them, and only the
 // child's disapproval policy applies. Pass a nil parent for a standalone policy.
 func ParsePolicyWithParent(child, parent *Config, opts *GlobalOptions) (*ParsedPolicy, error) {
@@ -198,7 +198,7 @@ func ParsePolicyWithParent(child, parent *Config, opts *GlobalOptions) (*ParsedP
 			return nil, errors.WithMessage(err, "failed to parse child approval rules")
 		}
 		if err := parsed.applySlotContents(child, childRules, slots); err != nil {
-			return nil, errors.WithMessage(err, "failed to parse child slot values")
+			return nil, errors.WithMessage(err, "failed to parse child slot content")
 		}
 	}
 	var missing []string
@@ -277,7 +277,7 @@ func (p *ParsedPolicy) applySlotContents(c *Config, rulesByName map[string]*appr
 		if name == "" {
 			return errors.New("slot name must be nonempty")
 		}
-		child, err := slotContent.ParseAsSlotFill(rulesByName)
+		slotEvaluator, err := slotContent.ParseAsSlotFill(rulesByName)
 		if err != nil {
 			return errors.Wrapf(err, "failed to parse slot content %q", name)
 		}
@@ -288,8 +288,8 @@ func (p *ParsedPolicy) applySlotContents(c *Config, rulesByName map[string]*appr
 			}
 			continue
 		}
-		slot.Child = child
-		if child == nil {
+		slot.Child = slotEvaluator
+		if slotEvaluator == nil {
 			delete(p.slotRules, name)
 		} else {
 			p.slotRules[name] = rulesByName

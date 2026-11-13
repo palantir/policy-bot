@@ -937,10 +937,11 @@ from the file that defines the rules.
 
 If a child policy does not define a new value for a slot, the parent's default
 rules are used. A value from the child fully replaces the default content from
-the parent; `[]` or `null` clears it. A parent with an empty required slot is valid
-only when extended by a child that provides rules for that slot. Parent slot values
-must match defined slots. Child values for slots that do not exist are ignored,
-but all values must be valid, including default rules that the child replaces.
+the parent; `[]` or `null` clears it.
+
+The parent's `slots` entries must match declared slots. Content for undeclared
+slots is ignored in child policies, but all slot content must be valid, including
+parent defaults that the child replaces.
 
 `approval_extends` and `approval` are mutually exclusive. The parent must be a
 literal policy: it cannot contain `approval_extends` or a top-level `remote`
@@ -949,8 +950,7 @@ contains `approval_extends`. Disapproval is not inherited from the parent;
 the child policy may define its own `policy.disapproval`.
 
 Parent references use the [remote configuration](#remote-policy-configuration)
-defaults and access settings, starting with the GitHub App installation for
-the pull request's repository.
+defaults and access settings.
 
 Use the authenticated [simulation API](#simulation-api) on an existing pull request
 to test a child policy loaded from GitHub. The CLI `validate` command and

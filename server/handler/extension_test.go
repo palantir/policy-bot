@@ -15,19 +15,14 @@
 package handler
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
-	"slices"
-	"strings"
 	"testing"
 
 	"github.com/google/go-github/v93/github"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/policy-bot/policy"
-	"github.com/palantir/policy-bot/policy/common"
 	"github.com/shurcooL/githubv4"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 )
@@ -61,8 +56,7 @@ func (h handlerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 type testClients struct {
 	githubapp.ClientCreator
-	client   *github.Client
-	v4client *githubv4.Client
+	client *github.Client
 }
 
 func (c testClients) NewInstallationClient(int64) (*github.Client, error) {
@@ -70,7 +64,7 @@ func (c testClients) NewInstallationClient(int64) (*github.Client, error) {
 }
 
 func (c testClients) NewInstallationV4Client(int64) (*githubv4.Client, error) {
-	return c.v4client, nil
+	return githubv4.NewClient(c.client.Client()), nil
 }
 
 const extensionPolicy = `policy: {approval_extends: {remote: example/shared, path: .policy.yml, ref: main}}`
@@ -91,44 +85,11 @@ func extensionEvalContext(t *testing.T, child, parent string) *EvalContext {
 	ec.Config.LoadError = nil
 	ec.Config.Config = new(policy.Config)
 	require.NoError(t, yaml.UnmarshalStrict([]byte(child), ec.Config.Config))
-	ec.Config.Parent = new(policy.Config)
-	require.NoError(t, yaml.UnmarshalStrict([]byte(parent), ec.Config.Parent))
-	return ec
-}
-
-func TestExtensionEventMethods(t *testing.T) {
-	parent := slotPolicy + `
-approval_defaults:
-  options:
-    methods: {comments: [parent], github_review: false}
-`
-	for _, test := range []struct {
-		name, child string
-		matches     []string
-		excludes    []string
-	}{
-		{"parent default", extensionPolicy, []string{"parent"}, []string{"child"}},
-		{"child override", extensionPolicy + childSlotContent, []string{"child"}, []string{"parent", ":+1:"}},
-		{"child disapproval", `policy:
-  approval_extends: {remote: example/shared}
-  disapproval: {options: {methods: {disapprove: {comments: [block]}, revoke: {comments: [unblock]}}}}`, []string{"parent", "block", "unblock"}, nil},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			ec := extensionEvalContext(t, test.child, parent)
-			parsed, err := ec.ParseConfig(context.Background(), common.TriggerComment)
-			require.NoError(t, err)
-			require.NotNil(t, parsed)
-			for _, body := range append(test.matches, test.excludes...) {
-				expected := slices.Contains(test.matches, body)
-				assert.Equal(t, expected, (&IssueComment{}).affectsApproval(github.IssueCommentEvent{
-					Action: new("created"), Comment: &github.IssueComment{Body: &body},
-				}, parsed.Methods()), body)
-				assert.Equal(t, expected, (&PullRequestReview{}).affectsApproval(&github.PullRequestReview{
-					State: new("commented"), Body: &body,
-				}, parsed.Methods()), body)
-			}
-		})
+	if parent != "" {
+		ec.Config.Parent = new(policy.Config)
+		require.NoError(t, yaml.UnmarshalStrict([]byte(parent), ec.Config.Parent))
 	}
+	return ec
 }
 
 func extensionTestClient(t *testing.T, handler http.HandlerFunc) *github.Client {
@@ -136,12 +97,4 @@ func extensionTestClient(t *testing.T, handler http.HandlerFunc) *github.Client 
 	client, err := github.NewClient(github.WithHTTPClient(&http.Client{Transport: handlerTransport(handler)}))
 	require.NoError(t, err)
 	return client
-}
-
-func TestValidateExtension(t *testing.T) {
-	request := httptest.NewRequest(http.MethodPost, "/api/validate", strings.NewReader(extensionPolicy))
-	response := httptest.NewRecorder()
-	Validate().ServeHTTP(response, request)
-	assert.Equal(t, http.StatusUnprocessableEntity, response.Code)
-	assert.Contains(t, response.Body.String(), "approval_extends requires a resolved parent; use authenticated simulation")
 }

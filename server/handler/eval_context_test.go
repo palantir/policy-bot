@@ -54,7 +54,7 @@ func TestExtensionPolicyErrorSources(t *testing.T) {
 		name, child, parent, message string
 	}{
 		{"parent rule", extensionPolicy, "policy: {approval: [missing]}", "failed to parse parent approval policy"},
-		{"child slot", extensionPolicy + "\nslots: {service: [missing]}", parentPolicy, "failed to parse child slot values"},
+		{"child slot", extensionPolicy + "\nslots: {service: [missing]}", parentPolicy, "failed to parse child slot content"},
 		{"required slot", extensionPolicy, parentPolicy, "required slots are empty"},
 		{"parent yaml", extensionPolicy, "policy: [", "failed to parse parent policy"},
 		{"standalone", "policy: {approval: [missing]}", "", "failed to parse approval policy"},

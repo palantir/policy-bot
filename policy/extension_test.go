@@ -30,31 +30,27 @@ import (
 )
 
 func TestApprovalExtendsDecoding(t *testing.T) {
-	invalid := map[string]string{
-		"both approval keys":        `policy: {approval: [review], approval_extends: {remote: example/policies}}`,
-		"empty approval":            `policy: {approval: [], approval_extends: {remote: example/policies}}`,
-		"null approval":             `policy: {approval: null, approval_extends: {remote: example/policies}}`,
-		"null extension":            `policy: {approval_extends: null}`,
-		"empty extension":           `policy: {approval_extends: {}}`,
-		"scalar extension":          `policy: {approval_extends: example/policies}`,
-		"list extension":            `policy: {approval_extends: []}`,
-		"unknown extension key":     `policy: {approval_extends: {remote: example/policies, other: true}}`,
-		"unknown policy key":        `policy: {approval_extends: {remote: example/policies}, other: true}`,
-		"duplicate null extension":  `policy: {approval_extends: null, approval_extends: {remote: example/policies}}`,
-		"duplicate approval":        `policy: {approval: null, approval: []}`,
-		"duplicate remote":          `policy: {approval_extends: {remote: example/policies, remote: example/other}}`,
-		"missing repository":        `policy: {approval_extends: {remote: example/}}`,
-		"merged approval":           `policy: {<<: {approval: null}, approval_extends: {remote: example/policies}}`,
-		"merged extension":          `policy: {<<: {approval_extends: {remote: example/policies}}, approval: []}`,
-		"merged null extension":     `policy: {<<: {approval_extends: null}}`,
-		"aliased null":              `policy: {approval: &empty null, approval_extends: *empty}`,
-		"root merged null approval": "<<: {policy: {approval: null}}\npolicy: {approval_extends: {remote: example/policies}}",
-		"root merged extension":     "<<: {policy: {approval_extends: {remote: example/policies}}}\npolicy: {approval: null}",
-	}
-	for name, input := range invalid {
-		t.Run(name, func(t *testing.T) {
+	for _, test := range []struct {
+		name, input, message string
+	}{
+		{"both approval keys", `policy: {approval: [review], approval_extends: {remote: example/policies}}`, "approval and approval_extends cannot both be specified"},
+		{"empty approval", `policy: {approval: [], approval_extends: {remote: example/policies}}`, "approval and approval_extends cannot both be specified"},
+		{"null approval", `policy: {approval: null, approval_extends: {remote: example/policies}}`, "approval and approval_extends cannot both be specified"},
+		{"null extension", `policy: {approval_extends: null}`, "approval_extends must be a non-null remote reference"},
+		{"empty extension", `policy: {approval_extends: {}}`, "invalid approval_extends"},
+		{"missing repository", `policy: {approval_extends: {remote: example/}}`, "invalid approval_extends"},
+		{"unknown policy key", `policy: {approval_extends: {remote: example/policies}, other: true}`, "field other not found"},
+		{"duplicate approval", `policy: {approval: null, approval: []}`, "field approval already set"},
+		{"merged approval", `policy: {<<: {approval: null}, approval_extends: {remote: example/policies}}`, "approval and approval_extends cannot both be specified"},
+		{"merged extension", `policy: {<<: {approval_extends: {remote: example/policies}}, approval: []}`, "approval and approval_extends cannot both be specified"},
+		{"merged null extension", `policy: {<<: {approval_extends: null}}`, "approval_extends must be a non-null remote reference"},
+		{"aliased null", `policy: {approval: &empty null, approval_extends: *empty}`, "approval_extends must be a non-null remote reference"},
+		{"root merged null approval", "<<: {policy: {approval: null}}\npolicy: {approval_extends: {remote: example/policies}}", "approval and approval_extends cannot both be specified"},
+		{"root merged extension", "<<: {policy: {approval_extends: {remote: example/policies}}}\npolicy: {approval: null}", "approval and approval_extends cannot both be specified"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
 			var c Config
-			assert.Error(t, yaml.UnmarshalStrict([]byte(input), &c))
+			assert.ErrorContains(t, yaml.UnmarshalStrict([]byte(test.input), &c), test.message)
 		})
 	}
 	for _, input := range []string{

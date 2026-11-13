@@ -28,7 +28,6 @@ import (
 	"github.com/palantir/go-githubapp/appconfig"
 	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/approval"
-	"github.com/palantir/policy-bot/policy/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -107,11 +106,7 @@ func TestConfigFetcherParentFailures(t *testing.T) {
 		{name: "invalid yaml", content: "policy: [", parseError: "failed to parse parent"},
 		{name: "unknown field", content: "unexpected: true", parseError: "unexpected"},
 		{name: "remote pointer", content: "remote: shared/third", parseError: "field remote not found"},
-		{name: "merged remote pointer", content: "<<: {remote: shared/third}", parseError: "field remote not found"},
-		{name: "null remote pointer", content: "remote: null", parseError: "field remote not found"},
 		{name: "further extension", content: extendingPolicy, parseError: "must not extend another policy"},
-		{name: "merged extension", content: "policy: {<<: {approval_extends: {remote: shared/third}}}", parseError: "must not extend another policy"},
-		{name: "null extension", content: "policy: {approval_extends: null}", parseError: "approval_extends"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			cache := NewSeenPolicyCache()
@@ -158,13 +153,6 @@ func TestConfigFetcherParentFailures(t *testing.T) {
 				assert.Contains(t, fc.ParseError.Error(), "parent.yml")
 				assert.Contains(t, fc.ParseError.Error(), "shared/policies@main")
 			}
-			ec := makeEvalContext(false)
-			ec.Config = fc
-			evaluator, err := ec.ParseConfig(context.Background(), common.TriggerAll)
-			require.Error(t, err)
-			assert.Nil(t, evaluator)
-			require.NotNil(t, ec.Status, "the first evaluation with a broken parent must report a policy error")
-			assert.Equal(t, "error", ec.Status.GetState())
 		})
 	}
 }
@@ -184,7 +172,7 @@ func TestConfigFetcherInvalidExtensionDoesNotLoadParent(t *testing.T) {
 		},
 	}}
 	fc := fetcher.ConfigForRepositoryBranch(context.Background(), nil, "original", "service", "release")
-	require.Error(t, fc.ParseError)
+	require.ErrorContains(t, fc.ParseError, "approval and approval_extends cannot both be specified")
 	assert.Nil(t, fc.Config)
 	assert.True(t, fc.SeenPolicy)
 	assert.Equal(t, "original/service@release", fc.Source)

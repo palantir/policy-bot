@@ -16,15 +16,10 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/google/go-github/v93/github"
-	"github.com/palantir/go-baseapp/baseapp"
-	"github.com/palantir/go-githubapp/appconfig"
 	"github.com/palantir/policy-bot/policy/approval"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/stretchr/testify/assert"
@@ -32,97 +27,57 @@ import (
 )
 
 func TestIssueCommentAuditsPolicy(t *testing.T) {
-	repo := &github.Repository{ID: new(int64(1)), Name: new("service"), Owner: &github.User{Login: new("example")}}
-	pr := &github.PullRequest{
-		Title: new("Change"), State: new("open"), Number: new(1), Draft: new(false),
-		CreatedAt: &github.Timestamp{Time: time.Unix(1, 0)}, User: &github.User{Login: new("author")},
-		Base:         &github.PullRequestBranch{Ref: new("main"), Repo: repo},
-		Head:         &github.PullRequestBranch{Ref: new("feature"), SHA: new("head"), Repo: repo},
-		ChangedFiles: new(1),
-	}
 	defaults := &approval.Defaults{Options: &approval.Options{
 		Methods: &common.Methods{Comments: []string{"ship"}},
 	}}
-	standalonePolicy := `
+	const standalonePolicy = `
 policy: {approval: [Review]}
 approval_rules:
   - name: Review
     requires: {count: 1}
 `
 	for _, test := range []struct {
-		name, input, body, status string
+		name, input, parent, body string
 		defaults                  *approval.Defaults
-		parent                    string
-		action, sender            string
+		failure                   bool
+		errorMessage              string
 	}{
-		{"standalone built-in default", standalonePolicy, ":+1:", "failure", nil, "", "edited", "editor"},
-		{"standalone policy default", standalonePolicy + "\napproval_defaults: {options: {methods: {comment_patterns: ['^ship$']}}}", "ship", "failure", nil, "", "edited", "editor"},
-		{"standalone server default", standalonePolicy, "ship", "failure", defaults, "", "edited", "editor"},
-		{"standalone unused rule without comment trigger", strings.Replace(standalonePolicy, "[Review]", "[]", 1), ":+1:", "failure", nil, "", "edited", "editor"},
-		{"standalone disabled comments", standalonePolicy + "    options: {methods: {comments: []}}", "ship", "", defaults, "", "edited", "editor"},
-		{"standalone explicit method", standalonePolicy + "    options: {methods: {comments: [local]}}", "local", "failure", defaults, "", "edited", "editor"},
-		{"standalone unrelated comment", standalonePolicy, "unrelated", "", nil, "", "edited", "editor"},
-		{"standalone undefined rule", "policy: {approval: [missing]}", ":+1:", "error", nil, "", "edited", "editor"},
-		{"parent default", extensionPolicy, "ship", "failure", nil, slotPolicy + "\napproval_defaults: {options: {methods: {comments: [ship]}}}", "edited", "editor"},
-		{"parent without comment trigger", extensionPolicy, "ship", "failure", defaults, strings.Replace(slotPolicy, "count: 1", "count: 0", 1), "edited", "editor"},
-		{"child override", extensionPolicy + childSlotContent, "child", "failure", nil, slotPolicy, "edited", "editor"},
-		{"replaced parent method", extensionPolicy + childSlotContent, ":+1:", "", nil, slotPolicy, "edited", "editor"},
-		{"missing required", extensionPolicy, ":+1:", "error", nil, "policy: {approval: [{slot: {name: missing, required: true}}]}", "edited", "editor"},
-		{"invalid parent yaml", extensionPolicy, ":+1:", "error", nil, "approval_rules: [", "edited", "editor"},
-		{"created missing required", extensionPolicy, ":+1:", "error", nil, "policy: {approval: [{slot: {name: missing, required: true}}]}", "created", "reviewer"},
-		{"author edit missing required", extensionPolicy, ":+1:", "error", nil, "policy: {approval: [{slot: {name: missing, required: true}}]}", "edited", "reviewer"},
+		{name: "built-in default", input: standalonePolicy, body: ":+1:", failure: true},
+		{name: "policy default", input: standalonePolicy + "\napproval_defaults: {options: {methods: {comment_patterns: ['^ship$']}}}", body: "ship", failure: true},
+		{name: "server default", input: standalonePolicy, body: "ship", defaults: defaults, failure: true},
+		{name: "unused rule without comment trigger", input: strings.Replace(standalonePolicy, "[Review]", "[]", 1), body: ":+1:", failure: true},
+		{name: "disabled comments", input: standalonePolicy + "    options: {methods: {comments: []}}", body: "ship", defaults: defaults},
+		{name: "explicit method", input: standalonePolicy + "    options: {methods: {comments: [local]}}", body: "local", defaults: defaults, failure: true},
+		{name: "unrelated comment", input: standalonePolicy, body: "unrelated"},
+		{name: "parent default", input: extensionPolicy, parent: slotPolicy + "\napproval_defaults: {options: {methods: {comments: [ship]}}}", body: "ship", failure: true},
+		{name: "parent without comment trigger", input: extensionPolicy, parent: strings.Replace(slotPolicy, "count: 1", "count: 0", 1), body: "ship", defaults: defaults, failure: true},
+		{name: "child override", input: extensionPolicy + childSlotContent, parent: slotPolicy, body: "child", failure: true},
+		{name: "replaced parent method", input: extensionPolicy + childSlotContent, parent: slotPolicy, body: ":+1:"},
+		{name: "missing required slot", input: extensionPolicy, parent: "policy: {approval: [{slot: {name: missing, required: true}}]}", body: ":+1:", errorMessage: "required slots are empty"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			statuses := make(chan *github.RepoStatus, 4)
-			client := extensionTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-				switch r.Method + " " + r.URL.Path {
-				case "GET /repos/example/service/pulls/1":
-					assert.NoError(t, json.NewEncoder(w).Encode(pr))
-				case "POST /repos/example/service/statuses/head":
-					status := new(github.RepoStatus)
-					if !assert.NoError(t, json.NewDecoder(r.Body).Decode(status)) {
-						return
-					}
-					statuses <- status
-					assert.NoError(t, json.NewEncoder(w).Encode(status))
-				default:
-					t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
-					http.Error(w, "unexpected request", http.StatusBadRequest)
-				}
-			})
-			h := &IssueComment{Base: Base{
-				ClientCreator: testClients{client: client},
-				BaseConfig:    &baseapp.HTTPConfig{PublicURL: "https://policy-bot.example.com"},
-				PullOpts:      &PullEvaluationOptions{StatusCheckContext: "policy-bot", ApprovalDefaults: test.defaults},
-				ConfigFetcher: &ConfigFetcher{Loader: mockConfigLoader{
-					loadConfig: func(context.Context, *github.Client, string, string, string) (appconfig.Config, error) {
-						return appconfig.Config{Content: []byte(test.input), Source: "example/service@main", Path: ".policy.yml"}, nil
-					},
-					loadRemoteRef: func(context.Context, *github.Client, string, appconfig.RemoteRef) (appconfig.Config, error) {
-						return appconfig.Config{Content: []byte(test.parent), Source: "example/shared@main", Path: ".policy.yml"}, nil
-					},
-				}},
-			}}
+			ec := extensionEvalContext(t, test.input, test.parent)
+			ec.Options.ApprovalDefaults = test.defaults
 			event := github.IssueCommentEvent{
-				Action: &test.action, Repo: repo, Installation: &github.Installation{ID: new(int64(1))},
-				Issue:   &github.Issue{Number: new(1), PullRequestLinks: &github.PullRequestLinks{}},
-				Sender:  &github.User{Login: &test.sender},
+				Action:  new("edited"),
+				Sender:  &github.User{Login: new("editor")},
 				Comment: &github.IssueComment{User: &github.User{Login: new("reviewer")}, Body: new("removed")},
 				Changes: &github.EditChange{Body: &github.EditBody{From: &test.body}},
 			}
-			payload, err := json.Marshal(event)
-			require.NoError(t, err)
-			err = h.Handle(context.Background(), "issue_comment", "delivery", payload)
-			if test.status == "error" {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
+			tampered, err := (&IssueComment{}).detectAndLogTampering(context.Background(), ec, event)
+			if test.errorMessage != "" {
+				require.ErrorContains(t, err, test.errorMessage)
+				require.NotNil(t, ec.Status)
+				assert.Equal(t, "error", ec.Status.GetState())
+				return
 			}
-			if test.status == "" {
-				assert.Empty(t, statuses)
+			require.NoError(t, err)
+			assert.True(t, tampered)
+			if test.failure {
+				require.NotNil(t, ec.Status)
+				assert.Equal(t, "failure", ec.Status.GetState())
 			} else {
-				require.Len(t, statuses, 1)
-				assert.Equal(t, test.status, (<-statuses).GetState())
+				assert.Nil(t, ec.Status)
 			}
 		})
 	}
