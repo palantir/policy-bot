@@ -97,6 +97,15 @@ func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatet
 				}
 				return strings.ToUpper(s[:1]) + s[1:]
 			},
+			"withoutEmptySlots": func(results []*common.Result) []*common.Result {
+				r := make([]*common.Result, 0, len(results))
+				for _, result := range results {
+					if result.Slot == nil || !result.Slot.Empty {
+						r = append(r, result)
+					}
+				}
+				return r
+			},
 			"sortByStatus": func(results []*common.Result) []*common.Result {
 				r := make([]*common.Result, len(results))
 				copy(r, results)

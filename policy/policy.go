@@ -16,6 +16,7 @@ package policy
 
 import (
 	"context"
+	"slices"
 
 	"github.com/palantir/policy-bot/policy/approval"
 	"github.com/palantir/policy-bot/policy/common"
@@ -38,7 +39,10 @@ type Config struct {
 	Policy           Policy             `yaml:"policy,omitempty"`
 	ApprovalDefaults *approval.Defaults `yaml:"approval_defaults,omitempty"`
 	ApprovalRules    []*approval.Rule   `yaml:"approval_rules,omitempty"`
+	Slots            Slots              `yaml:"slots,omitempty"`
 }
+
+type Slots map[string]approval.Policy
 
 type Policy struct {
 	Approval    approval.Policy     `yaml:"approval,omitempty"`
@@ -95,9 +99,33 @@ func ParsePolicy(c *Config, opts *GlobalOptions) (common.Evaluator, error) {
 		rulesByName[r.Name] = r
 	}
 
-	evalApproval, err := c.Policy.Approval.Parse(rulesByName)
+	evalApproval, slots, err := c.Policy.Approval.Parse(rulesByName)
 	if err != nil {
 		return nil, errors.WithMessage(err, "failed to parse approval policy")
+	}
+	for name, slotContent := range c.Slots {
+		if name == "" {
+			return nil, errors.New("slot name must be nonempty")
+		}
+		child, err := slotContent.ParseAsSlotContent(rulesByName)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse slot content %q", name)
+		}
+		slot := slots[name]
+		if slot == nil {
+			return nil, errors.Errorf("slot content %q does not match a declared slot", name)
+		}
+		slot.Child = child
+	}
+	var missing []string
+	for name, slot := range slots {
+		if slot.Required && slot.Child == nil {
+			missing = append(missing, name)
+		}
+	}
+	if len(missing) > 0 {
+		slices.Sort(missing)
+		return nil, errors.Errorf("required slots are empty: %q", missing)
 	}
 
 	evalDisapproval := c.Policy.Disapproval
