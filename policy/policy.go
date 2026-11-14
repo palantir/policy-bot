@@ -277,7 +277,7 @@ func (p *ParsedPolicy) applySlotContents(c *Config, rulesByName map[string]*appr
 		if name == "" {
 			return errors.New("slot name must be nonempty")
 		}
-		slotEvaluator, err := slotContent.ParseAsSlotFill(rulesByName)
+		slotEvaluator, err := slotContent.ParseAsSlotContent(rulesByName)
 		if err != nil {
 			return errors.Wrapf(err, "failed to parse slot content %q", name)
 		}

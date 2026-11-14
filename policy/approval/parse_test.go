@@ -101,7 +101,7 @@ func TestParsePolicy(t *testing.T) {
 	req, slots, err := policy.Parse(rulesByName)
 	require.NoError(t, err, "failed to parse policy")
 	require.NotNil(t, slots["filled"])
-	slots["filled"].Child, err = (Policy{"rule1"}).ParseAsSlotFill(rulesByName)
+	slots["filled"].Child, err = (Policy{"rule1"}).ParseAsSlotContent(rulesByName)
 	require.NoError(t, err, "failed to parse slot content")
 
 	expected := &evaluator{

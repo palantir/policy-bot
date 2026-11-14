@@ -33,8 +33,8 @@ func (p Policy) Parse(rules map[string]*Rule) (common.Evaluator, map[string]*Slo
 	return &evaluator{root: root}, slots, nil
 }
 
-// ParseAsSlotFill parses an implicitly ANDed list of rules without allowing slots.
-func (p Policy) ParseAsSlotFill(rules map[string]*Rule) (common.Evaluator, error) {
+// ParseAsSlotContent parses an implicitly ANDed list of rules without allowing slots.
+func (p Policy) ParseAsSlotContent(rules map[string]*Rule) (common.Evaluator, error) {
 	if len(p) == 1 {
 		return parsePolicyR(p[0], rules, nil, 1)
 	}
