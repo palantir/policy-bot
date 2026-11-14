@@ -107,7 +107,7 @@ func ParsePolicy(c *Config, opts *GlobalOptions) (common.Evaluator, error) {
 		if name == "" {
 			return nil, errors.New("slot name must be nonempty")
 		}
-		child, err := slotContent.ParseAsSlotFill(rulesByName)
+		child, err := slotContent.ParseAsSlotContent(rulesByName)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to parse slot content %q", name)
 		}
