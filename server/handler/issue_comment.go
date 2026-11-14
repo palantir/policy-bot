@@ -21,7 +21,6 @@ import (
 
 	"github.com/google/go-github/v93/github"
 	"github.com/palantir/go-githubapp/githubapp"
-	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
@@ -78,7 +77,10 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 	case evalCtx.Config.LoadError != nil || evalCtx.Config.ParseError != nil:
 		logger.Warn().Str(LogKeyAudit, "issue_comment").Msg("Skipping tampering check because the policy is not valid")
 	case evalCtx.Config.Config != nil:
-		tampered := h.detectAndLogTampering(ctx, evalCtx, event)
+		tampered, err := h.detectAndLogTampering(ctx, evalCtx, event)
+		if err != nil {
+			return err
+		}
 		if tampered {
 			return nil
 		}
@@ -91,8 +93,7 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 	if evaluator == nil {
 		return nil
 	}
-
-	if !h.affectsApproval(event, evalCtx.Config.Config) {
+	if !h.affectsApproval(event, evaluator.Methods()) {
 		logger.Debug().Msg("Skipping evaluation because this comment does not impact approval")
 		return nil
 	}
@@ -106,32 +107,37 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 	return nil
 }
 
-func (h *IssueComment) detectAndLogTampering(ctx context.Context, evalCtx *EvalContext, event github.IssueCommentEvent) bool {
+func (h *IssueComment) detectAndLogTampering(ctx context.Context, evalCtx *EvalContext, event github.IssueCommentEvent) (bool, error) {
 	logger := zerolog.Ctx(ctx)
 
 	if event.GetAction() == "created" {
-		return false
+		return false, nil
 	}
 
 	eventAuthor := event.GetSender().GetLogin()
 	commentAuthor := event.GetComment().GetUser().GetLogin()
 	if eventAuthor == commentAuthor {
-		return false
+		return false, nil
 	}
 
-	if h.affectsApproval(event, evalCtx.Config.Config) {
+	parsed, err := evalCtx.PrepareConfig(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	if h.affectsApproval(event, parsed.Methods()) {
 		msg := fmt.Sprintf("Entity %s edited approval comment by %s", eventAuthor, commentAuthor)
 		logger.Warn().Str(LogKeyAudit, "issue_comment").Msg(msg)
 
 		evalCtx.PostStatus(ctx, "failure", msg)
-		return true
+		return true, nil
 	}
 
 	logger.Warn().Str(LogKeyAudit, "issue_comment").Msgf("The comment_editor=%s is not the author=%s", eventAuthor, commentAuthor)
-	return true
+	return true, nil
 }
 
-func (h *IssueComment) affectsApproval(event github.IssueCommentEvent, config *policy.Config) bool {
+func (h *IssueComment) affectsApproval(event github.IssueCommentEvent, methods []*common.Methods) bool {
 	var body, originalBody string
 	switch event.GetAction() {
 	case "edited":
@@ -140,15 +146,6 @@ func (h *IssueComment) affectsApproval(event github.IssueCommentEvent, config *p
 	default:
 		body = event.GetComment().GetBody()
 		originalBody = body
-	}
-
-	var methods []*common.Methods
-	for _, rule := range config.ApprovalRules {
-		methods = append(methods, rule.Options.GetMethods())
-	}
-	if disapproval := config.Policy.Disapproval; disapproval != nil {
-		methods = append(methods, disapproval.Options.GetDisapproveMethods())
-		methods = append(methods, disapproval.Options.GetRevokeMethods())
 	}
 
 	for _, m := range methods {

@@ -1,0 +1,100 @@
+// Copyright 2026 Palantir Technologies, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package handler
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/google/go-github/v93/github"
+	"github.com/palantir/go-githubapp/githubapp"
+	"github.com/palantir/policy-bot/policy"
+	"github.com/shurcooL/githubv4"
+	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
+)
+
+const slotPolicy = `
+policy:
+  approval: [{slot: {name: service, required: true}}]
+slots:
+  service: [Service review]
+approval_rules:
+  - name: Service review
+    options:
+      ignore_edited_comments: false
+    requires:
+      count: 1
+      users: [reviewer]
+`
+
+type handlerTransport http.HandlerFunc
+
+func (h handlerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.Body != nil {
+		defer func() { _ = req.Body.Close() }()
+	}
+	response := httptest.NewRecorder()
+	h(response, req)
+	result := response.Result()
+	result.Request = req
+	return result, nil
+}
+
+type testClients struct {
+	githubapp.ClientCreator
+	client *github.Client
+}
+
+func (c testClients) NewInstallationClient(int64) (*github.Client, error) {
+	return c.client, nil
+}
+
+func (c testClients) NewInstallationV4Client(int64) (*githubv4.Client, error) {
+	return githubv4.NewClient(c.client.Client()), nil
+}
+
+const extensionPolicy = `policy: {approval_extends: {remote: example/shared, path: .policy.yml, ref: main}}`
+
+const childSlotContent = `
+slots: {service: [Child]}
+approval_defaults:
+  options:
+    methods: {comments: [child], github_review: false}
+approval_rules:
+  - name: Child
+    requires: {count: 1, users: [reviewer]}
+`
+
+func extensionEvalContext(t *testing.T, child, parent string) *EvalContext {
+	t.Helper()
+	ec := makeEvalContext(true)
+	ec.Config.LoadError = nil
+	ec.Config.Config = new(policy.Config)
+	require.NoError(t, yaml.UnmarshalStrict([]byte(child), ec.Config.Config))
+	if parent != "" {
+		ec.Config.Parent = new(policy.Config)
+		require.NoError(t, yaml.UnmarshalStrict([]byte(parent), ec.Config.Parent))
+	}
+	return ec
+}
+
+func extensionTestClient(t *testing.T, handler http.HandlerFunc) *github.Client {
+	t.Helper()
+	client, err := github.NewClient(github.WithHTTPClient(&http.Client{Transport: handlerTransport(handler)}))
+	require.NoError(t, err)
+	return client
+}
