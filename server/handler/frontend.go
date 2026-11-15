@@ -102,6 +102,9 @@ func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatet
 				copy(r, results)
 
 				sort.SliceStable(r, func(i, j int) bool {
+					if (r[i].Error != nil) != (r[j].Error != nil) {
+						return r[i].Error != nil
+					}
 					return r[i].Status > r[j].Status
 				})
 
@@ -124,6 +127,9 @@ func LoadTemplates(c *FilesConfig, basePath string, githubURL string) (templatet
 			},
 			"nextStatus": func(i int, results []*common.Result) string {
 				if i < len(results)-1 {
+					if results[i+1].Error != nil {
+						return "error"
+					}
 					return results[i+1].Status.String()
 				}
 				return ""
