@@ -48,6 +48,33 @@ func (eval *evaluator) Evaluate(ctx context.Context, prctx pull.Context) (res co
 	return
 }
 
+type SlotRule struct {
+	Name     string
+	Required bool
+	Child    common.Evaluator
+}
+
+func (r *SlotRule) Trigger() common.Trigger {
+	if r.Child != nil {
+		return r.Child.Trigger()
+	}
+	return common.TriggerStatic
+}
+
+func (r *SlotRule) Evaluate(ctx context.Context, prctx pull.Context) common.Result {
+	if r.Child == nil {
+		return common.Result{
+			Name:              r.Name,
+			Status:            common.StatusSkipped,
+			StatusDescription: "Slot is empty",
+			Slot:              &common.SlotResult{Name: r.Name, Empty: true},
+		}
+	}
+	result := r.Child.Evaluate(ctx, prctx)
+	result.Slot = &common.SlotResult{Name: r.Name}
+	return result
+}
+
 type RuleRequirement struct {
 	rule *Rule
 }

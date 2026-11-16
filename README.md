@@ -29,6 +29,7 @@ UI to view the detailed approval status of any pull request.
   - [policy.yml Specification](#policyyml-specification)
   - [Approval Rules](#approval-rules)
   - [Approval Policies](#approval-policies)
+    - [Approval Slots](#approval-slots)
   - [Disapproval Policy](#disapproval-policy)
   - [Testing and Debugging Policies](#testing-and-debugging-policies)
     - [Simulation API](#simulation-api)
@@ -800,8 +801,8 @@ policy:
     - ...
 ```
 
-Each list entry may be the name of a rule, or one of the following
-conjunctions:
+Each list entry may be the name of a rule, an [approval slot](#approval-slots),
+or one of the following conjunctions:
 
 ```yaml
 or:
@@ -827,6 +828,63 @@ Conjunctions can contain more conjunctions (up to a maximum depth of 5):
         - rule3
         - rule4
 ```
+
+#### Approval Slots
+
+A slot is a named place in an approval policy that is filled by a list of rules
+from the same file. The result behaves as if the new rules were placed directly
+in the policy at the location of the slot marker. For example, this policy requires
+both platform and service review:
+
+```yaml
+policy:
+  approval:
+    - Platform review
+    - slot:
+        name: service-review
+        required: true
+
+slots:
+  service-review:
+    - Service review
+
+approval_rules:
+  - name: Platform review
+    requires:
+      count: 1
+      teams: ["example/platform"]
+  - name: Service review
+    requires:
+      count: 1
+      teams: ["example/service"]
+```
+
+Slots may appear wherever a rule reference is allowed. Slot names must be unique,
+nonempty strings. Each `slots` value is a list of same-file rule names or
+`and`/`or` expressions, combined with `and`. It cannot contain slots. For example,
+this policy requires either emergency approval or both service and security
+approval:
+
+```yaml
+policy:
+  approval:
+    - or:
+        - Emergency approval
+        - slot:
+            name: additional-review
+
+slots:
+  additional-review:
+    - Service review
+    - Security review
+```
+
+By default, slots are optional and may be left empty. If the slot sets
+`required: true`, the policy must define at least one rule that fills the slot.
+A policy is invalid if there is a required slot that is missing rules. Every
+element in the `slots` map must match a declared slot in the policy.
+
+The details page labels filled slots and hides empty ones.
 
 ### Disapproval Policy
 
@@ -961,6 +1019,9 @@ offline.
 It can be useful to simulate how Policy Bot would evaluate a pull request if certain conditions were changed. For example: adding a review from a specific user or group, or adjusting the base branch.
 
 An API endpoint exists at `api/simulate/:org/:repo/:prNumber` to simulate the result of a pull request. Simulations using this endpoint will NOT write the result back to the pull request status check and will instead return the result.
+
+The response preserves the evaluation tree. Results from slots include an optional
+`slot` field containing the slot name; empty slots remain as skipped results.
 
 This API requires a GitHub token be passed as a bearer token. The token must be
 associated with a user who has `admin` or `maintain` permission on the

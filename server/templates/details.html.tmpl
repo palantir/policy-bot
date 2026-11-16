@@ -55,7 +55,7 @@
 {{define "results"}}
 {{ $root := index . 0 }}
 {{ $result := index . 1}}
-{{ $children := $result.Children | sortByStatus }}
+{{ $children := $result.Children | withoutEmptySlots | sortByStatus }}
 {{range $i, $c := $children}}{{template "result" (args $root $c (nextStatus $i $children))}}{{end}}
 {{end}}
 
@@ -128,6 +128,7 @@
 
 {{define "result-details"}}
   {{ $s := (or (and .Error "error") (.Status | print)) }}
+  {{with .Slot}}<p class="mb-1 text-dark-gray3 dark:text-light-gray3 text-xs">Slot: {{.Name}}</p>{{end}}
   <p class="mb-2 flex items-center">
     <b class="font-bold">{{.Name}}</b>
     <span class="flex-none status-badge {{$s}}">{{$s | toFirstUpper}}</span>
