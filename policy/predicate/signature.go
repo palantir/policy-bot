@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
@@ -137,7 +138,8 @@ func (pred *HasValidSignaturesBy) Trigger() common.Trigger {
 }
 
 type HasValidSignaturesByKeys struct {
-	KeyIDs []string `yaml:"key_ids,omitempty"`
+	KeyIDs          []string `yaml:"key_ids,omitempty"`
+	KeyFingerprints []string `yaml:"key_fingerprints,omitempty"`
 }
 
 var _ Predicate = &HasValidSignaturesByKeys{}
@@ -147,14 +149,12 @@ func (pred *HasValidSignaturesByKeys) Evaluate(ctx context.Context, prctx pull.C
 
 	predicateResult := common.PredicateResult{
 		ConditionPhrase: "have valid signatures by keys",
-		ConditionValues: pred.KeyIDs,
+		ConditionValues: pred.allowedKeys(),
 	}
 
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get commits")
 	}
-
-	keys := make(map[string][]string)
 
 	var commitHashes []string
 
@@ -168,28 +168,30 @@ func (pred *HasValidSignaturesByKeys) Evaluate(ctx context.Context, prctx pull.C
 			return &predicateResult, nil
 		}
 		commitHashes = append(commitHashes, c.SHA)
-		// Only GPG signatures are valid for this predicate
+
+		// GPG signatures are matched by key ID and SSH signatures by key
+		// fingerprint. Other signature types (S/MIME) are not supported.
+		var key string
+		var allowed bool
 		switch c.Signature.Type {
 		case pull.SignatureGpg:
-			commitSHAs, ok := keys[c.Signature.KeyID]
-			if ok {
-				keys[c.Signature.KeyID] = append(commitSHAs, c.SHA)
-			} else {
-				keys[c.Signature.KeyID] = []string{c.SHA}
-			}
+			key = c.Signature.KeyID
+			allowed = slices.Contains(pred.KeyIDs, key)
+		case pull.SignatureSSH:
+			key = c.Signature.KeyFingerprint
+			allowed = slices.ContainsFunc(pred.KeyFingerprints, func(f string) bool {
+				return normalizeSSHFingerprint(f) == normalizeSSHFingerprint(key)
+			})
 		default:
 			predicateResult.Values = []string{c.SHA}
 			predicateResult.ValuePhrase = "commits"
-			predicateResult.ConditionPhrase = "have GPG signatures"
-			predicateResult.Description = fmt.Sprintf("Commit %.10s signature is not a GPG signature", c.SHA)
+			predicateResult.ConditionPhrase = "have GPG or SSH signatures"
+			predicateResult.Description = fmt.Sprintf("Commit %.10s signature is not a GPG or SSH signature", c.SHA)
 			predicateResult.Satisfied = false
 			return &predicateResult, nil
 		}
-	}
 
-	for key := range keys {
-		isValidKey := slices.Contains(pred.KeyIDs, key)
-		if !isValidKey {
+		if !allowed {
 			predicateResult.ConditionPhrase = "exist in the set of allowed keys"
 			predicateResult.Values = []string{key}
 			predicateResult.ValuePhrase = "keys"
@@ -198,6 +200,7 @@ func (pred *HasValidSignaturesByKeys) Evaluate(ctx context.Context, prctx pull.C
 			return &predicateResult, nil
 		}
 	}
+
 	predicateResult.Values = commitHashes
 	predicateResult.ValuePhrase = "commits"
 	predicateResult.Satisfied = true
@@ -207,6 +210,24 @@ func (pred *HasValidSignaturesByKeys) Evaluate(ctx context.Context, prctx pull.C
 
 func (pred *HasValidSignaturesByKeys) Trigger() common.Trigger {
 	return common.TriggerCommit
+}
+
+// allowedKeys returns the configured GPG key IDs followed by the configured
+// SSH key fingerprints, for display in predicate results.
+func (pred *HasValidSignaturesByKeys) allowedKeys() []string {
+	if len(pred.KeyFingerprints) == 0 {
+		return pred.KeyIDs
+	}
+	keys := make([]string, 0, len(pred.KeyIDs)+len(pred.KeyFingerprints))
+	keys = append(keys, pred.KeyIDs...)
+	return append(keys, pred.KeyFingerprints...)
+}
+
+// normalizeSSHFingerprint removes the "SHA256:" prefix that ssh-keygen -l
+// prints, so that fingerprints copied from ssh-keygen match the unprefixed
+// form that GitHub reports for SSH commit signatures.
+func normalizeSSHFingerprint(fingerprint string) string {
+	return strings.TrimPrefix(strings.TrimSpace(fingerprint), "SHA256:")
 }
 
 func hasValidSignature(ctx context.Context, commit *pull.Commit) (bool, string) {
