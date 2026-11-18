@@ -74,6 +74,12 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 		return err
 	}
 
+	// Parse the policy before checking for tampering because parsing sets the
+	// policy and server defaults that rules use for their approval methods.
+	// Handle the result after the check so edits are still audited if the
+	// policy is invalid or does not use comments.
+	evaluator, err := evalCtx.ParseConfig(ctx, common.TriggerComment)
+
 	switch {
 	case evalCtx.Config.LoadError != nil || evalCtx.Config.ParseError != nil:
 		logger.Warn().Str(LogKeyAudit, "issue_comment").Msg("Skipping tampering check because the policy is not valid")
@@ -84,7 +90,6 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 		}
 	}
 
-	evaluator, err := evalCtx.ParseConfig(ctx, common.TriggerComment)
 	if err != nil {
 		return err
 	}
