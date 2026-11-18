@@ -166,7 +166,7 @@ func (h *Simulate) newSimulatedContext(ctx context.Context, installationID int64
 		return nil, nil, err
 	}
 
-	simulatedPRCtx := simulated.NewContext(ctx, prctx, options)
+	simulatedPRCtx := simulated.NewContext(ctx, excludeReviewsBy(prctx, h.AppName+"[bot]"), options)
 	baseBranch, _ := simulatedPRCtx.Branches()
 	owner := simulatedPRCtx.RepositoryOwner()
 	repository := simulatedPRCtx.RepositoryName()
