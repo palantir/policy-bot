@@ -79,40 +79,14 @@ func (loc Locator) IsComplete() bool {
 	return false
 }
 
-// toV4 returns a v4PullRequest, loading data from the API if the locator is not complete.
-func (loc Locator) toV4(ctx context.Context, client *githubv4.Client) (*v4PullRequest, error) {
-	if !loc.IsComplete() {
-		var q struct {
-			Repository struct {
-				PullRequest v4PullRequest `graphql:"pullRequest(number: $number)"`
-			} `graphql:"repository(owner: $owner, name: $name)"`
-		}
-		qvars := map[string]any{
-			"owner":  githubv4.String(loc.Owner),
-			"name":   githubv4.String(loc.Repo),
-			"number": githubv4.Int(loc.Number),
-		}
-		if err := client.Query(ctx, &q, qvars); err != nil {
-			return nil, errors.Wrap(err, "failed to load pull request details")
-		}
-		return &q.Repository.PullRequest, nil
+// load uses the webhook's pull request when complete and otherwise loads the
+// current pull request, including stack metadata, from the REST API.
+func (loc Locator) load(ctx context.Context, client *github.Client) (*github.PullRequest, error) {
+	if loc.IsComplete() {
+		return loc.Value, nil
 	}
-
-	var v4 v4PullRequest
-	v4.Title = loc.Value.GetTitle()
-	v4.Author.Login = loc.Value.GetUser().GetLogin()
-	v4.CreatedAt = loc.Value.GetCreatedAt().Time
-	v4.State = loc.Value.GetState()
-	v4.IsCrossRepository = loc.Value.GetHead().GetRepo().GetID() != loc.Value.GetBase().GetRepo().GetID()
-	v4.HeadRefOID = loc.Value.GetHead().GetSHA()
-	v4.HeadRefName = loc.Value.GetHead().GetRef()
-	v4.HeadRepository.Name = loc.Value.GetHead().GetRepo().GetName()
-	v4.HeadRepository.Owner.Login = loc.Value.GetHead().GetRepo().GetOwner().GetLogin()
-	v4.BaseRefName = loc.Value.GetBase().GetRef()
-	v4.BaseRepository.DatabaseID = loc.Value.GetBase().GetRepo().GetID()
-	v4.IsDraft = loc.Value.GetDraft()
-	v4.ChangedFiles = loc.Value.GetChangedFiles()
-	return &v4, nil
+	pr, _, err := client.PullRequests.Get(ctx, loc.Owner, loc.Repo, loc.Number)
+	return pr, errors.Wrap(err, "failed to load pull request details")
 }
 
 // GitHubContext is a Context implementation that gets information from GitHub.
@@ -130,10 +104,11 @@ type GitHubContext struct {
 	owner  string
 	repo   string
 	number int
-	pr     *v4PullRequest
+	pr     *github.PullRequest
 
 	// cached fields
 	files                      []*File
+	stackComparison            *github.CommitsComparison
 	commits                    []*Commit
 	comments                   []*Comment
 	reviews                    []*Review
@@ -164,9 +139,13 @@ func NewGitHubContext(
 		panic("pull request object does not contain full identifying information")
 	}
 
-	pr, err := loc.toV4(ctx, v4client)
+	pr, err := loc.load(ctx, client)
 	if err != nil {
 		return nil, err
+	}
+
+	if pr.Stack != nil && (pr.Stack.Base == nil || pr.Stack.Base.Ref == "") {
+		return nil, errors.New("pull request has a stack without a target branch")
 	}
 
 	return &GitHubContext{
@@ -237,7 +216,7 @@ func (ghc *GitHubContext) Number() int {
 }
 
 func (ghc *GitHubContext) Title() string {
-	return ghc.pr.Title
+	return ghc.pr.GetTitle()
 }
 
 type v4PullRequestWithEditedAt struct {
@@ -272,63 +251,66 @@ func (ghc *GitHubContext) Body() (*Body, error) {
 }
 
 func (ghc *GitHubContext) Author() string {
-	return ghc.pr.Author.GetV3Login()
+	return ghc.pr.GetUser().GetLogin()
 }
 
 func (ghc *GitHubContext) CreatedAt() time.Time {
-	return ghc.pr.CreatedAt
+	return ghc.pr.GetCreatedAt().Time
 }
 
 func (ghc *GitHubContext) IsOpen() bool {
-	return strings.ToLower(ghc.pr.State) == "open"
+	return strings.ToLower(ghc.pr.GetState()) == "open"
 }
 
 func (ghc *GitHubContext) IsClosed() bool {
-	return strings.ToLower(ghc.pr.State) == "closed"
+	return strings.ToLower(ghc.pr.GetState()) == "closed"
 }
 
 func (ghc *GitHubContext) HeadSHA() string {
-	return ghc.pr.HeadRefOID
+	return ghc.pr.GetHead().GetSHA()
 }
 
 func (ghc *GitHubContext) IsDraft() bool {
-	return ghc.pr.IsDraft
+	return ghc.pr.GetDraft()
 }
 
-// Branches returns the names of the base and head branch. If the head branch
-// is from another repository (it is a fork) then the branch name is
-// `owner:branchName`.
+// Branches returns the policy target and head branch. In a stack, the policy
+// target is the stack's target branch. A fork's head is prefixed with its owner.
 func (ghc *GitHubContext) Branches() (base string, head string) {
-	base = ghc.pr.BaseRefName
-	head = ghc.pr.HeadRefName
-	if ghc.pr.IsCrossRepository {
-		head = ghc.pr.HeadRepository.Owner.Login + ":" + head
+	base = ghc.pr.GetBase().GetRef()
+	if ghc.pr.Stack != nil {
+		base = ghc.pr.Stack.Base.Ref
+	}
+	head = ghc.pr.GetHead().GetRef()
+	if ghc.pr.GetHead().GetRepo().GetID() != ghc.pr.GetBase().GetRepo().GetID() {
+		head = ghc.pr.GetHead().GetRepo().GetOwner().GetLogin() + ":" + head
 	}
 	return
 }
 
-func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
-	// Check if changed files exceeds the limit
-	if ghc.pr.ChangedFiles > MaxPullRequestFiles {
-		return nil, errors.Errorf("number of changed files (%d) exceeds limit (%d)", ghc.pr.ChangedFiles, MaxPullRequestFiles)
-	}
+func (ghc *GitHubContext) comparesStackTarget() bool {
+	return ghc.pr.Stack != nil && ghc.pr.Stack.Base.Ref != ghc.pr.GetBase().GetRef()
+}
 
-	if ghc.files == nil {
-		opt := github.ListOptions{
-			PerPage: 100,
+func (ghc *GitHubContext) loadStackComparison() (*github.CommitsComparison, error) {
+	if ghc.stackComparison == nil {
+		base, _ := ghc.Branches()
+		comparison, _, err := ghc.client.Repositories.CompareCommits(
+			ghc.ctx, ghc.owner, ghc.repo, base, ghc.HeadSHA(), nil,
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to compare stack target and pull request head")
 		}
+		ghc.stackComparison = comparison
+	}
+	return ghc.stackComparison, nil
+}
 
-		var allFiles []*github.CommitFile
-		for {
-			files, res, err := ghc.client.PullRequests.ListFiles(ghc.ctx, ghc.owner, ghc.repo, ghc.number, &opt)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to list pull request files")
-			}
-			allFiles = append(allFiles, files...)
-			if res.NextPage == 0 {
-				break
-			}
-			opt.Page = res.NextPage
+func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
+	if ghc.files == nil {
+		allFiles, err := ghc.loadChangedFiles()
+		if err != nil {
+			return nil, err
 		}
 
 		ghc.files = make([]*File, 0, len(allFiles))
@@ -365,9 +347,49 @@ func (ghc *GitHubContext) ChangedFiles() ([]*File, error) {
 	return ghc.files, nil
 }
 
+func (ghc *GitHubContext) loadChangedFiles() ([]*github.CommitFile, error) {
+	if ghc.comparesStackTarget() {
+		comparison, err := ghc.loadStackComparison()
+		if err != nil {
+			return nil, err
+		}
+		if comparison.Files == nil {
+			return nil, errors.New("stack comparison did not include changed files")
+		}
+		// GitHub can truncate a comparison at 300 files. Require a complete
+		// comparison before evaluating any rules that depend on changed files.
+		if len(comparison.Files) >= 300 {
+			return nil, errors.New("stack comparison reached GitHub's 300-file limit")
+		}
+		return comparison.Files, nil
+	}
+
+	if count := ghc.pr.GetChangedFiles(); count > MaxPullRequestFiles {
+		return nil, errors.Errorf("number of changed files (%d) exceeds limit (%d)", count, MaxPullRequestFiles)
+	}
+	opt := github.ListOptions{PerPage: 100}
+	var allFiles []*github.CommitFile
+	for {
+		files, res, err := ghc.client.PullRequests.ListFiles(ghc.ctx, ghc.owner, ghc.repo, ghc.number, &opt)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to list pull request files")
+		}
+		allFiles = append(allFiles, files...)
+		if res.NextPage == 0 {
+			return allFiles, nil
+		}
+		opt.Page = res.NextPage
+	}
+}
+
 func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 	if ghc.commits == nil {
-		err := ghc.loadPagedData()
+		var err error
+		if ghc.comparesStackTarget() {
+			ghc.commits, err = ghc.loadStackCommits()
+		} else {
+			err = ghc.loadPagedData()
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -378,8 +400,51 @@ func (ghc *GitHubContext) Commits() ([]*Commit, error) {
 	return ghc.commits, nil
 }
 
+// loadStackCommits resolves the comparison's immutable commits with the same
+// author and signature metadata used for a standalone pull request.
+func (ghc *GitHubContext) loadStackCommits() ([]*Commit, error) {
+	comparison, err := ghc.loadStackComparison()
+	if err != nil {
+		return nil, err
+	}
+	if total := comparison.GetTotalCommits(); total >= MaxPullRequestCommits || total != len(comparison.Commits) {
+		return nil, errors.Errorf("cannot evaluate %d commits in stack comparison; maximum is %d", total, MaxPullRequestCommits-1)
+	}
+	ids := make([]githubv4.ID, 0, len(comparison.Commits))
+	for _, commit := range comparison.Commits {
+		if commit.GetNodeID() == "" {
+			return nil, errors.New("stack comparison returned a commit without a node ID")
+		}
+		ids = append(ids, githubv4.ID(commit.GetNodeID()))
+	}
+
+	var q struct {
+		Nodes []struct {
+			Commit v4Commit `graphql:"... on Commit"`
+		} `graphql:"nodes(ids: $ids)"`
+	}
+	var commits []*v4PullRequestCommit
+	for batch := range slices.Chunk(ids, 80) {
+		if err := ghc.v4client.Query(ghc.ctx, &q, map[string]any{"ids": batch}); err != nil {
+			return nil, errors.Wrap(err, "failed to load stack commits")
+		}
+		for _, node := range q.Nodes {
+			commits = append(commits, &v4PullRequestCommit{Commit: node.Commit})
+		}
+	}
+	if len(commits) != len(comparison.Commits) {
+		return nil, errors.New("GitHub did not return every commit in the stack comparison")
+	}
+	for i, commit := range commits {
+		if commit.Commit.OID != comparison.Commits[i].GetSHA() {
+			return nil, errors.New("GitHub returned a different commit from the stack comparison")
+		}
+	}
+	return ghc.processCommits(commits)
+}
+
 func (ghc *GitHubContext) PushedAt(sha string) (time.Time, error) {
-	repoID := ghc.pr.BaseRepository.DatabaseID
+	repoID := ghc.pr.GetBase().GetRepo().GetID()
 	if ghc.pushedAt == nil {
 		ghc.pushedAt = make(map[string]time.Time)
 	}
@@ -969,7 +1034,7 @@ func (ghc *GitHubContext) loadPagedData() error {
 				Commits struct {
 					PageInfo v4PageInfo
 					Nodes    []*v4PullRequestCommit
-				} `graphql:"commits(first: 80, after: $commitCursor)"`
+				} `graphql:"commits(first: 80, after: $commitCursor) @include(if: $includeCommits)"`
 
 				Comments struct {
 					PageInfo v4PageInfo
@@ -988,9 +1053,10 @@ func (ghc *GitHubContext) loadPagedData() error {
 		"name":   githubv4.String(ghc.repo),
 		"number": githubv4.Int(ghc.number),
 
-		"commitCursor":  (*githubv4.String)(nil),
-		"commentCursor": (*githubv4.String)(nil),
-		"reviewCursor":  (*githubv4.String)(nil),
+		"commitCursor":   (*githubv4.String)(nil),
+		"includeCommits": githubv4.Boolean(!ghc.comparesStackTarget()),
+		"commentCursor":  (*githubv4.String)(nil),
+		"reviewCursor":   (*githubv4.String)(nil),
 	}
 
 	rawCommits := []*v4PullRequestCommit{}
@@ -1036,10 +1102,12 @@ func (ghc *GitHubContext) loadPagedData() error {
 	ghc.comments = comments
 	ghc.reviews = reviews
 
-	var err error
-	ghc.commits, err = ghc.processCommits(rawCommits)
-	if err != nil {
-		return errors.Wrap(err, "failed to process commits")
+	if !ghc.comparesStackTarget() {
+		var err error
+		ghc.commits, err = ghc.processCommits(rawCommits)
+		if err != nil {
+			return errors.Wrap(err, "failed to process commits")
+		}
 	}
 
 	return nil
@@ -1051,7 +1119,7 @@ func (ghc *GitHubContext) processCommits(rawCommits []*v4PullRequestCommit) ([]*
 
 	for _, r := range rawCommits {
 		c := r.Commit.ToCommit()
-		if c.SHA == ghc.pr.HeadRefOID {
+		if c.SHA == ghc.HeadSHA() {
 			foundHead = true
 		}
 		commits = append(commits, c)
@@ -1059,7 +1127,7 @@ func (ghc *GitHubContext) processCommits(rawCommits []*v4PullRequestCommit) ([]*
 
 	// fail early if head is missing from the pull request
 	if !foundHead {
-		return nil, errors.Errorf("head commit %.10s is missing, probably due to a force-push", ghc.pr.HeadRefOID)
+		return nil, errors.Errorf("head commit %.10s is missing, probably due to a force-push", ghc.HeadSHA())
 	}
 
 	return commits, nil
@@ -1087,31 +1155,6 @@ func (ghc *GitHubContext) loadPushedAt(sha string) (time.Time, error) {
 		}
 		opt.Page = resp.NextPage
 	}
-}
-
-// if adding new fields to this struct, modify Locator#toV4() and Locator#IsComplete() as well
-type v4PullRequest struct {
-	Author    v4Actor
-	Title     string
-	CreatedAt time.Time
-	State     string
-
-	IsCrossRepository bool
-	IsDraft           bool
-
-	HeadRefOID     string
-	HeadRefName    string
-	HeadRepository struct {
-		Name  string
-		Owner v4Actor
-	}
-
-	BaseRefName    string
-	BaseRepository struct {
-		DatabaseID int64
-	}
-
-	ChangedFiles int
 }
 
 type v4PageInfo struct {

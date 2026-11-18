@@ -16,6 +16,7 @@ package pull
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -77,11 +78,6 @@ func TestChangedFilesExceedsLimit(t *testing.T) {
 		ExactPathMatcher("/repos/testorg/testrepo/pulls/123/files"),
 		"testdata/responses/pull_files.yml",
 	)
-	rp.AddRule(
-		GraphQLNodePrefixMatcher("repository.pullRequest.changedFiles"),
-		"testdata/responses/pull_changed_files_exceeds_limit.yml",
-	)
-
 	pr := defaultTestPR()
 	*pr.ChangedFiles = 3001
 
@@ -436,6 +432,91 @@ func TestBranches(t *testing.T) {
 	base, head := ctx.Branches()
 	assert.Equal(t, "develop", base, "base branch was not correctly set")
 	assert.Equal(t, "test-branch", head, "head branch was not correctly set")
+}
+
+func TestStackTarget(t *testing.T) {
+	for _, source := range []string{"webhook", "REST lookup"} {
+		t.Run(source, func(t *testing.T) {
+			pr := defaultTestPR()
+			pr.Base.Ref = new("lower-layer")
+			pr.Stack = &github.PullRequestStack{
+				Base: &github.PullRequestStackBase{Ref: "develop"},
+			}
+			response, err := json.Marshal(pr)
+			require.NoError(t, err)
+
+			lookup := &Rule{
+				Matcher:   ExactPathMatcher("/repos/testorg/testrepo/pulls/123"),
+				responses: []SavedResponse{{Status: http.StatusOK, Body: string(response)}},
+			}
+			if source == "REST lookup" {
+				pr.ChangedFiles = nil
+			}
+			ctx := makeContext(t, &ResponsePlayer{Rules: []*Rule{lookup}}, pr, nil)
+			base, head := ctx.Branches()
+			assert.Equal(t, "develop", base)
+			assert.Equal(t, "test-branch", head)
+			assert.Equal(t, pr.GetHead().GetSHA(), ctx.HeadSHA())
+			if source == "REST lookup" {
+				assert.Equal(t, 1, lookup.Count)
+			} else {
+				assert.Zero(t, lookup.Count)
+			}
+		})
+	}
+}
+
+func TestStackDiffUsesTargetAndHead(t *testing.T) {
+	pr := defaultTestPR()
+	pr.Base.Ref = new("lower-layer")
+	pr.Stack = &github.PullRequestStack{
+		Base: &github.PullRequestStackBase{Ref: "develop"},
+	}
+	lowerSHA := "0123456789012345678901234567890123456789"
+	headSHA := pr.GetHead().GetSHA()
+	comparison := &Rule{
+		Matcher: ExactPathMatcher("/repos/testorg/testrepo/compare/develop..." + headSHA),
+		responses: []SavedResponse{{
+			Status: http.StatusOK,
+			Body: fmt.Sprintf(`{
+				"total_commits": 2,
+				"commits": [{"sha":%q,"node_id":"lower"}, {"sha":%q,"node_id":"upper"}],
+				"files": [{"filename":"lower.txt","status":"added"}, {"filename":"upper.txt","status":"added"}]
+			}`, lowerSHA, headSHA),
+		}},
+	}
+	nodes := &Rule{
+		Matcher: ExactPathMatcher("/graphql"),
+		responses: []SavedResponse{{
+			Status: http.StatusOK,
+			Body:   fmt.Sprintf(`{"data":{"nodes":[{"oid":%q,"author":{"user":{"login":"lower-author"}}},{"oid":%q}]}}`, lowerSHA, headSHA),
+		}},
+	}
+	ctx := makeContext(t, &ResponsePlayer{Rules: []*Rule{comparison, nodes}}, pr, nil)
+	files, err := ctx.ChangedFiles()
+	require.NoError(t, err)
+	require.Len(t, files, 2)
+	assert.Equal(t, "lower.txt", files[0].Filename)
+
+	commits, err := ctx.Commits()
+	require.NoError(t, err)
+	require.Len(t, commits, 2)
+	assert.Equal(t, "lower-author", commits[0].Author)
+	assert.Equal(t, headSHA, commits[1].SHA)
+	assert.Equal(t, 1, comparison.Count, "files and commits share the same comparison")
+	assert.Equal(t, 1, nodes.Count)
+}
+
+func TestStackComparisonRejectsTruncatedFileList(t *testing.T) {
+	pr := defaultTestPR()
+	pr.Base.Ref = new("lower-layer")
+	pr.Stack = &github.PullRequestStack{
+		Base: &github.PullRequestStackBase{Ref: "develop"},
+	}
+	ctx := makeContext(t, &ResponsePlayer{}, pr, nil).(*GitHubContext)
+	ctx.stackComparison = &github.CommitsComparison{Files: make([]*github.CommitFile, 300)}
+	_, err := ctx.ChangedFiles()
+	require.ErrorContains(t, err, "300-file limit")
 }
 
 func TestCrossRepoBranches(t *testing.T) {

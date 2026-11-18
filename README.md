@@ -125,7 +125,12 @@ repository.  You can change this path and file name when running your own
 instance of the server.
 
 - The file is read from the most recent commit on the _target_ branch of each
-  pull request.
+  pull request. For GitHub stacked pull requests, the target is the branch the
+  stack will merge into. Policy Bot uses that branch in the commit status
+  context, and compares it with the evaluated head commit for rules that use
+  changed files or commits. Reviews and comments still come from the pull
+  request being evaluated. GitHub limits the comparison to 300 files, so
+  file-dependent policies report an error if the comparison reaches that limit.
 
 - The file may contain a reference to a policy in a different repository (see
   [Remote Policy Configuration](#remote-policy-configuration).)

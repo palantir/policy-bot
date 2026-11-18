@@ -83,16 +83,16 @@ type Context interface {
 	// HeadSHA returns the SHA of the head commit of the pull request.
 	HeadSHA() string
 
-	// Branches returns the base (also known as target) and head branch names
-	// of this pull request. Branches in this repository have no prefix, while
+	// Branches returns the policy target and head branch names. In a stack, the
+	// policy target is the target branch of the entire stack. Branches in this repository have no prefix, while
 	// branches in forks are prefixed with the owner of the fork and a colon.
 	// The base branch will always be unprefixed.
 	Branches() (base string, head string)
 
-	// ChangedFiles returns the files that were changed in this pull request.
+	// ChangedFiles returns the files changed between the policy target and head.
 	ChangedFiles() ([]*File, error)
 
-	// Commits returns the commits that are part of this pull request. The
+	// Commits returns the commits between the policy target and head. The
 	// commit order is implementation dependent.
 	Commits() ([]*Commit, error)
 

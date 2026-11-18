@@ -50,6 +50,9 @@ func (h *PullRequest) Handle(ctx context.Context, eventType, deliveryID string, 
 		t = common.TriggerCommit
 	case "edited":
 		t = common.TriggerPullRequest
+		if event.GetChanges().GetBase() != nil || event.GetPullRequest().Stack != nil {
+			t = common.TriggerAll
+		}
 	case "labeled", "unlabeled":
 		t = common.TriggerLabel
 	default:

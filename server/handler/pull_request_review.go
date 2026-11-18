@@ -53,11 +53,11 @@ func (h *PullRequestReview) Handle(ctx context.Context, eventType, deliveryID st
 
 	ctx, logger := h.PreparePRContext(ctx, installationID, pr)
 
+	// Load the pull request because review payloads may omit stack metadata.
 	evalCtx, err := h.NewEvalContext(ctx, installationID, pull.Locator{
 		Owner:  owner,
 		Repo:   repo.GetName(),
 		Number: number,
-		Value:  pr,
 	})
 	if err != nil {
 		return err
