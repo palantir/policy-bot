@@ -65,6 +65,30 @@ func (m GraphQLNodePrefixMatcher) Matches(r *http.Request, body []byte) bool {
 	return names.HasPrefix(strings.Split(string(m), "."))
 }
 
+// GraphQLVariableRecorder wraps another matcher and saves the variables of
+// each GraphQL request that matches.
+type GraphQLVariableRecorder struct {
+	RequestMatcher
+
+	Variables []map[string]any
+}
+
+func (m *GraphQLVariableRecorder) Matches(r *http.Request, body []byte) bool {
+	if !m.RequestMatcher.Matches(r, body) {
+		return false
+	}
+
+	var d struct {
+		Variables map[string]any `json:"variables"`
+	}
+	if err := json.Unmarshal(body, &d); err != nil {
+		return false
+	}
+
+	m.Variables = append(m.Variables, d.Variables)
+	return true
+}
+
 type nodeNameTree map[string]nodeNameTree
 
 func (t nodeNameTree) HasPrefix(prefix []string) bool {
