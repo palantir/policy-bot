@@ -17,14 +17,13 @@ package approval
 import (
 	"fmt"
 
-	"github.com/palantir/policy-bot/policy/common"
 	"github.com/pkg/errors"
 )
 
 type Policy []any
 
 // Parse builds an evaluator for the policy and returns its declared slots.
-func (p Policy) Parse(rules map[string]*Rule) (common.Evaluator, map[string]*SlotRule, error) {
+func (p Policy) Parse(rules map[string]*Rule) (Evaluator, map[string]*SlotRule, error) {
 	slots := make(map[string]*SlotRule)
 	root, err := p.parseTree(rules, slots)
 	if err != nil {
@@ -34,14 +33,14 @@ func (p Policy) Parse(rules map[string]*Rule) (common.Evaluator, map[string]*Slo
 }
 
 // ParseAsSlotContent parses an implicitly ANDed list of rules without allowing slots.
-func (p Policy) ParseAsSlotContent(rules map[string]*Rule) (common.Evaluator, error) {
+func (p Policy) ParseAsSlotContent(rules map[string]*Rule) (Evaluator, error) {
 	if len(p) == 1 {
 		return parsePolicyR(p[0], rules, nil, 1)
 	}
 	return p.parseTree(rules, nil)
 }
 
-func (p Policy) parseTree(rules map[string]*Rule, slots map[string]*SlotRule) (common.Evaluator, error) {
+func (p Policy) parseTree(rules map[string]*Rule, slots map[string]*SlotRule) (Evaluator, error) {
 	if len(p) == 0 {
 		return nil, nil
 	}
@@ -54,7 +53,7 @@ func (p Policy) parseTree(rules map[string]*Rule, slots map[string]*SlotRule) (c
 	return parsePolicyR(root, rules, slots, 0)
 }
 
-func parsePolicyR(policy any, rules map[string]*Rule, slots map[string]*SlotRule, depth int) (common.Evaluator, error) {
+func parsePolicyR(policy any, rules map[string]*Rule, slots map[string]*SlotRule, depth int) (Evaluator, error) {
 	if depth > 10 {
 		return nil, errors.New("reached maximum recursive depth while processing policy")
 	}
@@ -100,7 +99,7 @@ func parsePolicyR(policy any, rules map[string]*Rule, slots map[string]*SlotRule
 			return nil, errors.Errorf("empty list of subconditions is not allowed")
 		}
 
-		var subrequirements []common.Evaluator
+		var subrequirements []Evaluator
 		for _, subpolicy := range values {
 			subreq, err := parsePolicyR(subpolicy, rules, slots, depth+1)
 			if err != nil {
@@ -122,7 +121,7 @@ func parsePolicyR(policy any, rules map[string]*Rule, slots map[string]*SlotRule
 	return nil, errors.Errorf("malformed policy, expected string or map, but encountered %T", policy)
 }
 
-func parseSlot(value any, slots map[string]*SlotRule) (common.Evaluator, error) {
+func parseSlot(value any, slots map[string]*SlotRule) (Evaluator, error) {
 	if slots == nil {
 		return nil, errors.New("slot declarations are not allowed in slot content")
 	}
