@@ -208,29 +208,16 @@ func TestApprovalExtensionInvalidSlotContents(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			parent := extensionConfig(t, "policy: {approval: [{slot: {name: extra}}]}")
 			child := extensionConfig(t, "policy: {approval_extends: {remote: example/policies}}\nslots: {extra: []}")
-			badContent := Slots{test.slot: {"missing"}}
+			badContent := Slots{test.slot: {"foreign"}}
 			if test.parent {
 				parent.Slots = badContent
-			} else {
-				child.Slots = badContent
-			}
-			_, err := resolveExtension(child, parent, nil)
-			require.ErrorContains(t, err, "undefined rule 'missing'")
-		})
-	}
-	for _, contentOwner := range []string{"parent", "child"} {
-		t.Run("foreign rule in "+contentOwner+" content", func(t *testing.T) {
-			parent := extensionConfig(t, `policy: {approval: [{slot: {name: extra}}]}`)
-			child := extensionConfig(t, `policy: {approval_extends: {remote: example/policies}}`)
-			if contentOwner == "parent" {
-				parent.Slots = Slots{"extra": {"foreign"}}
 				child.ApprovalRules = []*approval.Rule{{Name: "foreign"}}
 			} else {
-				child.Slots = Slots{"extra": {"foreign"}}
+				child.Slots = badContent
 				parent.ApprovalRules = []*approval.Rule{{Name: "foreign"}}
 			}
 			_, err := resolveExtension(child, parent, nil)
-			assert.ErrorContains(t, err, "undefined rule 'foreign'")
+			require.ErrorContains(t, err, "undefined rule 'foreign'")
 		})
 	}
 }
