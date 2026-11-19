@@ -63,9 +63,10 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	evalCtx := state.EvalContext
 
 	var data struct {
-		BasePath  string
-		User      string
-		PolicyURL string
+		BasePath        string
+		User            string
+		PolicyURL       string
+		ParentPolicyURL string
 
 		ExpandRequiredReviewers bool
 
@@ -79,6 +80,9 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	data.BasePath = getBasePath(h.BaseConfig.PublicURL)
 	data.User = state.Username
 	data.PolicyURL = getPolicyURL(state.PullRequest, evalCtx.Config.Sources[0])
+	if len(evalCtx.Config.Sources) > 1 {
+		data.ParentPolicyURL = getPolicyURL(state.PullRequest, evalCtx.Config.Sources[1])
+	}
 	data.ExpandRequiredReviewers = h.PullOpts.ExpandRequiredReviewers
 	data.PullRequest = state.PullRequest
 
@@ -199,7 +203,11 @@ func (h *Details) render404(w http.ResponseWriter, owner, repo string, number in
 func getPolicyURL(pr *github.PullRequest, source PolicyLocation) string {
 	base := pr.GetBase().GetRepo().GetHTMLURL()
 	if u, _ := url.Parse(base); u != nil {
-		srcParts := strings.Split(source.Source, "@")
+		srcParts := strings.SplitN(source.Source, "@", 2)
+		if len(srcParts) == 1 && source.Source != "" {
+			u.Path = source.Source
+			return u.String()
+		}
 		if len(srcParts) != 2 {
 			return base
 		}
