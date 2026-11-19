@@ -171,6 +171,10 @@ func (ec *EvalContext) EvaluatePolicy(ctx context.Context, evaluator common.Eval
 func (ec *EvalContext) RunPostEvaluateActions(ctx context.Context, result common.Result, trigger common.Trigger) {
 	logger := zerolog.Ctx(ctx)
 
+	if err := ec.postGithubReviewsForResult(ctx, trigger, result); err != nil {
+		logger.Error().Err(err).Msg("Failed to auto approve the pr")
+	}
+
 	if err := ec.requestReviewsForResult(ctx, trigger, result); err != nil {
 		logger.Error().Err(err).Msg("Failed to request reviewers")
 	}
