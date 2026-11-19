@@ -142,6 +142,15 @@ sessions:
 #   # set by the POLICYBOT_OPTIONS_ALLOW_PRIVATE_REMOTES environment variable.
 #   allow_private_remotes: false
 #
+#   # If true, mirror the status check as a pull request review: submit an
+#   # approving review on the head commit when the status is "success", and
+#   # dismiss those approvals when the status is anything else. This allows
+#   # policy-bot to satisfy the "required approvals" branch protection rule.
+#   # Reviews submitted by policy-bot never count toward its own policies. See
+#   # the README before enabling. Can also be set by the
+#   # POLICYBOT_OPTIONS_POST_APPROVAL_REVIEW environment variable.
+#   post_approval_review: false
+#
 #   # Default options to use for all appoval rules processed by the server.
 #   # Policies can override these values with their own defaults or in individual
 #   # rules. This is equivalent to the "approval_defaults" option in a policy and

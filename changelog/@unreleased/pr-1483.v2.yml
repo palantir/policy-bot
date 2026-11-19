@@ -1,0 +1,6 @@
+type: feature
+feature:
+  description: |-
+    Add the `post_approval_review` server option. When it's enabled, policy-bot mirrors its status as a pull request review: it submits an approving review on the head commit when the status is `success`, and dismisses its previous approvals when the status is anything else.
+  links:
+  - https://github.com/palantir/policy-bot/pull/1483

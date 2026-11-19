@@ -65,6 +65,15 @@ type PullEvaluationOptions struct {
 	// context behaviour, and will be removed in 2.0
 	PostInsecureStatusChecks bool `yaml:"post_insecure_status_checks"`
 
+	// PostApprovalReview makes policy-bot mirror its status check as a pull
+	// request review. When the status is "success", policy-bot submits an
+	// approving review on the head commit. When the status is anything else,
+	// it dismisses any approving reviews it previously submitted. This lets
+	// policy-bot satisfy GitHub's "required approvals" branch protection.
+	// Reviews submitted by policy-bot are never counted as approvals when
+	// evaluating policies.
+	PostApprovalReview bool `yaml:"post_approval_review"`
+
 	// IgnoreEditedComments enables ignoring comments that have been edited when evaluating approval rules.
 	// This provides a server-side option to ignore edited comments across all rules.
 	IgnoreEditedComments *bool `yaml:"ignore_edited_comments"`
@@ -124,6 +133,7 @@ func (p *PullEvaluationOptions) SetValuesFromEnv(prefix string) {
 	setBoolFromEnv("EXPAND_REQUIRED_REVIEWERS", prefix, &p.ExpandRequiredReviewers)
 	setBoolFromEnv("STRICT_REVIEW_DISMISSAL", prefix, &p.StrictReviewDismissal)
 	setBoolFromEnv("POST_INSECURE_STATUS_CHECKS", prefix, &p.PostInsecureStatusChecks)
+	setBoolFromEnv("POST_APPROVAL_REVIEW", prefix, &p.PostApprovalReview)
 	setBoolPtrFromEnv("IGNORE_EDITED_COMMENTS", prefix, &p.IgnoreEditedComments)
 
 	p.setApprovalDefaultsFromEnv(prefix + "APPROVAL_DEFAULTS_")
