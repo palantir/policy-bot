@@ -19,8 +19,6 @@ import (
 	"slices"
 
 	"github.com/google/go-github/v93/github"
-	"github.com/palantir/policy-bot/policy"
-	"github.com/palantir/policy-bot/policy/approval"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
 )
@@ -54,22 +52,21 @@ func (h *DetailsReviewers) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 			Incomplete:  true,
 		})
 
-	case config.Config == nil:
-		// The repository either has no policy or the policy was invalid. This
-		// should never happen in normal use, because the expected way to hit
-		// this endpoint requires viewing a valid details page first. Hitting
-		// this case means something unexpected is hitting the API directly.
+	case config.ParseError != nil:
+		logger.Warn().Err(config.ParseError).Msg("Invalid policy, reviewers will be incomplete")
+		return h.renderReviewers(w, r, DetailsReviewersData{PullRequest: state.PullRequest, Incomplete: true})
+
+	case config.Policy == nil:
 		return h.renderReviewers(w, r, DetailsReviewersData{PullRequest: state.PullRequest})
 	}
 
-	ruleName := r.URL.Query().Get("rule")
-	requires := findRuleRequires(config.Config, ruleName)
-
-	if requires == nil || requires.Count == 0 || requires.Actors.IsZero() {
+	rule := config.Policy.FindApprovalRule(r.URL.Query().Get("slot"), r.URL.Query().Get("rule"))
+	if rule == nil || rule.Requires.Count == 0 || rule.Requires.Actors.IsZero() {
 		// If the rule does not exist, it does not require approval, or it has
 		// no actors specified, there's no need to list reviewers
 		return h.renderReviewers(w, r, DetailsReviewersData{PullRequest: state.PullRequest})
 	}
+	requires := &rule.Requires
 
 	var reviewers []string
 	var incomplete bool
@@ -148,13 +145,4 @@ func userHasReviewerPermission(user *pull.Collaborator, perms []pull.Permission)
 		}
 	}
 	return false
-}
-
-func findRuleRequires(config *policy.Config, ruleName string) *approval.Requires {
-	for _, rule := range config.ApprovalRules {
-		if rule.Name == ruleName {
-			return &rule.Requires
-		}
-	}
-	return nil
 }
