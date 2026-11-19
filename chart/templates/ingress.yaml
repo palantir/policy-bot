@@ -1,0 +1,39 @@
+{{- if .Values.ingress.enabled -}}
+{{- $tlsHost := .Values.ingress.tls.host | default (index .Values.ingress.hosts 0).host -}}
+{{- $hasCertManager := or (index .Values.ingress.annotations "cert-manager.io/cluster-issuer") (index .Values.ingress.annotations "cert-manager.io/issuer") -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "policy-bot.fullname" . }}
+  labels:
+    {{- include "policy-bot.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if or .Values.ingress.tls.enabled $hasCertManager }}
+  tls:
+    - hosts:
+        - {{ $tlsHost | quote }}
+      secretName: {{ include "policy-bot.tlsSecretName" . }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ include "policy-bot.fullname" $ }}
+                port:
+                  name: http
+          {{- end }}
+    {{- end }}
+{{- end }}
