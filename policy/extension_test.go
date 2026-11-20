@@ -43,15 +43,9 @@ func TestApprovalExtendsValidation(t *testing.T) {
 			c := extensionConfig(t, test.input)
 			parsed, err := ParsePolicy(c, nil)
 			require.ErrorContains(t, err, test.message)
-			assert.True(t, parsed == nil, "failed parsing must return a nil interface")
+			assert.Nil(t, parsed)
 		})
 	}
-
-	standalone, err := Parse(&Config{}, nil)
-	require.NoError(t, err)
-	assert.PanicsWithValue(t, "child policy must have approval_extends", func() {
-		standalone.Extend(standalone)
-	})
 }
 
 func TestApprovalExtensionNullValues(t *testing.T) {
@@ -343,5 +337,5 @@ func resolveExtension(child, parent *Config, opts *GlobalOptions) (*ParsedPolicy
 	if err != nil {
 		return nil, err
 	}
-	return base.Extend(extension).Resolve()
+	return extension.Extend(base).Resolve()
 }

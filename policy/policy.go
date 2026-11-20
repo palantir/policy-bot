@@ -64,16 +64,12 @@ type GlobalOptions struct {
 	ApprovalDefaults *approval.Defaults
 }
 
-func ParsePolicy(c *Config, opts *GlobalOptions) (common.Evaluator, error) {
+func ParsePolicy(c *Config, opts *GlobalOptions) (*ParsedPolicy, error) {
 	file, err := Parse(c, opts)
 	if err != nil {
 		return nil, err
 	}
-	parsed, err := file.Resolve()
-	if err != nil {
-		return nil, err
-	}
-	return parsed, nil
+	return file.Resolve()
 }
 
 type ParsedPolicy struct {
@@ -144,17 +140,13 @@ func Parse(c *Config, opts *GlobalOptions) (*File, error) {
 	}, nil
 }
 
-func (f *File) Extends() *appconfig.RemoteRef {
+func (f *File) ApprovalExtends() *appconfig.RemoteRef {
 	return f.extends
 }
 
 // Extend combines the parent and child, using the child's slot content and
-// disapproval policy. It panics if the child has no extension reference.
-// Call Resolve to validate the result.
-func (parent *File) Extend(child *File) *File {
-	if child.extends == nil {
-		panic("child policy must have approval_extends")
-	}
+// disapproval policy. Call Resolve to validate the result.
+func (child *File) Extend(parent *File) *File {
 	contents := maps.Clone(parent.slotContents)
 	maps.Copy(contents, child.slotContents)
 	return &File{
@@ -170,7 +162,7 @@ func (parent *File) Extend(child *File) *File {
 // Resolve attaches slot content and validates the completed policy.
 func (f *File) Resolve() (*ParsedPolicy, error) {
 	if f.extends != nil {
-		return nil, errors.New("approval_extends requires a resolved parent; use authenticated simulation for full validation")
+		return nil, errors.New("approval_extends requires a resolved parent")
 	}
 	for name, content := range f.slotContents {
 		if slot := f.slots[name]; slot != nil {

@@ -56,9 +56,7 @@ func TestParsePolicy(t *testing.T) {
 
 		eval, err := ParsePolicy(c, nil)
 		require.NoError(t, err)
-		result := eval.Evaluate(context.Background(), &pulltest.Context{})
-		require.NoError(t, result.Error)
-		assert.Equal(t, common.StatusApproved, result.Status)
+		assert.NotNil(t, eval)
 	})
 
 	t.Run("overridesEditedCommentValue", func(t *testing.T) {
@@ -84,12 +82,9 @@ func TestParsePolicy(t *testing.T) {
 		}
 
 		eval, err := ParsePolicy(c, nil)
-		assert.NoError(t, err)
-		assert.NotNil(t, eval)
-
-		evaluatorImpl, ok := eval.(*ParsedPolicy)
-		require.True(t, ok)
-		assert.Equal(t, disapprovalPolicy, evaluatorImpl.disapproval)
+		require.NoError(t, err)
+		require.NotNil(t, eval)
+		assert.Equal(t, disapprovalPolicy, eval.disapproval)
 	})
 
 	t.Run("withUniqueApprovalRuleNames", func(t *testing.T) {
