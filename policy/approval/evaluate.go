@@ -26,9 +26,6 @@ import (
 type Evaluator interface {
 	common.Evaluator
 
-	// Rules returns all rules in the tree without evaluating their conditions.
-	Rules() []*Rule
-
 	// FindRule searches the named slot. An empty slot name searches outside slots.
 	FindRule(slot, name string) *Rule
 }
@@ -40,13 +37,6 @@ type evaluator struct {
 func (eval *evaluator) FindRule(slot, name string) *Rule {
 	if eval.root != nil {
 		return eval.root.FindRule(slot, name)
-	}
-	return nil
-}
-
-func (eval *evaluator) Rules() []*Rule {
-	if eval.root != nil {
-		return eval.root.Rules()
 	}
 	return nil
 }
@@ -85,13 +75,6 @@ func (r *SlotRule) FindRule(slot, name string) *Rule {
 	return r.Child.FindRule("", name)
 }
 
-func (r *SlotRule) Rules() []*Rule {
-	if r.Child != nil {
-		return r.Child.Rules()
-	}
-	return nil
-}
-
 func (r *SlotRule) Trigger() common.Trigger {
 	if r.Child != nil {
 		return r.Child.Trigger()
@@ -122,10 +105,6 @@ func (r *RuleRequirement) FindRule(slot, name string) *Rule {
 		return r.rule
 	}
 	return nil
-}
-
-func (r *RuleRequirement) Rules() []*Rule {
-	return []*Rule{r.rule}
 }
 
 func (r *RuleRequirement) Trigger() common.Trigger {
@@ -163,14 +142,6 @@ func (r *OrRequirement) FindRule(slot, name string) *Rule {
 		}
 	}
 	return nil
-}
-
-func (r *OrRequirement) Rules() []*Rule {
-	var rules []*Rule
-	for _, child := range r.requirements {
-		rules = append(rules, child.Rules()...)
-	}
-	return rules
 }
 
 func (r *OrRequirement) Trigger() common.Trigger {
@@ -240,14 +211,6 @@ func (r *AndRequirement) FindRule(slot, name string) *Rule {
 		}
 	}
 	return nil
-}
-
-func (r *AndRequirement) Rules() []*Rule {
-	var rules []*Rule
-	for _, child := range r.requirements {
-		rules = append(rules, child.Rules()...)
-	}
-	return rules
 }
 
 func (r *AndRequirement) Trigger() common.Trigger {

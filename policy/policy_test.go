@@ -33,9 +33,6 @@ import (
 
 type StaticEvaluator common.Result
 
-func (eval *StaticEvaluator) Rules() []*approval.Rule {
-	return nil
-}
 func (eval *StaticEvaluator) FindRule(slot, name string) *approval.Rule {
 	return nil
 }

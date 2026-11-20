@@ -99,7 +99,6 @@ type File struct {
 	rules        []*approval.Rule
 	extends      *appconfig.RemoteRef
 	disapproval  *disapproval.Policy
-	extended     bool
 }
 
 // Parse validates one file using its own rules and defaults without requiring
@@ -149,19 +148,22 @@ func (f *File) Extends() *appconfig.RemoteRef {
 	return f.extends
 }
 
-// Extend applies the child's slot content and disapproval policy to the parent.
-// The child must have an extension reference. Call Resolve to validate the result.
+// Extend combines the parent and child, using the child's slot content and
+// disapproval policy. It panics if the child has no extension reference.
+// Call Resolve to validate the result.
 func (parent *File) Extend(child *File) *File {
+	if child.extends == nil {
+		panic("child policy must have approval_extends")
+	}
 	contents := maps.Clone(parent.slotContents)
 	maps.Copy(contents, child.slotContents)
 	return &File{
 		approval:     parent.approval,
 		slots:        parent.slots,
 		slotContents: contents,
-		rules:        parent.rules,
+		rules:        slices.Concat(parent.rules, child.rules),
 		extends:      parent.extends,
 		disapproval:  child.disapproval,
-		extended:     true,
 	}
 }
 
@@ -185,12 +187,8 @@ func (f *File) Resolve() (*ParsedPolicy, error) {
 		slices.Sort(missing)
 		return nil, errors.Errorf("required slots are empty: %q", missing)
 	}
-	rules := f.rules
-	if f.extended {
-		rules = f.approval.Rules()
-	}
 	parsed := &ParsedPolicy{}
-	for _, rule := range rules {
+	for _, rule := range f.rules {
 		parsed.methods = append(parsed.methods, rule.Options.GetMethods())
 	}
 	evalDisapproval := f.disapproval

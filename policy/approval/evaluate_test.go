@@ -125,10 +125,6 @@ func (m *mockRequirement) FindRule(slot, name string) *Rule {
 	return nil
 }
 
-func (m *mockRequirement) Rules() []*Rule {
-	return nil
-}
-
 func (m *mockRequirement) Trigger() common.Trigger {
 	return common.TriggerStatic
 }

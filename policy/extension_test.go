@@ -46,6 +46,12 @@ func TestApprovalExtendsValidation(t *testing.T) {
 			assert.True(t, parsed == nil, "failed parsing must return a nil interface")
 		})
 	}
+
+	standalone, err := Parse(&Config{}, nil)
+	require.NoError(t, err)
+	assert.PanicsWithValue(t, "child policy must have approval_extends", func() {
+		standalone.Extend(standalone)
+	})
 }
 
 func TestApprovalExtensionNullValues(t *testing.T) {
@@ -146,12 +152,18 @@ approval_rules: [{name: review, requires: {count: 1}}]
 				return
 			}
 			require.NoError(t, err)
-			assert.ElementsMatch(t, tt.comments, extensionComments(parsed))
+			rule := parsed.FindApprovalRule("extra", "review")
+			if len(tt.comments) == 0 {
+				assert.Nil(t, rule)
+			} else {
+				require.NotNil(t, rule)
+				assert.Equal(t, tt.comments, rule.Options.GetMethods().GetComments())
+			}
 		})
 	}
 }
 
-func TestApprovalExtensionSelectedMethods(t *testing.T) {
+func TestApprovalExtensionMethods(t *testing.T) {
 	parent := extensionConfig(t, `
 policy: {approval: [retained, {slot: {name: extra}}]}
 slots: {extra: [retained, replaced]}
@@ -164,7 +176,7 @@ approval_rules:
     options: {methods: {comments: [replaced], github_review: true}}
     requires: {count: 1}
   - name: unused
-    options: {methods: {comments: [unused]}}
+    options: {methods: {comments: [parent-unused]}}
 `)
 	child := extensionConfig(t, `
 policy: {approval_extends: {remote: example/policies}}
@@ -175,11 +187,11 @@ approval_rules:
     options: {methods: {comments: [child], github_review: false}}
     requires: {count: 1}
   - name: unused
-    options: {methods: {comments: [unused]}}
+    options: {methods: {comments: [child-unused]}}
 `)
 	parsed, err := resolveExtension(child, parent, nil)
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []string{"parent", "child"}, extensionComments(parsed))
+	assert.ElementsMatch(t, []string{"parent", "replaced", "parent-unused", "child", "child-unused"}, extensionComments(parsed))
 	assert.Equal(t, common.TriggerCommit|common.TriggerComment|common.TriggerLabel, parsed.Trigger())
 	assert.Nil(t, parsed.FindApprovalRule("extra", "replaced"))
 	assert.Nil(t, parsed.FindApprovalRule("extra", "retained"))
@@ -193,7 +205,7 @@ approval_rules:
 		require.NoError(t, err)
 		standalone, err := file.Resolve()
 		require.NoError(t, err)
-		assert.ElementsMatch(t, []string{"parent", "replaced", "unused"}, extensionComments(standalone))
+		assert.ElementsMatch(t, []string{"parent", "replaced", "parent-unused"}, extensionComments(standalone))
 	})
 }
 
