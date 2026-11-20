@@ -1,0 +1,19 @@
+- status: 200
+  body: |
+    [
+      {
+        "number": 42,
+        "state": "open",
+        "head": {
+          "sha": "head",
+          "repo": {
+            "id": 2
+          }
+        },
+        "base": {
+          "repo": {
+            "id": 1
+          }
+        }
+      }
+    ]

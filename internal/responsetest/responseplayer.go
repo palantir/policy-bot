@@ -169,10 +169,3 @@ func errorResponse(req *http.Request, code int, msg string) (*http.Response, err
 		Request: req,
 	}, nil
 }
-
-// AddResponse registers an in-memory response for a request matcher.
-func (rp *ResponsePlayer) AddResponse(matcher RequestMatcher, responses ...SavedResponse) *Rule {
-	rule := &Rule{Matcher: matcher, responses: responses}
-	rp.Rules = append(rp.Rules, rule)
-	return rule
-}

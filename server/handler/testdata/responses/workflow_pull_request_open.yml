@@ -1,0 +1,31 @@
+- status: 200
+  body: |
+    {
+      "data": {
+        "repository": {
+          "pullRequest": {
+            "title": "Fork change",
+            "state": "OPEN",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "author": {
+              "login": "contributor"
+            },
+            "headRefOid": "head",
+            "headRefName": "main",
+            "headRepository": {
+              "name": "repo",
+              "owner": {
+                "login": "contributor"
+              }
+            },
+            "baseRefName": "main",
+            "baseRepository": {
+              "databaseId": 1
+            },
+            "isCrossRepository": true,
+            "isDraft": false,
+            "changedFiles": 1
+          }
+        }
+      }
+    }

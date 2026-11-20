@@ -33,33 +33,53 @@ import (
 
 func TestWorkflowRunEvaluatesFork(t *testing.T) {
 	tests := map[string]struct {
-		trigger                                   string
-		withAssociation                           bool
-		prState, head, conclusion, expectedStatus string
+		trigger             string
+		withAssociation     bool
+		pullRequestResponse string
+		conclusion          string
+		expectedStatus      string
 	}{
-		"pull_request fork":         {trigger: "pull_request", prState: "OPEN", head: "head", conclusion: "success", expectedStatus: "success"},
-		"pull_request_target fork":  {trigger: "pull_request_target", prState: "OPEN", head: "head", conclusion: "success", expectedStatus: "success"},
-		"failed workflow":           {trigger: "pull_request", prState: "OPEN", head: "head", conclusion: "failure", expectedStatus: "pending"},
-		"closed after lookup":       {trigger: "pull_request", prState: "CLOSED", head: "head", conclusion: "success"},
-		"head changed after lookup": {trigger: "pull_request", prState: "OPEN", head: "new-head", conclusion: "success"},
-		"push with association":     {trigger: "push", withAssociation: true, prState: "OPEN", head: "head", conclusion: "success", expectedStatus: "success"},
+		"pull_request fork":         {trigger: "pull_request", pullRequestResponse: "workflow_pull_request_open.yml", conclusion: "success", expectedStatus: "success"},
+		"pull_request_target fork":  {trigger: "pull_request_target", pullRequestResponse: "workflow_pull_request_open.yml", conclusion: "success", expectedStatus: "success"},
+		"failed workflow":           {trigger: "pull_request", pullRequestResponse: "workflow_pull_request_open.yml", conclusion: "failure", expectedStatus: "pending"},
+		"closed after lookup":       {trigger: "pull_request", pullRequestResponse: "workflow_pull_request_closed.yml", conclusion: "success"},
+		"head changed after lookup": {trigger: "pull_request", pullRequestResponse: "workflow_pull_request_moved.yml", conclusion: "success"},
+		"push with association":     {trigger: "push", withAssociation: true, pullRequestResponse: "workflow_pull_request_open.yml", conclusion: "success", expectedStatus: "success"},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			rp := &responsetest.ResponsePlayer{}
-			lookup := rp.AddResponse(responsetest.ExactPathMatcher("/repos/owner/repo/commits/head/pulls"), responsetest.SavedResponse{Status: 200, Body: `[{"number":42,"state":"open","head":{"sha":"head","repo":{"id":2}},"base":{"repo":{"id":1}}}]`})
+			lookup := rp.AddRule(
+				responsetest.ExactPathMatcher("/repos/owner/repo/commits/head/pulls"),
+				"testdata/responses/completion_pull_requests.yml",
+			)
 			// The lookup still reports an open PR at head; GraphQL supplies its newer state.
-			details := rp.AddResponse(responsetest.ExactPathMatcher("/graphql"), responsetest.SavedResponse{Status: 200, Body: fmt.Sprintf(`{"data":{"repository":{"pullRequest":{"title":"Fork change","state":%q,"createdAt":"2026-01-01T00:00:00Z","author":{"login":"contributor"},"headRefOid":%q,"headRefName":"main","headRepository":{"name":"repo","owner":{"login":"contributor"}},"baseRefName":"main","baseRepository":{"databaseId":1},"isCrossRepository":true,"isDraft":false,"changedFiles":1}}}}`, tt.prState, tt.head)})
-			rp.AddResponse(responsetest.ExactPathMatcher("/repos/owner/repo/commits/head/status"), responsetest.SavedResponse{Status: 200, Body: `{"statuses":[]}`})
-			rp.AddResponse(responsetest.ExactPathMatcher("/repos/owner/repo/commits/head/check-runs"), responsetest.SavedResponse{Status: 200, Body: fmt.Sprintf(`{"check_runs":[{"name":"ci","conclusion":%q}]}`, tt.conclusion)})
-			rp.AddResponse(responsetest.ExactPathMatcher("/repos/owner/repo/actions/runs"), responsetest.SavedResponse{Status: 200, Body: fmt.Sprintf(`{"workflow_runs":[{"path":".github/workflows/ci.yml","event":"pull_request","status":"completed","conclusion":%q}]}`, tt.conclusion)})
+			details := rp.AddRule(
+				responsetest.ExactPathMatcher("/graphql"),
+				"testdata/responses/"+tt.pullRequestResponse,
+			)
+			rp.AddRule(
+				responsetest.ExactPathMatcher("/repos/owner/repo/commits/head/status"),
+				"testdata/responses/completion_statuses.yml",
+			)
+			rp.AddRule(
+				responsetest.ExactPathMatcher("/repos/owner/repo/commits/head/check-runs"),
+				"testdata/responses/completion_checks_"+tt.conclusion+".yml",
+			)
+			rp.AddRule(
+				responsetest.ExactPathMatcher("/repos/owner/repo/actions/runs"),
+				"testdata/responses/completion_workflows_"+tt.conclusion+".yml",
+			)
 			var statuses []github.RepoStatus
-			rp.AddResponse(statusRequestMatcher{t: t, statuses: &statuses}, responsetest.SavedResponse{Status: 201, Body: `{}`})
+			rp.AddRule(
+				statusRequestMatcher{t: t, statuses: &statuses},
+				"testdata/responses/completion_post_status.yml",
+			)
 			httpClient := &http.Client{Transport: rp}
 			client, err := github.NewClient(github.WithHTTPClient(httpClient))
 			require.NoError(t, err)
 			base := Base{
-				ClientCreator: completionClientCreator{client: client, v4: githubv4.NewEnterpriseClient("https://api.github.com/graphql", httpClient)},
+				ClientCreator: mockCompletionClientCreator{client: client, v4: githubv4.NewEnterpriseClient("https://api.github.com/graphql", httpClient)},
 				BaseConfig:    &baseapp.HTTPConfig{PublicURL: "https://policy.example.com"},
 				PullOpts:      &PullEvaluationOptions{StatusCheckContext: "policy-bot"},
 				ConfigFetcher: &ConfigFetcher{Loader: mockConfigLoader{loadConfig: func(context.Context, *github.Client, string, string, string) (appconfig.Config, error) {
@@ -77,15 +97,28 @@ approval_rules:
 `), Source: "owner/repo@main", Path: ".policy.yml"}, nil
 				}}},
 			}
-			payload := map[string]any{
-				"action":       "completed",
-				"repository":   map[string]any{"id": 1, "name": "repo", "default_branch": "main", "owner": map[string]any{"login": "owner"}},
-				"installation": map[string]any{"id": 1},
-				"workflow_run": map[string]any{"event": tt.trigger, "head_sha": "head", "head_branch": "main", "conclusion": "success", "pull_requests": []any{}},
+			payload := github.WorkflowRunEvent{
+				Action: new("completed"),
+				Repo: &github.Repository{
+					ID:            new(int64(1)),
+					Name:          new("repo"),
+					DefaultBranch: new("main"),
+					Owner:         &github.User{Login: new("owner")},
+				},
+				Installation: &github.Installation{ID: new(int64(1))},
+				WorkflowRun: &github.WorkflowRun{
+					Event:      new(tt.trigger),
+					HeadSHA:    new("head"),
+					HeadBranch: new("main"),
+					Conclusion: new(tt.conclusion),
+				},
 			}
 			expectedLookups := 1
 			if tt.withAssociation {
-				payload["workflow_run"].(map[string]any)["pull_requests"] = []any{map[string]any{"number": 42, "base": map[string]any{"repo": map[string]any{"id": 1}}}}
+				payload.WorkflowRun.PullRequests = []*github.PullRequest{{
+					Number: new(42),
+					Base:   &github.PullRequestBranch{Repo: payload.Repo},
+				}}
 				expectedLookups = 0
 			}
 			data, err := json.Marshal(payload)
@@ -119,7 +152,7 @@ func (m statusRequestMatcher) Matches(r *http.Request, body []byte) bool {
 }
 
 func TestWorkflowRunLookupFailure(t *testing.T) {
-	base := Base{ClientCreator: completionClientCreator{err: errors.New("lookup unavailable")}}
+	base := Base{ClientCreator: mockCompletionClientCreator{err: errors.New("lookup unavailable")}}
 	payload := []byte(`{"action":"completed","repository":{"id":1,"name":"repo","owner":{"login":"owner"}},"workflow_run":{"event":"pull_request","head_sha":"head","pull_requests":[]}}`)
 	err := (&WorkflowRun{Base: base}).Handle(context.Background(), "workflow_run", "delivery", payload)
 	require.ErrorContains(t, err, "lookup unavailable")

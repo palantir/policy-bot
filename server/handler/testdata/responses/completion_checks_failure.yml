@@ -1,0 +1,10 @@
+- status: 200
+  body: |
+    {
+      "check_runs": [
+        {
+          "name": "ci",
+          "conclusion": "failure"
+        }
+      ]
+    }

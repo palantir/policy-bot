@@ -30,22 +30,24 @@ import (
 
 func TestPullRequestsForHead(t *testing.T) {
 	tests := map[string]struct {
-		responses []responsetest.SavedResponse
-		want      []int
-		wantError bool
+		responseFile  string
+		expectedPages int
+		want          []int
+		wantError     bool
 	}{
 		"filters closed historical and foreign associations across pages": {
-			responses: []responsetest.SavedResponse{
-				{Status: 200, Headers: map[string]string{"Link": `<https://api.github.com/repos/owner/repo/commits/head/pulls?page=2>; rel="next"`}, Body: `[{"number":1,"state":"open","head":{"sha":"head"},"base":{"repo":{"id":1}}},{"number":2,"state":"closed","head":{"sha":"head"},"base":{"repo":{"id":1}}},{"number":3,"state":"open","head":{"sha":"old"},"base":{"repo":{"id":1}}},{"number":4,"state":"open","head":{"sha":"head"},"base":{"repo":{"id":9}}}]`},
-				{Status: 200, Body: `[{"number":5,"state":"open","head":{"sha":"head"},"base":{"repo":{"id":1}}}]`},
-			}, want: []int{1, 5}},
-		"no associations": {responses: []responsetest.SavedResponse{{Status: 200, Body: `[]`}}},
-		"lookup failure":  {responses: []responsetest.SavedResponse{{Status: 403, Body: `{}`}}, wantError: true},
+			responseFile: "completion_pull_requests_paginated.yml", expectedPages: 2, want: []int{1, 5},
+		},
+		"no associations": {responseFile: "completion_pull_requests_empty.yml", expectedPages: 1},
+		"lookup failure":  {responseFile: "completion_pull_requests_forbidden.yml", expectedPages: 1, wantError: true},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			rp := &responsetest.ResponsePlayer{}
-			rule := rp.AddResponse(responsetest.ExactPathMatcher("/repos/owner/repo/commits/head/pulls"), tt.responses...)
+			rule := rp.AddRule(
+				responsetest.ExactPathMatcher("/repos/owner/repo/commits/head/pulls"),
+				"testdata/responses/"+tt.responseFile,
+			)
 			client, err := github.NewClient(github.WithHTTPClient(&http.Client{Transport: rp}))
 			require.NoError(t, err)
 			repo := &github.Repository{ID: new(int64(1)), Name: new("repo"), Owner: &github.User{Login: new("owner")}}
@@ -60,19 +62,21 @@ func TestPullRequestsForHead(t *testing.T) {
 				numbers = append(numbers, pr.GetNumber())
 			}
 			assert.Equal(t, tt.want, numbers, "only current open PRs in this repository should match")
-			assert.Equal(t, len(tt.responses), rule.Count, "all pages should be read")
+			assert.Equal(t, tt.expectedPages, rule.Count, "all pages should be read")
 		})
 	}
 }
 
 func TestCompletionPullRequestsSkipsLookup(t *testing.T) {
 	prs := []*github.PullRequest{{Number: new(1)}}
-	for name, tt := range map[string]struct {
+	tests := map[string]struct {
 		sha string
 		prs []*github.PullRequest
 	}{
-		"associated": {sha: "head", prs: prs}, "missing SHA": {},
-	} {
+		"associated":  {sha: "head", prs: prs},
+		"missing SHA": {},
+	}
+	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			// A zero Base fails if a client is requested.
 			got, err := (&Base{}).completionPullRequests(context.Background(), 0, nil, tt.sha, tt.prs)
@@ -82,36 +86,61 @@ func TestCompletionPullRequestsSkipsLookup(t *testing.T) {
 	}
 }
 
-type completionClientCreator struct {
+type mockCompletionClientCreator struct {
 	githubapp.ClientCreator
 	client *github.Client
 	v4     *githubv4.Client
 	err    error
 }
 
-func (c completionClientCreator) NewInstallationClient(int64) (*github.Client, error) {
+func (c mockCompletionClientCreator) NewInstallationClient(int64) (*github.Client, error) {
 	return c.client, c.err
 }
-func (c completionClientCreator) NewInstallationV4Client(int64) (*githubv4.Client, error) {
+
+func (c mockCompletionClientCreator) NewInstallationV4Client(int64) (*githubv4.Client, error) {
 	return c.v4, c.err
 }
 
 func TestCompletionPullRequestsLookup(t *testing.T) {
 	rp := &responsetest.ResponsePlayer{}
-	rule := rp.AddResponse(responsetest.ExactPathMatcher("/repos/owner/repo/commits/head/pulls"), responsetest.SavedResponse{Status: 200, Body: `[{"number":1,"state":"open","head":{"sha":"head"},"base":{"repo":{"id":2}}}]`})
+	rule := rp.AddRule(
+		responsetest.ExactPathMatcher("/repos/owner/repo/commits/head/pulls"),
+		"testdata/responses/completion_pull_requests.yml",
+	)
 	client, err := github.NewClient(github.WithHTTPClient(&http.Client{Transport: rp}))
 	require.NoError(t, err)
-	b := Base{ClientCreator: completionClientCreator{client: client}}
-	repo := &github.Repository{ID: new(int64(2)), Name: new("repo"), Owner: &github.User{Login: new("owner")}}
+	b := Base{ClientCreator: mockCompletionClientCreator{client: client}}
+	repo := &github.Repository{ID: new(int64(1)), Name: new("repo"), Owner: &github.User{Login: new("owner")}}
 	for range 2 {
 		prs, err := b.completionPullRequests(context.Background(), 1, repo, "head", nil)
 		require.NoError(t, err)
 		if assert.Len(t, prs, 1, "matching PR should be returned") {
-			assert.Equal(t, 1, prs[0].GetNumber(), "matching PR number")
+			assert.Equal(t, 42, prs[0].GetNumber(), "matching PR number")
 		}
 	}
 	assert.Equal(t, 2, rule.Count, "each completion should perform a fresh lookup")
-	b.ClientCreator = completionClientCreator{err: errors.New("client failure")}
+	b.ClientCreator = mockCompletionClientCreator{err: errors.New("client failure")}
 	_, err = b.completionPullRequests(context.Background(), 1, repo, "other", nil)
 	require.ErrorContains(t, err, "client failure")
+}
+
+func TestPullRequestsForCommit(t *testing.T) {
+	rp := &responsetest.ResponsePlayer{}
+	rule := rp.AddRule(
+		responsetest.ExactPathMatcher("/repos/owner/repo/commits/head/pulls"),
+		"testdata/responses/completion_pull_requests_paginated.yml",
+	)
+	client, err := github.NewClient(github.WithHTTPClient(&http.Client{Transport: rp}))
+	require.NoError(t, err)
+	repo := &github.Repository{ID: new(int64(1)), Name: new("repo"), Owner: &github.User{Login: new("owner")}}
+	prs, err := pullRequestsForCommit(context.Background(), client, repo, "head")
+	require.NoError(t, err)
+
+	// Status events also need historical associations. Filtering belongs to callers.
+	var numbers []int
+	for _, pr := range prs {
+		numbers = append(numbers, pr.GetNumber())
+	}
+	assert.Equal(t, []int{1, 2, 3, 4, 5}, numbers, "shared lookup must preserve all associations")
+	assert.Equal(t, 2, rule.Count, "all pages should be read")
 }

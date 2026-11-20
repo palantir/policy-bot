@@ -74,10 +74,14 @@ func makeEvalContext(seenPolicy bool) *EvalContext {
 }
 
 func TestWorkflowCompletionPolicyStatus(t *testing.T) {
-	for name, tt := range map[string]struct{ conclusion, want string }{
-		"successful workflow": {"success", "success"},
-		"failed workflow":     {"failure", "pending"},
-	} {
+	tests := map[string]struct {
+		conclusion string
+		want       string
+	}{
+		"successful workflow": {conclusion: "success", want: "success"},
+		"failed workflow":     {conclusion: "failure", want: "pending"},
+	}
+	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			var config policy.Config
 			require.NoError(t, yaml.UnmarshalStrict([]byte(`policy:
