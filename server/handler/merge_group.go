@@ -45,6 +45,14 @@ func (h *MergeGroup) Handle(ctx context.Context, eventType, devlieryID string, p
 		return nil
 	}
 
+	// Ruleset checks are never posted for merge groups: this handler posts
+	// success without evaluating the merge group's contents, and a shared
+	// ruleset check on the merge group head could satisfy other branches in
+	// the ruleset. Only the per-branch status is posted, if enabled.
+	if !h.PullOpts.HasStatusCheck(StatusCheckBranch) {
+		return nil
+	}
+
 	logger := zerolog.Ctx(ctx)
 	installationID := githubapp.GetInstallationIDFromEvent(&event)
 	client, err := h.NewInstallationClient(installationID)
@@ -65,7 +73,7 @@ func (h *MergeGroup) Handle(ctx context.Context, eventType, devlieryID string, p
 		return nil
 	}
 
-	contextWithBranch := fmt.Sprintf("%s: %s", h.PullOpts.StatusCheckContext, baseBranch)
+	contextWithBranch := h.PullOpts.BranchStatusContext(baseBranch)
 	state := "success"
 	message := fmt.Sprintf("%s previously approved original pull request.", h.AppName)
 	status := github.RepoStatus{

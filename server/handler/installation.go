@@ -79,6 +79,14 @@ func (h *Installation) Handle(ctx context.Context, eventType, deliveryID string,
 }
 
 func (h *Installation) postRepoInstallationStatus(ctx context.Context, client *github.Client, r *github.Repository) {
+	// Ruleset checks are never posted on installation: this posts success on
+	// the default branch head without evaluating anything, and a shared
+	// ruleset check on that commit could satisfy other branches in the
+	// ruleset. Only the per-branch status is posted, if enabled.
+	if !h.PullOpts.HasStatusCheck(StatusCheckBranch) {
+		return
+	}
+
 	logger := zerolog.Ctx(ctx)
 
 	repoFullName := strings.Split(r.GetFullName(), "/")
@@ -98,7 +106,7 @@ func (h *Installation) postRepoInstallationStatus(ctx context.Context, client *g
 	}
 
 	head := branch.GetCommit().GetSHA()
-	contextWithBranch := fmt.Sprintf("%s: %s", h.PullOpts.StatusCheckContext, defaultBranch)
+	contextWithBranch := h.PullOpts.BranchStatusContext(defaultBranch)
 	state := "success"
 	message := fmt.Sprintf("%s successfully installed.", h.AppName)
 	status := github.RepoStatus{

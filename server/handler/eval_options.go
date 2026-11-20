@@ -16,12 +16,15 @@ package handler
 
 import (
 	"encoding"
+	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/palantir/policy-bot/policy/approval"
 	"github.com/palantir/policy-bot/policy/common"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -30,6 +33,20 @@ const (
 	DefaultSharedPolicyPath   = "policy.yml"
 	DefaultStatusCheckContext = "policy-bot"
 )
+
+// StatusCheckType identifies a kind of status check posted for pull requests.
+type StatusCheckType string
+
+const (
+	// StatusCheckBranch posts the "<context>: <base branch>" status.
+	StatusCheckBranch StatusCheckType = "branch"
+
+	// StatusCheckRuleset posts a "<context>: ruleset:<name>" status for each
+	// ruleset covering the base branch that requires the check.
+	StatusCheckRuleset StatusCheckType = "ruleset"
+)
+
+var defaultStatusChecks = []StatusCheckType{StatusCheckBranch}
 
 type PullEvaluationOptions struct {
 	PolicyPath string `yaml:"policy_path"`
@@ -48,6 +65,10 @@ type PullEvaluationOptions struct {
 	// StatusCheckContext will be used to create the status context. It will be used in the following
 	// pattern: <StatusCheckContext>: <Base Branch Name>
 	StatusCheckContext string `yaml:"status_check_context"`
+
+	// StatusChecks is the set of status check types to post for each pull
+	// request. Valid values are "branch" and "ruleset". Defaults to "branch".
+	StatusChecks []StatusCheckType `yaml:"status_checks"`
 
 	// ExpandRequiredReviewers enables a UI feature where the details page
 	// shows a list of the users who can approve each rule. Enabling this
@@ -112,6 +133,59 @@ func (p *PullEvaluationOptions) fillDefaults() {
 	if p.StatusCheckContext == "" {
 		p.StatusCheckContext = DefaultStatusCheckContext
 	}
+
+	// an explicitly empty list is preserved so that Validate can reject it
+	if p.StatusChecks == nil {
+		p.StatusChecks = slices.Clone(defaultStatusChecks)
+	} else {
+		p.StatusChecks = normalizeStatusChecks(p.StatusChecks)
+	}
+}
+
+// Validate returns an error if the options contain invalid or incompatible
+// values. Call it after SetValuesFromEnv.
+func (p *PullEvaluationOptions) Validate() error {
+	if p.StatusChecks != nil && len(p.StatusChecks) == 0 {
+		return errors.New("status_checks must contain at least one value")
+	}
+	for _, c := range p.StatusChecks {
+		switch c {
+		case StatusCheckBranch, StatusCheckRuleset:
+		default:
+			return errors.Errorf("invalid status_checks value %q: must be one of %q, %q", c, StatusCheckBranch, StatusCheckRuleset)
+		}
+	}
+	if p.PostInsecureStatusChecks && p.HasStatusCheck(StatusCheckRuleset) {
+		return errors.Errorf("post_insecure_status_checks is incompatible with the %q status check", StatusCheckRuleset)
+	}
+	return nil
+}
+
+// HasStatusCheck returns true if the status check type is enabled. If
+// StatusChecks is unset, only StatusCheckBranch is enabled.
+func (p *PullEvaluationOptions) HasStatusCheck(t StatusCheckType) bool {
+	checks := p.StatusChecks
+	if checks == nil {
+		checks = defaultStatusChecks
+	}
+	return slices.Contains(checks, t)
+}
+
+// BranchStatusContext returns the context of the legacy per-branch status.
+func (p *PullEvaluationOptions) BranchStatusContext(branch string) string {
+	return fmt.Sprintf("%s: %s", p.StatusCheckContext, branch)
+}
+
+// normalizeStatusChecks trims and de-duplicates values while preserving order.
+func normalizeStatusChecks(checks []StatusCheckType) []StatusCheckType {
+	normalized := make([]StatusCheckType, 0, len(checks))
+	for _, c := range checks {
+		c = StatusCheckType(strings.ToLower(strings.TrimSpace(string(c))))
+		if !slices.Contains(normalized, c) {
+			normalized = append(normalized, c)
+		}
+	}
+	return normalized
 }
 
 func (p *PullEvaluationOptions) SetValuesFromEnv(prefix string) {
@@ -119,6 +193,7 @@ func (p *PullEvaluationOptions) SetValuesFromEnv(prefix string) {
 	setStringPtrFromEnv("SHARED_REPOSITORY", prefix, &p.SharedRepository)
 	setStringPtrFromEnv("SHARED_POLICY_PATH", prefix, &p.SharedPolicyPath)
 	setStringFromEnv("STATUS_CHECK_CONTEXT", prefix, &p.StatusCheckContext)
+	setStringListFromEnv("STATUS_CHECKS", prefix, &p.StatusChecks)
 	setBoolFromEnv("FORCE_SHARED_POLICY", prefix, &p.ForceSharedPolicy)
 	setBoolFromEnv("ALLOW_PRIVATE_REMOTES", prefix, &p.AllowPrivateRemotes)
 	setBoolFromEnv("EXPAND_REQUIRED_REVIEWERS", prefix, &p.ExpandRequiredReviewers)

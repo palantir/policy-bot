@@ -96,6 +96,9 @@ func ParseConfig(bytes []byte) (*Config, error) {
 	}
 
 	c.Options.SetValuesFromEnv(envPrefix + "OPTIONS_")
+	if err := c.Options.Validate(); err != nil {
+		return nil, errors.Wrap(err, "invalid options")
+	}
 	c.Server.SetValuesFromEnv(envPrefix)
 	c.Logging.SetValuesFromEnv(envPrefix)
 	c.Github.SetValuesFromEnv("")
