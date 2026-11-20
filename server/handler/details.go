@@ -78,7 +78,7 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 
 	data.BasePath = getBasePath(h.BaseConfig.PublicURL)
 	data.User = state.Username
-	data.PolicyURL = getPolicyURL(state.PullRequest, evalCtx.Config)
+	data.PolicyURL = getPolicyURL(state.PullRequest, evalCtx.Config.Sources[0])
 	data.ExpandRequiredReviewers = h.PullOpts.ExpandRequiredReviewers
 	data.PullRequest = state.PullRequest
 
@@ -88,7 +88,7 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 		return h.render(w, data)
 	}
 	if evaluator == nil {
-		data.Error = errors.Errorf("Invalid policy at %s: %s", evalCtx.Config.Source, evalCtx.Config.Path)
+		data.Error = errors.Errorf("Invalid %s", evalCtx.Config.policyLocation())
 		return h.render(w, data)
 	}
 
@@ -196,14 +196,14 @@ func (h *Details) render404(w http.ResponseWriter, owner, repo string, number in
 	http.Error(w, msg, http.StatusNotFound)
 }
 
-func getPolicyURL(pr *github.PullRequest, config FetchedConfig) string {
+func getPolicyURL(pr *github.PullRequest, source PolicyLocation) string {
 	base := pr.GetBase().GetRepo().GetHTMLURL()
 	if u, _ := url.Parse(base); u != nil {
-		srcParts := strings.Split(config.Source, "@")
+		srcParts := strings.Split(source.Source, "@")
 		if len(srcParts) != 2 {
 			return base
 		}
-		u.Path = path.Join(srcParts[0], "blob", srcParts[1], config.Path)
+		u.Path = path.Join(srcParts[0], "blob", srcParts[1], source.Path)
 		return u.String()
 	}
 	return base

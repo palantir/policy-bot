@@ -33,10 +33,11 @@ func TestApprovalExtendsValidation(t *testing.T) {
 	for _, test := range []struct {
 		name, input, message string
 	}{
-		{"both approval keys", `policy: {approval: [review], approval_extends: {remote: example/policies}}`, "approval and approval_extends cannot both be specified"},
-		{"empty approval", `policy: {approval: [], approval_extends: {remote: example/policies}}`, "approval and approval_extends cannot both be specified"},
+		{"both approval keys", `policy: {approval: [review], approval_extends: {remote: example/policies, path: .policy.yml}}`, "approval and approval_extends cannot both be specified"},
+		{"empty approval", `policy: {approval: [], approval_extends: {remote: example/policies, path: .policy.yml}}`, "approval and approval_extends cannot both be specified"},
 		{"empty extension", `policy: {approval_extends: {}}`, "invalid approval_extends"},
 		{"missing repository", `policy: {approval_extends: {remote: example/}}`, "invalid approval_extends"},
+		{"missing path", `policy: {approval_extends: {remote: example/policies}}`, "approval_extends requires a path"},
 		{"unresolved extension", `policy: {approval_extends: {remote: example/policies, ref: main, path: config/policy.yml}}`, "approval_extends requires a resolved parent"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -53,7 +54,7 @@ func TestApprovalExtensionNullValues(t *testing.T) {
 policy: {approval: [review]}
 approval_rules: [{name: review, requires: {count: 1}}]
 `)
-	child := extensionConfig(t, `policy: {approval: null, approval_extends: {remote: example/policies}}`)
+	child := extensionConfig(t, `policy: {approval: null, approval_extends: {remote: example/policies, path: .policy.yml}}`)
 	parsed, err := resolveExtension(child, parent, nil)
 	require.NoError(t, err)
 	assert.Equal(t, common.StatusPending, parsed.Evaluate(context.Background(), &pulltest.Context{}).Status)
@@ -76,7 +77,7 @@ approval_rules:
     requires: {count: 1, users: [platform]}
 `)
 	child := extensionConfig(t, `
-policy: {approval_extends: {remote: example/policies}}
+policy: {approval_extends: {remote: example/policies, path: .policy.yml}}
 slots: {extra: [review]}
 approval_rules:
   - name: review
@@ -136,7 +137,7 @@ approval_defaults: {options: {methods: {comments: [parent]}}}
 approval_rules: [{name: review, requires: {count: 1}}]
 `, tt.required))
 			child := extensionConfig(t, `
-policy: {approval_extends: {remote: example/policies}}
+policy: {approval_extends: {remote: example/policies, path: .policy.yml}}
 approval_defaults: {options: {methods: {comments: [child]}}}
 approval_rules: [{name: review, requires: {count: 1}}]
 `+tt.content)
@@ -173,7 +174,7 @@ approval_rules:
     options: {methods: {comments: [parent-unused]}}
 `)
 	child := extensionConfig(t, `
-policy: {approval_extends: {remote: example/policies}}
+policy: {approval_extends: {remote: example/policies, path: .policy.yml}}
 slots: {extra: [{or: [review]}], unused: [unused]}
 approval_rules:
   - name: review
@@ -213,7 +214,7 @@ func TestApprovalExtensionInvalidSlotContents(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			parent := extensionConfig(t, "policy: {approval: [{slot: {name: extra}}]}")
-			child := extensionConfig(t, "policy: {approval_extends: {remote: example/policies}}\nslots: {extra: []}")
+			child := extensionConfig(t, "policy: {approval_extends: {remote: example/policies, path: .policy.yml}}\nslots: {extra: []}")
 			badContent := Slots{test.slot: {"foreign"}}
 			if test.parent {
 				parent.Slots = badContent
@@ -239,7 +240,7 @@ approval_rules: [{name: review}]
 `)
 	child := extensionConfig(t, `
 policy:
-  approval_extends: {remote: example/policies}
+  approval_extends: {remote: example/policies, path: .policy.yml}
   disapproval:
     requires: {users: [child]}
     options:
@@ -299,7 +300,7 @@ approval_defaults: {options: {methods: {comments: [parent]}}}
 approval_rules: [{name: review, options: {ignore_edited_comments: false}}]
 `)
 	child := extensionConfig(t, `
-policy: {approval_extends: {remote: example/policies}}
+policy: {approval_extends: {remote: example/policies, path: .policy.yml}}
 slots: {extra: [review]}
 approval_rules: [{name: review, options: {ignore_edited_comments: false}}]
 `)

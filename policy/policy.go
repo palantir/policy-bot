@@ -107,6 +107,9 @@ func Parse(c *Config, opts *GlobalOptions) (*File, error) {
 		if _, _, err := c.Policy.ApprovalExtends.SplitRemote(); err != nil {
 			return nil, errors.WithMessage(err, "invalid approval_extends")
 		}
+		if c.Policy.ApprovalExtends.Path == "" {
+			return nil, errors.New("approval_extends requires a path")
+		}
 	}
 	rules, err := prepareRules(c, opts)
 	if err != nil {

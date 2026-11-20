@@ -182,9 +182,8 @@ func New(c *Config) (*Server, error) {
 				IgnoreEditedComments: c.Options.IgnoreEditedComments,
 				ApprovalDefaults:     c.Options.ApprovalDefaults,
 			},
-			Loader:            appconfig.NewLoader(policyPaths, loaderOptions...),
-			DefaultParentPath: c.Options.PolicyPath,
-			SeenPolicyCache:   seenPolicyCache,
+			Loader:          appconfig.NewLoader(policyPaths, loaderOptions...),
+			SeenPolicyCache: seenPolicyCache,
 		},
 
 		AppName: app.GetSlug(),

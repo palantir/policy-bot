@@ -76,28 +76,20 @@ func (ec *EvalContext) ParseConfig(ctx context.Context, trigger common.Trigger) 
 	fc := ec.Config
 	switch {
 	case fc.LoadError != nil:
-		msg := fmt.Sprintf("Error loading policy from %s", fc.Source)
-		if fc.Config != nil && fc.Config.Policy.ApprovalExtends != nil {
-			msg = "Error loading parent policy"
-		}
-		logger.Warn().Err(fc.LoadError).Bool("seen_policy", fc.SeenPolicy).Msg(msg)
+		logger.Warn().Err(fc.LoadError).Bool("seen_policy", fc.SeenPolicy).Msgf("Error loading %s", fc.policyLocation())
 
 		// If policy-bot has never seen a policy file for this base branch
 		// then suppress the failing status.
 		if fc.SeenPolicy {
-			ec.PostStatus(ctx, "error", msg)
+			ec.PostStatus(ctx, "error", "Error loading policy")
 		}
-		return nil, errors.Wrapf(fc.LoadError, "failed to load policy: %s: %s", fc.Source, fc.Path)
+		return nil, errors.Wrapf(fc.LoadError, "failed to load %s", fc.policyLocation())
 
 	case fc.ParseError != nil:
-		msg := fmt.Sprintf("Invalid policy in %s: %s", fc.Source, fc.Path)
-		if fc.Config != nil && fc.Config.Policy.ApprovalExtends != nil {
-			msg = "Invalid policy configuration"
-		}
-		logger.Warn().Err(fc.ParseError).Msg(msg)
+		logger.Warn().Err(fc.ParseError).Msg("Invalid policy configuration")
 
-		ec.PostStatus(ctx, "error", msg)
-		return nil, errors.Wrapf(fc.ParseError, "failed to parse policy: %s: %s", fc.Source, fc.Path)
+		ec.PostStatus(ctx, "error", "Invalid policy configuration")
+		return nil, errors.WithStack(fc.ParseError)
 
 	case fc.Policy == nil:
 		logger.Debug().Msg("No policy defined for repository")
@@ -123,7 +115,8 @@ func (ec *EvalContext) EvaluatePolicy(ctx context.Context, evaluator common.Eval
 
 	result := evaluator.Evaluate(ctx, ec.PullContext)
 	if result.Error != nil {
-		msg := fmt.Sprintf("Error evaluating policy in %s: %s", ec.Config.Source, ec.Config.Path)
+		source := ec.Config.Sources[0]
+		msg := fmt.Sprintf("Error evaluating policy in %s: %s", source.Source, source.Path)
 		logger.Warn().Err(result.Error).Msg(msg)
 
 		ec.PostStatus(ctx, "error", msg)

@@ -937,7 +937,8 @@ from the file that defines the rules.
 
 If a child policy does not define a new value for a slot, the parent's default
 rules are used. A value from the child fully replaces the default content from
-the parent; `[]` or `null` clears it.
+the parent. Set a slot's content to `[]` or `null` to remove any rules defined by
+the parent.
 
 The parent's `slots` entries must match declared slots. Content for undeclared
 slots is ignored in child policies, but all slot content must be valid, including
@@ -949,8 +950,9 @@ reference. A standard top-level remote reference can point to a policy that
 contains `approval_extends`. Disapproval is not inherited from the parent;
 the child policy may define its own `policy.disapproval`.
 
-Parent references use the [remote configuration](#remote-policy-configuration)
-defaults and access settings.
+Parent references require `remote` and `path`. If `ref` is omitted, the parent
+repository's default branch is used. The same
+[remote configuration](#remote-policy-configuration) access settings apply.
 
 Use the authenticated [simulation API](#simulation-api) on an existing pull request
 to test a child policy loaded from GitHub. The CLI `validate` command and

@@ -45,7 +45,7 @@ func TestParseConfigPostsStatusForSeenPolicy(t *testing.T) {
 	require.NotNil(t, ec.Status)
 	assert.Equal(t, "error", ec.Status.GetState())
 	assert.Equal(t, "policy-bot: main", ec.Status.GetContext())
-	assert.Equal(t, "Error loading policy from testorg/testrepo@main", ec.Status.GetDescription())
+	assert.Equal(t, "Error loading policy", ec.Status.GetDescription())
 }
 
 func TestExtensionPolicyErrorSources(t *testing.T) {
@@ -53,7 +53,7 @@ func TestExtensionPolicyErrorSources(t *testing.T) {
 	for _, test := range []struct {
 		name, child, parent, message string
 	}{
-		{"required slot", extensionPolicy, parentPolicy, "required slots are empty"},
+		{"required slot", extendingPolicy, parentPolicy, "required slots are empty"},
 		{"standalone", "policy: {approval: [missing]}", "", "failed to parse approval policy"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -62,26 +62,23 @@ func TestExtensionPolicyErrorSources(t *testing.T) {
 					return appconfig.Config{Content: []byte(test.child), Source: "example/service@main", Path: "child.yml"}, nil
 				},
 				loadRemoteRef: func(context.Context, *github.Client, string, appconfig.RemoteRef) (appconfig.Config, error) {
-					require.NotEmpty(t, test.parent)
+					require.NotEmpty(t, test.parent, "only an extending policy may request a parent")
 					return appconfig.Config{Content: []byte(test.parent), Source: "shared/policies@release", Path: "rules/parent.yml"}, nil
 				},
 			}}
 			ec := makeEvalContext(false)
 			ec.Config = fetcher.ConfigForRepositoryBranch(context.Background(), nil, "example", "service", "main")
 			parsed, err := ec.ParseConfig(context.Background(), common.TriggerAll)
-			require.ErrorContains(t, err, test.message)
-			assert.Nil(t, parsed)
-			assert.Contains(t, err.Error(), "example/service@main")
-			assert.Contains(t, err.Error(), "child.yml")
-			require.NotNil(t, ec.Status)
-			assert.Equal(t, "error", ec.Status.GetState())
+			require.ErrorContains(t, err, test.message, "validation failures must reach the handler")
+			assert.Nil(t, parsed, "invalid policies must not be evaluated")
+			assert.Contains(t, err.Error(), "example/service@main", "diagnostic identifies the child repository")
+			assert.Contains(t, err.Error(), "child.yml", "diagnostic identifies the child file")
+			require.NotNil(t, ec.Status, "validation failures must post a status")
+			assert.Equal(t, "error", ec.Status.GetState(), "invalid policies post an error status")
+			assert.Equal(t, "Invalid policy configuration", ec.Status.GetDescription(), "status stays brief; file details belong in the error")
 			if test.parent != "" {
-				assert.Contains(t, err.Error(), "shared/policies@release")
-				assert.Contains(t, err.Error(), "rules/parent.yml")
-				assert.Equal(t, "Invalid policy configuration", ec.Status.GetDescription())
-			} else {
-				assert.NotContains(t, err.Error(), "shared/policies@release")
-				assert.Equal(t, "Invalid policy in example/service@main: child.yml", ec.Status.GetDescription())
+				assert.Contains(t, err.Error(), "shared/policies@release", "diagnostic identifies the parent repository")
+				assert.Contains(t, err.Error(), "rules/parent.yml", "diagnostic identifies the parent file")
 			}
 		})
 	}
@@ -105,8 +102,7 @@ func makeEvalContext(seenPolicy bool) *EvalContext {
 		SkipPostStatus: true,
 		Config: FetchedConfig{
 			LoadError:  errors.New("request failed"),
-			Source:     "testorg/testrepo@main",
-			Path:       ".policy.yml",
+			Sources:    []PolicyLocation{{Source: "testorg/testrepo@main", Path: ".policy.yml"}},
 			SeenPolicy: seenPolicy,
 		},
 	}

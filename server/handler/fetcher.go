@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/google/go-github/v93/github"
@@ -38,35 +39,34 @@ type PolicyLocation struct {
 	Path   string
 }
 
+func (p PolicyLocation) String() string {
+	return fmt.Sprintf("%q in %q", p.Path, p.Source)
+}
+
 type FetchedConfig struct {
 	Config     *policy.Config
 	Policy     *policy.ParsedPolicy
 	LoadError  error
 	ParseError error
 
-	Source string
-	Path   string
-	Chain  []PolicyLocation
+	// Sources starts with the leaf lookup, even if no policy was found.
+	Sources []PolicyLocation
 
 	SeenPolicy bool
 }
 
 func (fc FetchedConfig) policyLocation() string {
-	location := fmt.Sprintf("policy %q in %q", fc.Path, fc.Source)
-	for _, parent := range fc.Chain[1:] {
-		if parent.Source != "" {
-			location += fmt.Sprintf(" extending parent %q in %q", parent.Path, parent.Source)
-		}
+	locations := make([]string, len(fc.Sources))
+	for i, source := range fc.Sources {
+		locations[i] = source.String()
 	}
-	return location
+	return "policy " + strings.Join(locations, " extending parent ")
 }
 
 type ConfigFetcher struct {
-	Loader  ConfigLoader
-	Options *policy.GlobalOptions
-	// DefaultParentPath remains available when local policy discovery is disabled.
-	DefaultParentPath string
-	SeenPolicyCache   *SeenPolicyCache
+	Loader          ConfigLoader
+	Options         *policy.GlobalOptions
+	SeenPolicyCache *SeenPolicyCache
 }
 
 // A policy can extend exactly one other policy.
@@ -77,7 +77,8 @@ func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *
 	c, err := loadConfigWithRetry(ctx, func() (appconfig.Config, error) {
 		return cf.Loader.LoadConfig(ctx, client, owner, repository, branch)
 	})
-	fc := FetchedConfig{Source: c.Source, Path: c.Path}
+	source := PolicyLocation{Source: c.Source, Path: c.Path}
+	fc := FetchedConfig{Sources: []PolicyLocation{source}}
 	if err != nil {
 		fc.SeenPolicy = cf.SeenPolicyCache.Get(key)
 		fc.LoadError = err
@@ -86,19 +87,19 @@ func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *
 	if c.IsUndefined() {
 		return fc
 	}
-	cf.SeenPolicyCache.Set(key)
 	// Mark the branch as having seen a policy even if parsing or parent loading fails.
+	cf.SeenPolicyCache.Set(key)
 	fc.SeenPolicy = true
-	fc.Chain = append(fc.Chain, PolicyLocation{Source: c.Source, Path: c.Path})
+
 	var pc policy.Config
 	if err := yaml.UnmarshalStrict(c.Content, &pc); err != nil {
-		fc.ParseError = fmt.Errorf("failed to parse policy %q in %q: %w", c.Path, c.Source, err)
+		fc.ParseError = fmt.Errorf("failed to parse policy %s: %w", source, err)
 		return fc
 	}
 	fc.Config = &pc
 	cur, err := policy.Parse(&pc, cf.Options)
 	if err != nil {
-		fc.ParseError = fmt.Errorf("failed to parse policy %q in %q: %w", c.Path, c.Source, err)
+		fc.ParseError = fmt.Errorf("failed to parse policy %s: %w", source, err)
 		return fc
 	}
 	for depth := 0; cur.ApprovalExtends() != nil; depth++ {
@@ -107,34 +108,24 @@ func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *
 			return fc
 		}
 		remote := *cur.ApprovalExtends()
-		if remote.Path == "" {
-			remote.Path = cf.DefaultParentPath
-		}
 		parent, err := loadConfigWithRetry(ctx, func() (appconfig.Config, error) {
 			// The supplied client belongs to owner even when the child came from another owner.
 			return cf.Loader.LoadRemoteRef(ctx, client, owner, remote)
 		})
-		fc.Chain = append(fc.Chain, PolicyLocation{Source: parent.Source, Path: parent.Path})
+		parentSource := PolicyLocation{Source: parent.Source, Path: parent.Path}
+		fc.Sources = append(fc.Sources, parentSource)
 		if err != nil {
-			if parent.IsUndefined() {
-				fc.LoadError = fmt.Errorf("failed to load parent policy requested by %q in %q: %w", c.Path, c.Source, err)
-			} else {
-				fc.LoadError = fmt.Errorf("failed to load parent policy %q in %q: %w", parent.Path, parent.Source, err)
-			}
-			return fc
-		}
-		if parent.IsUndefined() {
-			fc.LoadError = fmt.Errorf("parent policy in %q does not exist", remote.Remote)
+			fc.LoadError = fmt.Errorf("failed to load parent policy %s: %w", parentSource, err)
 			return fc
 		}
 		var parentConfig policy.Config
 		if err := yaml.UnmarshalStrict(parent.Content, &parentConfig); err != nil {
-			fc.ParseError = fmt.Errorf("failed to parse parent policy %q in %q: %w", parent.Path, parent.Source, err)
+			fc.ParseError = fmt.Errorf("%s: failed to parse parent policy: %w", fc.policyLocation(), err)
 			return fc
 		}
 		parsed, err := policy.Parse(&parentConfig, cf.Options)
 		if err != nil {
-			fc.ParseError = fmt.Errorf("failed to parse parent policy %q in %q: %w", parent.Path, parent.Source, err)
+			fc.ParseError = fmt.Errorf("%s: failed to parse parent policy: %w", fc.policyLocation(), err)
 			return fc
 		}
 		cur = cur.Extend(parsed)

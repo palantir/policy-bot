@@ -46,7 +46,7 @@ func (h *DetailsReviewers) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 	config := evalctx.Config
 	switch {
 	case config.LoadError != nil:
-		logger.Warn().Err(config.LoadError).Msgf("Error loading policy from %s, reviewers will be incomplete", config.Source)
+		logger.Warn().Err(config.LoadError).Msgf("Error loading %s, reviewers will be incomplete", config.policyLocation())
 		return h.renderReviewers(w, r, DetailsReviewersData{
 			PullRequest: state.PullRequest,
 			Incomplete:  true,
@@ -57,6 +57,8 @@ func (h *DetailsReviewers) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		return h.renderReviewers(w, r, DetailsReviewersData{PullRequest: state.PullRequest, Incomplete: true})
 
 	case config.Policy == nil:
+		// Reviewer requests normally follow a valid details page, so a missing
+		// policy suggests something is calling this endpoint directly.
 		return h.renderReviewers(w, r, DetailsReviewersData{PullRequest: state.PullRequest})
 	}
 
@@ -66,7 +68,7 @@ func (h *DetailsReviewers) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		// no actors specified, there's no need to list reviewers
 		return h.renderReviewers(w, r, DetailsReviewersData{PullRequest: state.PullRequest})
 	}
-	requires := &rule.Requires
+	requires := rule.Requires
 
 	var reviewers []string
 	var incomplete bool
