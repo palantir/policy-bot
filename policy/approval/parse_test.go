@@ -106,7 +106,7 @@ func TestParsePolicy(t *testing.T) {
 
 	expected := &evaluator{
 		root: &AndRequirement{
-			requirements: []common.Evaluator{
+			requirements: []Evaluator{
 				&RuleRequirement{
 					rule: rules[0],
 				},
@@ -114,9 +114,9 @@ func TestParsePolicy(t *testing.T) {
 					rule: rules[1],
 				},
 				&OrRequirement{
-					requirements: []common.Evaluator{
+					requirements: []Evaluator{
 						&AndRequirement{
-							requirements: []common.Evaluator{
+							requirements: []Evaluator{
 								&RuleRequirement{
 									rule: rules[2],
 								},
@@ -131,7 +131,7 @@ func TestParsePolicy(t *testing.T) {
 					},
 				},
 				&AndRequirement{
-					requirements: []common.Evaluator{
+					requirements: []Evaluator{
 						&RuleRequirement{
 							rule: rules[5],
 						},
@@ -139,7 +139,7 @@ func TestParsePolicy(t *testing.T) {
 							rule: rules[6],
 						},
 						&OrRequirement{
-							requirements: []common.Evaluator{
+							requirements: []Evaluator{
 								&RuleRequirement{
 									rule: rules[7],
 								},

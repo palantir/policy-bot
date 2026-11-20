@@ -33,6 +33,10 @@ import (
 
 type StaticEvaluator common.Result
 
+func (eval *StaticEvaluator) FindRule(slot, name string) *approval.Rule {
+	return nil
+}
+
 func (eval *StaticEvaluator) Trigger() common.Trigger {
 	return common.TriggerStatic
 }
@@ -50,8 +54,9 @@ func TestParsePolicy(t *testing.T) {
 			},
 		}
 
-		_, err := ParsePolicy(c, nil)
-		assert.NoError(t, err)
+		eval, err := ParsePolicy(c, nil)
+		require.NoError(t, err)
+		assert.NotNil(t, eval)
 	})
 
 	t.Run("overridesEditedCommentValue", func(t *testing.T) {
@@ -77,12 +82,9 @@ func TestParsePolicy(t *testing.T) {
 		}
 
 		eval, err := ParsePolicy(c, nil)
-		assert.NoError(t, err)
-		assert.NotNil(t, eval)
-
-		evaluatorImpl, ok := eval.(evaluator)
-		assert.True(t, ok)
-		assert.Equal(t, disapprovalPolicy, evaluatorImpl.disapproval)
+		require.NoError(t, err)
+		require.NotNil(t, eval)
+		assert.Equal(t, disapprovalPolicy, eval.disapproval)
 	})
 
 	t.Run("withUniqueApprovalRuleNames", func(t *testing.T) {
@@ -102,6 +104,15 @@ func TestParsePolicy(t *testing.T) {
 		eval, err := ParsePolicy(c, nil)
 		require.NoError(t, err)
 		assert.NotNil(t, eval)
+	})
+
+	t.Run("withNullApprovalRule", func(t *testing.T) {
+		var c Config
+		require.NoError(t, yaml.UnmarshalStrict([]byte("approval_rules: [null]"), &c))
+
+		eval, err := ParsePolicy(&c, nil)
+		require.EqualError(t, err, "approval rule must not be null")
+		assert.Nil(t, eval)
 	})
 
 	t.Run("withDuplicateApprovalRuleNames", func(t *testing.T) {
