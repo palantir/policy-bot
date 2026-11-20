@@ -101,12 +101,12 @@ func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *
 		fc.ParseError = fmt.Errorf("failed to parse policy %q in %q: %w", c.Path, c.Source, err)
 		return fc
 	}
-	for depth := 0; cur.Extends() != nil; depth++ {
+	for depth := 0; cur.ApprovalExtends() != nil; depth++ {
 		if depth >= maxExtendsDepth {
 			fc.ParseError = fmt.Errorf("%s: parent policy must not extend another policy", fc.policyLocation())
 			return fc
 		}
-		remote := *cur.Extends()
+		remote := *cur.ApprovalExtends()
 		if remote.Path == "" {
 			remote.Path = cf.DefaultParentPath
 		}
@@ -137,7 +137,7 @@ func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *
 			fc.ParseError = fmt.Errorf("failed to parse parent policy %q in %q: %w", parent.Path, parent.Source, err)
 			return fc
 		}
-		cur = parsed.Extend(cur)
+		cur = cur.Extend(parsed)
 	}
 	resolved, err := cur.Resolve()
 	if err != nil {
