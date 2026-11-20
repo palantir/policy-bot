@@ -216,9 +216,8 @@ func (s scenario) toContext() *pulltest.Context {
 		LatestStatusesValue: s.LatestStatus,
 	}
 
-	if s.Body != "" {
-		ctx.BodyValue = &pull.Body{Body: s.Body, Author: s.Author}
-	}
+	// Always set a body, like GitHub does for pull requests with no description
+	ctx.BodyValue = &pull.Body{Body: s.Body, Author: s.Author}
 
 	for _, f := range s.ChangedFiles {
 		ctx.ChangedFilesValue = append(ctx.ChangedFilesValue, &pull.File{
