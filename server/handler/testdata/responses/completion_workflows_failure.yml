@@ -1,0 +1,12 @@
+- status: 200
+  body: |
+    {
+      "workflow_runs": [
+        {
+          "path": ".github/workflows/ci.yml",
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "failure"
+        }
+      ]
+    }
