@@ -190,7 +190,7 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 	base, _ := ec.PullContext.Branches()
 
 	publicURL := strings.TrimSuffix(ec.PublicURL, "/")
-	detailsURL := fmt.Sprintf("%s/details/%s/%s/%d", publicURL, owner, repo, ec.PullContext.Number())
+	detailsURL := publicURL + pull.DetailsPath(owner, repo, ec.PullContext.Number())
 
 	status := github.RepoStatus{
 		State:       &state,

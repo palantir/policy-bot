@@ -26,8 +26,8 @@ import (
 // stale due to external changes and should only expire to prevent the cache
 // from becoming infinitely large.
 type GlobalCache interface {
-	GetPushedAt(repoID int64, sha string) (time.Time, bool)
-	SetPushedAt(repoID int64, sha string, t time.Time)
+	GetPushedAt(repoID int64, number int, sha string) (time.Time, bool)
+	SetPushedAt(repoID int64, number int, sha string, t time.Time)
 }
 
 // LRUGlobalCache is a GlobalCache where each data type is stored in a separate
@@ -45,8 +45,8 @@ func NewLRUGlobalCache(pushedAtSize int) (*LRUGlobalCache, error) {
 	return &LRUGlobalCache{pushedAt: pushedAt}, nil
 }
 
-func (c *LRUGlobalCache) GetPushedAt(repoID int64, sha string) (time.Time, bool) {
-	if val, ok := c.pushedAt.Get(pushedAtKey(repoID, sha)); ok {
+func (c *LRUGlobalCache) GetPushedAt(repoID int64, number int, sha string) (time.Time, bool) {
+	if val, ok := c.pushedAt.Get(pushedAtKey(repoID, number, sha)); ok {
 		if t, ok := val.(time.Time); ok {
 			return t, true
 		}
@@ -54,10 +54,10 @@ func (c *LRUGlobalCache) GetPushedAt(repoID int64, sha string) (time.Time, bool)
 	return time.Time{}, false
 }
 
-func (c *LRUGlobalCache) SetPushedAt(repoID int64, sha string, t time.Time) {
-	c.pushedAt.Add(pushedAtKey(repoID, sha), t)
+func (c *LRUGlobalCache) SetPushedAt(repoID int64, number int, sha string, t time.Time) {
+	c.pushedAt.Add(pushedAtKey(repoID, number, sha), t)
 }
 
-func pushedAtKey(repoID int64, sha string) string {
-	return fmt.Sprintf("%d:%s", repoID, sha)
+func pushedAtKey(repoID int64, number int, sha string) string {
+	return fmt.Sprintf("%d:%d:%s", repoID, number, sha)
 }

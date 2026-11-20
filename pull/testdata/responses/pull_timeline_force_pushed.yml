@@ -1,0 +1,21 @@
+- status: 200
+  body: |
+    {
+      "data": {
+        "repository": {
+          "pullRequest": {
+            "timelineItems": {
+              "nodes": [
+                {
+                  "__typename": "HeadRefForcePushedEvent",
+                  "createdAt": "2020-09-30T18:00:00Z",
+                  "afterCommit": {
+                    "oid": "e05fcae367230ee709313dd2720da527d178ce43"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }

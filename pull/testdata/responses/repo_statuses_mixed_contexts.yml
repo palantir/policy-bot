@@ -1,0 +1,51 @@
+- status: 200
+  body: |
+    [
+      {
+        "context": "policy-bot: develop",
+        "creator": { "login": "policy-bot[bot]" },
+        "target_url": "http://policy-bot.localhost/details/testorg/testrepo/123",
+        "created_at": "2020-09-30T17:40:00Z"
+      },
+      {
+        "context": "ci/build",
+        "target_url": "http://ci.localhost/details/testorg/testrepo/123",
+        "created_at": "2020-09-30T17:39:00Z"
+      },
+      {
+        "context": "policy-bot",
+        "creator": { "login": "policy-bot[bot]" },
+        "target_url": "http://policy-bot.localhost/details/testorg/testrepo/123",
+        "created_at": "2020-09-30T17:38:00Z"
+      },
+      {
+        "context": "policy-bot-other: develop",
+        "creator": { "login": "policy-bot[bot]" },
+        "target_url": "http://policy-bot.localhost/details/testorg/testrepo/123",
+        "created_at": "2020-09-30T17:37:00Z"
+      },
+      {
+        "context": "policy-bot: develop",
+        "creator": { "login": "policy-bot[bot]" },
+        "target_url": "http://policy-bot.localhost/details/testorg/testrepo/1123",
+        "created_at": "2020-09-30T17:36:00Z"
+      },
+      {
+        "context": "policy-bot: develop",
+        "creator": { "login": "mallory" },
+        "target_url": "http://policy-bot.localhost/details/testorg/testrepo/123",
+        "created_at": "2020-09-30T17:34:00Z"
+      },
+      {
+        "context": "policy-bot: develop",
+        "creator": { "login": "policy-bot" },
+        "target_url": "http://policy-bot.localhost/details/testorg/testrepo/123",
+        "created_at": "2020-09-30T17:33:00Z"
+      },
+      {
+        "context": "policy-bot: develop",
+        "creator": { "login": "policy-bot[bot]" },
+        "target_url": "http://policy-bot.localhost/details/testorg/testrepo/456",
+        "created_at": "2020-09-30T17:30:00Z"
+      }
+    ]

@@ -52,6 +52,8 @@ func (h *PullRequest) Handle(ctx context.Context, eventType, deliveryID string, 
 		Repo:   event.GetRepo().GetName(),
 		Number: event.GetPullRequest().GetNumber(),
 		Value:  event.GetPullRequest(),
+
+		PreviousHeadSHA: event.GetBefore(),
 	})
 }
 
