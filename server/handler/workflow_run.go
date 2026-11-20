@@ -83,7 +83,8 @@ func (h *WorkflowRun) Handle(ctx context.Context, eventType, deliveryID string, 
 
 		value := pr
 		if fallback {
-			// Reload current PR state before evaluating a discovered association.
+			// The PR can close or move to another head after the commit lookup.
+			// Reload it so evaluation can reject an association that is now stale.
 			value = nil
 		}
 

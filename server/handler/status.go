@@ -114,18 +114,9 @@ func (h *Status) processOthers(ctx context.Context, event github.StatusEvent) er
 
 	ctx, logger := githubapp.PrepareRepoContext(ctx, installationID, repo)
 
-	// In practice, there should be well under 100 PRs for a given commit. In exceptional cases, if there are
-	// more than 100 PRs, only process the most recent 100.
-	prs, _, err := client.PullRequests.ListPullRequestsWithCommit(
-		ctx,
-		ownerName,
-		repoName,
-		commitSHA,
-		&github.ListOptions{
-			PerPage: 100,
-		})
+	prs, err := pullRequestsForCommit(ctx, client, repo, commitSHA)
 	if err != nil {
-		return errors.Wrapf(err, "failed to list pull requests for SHA %s", commitSHA)
+		return err
 	}
 	logger.Debug().Msgf("Status event is for '%s', found %d PRs", event.GetContext(), len(prs))
 

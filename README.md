@@ -1349,28 +1349,17 @@ details.
 
 #### Pull requests from forks <!-- omit in toc -->
 
-GitHub can omit pull request associations from workflow-run completion events
-for forks. For workflows triggered by `pull_request` or `pull_request_target`,
-`policy-bot` falls back to looking up open pull requests by the completed run's
-commit SHA. Each eligible completion event performs a lookup, and policy
-evaluations use current pull request state.
+For fork pull requests, policies using `has_workflow_result` are reevaluated
+when workflows triggered by `pull_request` or `pull_request_target` complete,
+even when GitHub omits the pull request association.
 
-This fallback supports policies using `has_workflow_result`. It does not run
-for check-run events or workflows triggered by `push`, schedules, manual
-dispatch, or `workflow_run` (including privileged follow-up workflows chained
-from a pull request workflow). Third-party Checks API completions without PR
-associations remain unsupported by this fallback. Policies using only
-`has_status`, without a workflow-result condition, are not reevaluated by this
-workflow trigger. Events that already contain pull request associations
-retain their normal evaluation behavior.
+Without that association, completion events from third-party checks or workflows
+triggered by `push`, schedules, manual dispatch, or `workflow_run` do not trigger
+reevaluation. Policies using only `has_status` are not reevaluated by workflow
+completion events.
 
-GitHub's commit-to-pull-request index can lag behind a push. If the lookup
-returns no matching pull request, its policy status can remain stale until a
-later event triggers another evaluation. No background retry is scheduled.
-
-If CI has finished but the policy status has not updated, open the policy-bot
-status check's **Details** link. An authorized user viewing that page triggers
-a fresh policy evaluation and updates the status for an open pull request.
+If CI has finished but the policy status is stale, an authorized user can open
+the policy-bot status check's **Details** link to trigger a fresh evaluation.
 This does not bypass any policy requirements.
 
 ## Development

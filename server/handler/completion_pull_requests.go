@@ -35,6 +35,22 @@ func (b *Base) completionPullRequests(ctx context.Context, installationID int64,
 func pullRequestsForHead(ctx context.Context, client *github.Client, repo *github.Repository, sha string) ([]*github.PullRequest, error) {
 	// Fork completion events can omit associated PRs. Resolve them by commit,
 	// excluding closed PRs and PRs that only contain this commit in their history.
+	prs, err := pullRequestsForCommit(ctx, client, repo, sha)
+	if err != nil {
+		return nil, err
+	}
+	var matches []*github.PullRequest
+	for _, pr := range prs {
+		if pr.GetState() == "open" && pr.GetHead().GetSHA() == sha && pr.GetBase().GetRepo().GetID() == repo.GetID() {
+			matches = append(matches, pr)
+		}
+	}
+	return matches, nil
+}
+
+// pullRequestsForCommit retrieves all associations, including historical commits.
+// Callers apply the filtering appropriate to their event type.
+func pullRequestsForCommit(ctx context.Context, client *github.Client, repo *github.Repository, sha string) ([]*github.PullRequest, error) {
 	opts := &github.ListOptions{PerPage: 100}
 	var matches []*github.PullRequest
 	for {
@@ -42,11 +58,7 @@ func pullRequestsForHead(ctx context.Context, client *github.Client, repo *githu
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to list pull requests for SHA %s", sha)
 		}
-		for _, pr := range prs {
-			if pr.GetState() == "open" && pr.GetHead().GetSHA() == sha && pr.GetBase().GetRepo().GetID() == repo.GetID() {
-				matches = append(matches, pr)
-			}
-		}
+		matches = append(matches, prs...)
 		if response.NextPage == 0 {
 			return matches, nil
 		}
