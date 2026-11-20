@@ -1,0 +1,22 @@
+- status: 200
+  body: |
+    {
+      "data": {
+        "repository": {
+          "pullRequest": {
+            "headRefOid": "e05fcae367230ee709313dd2720da527d178ce43"
+          }
+        }
+      }
+    }
+- status: 200
+  body: |
+    {
+      "data": {
+        "repository": {
+          "pullRequest": {
+            "headRefOid": "9f7a2b1c0d4e5f60718293a4b5c6d7e8f9012345"
+          }
+        }
+      }
+    }
