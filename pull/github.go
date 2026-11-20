@@ -141,6 +141,7 @@ type GitHubContext struct {
 	collaborators              map[Permission][]*Collaborator
 	permissions                map[string]Permission
 	teams                      map[string]Permission
+	teamPermissions            map[string]Permission
 	statuses                   map[string]string
 	labels                     []string
 	pushedAt                   map[string]time.Time
@@ -778,6 +779,29 @@ func (ghc *GitHubContext) Teams() (map[string]Permission, error) {
 		ghc.teams = allTeams
 	}
 	return ghc.teams, nil
+}
+
+func (ghc *GitHubContext) TeamPermission(team string) (Permission, error) {
+	if perm, ok := ghc.teamPermissions[team]; ok {
+		return perm, nil
+	}
+
+	perm := PermissionNone
+	repo, _, err := ghc.client.Teams.IsTeamRepoBySlug(ghc.ctx, ghc.owner, team, ghc.owner, ghc.repo)
+	switch {
+	case isNotFound(err):
+		// the team does not exist or has no access to the repository
+	case err != nil:
+		return PermissionNone, errors.Wrapf(err, "failed to get repository permission for team %s", team)
+	default:
+		perm = ParseRepositoryPermissions(repo.GetPermissions())
+	}
+
+	if ghc.teamPermissions == nil {
+		ghc.teamPermissions = make(map[string]Permission)
+	}
+	ghc.teamPermissions[team] = perm
+	return perm, nil
 }
 
 func (ghc *GitHubContext) LatestStatuses() (map[string]string, error) {

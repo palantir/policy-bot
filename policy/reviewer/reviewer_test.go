@@ -368,6 +368,29 @@ func TestSelectReviewers_TeamNotCollaborator(t *testing.T) {
 	require.Len(t, selection.Users, 0, "policy should request no people")
 }
 
+func TestSelectReviewers_TeamInheritedPermission(t *testing.T) {
+	r := rand.New(rand.NewSource(42))
+	results := []*common.Result{
+		{
+			Name:   "team-inherited",
+			Status: common.StatusPending,
+			ReviewRequestRule: &common.ReviewRequestRule{
+				Teams:         []string{"everyone/team-write", "everyone/team-inherited", "other-org/team-other"},
+				RequiredCount: 1,
+				Mode:          common.RequestModeTeams,
+			},
+		},
+	}
+
+	prctx := makeContext()
+	selection, err := SelectReviewers(context.Background(), prctx, results, r)
+	require.NoError(t, err)
+	require.Len(t, selection.Teams, 2, "two teams should be returned")
+	require.Contains(t, selection.Teams, "team-write", "team-write should be selected")
+	require.Contains(t, selection.Teams, "team-inherited", "team with inherited permission should be selected")
+	require.Len(t, selection.Users, 0, "policy should request no people")
+}
+
 func TestSelectReviewers_Org(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
 	results := []*common.Result{
@@ -499,6 +522,12 @@ func makeContext() pull.Context {
 			"team-write":    pull.PermissionWrite,
 			"team-admin":    pull.PermissionAdmin,
 			"team-maintain": pull.PermissionMaintain,
+		},
+		TeamPermissionsValue: map[string]pull.Permission{
+			"team-write":     pull.PermissionWrite,
+			"team-admin":     pull.PermissionAdmin,
+			"team-maintain":  pull.PermissionMaintain,
+			"team-inherited": pull.PermissionWrite,
 		},
 		TeamMemberships: map[string][]string{
 			"user-team-admin":    {"everyone/team-admin"},
