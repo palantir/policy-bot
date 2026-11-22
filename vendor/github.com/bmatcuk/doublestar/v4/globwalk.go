@@ -322,7 +322,15 @@ func (g *glob) globDirWalk(fsys fs.FS, dir, pattern string, canMatchFiles, befor
 			if matched {
 				if e = fn(path.Join(dir, name), info); e != nil {
 					if e == SkipDir {
+						isDir, err := g.isDir(fsys, dir, name, info)
+						if err != nil {
+							return err
+						}
 						e = nil
+						if isDir {
+							// Skip the directory's descendants, not its siblings.
+							continue
+						}
 					}
 					return
 				}
