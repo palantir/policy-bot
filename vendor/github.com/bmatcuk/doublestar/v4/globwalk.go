@@ -197,7 +197,7 @@ func (g *glob) doGlobAltsWalk(fsys fs.FS, d, pattern string, startIdx, openingId
 	matches = m
 	matchesLen := len(m)
 	patIdx := openingIdx + 1
-	for patIdx < closingIdx {
+	for patIdx <= closingIdx {
 		nextIdx := indexNextAlt(pattern[patIdx:closingIdx], true)
 		if nextIdx == -1 {
 			nextIdx = closingIdx
