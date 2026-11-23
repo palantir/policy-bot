@@ -46,7 +46,7 @@ func (h *DetailsReviewers) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 	config := evalctx.Config
 	switch {
 	case config.LoadError != nil:
-		logger.Warn().Err(config.LoadError).Msgf("Error loading %s, reviewers will be incomplete", config.policyLocation())
+		logger.Warn().Err(config.LoadError).Msgf("Error loading %s, reviewers will be incomplete", config.PolicyLocation())
 		return h.renderReviewers(w, r, DetailsReviewersData{
 			PullRequest: state.PullRequest,
 			Incomplete:  true,

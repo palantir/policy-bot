@@ -45,7 +45,7 @@ func TestParseConfigPostsStatusForSeenPolicy(t *testing.T) {
 	require.NotNil(t, ec.Status)
 	assert.Equal(t, "error", ec.Status.GetState())
 	assert.Equal(t, "policy-bot: main", ec.Status.GetContext())
-	assert.Equal(t, "Error loading policy", ec.Status.GetDescription())
+	assert.Contains(t, ec.Status.GetDescription(), "testorg/testrepo@main")
 }
 
 func TestExtensionPolicyErrorSources(t *testing.T) {
@@ -75,7 +75,8 @@ func TestExtensionPolicyErrorSources(t *testing.T) {
 			assert.Contains(t, err.Error(), "child.yml", "diagnostic identifies the child file")
 			require.NotNil(t, ec.Status, "validation failures must post a status")
 			assert.Equal(t, "error", ec.Status.GetState(), "invalid policies post an error status")
-			assert.Equal(t, "Invalid policy configuration", ec.Status.GetDescription(), "status stays brief; file details belong in the error")
+			assert.Contains(t, ec.Status.GetDescription(), "example/service@main", "status identifies the child repository")
+			assert.Contains(t, ec.Status.GetDescription(), "child.yml", "status identifies the child file")
 			if test.parent != "" {
 				assert.Contains(t, err.Error(), "shared/policies@release", "diagnostic identifies the parent repository")
 				assert.Contains(t, err.Error(), "rules/parent.yml", "diagnostic identifies the parent file")

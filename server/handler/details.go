@@ -88,7 +88,7 @@ func (h *Details) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 		return h.render(w, data)
 	}
 	if evaluator == nil {
-		data.Error = errors.Errorf("Invalid %s", evalCtx.Config.policyLocation())
+		data.Error = errors.Errorf("Invalid %s", evalCtx.Config.PolicyLocation())
 		return h.render(w, data)
 	}
 

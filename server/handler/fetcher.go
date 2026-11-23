@@ -55,7 +55,7 @@ type FetchedConfig struct {
 	SeenPolicy bool
 }
 
-func (fc FetchedConfig) policyLocation() string {
+func (fc FetchedConfig) PolicyLocation() string {
 	locations := make([]string, len(fc.Sources))
 	for i, source := range fc.Sources {
 		locations[i] = source.String()
@@ -104,7 +104,7 @@ func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *
 	}
 	for depth := 0; cur.ApprovalExtends() != nil; depth++ {
 		if depth >= maxExtendsDepth {
-			fc.ParseError = fmt.Errorf("%s: parent policy must not extend another policy", fc.policyLocation())
+			fc.ParseError = fmt.Errorf("%s: parent policy must not extend another policy", fc.PolicyLocation())
 			return fc
 		}
 		remote := *cur.ApprovalExtends()
@@ -120,19 +120,19 @@ func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *
 		}
 		var parentConfig policy.Config
 		if err := yaml.UnmarshalStrict(parent.Content, &parentConfig); err != nil {
-			fc.ParseError = fmt.Errorf("%s: failed to parse parent policy: %w", fc.policyLocation(), err)
+			fc.ParseError = fmt.Errorf("%s: failed to parse parent policy: %w", fc.PolicyLocation(), err)
 			return fc
 		}
 		parsed, err := policy.Parse(&parentConfig, cf.Options)
 		if err != nil {
-			fc.ParseError = fmt.Errorf("%s: failed to parse parent policy: %w", fc.policyLocation(), err)
+			fc.ParseError = fmt.Errorf("%s: failed to parse parent policy: %w", fc.PolicyLocation(), err)
 			return fc
 		}
 		cur = cur.Extend(parsed)
 	}
 	resolved, err := cur.Resolve()
 	if err != nil {
-		fc.ParseError = fmt.Errorf("%s: %w", fc.policyLocation(), err)
+		fc.ParseError = fmt.Errorf("%s: %w", fc.PolicyLocation(), err)
 		return fc
 	}
 	fc.Policy = resolved

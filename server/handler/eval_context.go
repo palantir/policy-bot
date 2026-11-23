@@ -76,19 +76,19 @@ func (ec *EvalContext) ParseConfig(ctx context.Context, trigger common.Trigger) 
 	fc := ec.Config
 	switch {
 	case fc.LoadError != nil:
-		logger.Warn().Err(fc.LoadError).Bool("seen_policy", fc.SeenPolicy).Msgf("Error loading %s", fc.policyLocation())
+		logger.Warn().Err(fc.LoadError).Bool("seen_policy", fc.SeenPolicy).Msgf("Error loading %s", fc.PolicyLocation())
 
 		// If policy-bot has never seen a policy file for this base branch
 		// then suppress the failing status.
 		if fc.SeenPolicy {
-			ec.PostStatus(ctx, "error", "Error loading policy")
+			ec.PostStatus(ctx, "error", fmt.Sprintf("Error loading policy from %s", fc.Sources[0].Source))
 		}
-		return nil, errors.Wrapf(fc.LoadError, "failed to load %s", fc.policyLocation())
+		return nil, errors.Wrapf(fc.LoadError, "failed to load %s", fc.PolicyLocation())
 
 	case fc.ParseError != nil:
 		logger.Warn().Err(fc.ParseError).Msg("Invalid policy configuration")
 
-		ec.PostStatus(ctx, "error", "Invalid policy configuration")
+		ec.PostStatus(ctx, "error", fmt.Sprintf("Invalid policy %s", fc.Sources[0]))
 		return nil, errors.WithStack(fc.ParseError)
 
 	case fc.Policy == nil:
