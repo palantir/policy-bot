@@ -121,6 +121,10 @@ type mockRequirement struct {
 	result *common.Result
 }
 
+func (m *mockRequirement) FindRule(slot, name string) *Rule {
+	return nil
+}
+
 func (m *mockRequirement) Trigger() common.Trigger {
 	return common.TriggerStatic
 }
@@ -129,8 +133,8 @@ func (m *mockRequirement) Evaluate(ctx context.Context, prctx pull.Context) comm
 	return *m.result
 }
 
-func makeRulesResultingIn(es ...common.EvaluationStatus) []common.Evaluator {
-	var requirements []common.Evaluator
+func makeRulesResultingIn(es ...common.EvaluationStatus) []Evaluator {
+	var requirements []Evaluator
 	for _, e := range es {
 		requirements = append(requirements, &mockRequirement{
 			result: &common.Result{
@@ -179,7 +183,7 @@ func TestAndRequirement(t *testing.T) {
 
 	// Error blocks approval
 	and = &AndRequirement{
-		requirements: []common.Evaluator{
+		requirements: []Evaluator{
 			&mockRequirement{
 				result: &common.Result{
 					Status: common.StatusApproved,
@@ -234,7 +238,7 @@ func TestOrRequirement(t *testing.T) {
 
 	// Error does not block approval
 	or = &OrRequirement{
-		requirements: []common.Evaluator{
+		requirements: []Evaluator{
 			&mockRequirement{
 				result: &common.Result{
 					Status: common.StatusApproved,

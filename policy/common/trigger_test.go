@@ -30,6 +30,10 @@ func TestTriggerMatches(t *testing.T) {
 		{TriggerCommit | TriggerLabel, TriggerCommit, true},
 		{TriggerCommit | TriggerLabel, TriggerLabel, true},
 		{TriggerAll, TriggerStatus, true},
+		{TriggerAll, TriggerWorkflowRun, true},
+		{TriggerWorkflowRun, TriggerWorkflowRun, true},
+		{TriggerWorkflowRun, TriggerStatus, false},
+		{TriggerStatus, TriggerWorkflowRun, false},
 		{TriggerStatic, TriggerCommit, false},
 		{TriggerAll, TriggerStatic, false},
 	}
@@ -51,6 +55,8 @@ func TestTriggerString(t *testing.T) {
 		{TriggerStatic, "Trigger(0x0=Static)"},
 		{TriggerCommit, "Trigger(0x1=Commit)"},
 		{TriggerCommit | TriggerReview | TriggerStatus, "Trigger(0x15=Commit|Review|Status)"},
+		{TriggerWorkflowRun, "Trigger(0x40=WorkflowRun)"},
+		{TriggerStatus | TriggerWorkflowRun, "Trigger(0x50=Status|WorkflowRun)"},
 	}
 
 	for _, test := range tests {

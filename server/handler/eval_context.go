@@ -78,52 +78,35 @@ func (ec *EvalContext) Evaluate(ctx context.Context, trigger common.Trigger) err
 	return nil
 }
 
-// ParseConfig checks and validates the configuration in the EvalContext and
-// returns a non-nil Evaluator if the policy exists, is valid, and requires
-// evaluation for the trigger.
-func (ec *EvalContext) ParseConfig(ctx context.Context, trigger common.Trigger) (common.Evaluator, error) {
+// ParseConfig reports policy loading or validation errors and returns the policy
+// if it exists, is valid, and requires evaluation for the trigger.
+func (ec *EvalContext) ParseConfig(ctx context.Context, trigger common.Trigger) (*policy.ParsedPolicy, error) {
 	logger := zerolog.Ctx(ctx)
 
 	fc := ec.Config
 	switch {
 	case fc.LoadError != nil:
-		msg := fmt.Sprintf("Error loading policy from %s", fc.Source)
-		logger.Warn().Err(fc.LoadError).Bool("seen_policy", fc.SeenPolicy).Msg(msg)
+		logger.Warn().Err(fc.LoadError).Bool("seen_policy", fc.SeenPolicy).Msgf("Error loading %s", fc.PolicyLocation())
 
 		// If policy-bot has never seen a policy file for this base branch
 		// then suppress the failing status.
 		if fc.SeenPolicy {
-			ec.PostStatus(ctx, "error", msg)
+			ec.PostStatus(ctx, "error", fmt.Sprintf("Error loading policy from %s", fc.Sources[0].Source))
 		}
-		return nil, errors.Wrapf(fc.LoadError, "failed to load policy: %s: %s", fc.Source, fc.Path)
+		return nil, errors.Wrapf(fc.LoadError, "failed to load %s", fc.PolicyLocation())
 
 	case fc.ParseError != nil:
-		msg := fmt.Sprintf("Invalid policy in %s: %s", fc.Source, fc.Path)
-		logger.Warn().Err(fc.ParseError).Msg(msg)
+		logger.Warn().Err(fc.ParseError).Msg("Invalid policy configuration")
 
-		ec.PostStatus(ctx, "error", msg)
-		return nil, errors.Wrapf(fc.ParseError, "failed to parse policy: %s: %s", fc.Source, fc.Path)
+		ec.PostStatus(ctx, "error", fmt.Sprintf("Invalid policy %s", fc.Sources[0]))
+		return nil, errors.WithStack(fc.ParseError)
 
-	case fc.Config == nil:
+	case fc.Policy == nil:
 		logger.Debug().Msg("No policy defined for repository")
 		return nil, nil
 	}
 
-	opts := &policy.GlobalOptions{
-		IgnoreEditedComments: ec.Options.IgnoreEditedComments,
-		ApprovalDefaults:     ec.Options.ApprovalDefaults,
-	}
-
-	evaluator, err := policy.ParsePolicy(fc.Config, opts)
-	if err != nil {
-		msg := fmt.Sprintf("Invalid policy in %s: %s", fc.Source, fc.Path)
-		logger.Warn().Err(err).Msg(msg)
-
-		ec.PostStatus(ctx, "error", msg)
-		return nil, errors.Wrapf(err, "failed to create evaluator: %s: %s", fc.Source, fc.Path)
-	}
-
-	policyTrigger := evaluator.Trigger()
+	policyTrigger := fc.Policy.Trigger()
 	if !trigger.Matches(policyTrigger) {
 		logger.Debug().
 			Str("event_trigger", trigger.String()).
@@ -131,8 +114,7 @@ func (ec *EvalContext) ParseConfig(ctx context.Context, trigger common.Trigger) 
 			Msg("No evaluation necessary for this trigger, skipping")
 		return nil, nil
 	}
-
-	return evaluator, nil
+	return fc.Policy, nil
 }
 
 // EvaluatePolicy evaluates the policy for a PR and generates a result. The
@@ -143,7 +125,8 @@ func (ec *EvalContext) EvaluatePolicy(ctx context.Context, evaluator common.Eval
 
 	result := evaluator.Evaluate(ctx, ec.PullContext)
 	if result.Error != nil {
-		msg := fmt.Sprintf("Error evaluating policy in %s: %s", ec.Config.Source, ec.Config.Path)
+		source := ec.Config.Sources[0]
+		msg := fmt.Sprintf("Error evaluating policy in %s: %s", source.Source, source.Path)
 		logger.Warn().Err(result.Error).Msg(msg)
 
 		ec.PostStatus(ctx, "error", msg)

@@ -32,6 +32,7 @@ import (
 	"github.com/palantir/go-githubapp/appconfig"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/palantir/go-githubapp/oauth2"
+	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/server/handler"
 	"github.com/palantir/policy-bot/version"
@@ -180,6 +181,10 @@ func New(c *Config) (*Server, error) {
 		PullOpts:      &c.Options,
 		RulesetChecks: rulesetChecks,
 		ConfigFetcher: &handler.ConfigFetcher{
+			Options: &policy.GlobalOptions{
+				IgnoreEditedComments: c.Options.IgnoreEditedComments,
+				ApprovalDefaults:     c.Options.ApprovalDefaults,
+			},
 			Loader:          appconfig.NewLoader(policyPaths, loaderOptions...),
 			SeenPolicyCache: seenPolicyCache,
 		},

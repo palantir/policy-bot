@@ -90,5 +90,5 @@ func (pred HasWorkflowResult) Evaluate(ctx context.Context, prctx pull.Context) 
 }
 
 func (pred HasWorkflowResult) Trigger() common.Trigger {
-	return common.TriggerStatus
+	return common.TriggerWorkflowRun
 }

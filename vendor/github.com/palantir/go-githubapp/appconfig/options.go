@@ -21,7 +21,8 @@ import (
 type Option func(*Loader)
 
 // WithRemoteRefParser sets the parser for encoded RemoteRefs. The default
-// parser uses YAML. Set a nil parser to disable remote references.
+// parser uses YAML. Set a nil parser to disable automatic remote references in
+// LoadConfig.
 func WithRemoteRefParser(parser RemoteRefParser) Option {
 	return func(ld *Loader) {
 		ld.parser = parser

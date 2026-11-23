@@ -29,6 +29,8 @@ UI to view the detailed approval status of any pull request.
   - [policy.yml Specification](#policyyml-specification)
   - [Approval Rules](#approval-rules)
   - [Approval Policies](#approval-policies)
+    - [Approval Slots](#approval-slots)
+    - [Extending a Shared Approval Policy](#extending-a-shared-approval-policy)
   - [Disapproval Policy](#disapproval-policy)
   - [Testing and Debugging Policies](#testing-and-debugging-policies)
     - [Simulation API](#simulation-api)
@@ -461,11 +463,27 @@ if:
       - ".github/workflows/a.yml"
       - ".github/workflows/b.yml"
 
+  # DEPRECATED: Use "labels" below instead, which is more flexible.
   # "has_labels" is satisfied if the pull request has the specified labels
   # applied
   has_labels:
     - "label-1"
     - "label-2"
+
+  # "labels" is satisfied based on the labels applied to the pull request.
+  # Each sub-key is optional; when more than one is set, all must be
+  # satisfied. Label matching is case-insensitive.
+  labels:
+    # satisfied if the pull request has at least one of these labels
+    has_any:
+      - "label-1"
+      - "label-2"
+    # satisfied if the pull request has all of these labels
+    has_all:
+      - "label-3"
+    # satisfied if the pull request has none of these labels
+    has_none:
+      - "do-not-merge"
 
   # "repository" is satisfied if the pull request repository matches any one of the
   # patterns within the "matches" list or does not match all of the patterns
@@ -784,8 +802,8 @@ policy:
     - ...
 ```
 
-Each list entry may be the name of a rule, or one of the following
-conjunctions:
+Each list entry may be the name of a rule, an [approval slot](#approval-slots),
+or one of the following conjunctions:
 
 ```yaml
 or:
@@ -811,6 +829,135 @@ Conjunctions can contain more conjunctions (up to a maximum depth of 5):
         - rule3
         - rule4
 ```
+
+#### Approval Slots
+
+A slot is a placeholder that can be replaced by a rule tree, defined in the same
+policy or in a child policy. The result behaves as if the new rules were placed
+directly in the policy at the location of the slot marker. For example, this
+policy requires both platform and service review:
+
+```yaml
+policy:
+  approval:
+    - Platform review
+    - slot:
+        name: service-review
+        required: true
+
+slots:
+  service-review:
+    - Service review
+
+approval_rules:
+  - name: Platform review
+    requires:
+      count: 1
+      teams: ["example/platform"]
+  - name: Service review
+    requires:
+      count: 1
+      teams: ["example/service"]
+```
+
+Slots may appear wherever a rule reference is allowed. Slot names must be unique,
+nonempty strings. Each `slots` value is a list of same-file rule names or
+`and`/`or` expressions, combined with `and`. It cannot contain slots. For example,
+this policy requires either emergency approval or both service and security
+approval:
+
+```yaml
+policy:
+  approval:
+    - or:
+        - Emergency approval
+        - slot:
+            name: additional-review
+
+slots:
+  additional-review:
+    - Service review
+    - Security review
+```
+
+By default, slots are optional and may be left empty. If the slot sets
+`required: true`, the policy must define at least one rule that fills the slot.
+A policy is invalid if there is a required slot that is missing rules. In a
+standalone policy, every element in the `slots` map must match a declared slot
+in the policy.
+
+The details page labels filled slots and hides empty ones.
+
+#### Extending a Shared Approval Policy
+
+A policy can extend exactly one other policy, which must stand alone.
+Empty slots allow extending a policy with new rules. Slots with defaults allow
+replacing specific behavior in a policy. For example, `example/review-policies`
+contains this parent policy in `.policy.yml`:
+
+```yaml
+policy:
+  approval:
+    - Platform review
+    - slot:
+        name: repository-checks
+        required: true
+
+approval_rules:
+  - name: Platform review
+    requires:
+      count: 1
+      teams: ["example/platform"]
+```
+
+The child policy supplies its additional rules:
+
+```yaml
+policy:
+  approval_extends:
+    remote: example/review-policies
+    path: .policy.yml
+    ref: develop
+
+slots:
+  repository-checks:
+    - Service review
+
+approval_rules:
+  - name: Service review
+    requires:
+      count: 1
+      teams: ["example/service"]
+```
+
+This requires both platform and service review. Rules referenced in a slot must
+be defined in the `approval_rules` block of the same policy. You cannot reference
+rules defined in a parent policy file. Rules in a slot use the `approval_defaults`
+from the file that defines the rules.
+
+If a child policy does not define a new value for a slot, the parent's default
+rules are used. A value from the child fully replaces the default content from
+the parent. Set a slot's content to `[]` or `null` to remove any rules defined by
+the parent.
+
+The parent's `slots` entries must match declared slots. Content for undeclared
+slots is ignored in child policies, but all slot content must be valid, including
+parent defaults that the child replaces.
+
+`approval_extends` and `approval` are mutually exclusive. The parent must be a
+literal policy: it cannot contain `approval_extends` or a top-level `remote`
+reference. A standard top-level remote reference can point to a policy that
+contains `approval_extends`. Disapproval is not inherited from the parent;
+the child policy may define its own `policy.disapproval`.
+
+Parent references require `remote` and `path`. If `ref` is omitted, the parent
+repository's default branch is used. The same
+[remote configuration](#remote-policy-configuration) access settings apply.
+
+Use the authenticated [simulation API](#simulation-api) on an existing pull request
+to test a child policy loaded from GitHub. The CLI `validate` command and
+`/api/validate` endpoint validate standalone policies, including slots, but cannot
+resolve parent policies.
 
 ### Disapproval Policy
 
@@ -897,11 +1044,57 @@ The `policy-bot` binary also includes a `validate` subcomand that can validate l
 policy-bot validate -p path/to/policy.yml
 ```
 
+#### Testing policies locally
+
+The `policy-bot` binary includes a `test` subcommand that evaluates a policy
+against scenario fixtures entirely offline (no GitHub calls), so policies can be
+unit tested in CI:
+
+```sh
+policy-bot test -p path/to/policy.yml -f path/to/fixtures.yml
+```
+
+Each fixtures file lists scenarios describing a pull request and the result the
+policy should produce. The command exits non-zero if any scenario does not match
+its expected result.
+
+```yaml
+scenarios:
+  - name: author cannot self-approve
+    author: alice
+    team_memberships:
+      alice: ["myorg/reviewers"]
+    reviews:
+      - { author: alice, state: approved }
+    expected: pending
+
+  - name: a reviewer on the team approves
+    author: alice
+    team_memberships:
+      bob: ["myorg/reviewers"]
+    reviews:
+      - { author: bob, state: approved }
+    expected: approved
+```
+
+Supported scenario fields include `author`, `title`, `body`, `draft`,
+`base_branch`/`head_branch`, `labels`, `changed_files`, `comments`, `reviews`,
+`team_memberships`, `org_memberships`, and `latest_statuses`. Scenarios always
+describe an open pull request. `expected` is one of `skipped`, `pending`,
+`approved`, or `disapproved`; a changed file's `status` is `added`, `modified`
+(the default), or `deleted`; and a review's `state` is `approved`,
+`changes_requested`, `commented`, `dismissed`, or `pending`. Invalid values are
+rejected before any scenario runs. Remote policy references cannot be evaluated
+offline.
+
 #### Simulation API
 
 It can be useful to simulate how Policy Bot would evaluate a pull request if certain conditions were changed. For example: adding a review from a specific user or group, or adjusting the base branch.
 
 An API endpoint exists at `api/simulate/:org/:repo/:prNumber` to simulate the result of a pull request. Simulations using this endpoint will NOT write the result back to the pull request status check and will instead return the result.
+
+The response preserves the evaluation tree. Results from slots include an optional
+`slot` field containing the slot name; empty slots remain as skipped results.
 
 This API requires a GitHub token be passed as a bearer token. The token must be
 associated with a user who has `admin` or `maintain` permission on the

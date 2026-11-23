@@ -38,6 +38,10 @@ func TestParsePolicy(t *testing.T) {
   - or:
     - rule8
     - rule9
+- slot: {name: empty}
+- slot:
+    name: filled
+    required: true
 `
 
 	ruleText := `
@@ -94,12 +98,15 @@ func TestParsePolicy(t *testing.T) {
 		rulesByName[r.Name] = r
 	}
 
-	req, err := policy.Parse(rulesByName)
+	req, slots, err := policy.Parse(rulesByName)
 	require.NoError(t, err, "failed to parse policy")
+	require.NotNil(t, slots["filled"])
+	slots["filled"].Child, err = (Policy{"rule1"}).ParseAsSlotContent(rulesByName)
+	require.NoError(t, err, "failed to parse slot content")
 
 	expected := &evaluator{
 		root: &AndRequirement{
-			requirements: []common.Evaluator{
+			requirements: []Evaluator{
 				&RuleRequirement{
 					rule: rules[0],
 				},
@@ -107,9 +114,9 @@ func TestParsePolicy(t *testing.T) {
 					rule: rules[1],
 				},
 				&OrRequirement{
-					requirements: []common.Evaluator{
+					requirements: []Evaluator{
 						&AndRequirement{
-							requirements: []common.Evaluator{
+							requirements: []Evaluator{
 								&RuleRequirement{
 									rule: rules[2],
 								},
@@ -124,7 +131,7 @@ func TestParsePolicy(t *testing.T) {
 					},
 				},
 				&AndRequirement{
-					requirements: []common.Evaluator{
+					requirements: []Evaluator{
 						&RuleRequirement{
 							rule: rules[5],
 						},
@@ -132,7 +139,7 @@ func TestParsePolicy(t *testing.T) {
 							rule: rules[6],
 						},
 						&OrRequirement{
-							requirements: []common.Evaluator{
+							requirements: []Evaluator{
 								&RuleRequirement{
 									rule: rules[7],
 								},
@@ -142,6 +149,12 @@ func TestParsePolicy(t *testing.T) {
 							},
 						},
 					},
+				},
+				&SlotRule{Name: "empty"},
+				&SlotRule{
+					Name:     "filled",
+					Required: true,
+					Child:    &RuleRequirement{rule: rules[0]},
 				},
 			},
 		},
@@ -267,5 +280,6 @@ func loadAndParsePolicy(t *testing.T, policyText string, ruleText string) (commo
 		rulesByName[r.Name] = r
 	}
 
-	return policy.Parse(rulesByName)
+	eval, _, err := policy.Parse(rulesByName)
+	return eval, err
 }
