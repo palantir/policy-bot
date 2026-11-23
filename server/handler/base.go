@@ -70,7 +70,7 @@ func (b *Base) NewEvalContext(ctx context.Context, installationID int64, loc pul
 	}
 
 	mbrCtx := NewCrossOrgMembershipContext(ctx, client, loc.Owner, b.Installations, b.ClientCreator)
-	prctx, err := pull.NewGitHubContext(ctx, mbrCtx, b.GlobalCache, client, v4client, loc)
+	prctx, err := pull.NewGitHubContext(ctx, mbrCtx, b.GlobalCache, client, v4client, loc, b.statusSource())
 	if err != nil {
 		return nil, err
 	}
@@ -91,6 +91,13 @@ func (b *Base) NewEvalContext(ctx context.Context, installationID int64, loc pul
 		PullContext: prctx,
 		Config:      fetchedConfig,
 	}, nil
+}
+
+func (b *Base) statusSource() pull.StatusSource {
+	return pull.StatusSource{
+		AppName: b.AppName,
+		Context: b.PullOpts.StatusCheckContext,
+	}
 }
 
 func (b *Base) Evaluate(ctx context.Context, installationID int64, trigger common.Trigger, loc pull.Locator) error {
