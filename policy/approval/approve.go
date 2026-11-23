@@ -347,7 +347,9 @@ func (r *Rule) filterInvalidCandidates(ctx context.Context, prctx pull.Context, 
 	var allowed []*common.Candidate
 	var dismissed []*common.Dismissal
 	for _, c := range candidates {
-		if c.CreatedAt.After(lastPushedAt) {
+		// A review of the head commit is valid even if push processing was delayed.
+		currentHeadReview := c.Type == common.ReviewCandidate && c.ReviewSHA != "" && c.ReviewSHA == prctx.HeadSHA()
+		if currentHeadReview || c.CreatedAt.After(lastPushedAt) {
 			allowed = append(allowed, c)
 		} else {
 			dismissed = append(dismissed, &common.Dismissal{
