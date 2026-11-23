@@ -17,7 +17,6 @@ package handler
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"slices"
 	"strings"
 	"time"
@@ -30,8 +29,6 @@ import (
 )
 
 const (
-	rulesetLookupRetryDelay = 500 * time.Millisecond
-
 	MetricsKeyRulesetLookupErrors  = "rulesets.lookup.errors"
 	MetricsKeyRulesetLookupLatency = "rulesets.lookup.latency"
 	MetricsKeyRulesetChecksPosted  = "rulesets.checks.posted"
@@ -81,8 +78,6 @@ func RulesetContext(statusCheckContext, rulesetName string) string {
 }
 
 // RulesetCheckFinder implements RulesetChecks using the GitHub rules API.
-// It relies on the client's HTTP cache, which GitHub allows to reuse rules
-// and rulesets responses for up to 60 seconds.
 //
 // A required check is only returned if it uses the policy-bot ruleset prefix,
 // is pinned to policy-bot's GitHub App, and names the ruleset that requires
@@ -91,15 +86,12 @@ func RulesetContext(statusCheckContext, rulesetName string) string {
 type RulesetCheckFinder struct {
 	AppID              int64
 	StatusCheckContext string
-
-	retryDelay time.Duration
 }
 
 func NewRulesetCheckFinder(appID int64, statusCheckContext string) *RulesetCheckFinder {
 	return &RulesetCheckFinder{
 		AppID:              appID,
 		StatusCheckContext: statusCheckContext,
-		retryDelay:         rulesetLookupRetryDelay,
 	}
 }
 
@@ -119,19 +111,9 @@ func (f *RulesetCheckFinder) RequiredChecks(ctx context.Context, client *github.
 		return nil, nil
 	}
 
-	rulesets, err := f.getRulesets(ctx, client, owner, repo, false)
+	rulesets, err := f.getRulesets(ctx, client, owner, repo)
 	if err != nil {
 		return nil, err
-	}
-
-	// the cached rulesets may be stale if a ruleset was created after the rules
-	if slices.ContainsFunc(rules, func(r *github.RequiredStatusChecksBranchRule) bool {
-		_, ok := rulesets[r.RulesetID]
-		return !ok
-	}) {
-		if rulesets, err = f.getRulesets(ctx, client, owner, repo, true); err != nil {
-			return nil, err
-		}
 	}
 
 	return f.selectChecks(ctx, rules, rulesets), nil
@@ -205,7 +187,7 @@ func (f *RulesetCheckFinder) getRules(ctx context.Context, client *github.Client
 		for {
 			var page *github.BranchRules
 			var res *github.Response
-			err := f.retry(ctx, func() (err error) {
+			err := withRetry(ctx, func() (err error) {
 				// the client escapes the branch name in the path
 				page, res, err = client.Repositories.ListRulesForBranch(ctx, owner, repo, branch, opts)
 				return err
@@ -229,29 +211,19 @@ func (f *RulesetCheckFinder) getRules(ctx context.Context, client *github.Client
 }
 
 // getRulesets returns the rulesets that apply to the repository, including
-// organization and enterprise rulesets, by ID. If revalidate is true, cached
-// responses are revalidated with GitHub before use.
-func (f *RulesetCheckFinder) getRulesets(ctx context.Context, client *github.Client, owner, repo string, revalidate bool) (map[int64]rulesetInfo, error) {
+// organization and enterprise rulesets, by ID.
+func (f *RulesetCheckFinder) getRulesets(ctx context.Context, client *github.Client, owner, repo string) (map[int64]rulesetInfo, error) {
 	infos := make(map[int64]rulesetInfo)
 	err := f.timeLookup(ctx, func() error {
-		page := 1
+		opts := &github.RepositoryListRulesetsOptions{
+			IncludesParents: new(true),
+			ListOptions:     github.ListOptions{PerPage: 100},
+		}
 		for {
 			var rulesets []*github.RepositoryRuleset
 			var res *github.Response
-			err := f.retry(ctx, func() error {
-				// build the request directly because GetAllRulesets does not
-				// allow setting headers; max-age=0 makes the HTTP cache send
-				// a conditional request instead of using a cached response
-				u := fmt.Sprintf("repos/%v/%v/rulesets?includes_parents=true&per_page=100&page=%d", owner, repo, page)
-				req, err := client.NewRequest(ctx, http.MethodGet, u, nil)
-				if err != nil {
-					return err
-				}
-				if revalidate {
-					req.Header.Set("Cache-Control", "max-age=0")
-				}
-				rulesets = nil
-				res, err = client.Do(req, &rulesets)
+			err := withRetry(ctx, func() (err error) {
+				rulesets, res, err = client.Repositories.GetAllRulesets(ctx, owner, repo, opts)
 				return err
 			})
 			if err != nil {
@@ -267,31 +239,13 @@ func (f *RulesetCheckFinder) getRulesets(ctx context.Context, client *github.Cli
 			if res.NextPage == 0 {
 				return nil
 			}
-			page = res.NextPage
+			opts.Page = res.NextPage
 		}
 	})
 	if err != nil {
 		return nil, err
 	}
 	return infos, nil
-}
-
-// retry calls fn once more after a short delay if it returns a server error.
-// Timeouts are not retried because they already waited for the full client
-// timeout, and pull requests get their checks on their next event anyway.
-func (f *RulesetCheckFinder) retry(ctx context.Context, fn func() error) error {
-	err := fn()
-	if err == nil || !isServerError(err) {
-		return err
-	}
-
-	zerolog.Ctx(ctx).Debug().Err(err).Msgf("Retrying ruleset lookup in %s", f.retryDelay)
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-time.After(f.retryDelay):
-		return fn()
-	}
 }
 
 func (f *RulesetCheckFinder) timeLookup(ctx context.Context, fn func() error) error {

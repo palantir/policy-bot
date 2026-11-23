@@ -286,8 +286,9 @@ func TestPostStatusRulesetLookupError(t *testing.T) {
 			}
 
 			requests := gh.Requests()
-			require.GreaterOrEqual(t, len(requests), 2)
-			assert.Equal(t, []string{"GET " + rulesPath, "GET " + rulesPath}, requests[:2], "rules lookup should be retried once")
+			rulesRequest := "GET " + rulesPath
+			require.GreaterOrEqual(t, len(requests), 4)
+			assert.Equal(t, []string{rulesRequest, rulesRequest, rulesRequest, rulesRequest}, requests[:4], "rules lookup should be retried 3 times")
 			if test.State == "success" {
 				assert.NotContains(t, requests, "GET "+combinedPath, "success should not read previous statuses")
 			}

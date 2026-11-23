@@ -45,7 +45,6 @@ type fakeGitHub struct {
 	responses map[string][]fakeResponse
 	failures  map[string]int
 	requests  []string
-	headers   []http.Header
 	statuses  []github.RepoStatus
 }
 
@@ -91,12 +90,6 @@ func (f *fakeGitHub) Requests() []string {
 	return append([]string(nil), f.requests...)
 }
 
-func (f *fakeGitHub) Headers() []http.Header {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return append([]http.Header(nil), f.headers...)
-}
-
 func (f *fakeGitHub) Statuses() []github.RepoStatus {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -109,7 +102,6 @@ func (f *fakeGitHub) serve(w http.ResponseWriter, r *http.Request) {
 
 	path := r.URL.EscapedPath()
 	f.requests = append(f.requests, r.Method+" "+path)
-	f.headers = append(f.headers, r.Header.Clone())
 
 	if r.Method == http.MethodPost {
 		var status github.RepoStatus
@@ -191,9 +183,15 @@ func rulesets(names map[int64]string) []map[string]any {
 }
 
 func newTestFinder(t *testing.T) *RulesetCheckFinder {
-	f := NewRulesetCheckFinder(testAppID, "policy-bot")
-	f.retryDelay = time.Millisecond
-	return f
+	setTestRetryDelay(t)
+	return NewRulesetCheckFinder(testAppID, "policy-bot")
+}
+
+// setTestRetryDelay shortens retries of GitHub requests for the test.
+func setTestRetryDelay(t *testing.T) {
+	delay := retryDelay
+	retryDelay = time.Millisecond
+	t.Cleanup(func() { retryDelay = delay })
 }
 
 func TestRulesetCheckFinder(t *testing.T) {
@@ -381,26 +379,26 @@ func TestRulesetCheckFinderEscapesBranch(t *testing.T) {
 	assert.Contains(t, gh.Requests(), "GET /repos/testorg/testrepo/rules/branches/release%2F1.0")
 }
 
-func TestRulesetCheckFinderRevalidatesUnknownRuleset(t *testing.T) {
+func TestRulesetCheckFinderUnknownRuleset(t *testing.T) {
 	const rulesPath = "/repos/testorg/testrepo/rules/branches/main"
 	const rulesetsPath = "/repos/testorg/testrepo/rulesets"
 
 	gh := newFakeGitHub(t)
 	gh.Respond(rulesPath, 0, fakeResponse{body: []map[string]any{
-		statusChecksRule(1, testCheck{"policy-bot: ruleset:new", testAppID}),
+		statusChecksRule(1, testCheck{"policy-bot: ruleset:hidden", testAppID}),
 	}})
-	// the first response simulates a stale cached response without the new ruleset
-	gh.Respond(rulesetsPath, 0, fakeResponse{body: rulesets(map[int64]string{2: "old"})})
-	gh.Respond(rulesetsPath, 0, fakeResponse{body: rulesets(map[int64]string{1: "new", 2: "old"})})
+	gh.Respond(rulesetsPath, 0, fakeResponse{body: rulesets(map[int64]string{2: "other"})})
 
-	checks, err := newTestFinder(t).RequiredChecks(context.Background(), gh.Client(), "testorg", "testrepo", "main")
+	registry := metrics.NewRegistry()
+	ctx := baseapp.WithMetricsCtx(context.Background(), registry)
+
+	checks, err := newTestFinder(t).RequiredChecks(ctx, gh.Client(), "testorg", "testrepo", "main")
 	require.NoError(t, err)
-	assert.Equal(t, []string{"policy-bot: ruleset:new"}, checks)
+	assert.Empty(t, checks)
+	assert.Equal(t, []string{"GET " + rulesPath, "GET " + rulesetsPath}, gh.Requests())
 
-	requests, headers := gh.Requests(), gh.Headers()
-	require.Equal(t, []string{"GET " + rulesPath, "GET " + rulesetsPath, "GET " + rulesetsPath}, requests)
-	assert.Empty(t, headers[1].Get("Cache-Control"))
-	assert.Equal(t, "max-age=0", headers[2].Get("Cache-Control"))
+	counter := metrics.GetOrRegisterCounter(fmt.Sprintf("%s[reason:%s]", MetricsKeyRulesetChecksIgnored, ignoreReasonUnknownRuleset), registry)
+	assert.Equal(t, int64(1), counter.Count())
 }
 
 func TestRulesetCheckFinderRetriesServerErrors(t *testing.T) {
@@ -420,14 +418,14 @@ func TestRulesetCheckFinderRetriesServerErrors(t *testing.T) {
 	assert.Equal(t, []string{"policy-bot: ruleset:release-branches"}, checks)
 	assert.Len(t, gh.Requests(), 4)
 
-	t.Run("onlyOnce", func(t *testing.T) {
+	t.Run("givesUp", func(t *testing.T) {
 		gh := newFakeGitHub(t)
 		gh.Respond(rulesPath, 0, fakeResponse{body: []map[string]any{}})
-		gh.Fail(rulesPath, 2)
+		gh.Fail(rulesPath, 4)
 
 		_, err := newTestFinder(t).RequiredChecks(context.Background(), gh.Client(), "testorg", "testrepo", "main")
 		require.Error(t, err)
-		assert.Len(t, gh.Requests(), 2)
+		assert.Len(t, gh.Requests(), 4)
 	})
 }
 

@@ -1388,9 +1388,8 @@ Limitations:
 - **Merge queues are not supported.** Merge groups never get ruleset checks,
   so branches that use a [merge queue][] must keep requiring the per-branch
   check, with `branch` enabled.
-- **Changes apply on the next event.** Ruleset changes and retargeted pull
-  requests take effect on each pull request's next event, such as a push,
-  review, or comment.
+- **Ruleset changes apply on the next event.** Pull requests pick up ruleset
+  changes on their next event, such as a push, review, or comment.
 - **Renaming a ruleset changes its check name.** Update the required check to
   `policy-bot: ruleset:<new name>` at the same time, or pull requests will
   block.
