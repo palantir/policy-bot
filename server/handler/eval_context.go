@@ -189,20 +189,10 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 	contexts, err := statusContexts(ctx, ec.Options, ec.RulesetChecks, ec.Client, owner, repo, base)
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to find ruleset status checks")
-
-		// without the rules, a success can't be posted to ruleset checks, but
-		// any other state can safely replace the checks posted previously so
-		// that a revoked approval does not leave a stale success
+		// if the ruleset lookup fails, post a non-success result to the ruleset checks previously on the commit if
+		// they exist to prevent stale successes sticking around
 		if !ec.SkipPostStatus && state != "success" {
-			previous, err := ec.previousRulesetContexts(ctx, owner, repo, sha)
-			if err != nil {
-				logger.Error().Err(err).Msg("Failed to find previous ruleset status checks")
-			}
-			for _, c := range previous {
-				if !slices.Contains(contexts, c) {
-					contexts = append(contexts, c)
-				}
-			}
+			contexts = ec.addPreviousRulesetContexts(ctx, contexts)
 		}
 	}
 
@@ -243,22 +233,29 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 	}
 }
 
-// previousRulesetContexts returns the ruleset contexts that have a status on
-// the commit. Statuses are matched by prefix only, because posting a state
-// other than success to a context is safe regardless of who posted before.
-func (ec *EvalContext) previousRulesetContexts(ctx context.Context, owner, repo, sha string) ([]string, error) {
+// addPreviousRulesetContexts adds the ruleset contexts that already have a
+// status on the head commit. It is used when the ruleset lookup fails: a
+// success can't be posted without the rules, but any other state can safely
+// replace previous ruleset checks, so that a disapproval or revoked approval
+// does not leave a stale success. Statuses are matched by prefix only, because
+// posting a state other than success is safe regardless of who posted before.
+func (ec *EvalContext) addPreviousRulesetContexts(ctx context.Context, contexts []string) []string {
+	owner := ec.PullContext.RepositoryOwner()
+	repo := ec.PullContext.RepositoryName()
+	sha := ec.PullContext.HeadSHA()
 	prefix := RulesetContext(ec.Options.StatusCheckContext, "")
 
-	var contexts []string
+	var previous []string
 	opts := &github.ListOptions{PerPage: 100}
 	for {
 		combined, res, err := ec.Client.Repositories.GetCombinedStatus(ctx, owner, repo, sha, opts)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to get combined status")
+			zerolog.Ctx(ctx).Error().Err(err).Msg("Failed to find previous ruleset status checks")
+			return contexts
 		}
 		for _, s := range combined.Statuses {
-			if c := s.GetContext(); strings.HasPrefix(c, prefix) && !slices.Contains(contexts, c) {
-				contexts = append(contexts, c)
+			if c := s.GetContext(); strings.HasPrefix(c, prefix) {
+				previous = append(previous, c)
 			}
 		}
 		if res.NextPage == 0 {
@@ -267,6 +264,11 @@ func (ec *EvalContext) previousRulesetContexts(ctx context.Context, owner, repo,
 		opts.Page = res.NextPage
 	}
 
-	slices.Sort(contexts)
-	return contexts, nil
+	slices.Sort(previous)
+	for _, c := range previous {
+		if !slices.Contains(contexts, c) {
+			contexts = append(contexts, c)
+		}
+	}
+	return contexts
 }

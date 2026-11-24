@@ -91,13 +91,8 @@ func (f *RulesetCheckFinder) RequiredChecks(ctx context.Context, client *github.
 		return nil, err
 	}
 
-	// avoid looking up names when no rule could produce a check
-	prefix := RulesetContext(f.StatusCheckContext, "")
-	if !slices.ContainsFunc(rules, func(r *github.RequiredStatusChecksBranchRule) bool {
-		return slices.ContainsFunc(r.Parameters.RequiredStatusChecks, func(c *github.RuleStatusCheck) bool {
-			return strings.HasPrefix(c.Context, prefix)
-		})
-	}) {
+	// avoid looking up rulesets when no rule requires a policy-bot ruleset check
+	if !f.rulesRequirePolicyBot(rules) {
 		return nil, nil
 	}
 
@@ -107,6 +102,20 @@ func (f *RulesetCheckFinder) RequiredChecks(ctx context.Context, client *github.
 	}
 
 	return f.selectChecks(ctx, rules, rulesets), nil
+}
+
+// rulesRequirePolicyBot returns true if any rule requires a check with the
+// policy-bot ruleset prefix.
+func (f *RulesetCheckFinder) rulesRequirePolicyBot(rules []*github.RequiredStatusChecksBranchRule) bool {
+	prefix := RulesetContext(f.StatusCheckContext, "")
+	for _, rule := range rules {
+		for _, check := range rule.Parameters.RequiredStatusChecks {
+			if strings.HasPrefix(check.Context, prefix) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // selectChecks returns the contexts of the required checks in rules that
