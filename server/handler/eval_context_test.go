@@ -22,11 +22,13 @@ import (
 	"github.com/google/go-github/v93/github"
 	"github.com/palantir/go-githubapp/appconfig"
 	"github.com/palantir/policy-bot/internal/githubtest"
+	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/pull/pulltest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
 )
 
 func TestParseConfigSuppressesStatusForUnseenPolicy(t *testing.T) {
@@ -284,6 +286,65 @@ func TestEvaluateWithoutStatusContexts(t *testing.T) {
 	assert.Equal(t, common.StatusApproved, result.Status)
 	assert.Equal(t, "evaluated", result.StatusDescription)
 	assert.Empty(t, statuses.statuses)
+}
+
+func TestEvaluateBaseChange(t *testing.T) {
+	var pc policy.Config
+	require.NoError(t, yaml.UnmarshalStrict([]byte("policy:\n  approval: []\n"), &pc))
+	parsed, err := policy.ParsePolicy(&pc, nil)
+	require.NoError(t, err)
+
+	type posted struct{ context, state string }
+
+	tests := map[string]struct {
+		StatusChecks []StatusCheckType
+		Policy       *policy.ParsedPolicy
+		Expected     []posted
+	}{
+		"rulesetPostsPendingFirst": {
+			StatusChecks: []StatusCheckType{StatusCheckBranch, StatusCheckRuleset},
+			Policy:       parsed,
+			Expected: []posted{
+				{"policy-bot: main", "pending"},
+				{"policy-bot: ruleset:release-branches", "pending"},
+				{"policy-bot: main", "success"},
+				{"policy-bot: ruleset:release-branches", "success"},
+			},
+		},
+		"branchOnlySkipsPending": {
+			StatusChecks: []StatusCheckType{StatusCheckBranch},
+			Policy:       parsed,
+			Expected:     []posted{{"policy-bot: main", "success"}},
+		},
+		"noPolicyPostsNothing": {
+			StatusChecks: []StatusCheckType{StatusCheckBranch, StatusCheckRuleset},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			rp := &githubtest.ResponsePlayer{}
+			statuses := recordStatuses(rp, statusesPath)
+
+			ec := makeEvalContext(true)
+			ec.SkipPostStatus = false
+			ec.Client = newTestClient(t, rp)
+			ec.Options.StatusChecks = test.StatusChecks
+			ec.RulesetChecks = &fakeRulesetChecks{checks: []string{"policy-bot: ruleset:release-branches"}}
+			ec.Config = FetchedConfig{
+				Policy:  test.Policy,
+				Sources: []PolicyLocation{{Source: "testorg/testrepo@main", Path: ".policy.yml"}},
+			}
+
+			require.NoError(t, ec.EvaluateBaseChange(context.Background()))
+
+			var actual []posted
+			for _, s := range statuses.statuses {
+				actual = append(actual, posted{s.GetContext(), s.GetState()})
+			}
+			assert.Equal(t, test.Expected, actual)
+		})
+	}
 }
 
 func TestExtensionPolicyErrorSources(t *testing.T) {

@@ -58,7 +58,7 @@ func rulesetScope(t github.RulesetSourceType) int {
 type RulesetChecks interface {
 	// RequiredChecks returns the de-duplicated, sorted contexts of the
 	// ruleset checks to post for the branch. If an error is returned, callers
-	// must not post any ruleset checks.
+	// must not post a success to any ruleset check.
 	RequiredChecks(ctx context.Context, client *github.Client, owner, repo, branch string) ([]string, error)
 }
 

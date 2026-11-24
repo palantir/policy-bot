@@ -59,12 +59,28 @@ type EvalContext struct {
 
 // Evaluate runs the full process for evaluating a pull request.
 func (ec *EvalContext) Evaluate(ctx context.Context, trigger common.Trigger) error {
+	return ec.evaluate(ctx, trigger, false)
+}
+
+// EvaluateBaseChange evaluates a pull request whose base branch changed. When
+// ruleset checks are enabled, it first posts a pending status: ruleset checks
+// are shared by all branches in a ruleset, so a check posted for the previous
+// base may already be successful for the new base until evaluation completes.
+func (ec *EvalContext) EvaluateBaseChange(ctx context.Context) error {
+	return ec.evaluate(ctx, common.TriggerAll, ec.Options.HasStatusCheck(StatusCheckRuleset))
+}
+
+func (ec *EvalContext) evaluate(ctx context.Context, trigger common.Trigger, postPending bool) error {
 	evaluator, err := ec.ParseConfig(ctx, trigger)
 	if err != nil {
 		return err
 	}
 	if evaluator == nil {
 		return nil
+	}
+
+	if postPending {
+		ec.PostStatus(ctx, "pending", "Re-evaluating after base branch change")
 	}
 
 	result, err := ec.EvaluatePolicy(ctx, evaluator)
