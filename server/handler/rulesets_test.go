@@ -15,17 +15,16 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/google/go-github/v93/github"
-	"github.com/palantir/go-baseapp/baseapp"
 	"github.com/palantir/policy-bot/internal/githubtest"
-	"github.com/rcrowley/go-metrics"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -93,8 +92,21 @@ func setTestRetryDelay(t *testing.T) {
 	t.Cleanup(func() { retryDelay = delay })
 }
 
-func ignoredCount(registry metrics.Registry, reason string) int64 {
-	return metrics.GetOrRegisterCounter(fmt.Sprintf("%s[reason:%s]", MetricsKeyRulesetChecksIgnored, reason), registry).Count()
+// ignoredReasons counts the reasons of the ignored checks logged to buf.
+func ignoredReasons(t *testing.T, buf *bytes.Buffer) map[string]int {
+	reasons := make(map[string]int)
+	dec := json.NewDecoder(buf)
+	for dec.More() {
+		var entry struct {
+			Message string `json:"message"`
+			Reason  string `json:"reason"`
+		}
+		require.NoError(t, dec.Decode(&entry))
+		if entry.Message == "Ignoring required ruleset status check" {
+			reasons[entry.Reason]++
+		}
+	}
+	return reasons
 }
 
 func TestRulesetCheckFinder(t *testing.T) {
@@ -102,7 +114,7 @@ func TestRulesetCheckFinder(t *testing.T) {
 		Rules    string
 		Rulesets string
 		Expected []string
-		Ignored  map[string]int64
+		Ignored  map[string]int
 	}{
 		"pinnedMatchingName": {
 			Rules:    "rules_id1_release_branches.yml",
@@ -110,15 +122,15 @@ func TestRulesetCheckFinder(t *testing.T) {
 		},
 		"unpinned": {
 			Rules:   "rules_id1_unpinned.yml",
-			Ignored: map[string]int64{ignoreReasonUnpinned: 1},
+			Ignored: map[string]int{ignoreReasonUnpinned: 1},
 		},
 		"foreignIntegration": {
 			Rules:   "rules_id1_foreign_app.yml",
-			Ignored: map[string]int64{ignoreReasonWrongIntegration: 1},
+			Ignored: map[string]int{ignoreReasonWrongIntegration: 1},
 		},
 		"nameMismatch": {
 			Rules:   "rules_id2_release_branches.yml",
-			Ignored: map[string]int64{ignoreReasonNameMismatch: 1},
+			Ignored: map[string]int{ignoreReasonNameMismatch: 1},
 		},
 		"multipleRulesetsDeduplicated": {
 			Rules:    "rules_multiple_rulesets.yml",
@@ -126,12 +138,12 @@ func TestRulesetCheckFinder(t *testing.T) {
 		},
 		"unknownRuleset": {
 			Rules:   "rules_id3_hidden.yml",
-			Ignored: map[string]int64{ignoreReasonUnknownRuleset: 1},
+			Ignored: map[string]int{ignoreReasonUnknownRuleset: 1},
 		},
 		"repoShadowedByOrg": {
 			Rules:    "rules_id2_release_branches.yml",
 			Rulesets: "rulesets_org_repo_same_name.yml",
-			Ignored:  map[string]int64{ignoreReasonShadowed: 1},
+			Ignored:  map[string]int{ignoreReasonShadowed: 1},
 		},
 		"orgPostedWhenRepoUsesSameName": {
 			Rules:    "rules_id1_release_branches.yml",
@@ -141,7 +153,7 @@ func TestRulesetCheckFinder(t *testing.T) {
 		"orgShadowedByEnterprise": {
 			Rules:    "rules_id2_release_branches.yml",
 			Rulesets: "rulesets_enterprise_org_same_name.yml",
-			Ignored:  map[string]int64{ignoreReasonShadowed: 1},
+			Ignored:  map[string]int{ignoreReasonShadowed: 1},
 		},
 		"distinctNamesAcrossScopes": {
 			Rules:    "rules_distinct_scopes.yml",
@@ -160,16 +172,17 @@ func TestRulesetCheckFinder(t *testing.T) {
 			rp.AddRule(githubtest.ExactPathMatcher(rulesPath), testResponses+test.Rules)
 			rulesetsRule := rp.AddRule(githubtest.ExactPathMatcher(rulesetsPath), testResponses+test.Rulesets)
 
-			registry := metrics.NewRegistry()
-			ctx := baseapp.WithMetricsCtx(context.Background(), registry)
+			var logs bytes.Buffer
+			ctx := zerolog.New(&logs).WithContext(context.Background())
 
 			checks, err := newTestFinder(t).RequiredChecks(ctx, newTestClient(t, rp), "testorg", "testrepo", "main")
 			require.NoError(t, err)
 			assert.Equal(t, test.Expected, checks)
 			assert.Equal(t, 1, rulesetsRule.Count, "rulesets should be fetched once")
 
+			ignored := ignoredReasons(t, &logs)
 			for _, reason := range []string{ignoreReasonUnpinned, ignoreReasonWrongIntegration, ignoreReasonNameMismatch, ignoreReasonUnknownRuleset, ignoreReasonShadowed} {
-				assert.Equal(t, test.Ignored[reason], ignoredCount(registry, reason), "incorrect ignored count for %s", reason)
+				assert.Equal(t, test.Ignored[reason], ignored[reason], "incorrect ignored count for %s", reason)
 			}
 		})
 	}
@@ -253,14 +266,10 @@ func TestRulesetCheckFinderErrors(t *testing.T) {
 				rp.AddRule(githubtest.ExactPathMatcher(rulesetsPath), testResponses+test.Rulesets)
 			}
 
-			registry := metrics.NewRegistry()
-			ctx := baseapp.WithMetricsCtx(context.Background(), registry)
-
-			checks, err := newTestFinder(t).RequiredChecks(ctx, newTestClient(t, rp), "testorg", "testrepo", "main")
+			checks, err := newTestFinder(t).RequiredChecks(context.Background(), newTestClient(t, rp), "testorg", "testrepo", "main")
 			require.Error(t, err)
 			assert.Nil(t, checks)
 			assert.Equal(t, test.RulesRequests, rulesRule.Count)
-			assert.Equal(t, int64(1), metrics.GetOrRegisterCounter(MetricsKeyRulesetLookupErrors, registry).Count())
 		})
 	}
 }

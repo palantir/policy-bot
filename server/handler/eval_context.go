@@ -21,12 +21,10 @@ import (
 	"strings"
 
 	"github.com/google/go-github/v93/github"
-	"github.com/palantir/go-baseapp/baseapp"
 	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
-	"github.com/rcrowley/go-metrics"
 	"github.com/rs/zerolog"
 	"github.com/shurcooL/githubv4"
 )
@@ -231,15 +229,10 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 		return
 	}
 
-	rulesetPrefix := RulesetContext(ec.Options.StatusCheckContext, "")
 	for _, c := range contexts {
 		status.Context = new(c)
 		if err := PostStatus(ctx, ec.Client, owner, repo, sha, status); err != nil {
 			logger.Err(err).Msg("Failed to post repo status")
-			continue
-		}
-		if strings.HasPrefix(c, rulesetPrefix) {
-			metrics.GetOrRegisterCounter(MetricsKeyRulesetChecksPosted, baseapp.MetricsCtx(ctx)).Inc(1)
 		}
 	}
 	if ec.Options.PostInsecureStatusChecks {

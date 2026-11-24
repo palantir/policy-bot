@@ -19,20 +19,10 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/google/go-github/v93/github"
-	"github.com/palantir/go-baseapp/baseapp"
 	"github.com/pkg/errors"
-	"github.com/rcrowley/go-metrics"
 	"github.com/rs/zerolog"
-)
-
-const (
-	MetricsKeyRulesetLookupErrors  = "rulesets.lookup.errors"
-	MetricsKeyRulesetLookupLatency = "rulesets.lookup.latency"
-	MetricsKeyRulesetChecksPosted  = "rulesets.checks.posted"
-	MetricsKeyRulesetChecksIgnored = "rulesets.checks.ignored"
 )
 
 // reasons for ignoring a required check that uses the policy-bot prefix
@@ -120,7 +110,7 @@ func (f *RulesetCheckFinder) RequiredChecks(ctx context.Context, client *github.
 }
 
 // selectChecks returns the contexts of the required checks in rules that
-// policy-bot should post, logging and counting any ignored checks.
+// policy-bot should post, logging any ignored checks.
 func (f *RulesetCheckFinder) selectChecks(ctx context.Context, rules []*github.RequiredStatusChecksBranchRule, rulesets map[int64]rulesetInfo) []string {
 	logger := zerolog.Ctx(ctx)
 	prefix := RulesetContext(f.StatusCheckContext, "")
@@ -166,7 +156,6 @@ func (f *RulesetCheckFinder) selectChecks(ctx context.Context, rules []*github.R
 					Str("ruleset_source", rule.RulesetSource).
 					Str("reason", reason).
 					Msg("Ignoring required ruleset status check")
-				metrics.GetOrRegisterCounter(fmt.Sprintf("%s[reason:%s]", MetricsKeyRulesetChecksIgnored, reason), baseapp.MetricsCtx(ctx)).Inc(1)
 				continue
 			}
 
@@ -182,80 +171,56 @@ func (f *RulesetCheckFinder) selectChecks(ctx context.Context, rules []*github.R
 
 func (f *RulesetCheckFinder) getRules(ctx context.Context, client *github.Client, owner, repo, branch string) ([]*github.RequiredStatusChecksBranchRule, error) {
 	var rules []*github.RequiredStatusChecksBranchRule
-	err := f.timeLookup(ctx, func() error {
-		opts := &github.ListOptions{PerPage: 100}
-		for {
-			var page *github.BranchRules
-			var res *github.Response
-			err := withRetry(ctx, func() (err error) {
-				// the client escapes the branch name in the path
-				page, res, err = client.Repositories.ListRulesForBranch(ctx, owner, repo, branch, opts)
-				return err
-			})
-			if err != nil {
-				return errors.Wrapf(err, "failed to list rules for branch %q", branch)
-			}
-			if page != nil {
-				rules = append(rules, page.RequiredStatusChecks...)
-			}
-			if res.NextPage == 0 {
-				return nil
-			}
-			opts.Page = res.NextPage
+	opts := &github.ListOptions{PerPage: 100}
+	for {
+		var page *github.BranchRules
+		var res *github.Response
+		err := withRetry(ctx, func() (err error) {
+			// the client escapes the branch name in the path
+			page, res, err = client.Repositories.ListRulesForBranch(ctx, owner, repo, branch, opts)
+			return err
+		})
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to list rules for branch %q", branch)
 		}
-	})
-	if err != nil {
-		return nil, err
+		if page != nil {
+			rules = append(rules, page.RequiredStatusChecks...)
+		}
+		if res.NextPage == 0 {
+			return rules, nil
+		}
+		opts.Page = res.NextPage
 	}
-	return rules, nil
 }
 
 // getRulesets returns the rulesets that apply to the repository, including
 // organization and enterprise rulesets, by ID.
 func (f *RulesetCheckFinder) getRulesets(ctx context.Context, client *github.Client, owner, repo string) (map[int64]rulesetInfo, error) {
 	infos := make(map[int64]rulesetInfo)
-	err := f.timeLookup(ctx, func() error {
-		opts := &github.RepositoryListRulesetsOptions{
-			IncludesParents: new(true),
-			ListOptions:     github.ListOptions{PerPage: 100},
-		}
-		for {
-			var rulesets []*github.RepositoryRuleset
-			var res *github.Response
-			err := withRetry(ctx, func() (err error) {
-				rulesets, res, err = client.Repositories.GetAllRulesets(ctx, owner, repo, opts)
-				return err
-			})
-			if err != nil {
-				return errors.Wrap(err, "failed to list rulesets")
-			}
-			for _, rs := range rulesets {
-				var source github.RulesetSourceType
-				if rs.SourceType != nil {
-					source = *rs.SourceType
-				}
-				infos[rs.GetID()] = rulesetInfo{name: rs.Name, scope: rulesetScope(source)}
-			}
-			if res.NextPage == 0 {
-				return nil
-			}
-			opts.Page = res.NextPage
-		}
-	})
-	if err != nil {
-		return nil, err
+	opts := &github.RepositoryListRulesetsOptions{
+		IncludesParents: new(true),
+		ListOptions:     github.ListOptions{PerPage: 100},
 	}
-	return infos, nil
-}
-
-func (f *RulesetCheckFinder) timeLookup(ctx context.Context, fn func() error) error {
-	registry := baseapp.MetricsCtx(ctx)
-
-	start := time.Now()
-	err := fn()
-	metrics.GetOrRegisterTimer(MetricsKeyRulesetLookupLatency, registry).UpdateSince(start)
-	if err != nil {
-		metrics.GetOrRegisterCounter(MetricsKeyRulesetLookupErrors, registry).Inc(1)
+	for {
+		var rulesets []*github.RepositoryRuleset
+		var res *github.Response
+		err := withRetry(ctx, func() (err error) {
+			rulesets, res, err = client.Repositories.GetAllRulesets(ctx, owner, repo, opts)
+			return err
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to list rulesets")
+		}
+		for _, rs := range rulesets {
+			var source github.RulesetSourceType
+			if rs.SourceType != nil {
+				source = *rs.SourceType
+			}
+			infos[rs.GetID()] = rulesetInfo{name: rs.Name, scope: rulesetScope(source)}
+		}
+		if res.NextPage == 0 {
+			return infos, nil
+		}
+		opts.Page = res.NextPage
 	}
-	return err
 }

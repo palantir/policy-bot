@@ -20,13 +20,11 @@ import (
 	"testing"
 
 	"github.com/google/go-github/v93/github"
-	"github.com/palantir/go-baseapp/baseapp"
 	"github.com/palantir/go-githubapp/appconfig"
 	"github.com/palantir/policy-bot/internal/githubtest"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/pull/pulltest"
-	"github.com/rcrowley/go-metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -121,8 +119,7 @@ func TestPostStatus(t *testing.T) {
 			ec.Options.StatusChecks = test.StatusChecks
 			ec.RulesetChecks = test.Rulesets
 
-			registry := metrics.NewRegistry()
-			ec.PostStatus(baseapp.WithMetricsCtx(context.Background(), registry), "success", "approved")
+			ec.PostStatus(context.Background(), "success", "approved")
 
 			assert.Equal(t, test.Expected, statuses.contexts())
 			for _, s := range statuses.statuses {
@@ -130,14 +127,6 @@ func TestPostStatus(t *testing.T) {
 				assert.Equal(t, "approved", s.GetDescription())
 				assert.Equal(t, "https://policy-bot.example.com/details/testorg/testrepo/42", s.GetTargetURL())
 			}
-
-			var expectedRulesets int64
-			for _, c := range test.Expected {
-				if c != "policy-bot: main" {
-					expectedRulesets++
-				}
-			}
-			assert.Equal(t, expectedRulesets, metrics.GetOrRegisterCounter(MetricsKeyRulesetChecksPosted, registry).Count())
 		})
 	}
 }
