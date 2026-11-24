@@ -1,0 +1,5 @@
+- status: 200
+  body: |
+    {
+      "default_branch": "release/1.0"
+    }

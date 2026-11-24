@@ -1,0 +1,24 @@
+- status: 200
+  headers:
+    Link: <http://github.localhost/repos/testorg/testrepo/rulesets?page=2>; rel="next"
+  body: |
+    [
+      {
+        "id": 1,
+        "name": "first",
+        "source_type": "Repository",
+        "source": "testorg/testrepo",
+        "enforcement": "active"
+      }
+    ]
+- status: 200
+  body: |
+    [
+      {
+        "id": 2,
+        "name": "second",
+        "source_type": "Repository",
+        "source": "testorg/testrepo",
+        "enforcement": "active"
+      }
+    ]

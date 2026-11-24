@@ -1,0 +1,7 @@
+- status: 200
+  body: |
+    {
+      "commit": {
+        "sha": "abc123"
+      }
+    }

@@ -1,0 +1,11 @@
+- status: 200
+  body: |
+    {
+      "state": "success",
+      "statuses": [
+        {
+          "context": "policy-bot: ruleset:a",
+          "state": "success"
+        }
+      ]
+    }

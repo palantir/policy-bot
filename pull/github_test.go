@@ -24,15 +24,16 @@ import (
 	"time"
 
 	"github.com/google/go-github/v93/github"
+	"github.com/palantir/policy-bot/internal/githubtest"
 	"github.com/shurcooL/githubv4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestChangedFiles(t *testing.T) {
-	rp := &ResponsePlayer{}
+	rp := &githubtest.ResponsePlayer{}
 	filesRule := rp.AddRule(
-		ExactPathMatcher("/repos/testorg/testrepo/pulls/123/files"),
+		githubtest.ExactPathMatcher("/repos/testorg/testrepo/pulls/123/files"),
 		"testdata/responses/pull_files.yml",
 	)
 
@@ -72,9 +73,9 @@ func TestChangedFiles(t *testing.T) {
 }
 
 func TestChangedFilesExceedsLimit(t *testing.T) {
-	rp := &ResponsePlayer{}
+	rp := &githubtest.ResponsePlayer{}
 	rp.AddRule(
-		ExactPathMatcher("/repos/testorg/testrepo/pulls/123/files"),
+		githubtest.ExactPathMatcher("/repos/testorg/testrepo/pulls/123/files"),
 		"testdata/responses/pull_files.yml",
 	)
 	rp.AddRule(
@@ -93,9 +94,9 @@ func TestChangedFilesExceedsLimit(t *testing.T) {
 }
 
 func TestChangedFilesNoFiles(t *testing.T) {
-	rp := &ResponsePlayer{}
+	rp := &githubtest.ResponsePlayer{}
 	filesRule := rp.AddRule(
-		ExactPathMatcher("/repos/testorg/testrepo/pulls/123/files"),
+		githubtest.ExactPathMatcher("/repos/testorg/testrepo/pulls/123/files"),
 		"testdata/responses/pull_no_files.yml",
 	)
 
@@ -116,7 +117,7 @@ func TestChangedFilesNoFiles(t *testing.T) {
 }
 
 func TestCommits(t *testing.T) {
-	rp := &ResponsePlayer{}
+	rp := &githubtest.ResponsePlayer{}
 	dataRule := rp.AddRule(
 		GraphQLNodePrefixMatcher("repository.pullRequest.commits"),
 		"testdata/responses/pull_commits_comments_reviews.yml",
@@ -159,7 +160,7 @@ func TestCommits(t *testing.T) {
 }
 
 func TestReviews(t *testing.T) {
-	rp := &ResponsePlayer{}
+	rp := &githubtest.ResponsePlayer{}
 	dataRule := rp.AddRule(
 		GraphQLNodePrefixMatcher("repository.pullRequest.reviews"),
 		"testdata/responses/pull_commits_comments_reviews.yml",
@@ -203,7 +204,7 @@ func TestReviews(t *testing.T) {
 }
 
 func TestNoReviews(t *testing.T) {
-	rp := &ResponsePlayer{}
+	rp := &githubtest.ResponsePlayer{}
 	dataRule := rp.AddRule(
 		GraphQLNodePrefixMatcher("repository.pullRequest.reviews"),
 		"testdata/responses/pull_no_reviews.yml",
@@ -225,7 +226,7 @@ func TestNoReviews(t *testing.T) {
 }
 
 func TestBody(t *testing.T) {
-	rp := &ResponsePlayer{}
+	rp := &githubtest.ResponsePlayer{}
 	rp.AddRule(
 		GraphQLNodePrefixMatcher("repository.pullRequest"),
 		"testdata/responses/pull_body.yml",
@@ -246,7 +247,7 @@ func TestBody(t *testing.T) {
 }
 
 func TestComments(t *testing.T) {
-	rp := &ResponsePlayer{}
+	rp := &githubtest.ResponsePlayer{}
 	dataRule := rp.AddRule(
 		GraphQLNodePrefixMatcher("repository.pullRequest.comments"),
 		"testdata/responses/pull_commits_comments_reviews.yml",
@@ -292,7 +293,7 @@ func TestComments(t *testing.T) {
 }
 
 func TestNoComments(t *testing.T) {
-	rp := &ResponsePlayer{}
+	rp := &githubtest.ResponsePlayer{}
 	dataRule := rp.AddRule(
 		GraphQLNodePrefixMatcher("repository.pullRequest.comments"),
 		"testdata/responses/pull_no_comments.yml",
@@ -314,21 +315,21 @@ func TestNoComments(t *testing.T) {
 }
 
 func TestIsTeamMember(t *testing.T) {
-	rp := &ResponsePlayer{}
+	rp := &githubtest.ResponsePlayer{}
 	yesRule1 := rp.AddRule(
-		ExactPathMatcher("/orgs/testorg/teams/yes-team/memberships/mhaypenny"),
+		githubtest.ExactPathMatcher("/orgs/testorg/teams/yes-team/memberships/mhaypenny"),
 		"testdata/responses/membership_team123_mhaypenny.yml",
 	)
 	yesRule2 := rp.AddRule(
-		ExactPathMatcher("/orgs/testorg/teams/yes-team/memberships/ttest"),
+		githubtest.ExactPathMatcher("/orgs/testorg/teams/yes-team/memberships/ttest"),
 		"testdata/responses/membership_team123_ttest.yml",
 	)
 	noRule1 := rp.AddRule(
-		ExactPathMatcher("/orgs/testorg/teams/no-team/memberships/mhaypenny"),
+		githubtest.ExactPathMatcher("/orgs/testorg/teams/no-team/memberships/mhaypenny"),
 		"testdata/responses/membership_team456_mhaypenny.yml",
 	)
 	noRule2 := rp.AddRule(
-		ExactPathMatcher("/orgs/testorg/teams/no-team/memberships/ttest"),
+		githubtest.ExactPathMatcher("/orgs/testorg/teams/no-team/memberships/ttest"),
 		"testdata/responses/membership_team456_ttest.yml",
 	)
 
@@ -369,9 +370,9 @@ func TestIsTeamMember(t *testing.T) {
 }
 
 func TestMixedCommitCommentReviewPaging(t *testing.T) {
-	rp := &ResponsePlayer{}
+	rp := &githubtest.ResponsePlayer{}
 	rp.AddRule(
-		ExactPathMatcher("/repos/testorg/testrepo/pulls/123"),
+		githubtest.ExactPathMatcher("/repos/testorg/testrepo/pulls/123"),
 		"testdata/responses/pull.yml",
 	)
 	dataRule := rp.AddRule(
@@ -397,13 +398,13 @@ func TestMixedCommitCommentReviewPaging(t *testing.T) {
 }
 
 func TestIsOrgMember(t *testing.T) {
-	rp := &ResponsePlayer{}
+	rp := &githubtest.ResponsePlayer{}
 	yesRule := rp.AddRule(
-		ExactPathMatcher("/orgs/testorg/members/mhaypenny"),
+		githubtest.ExactPathMatcher("/orgs/testorg/members/mhaypenny"),
 		"testdata/responses/membership_testorg_mhaypenny.yml",
 	)
 	noRule := rp.AddRule(
-		ExactPathMatcher("/orgs/testorg/members/ttest"),
+		githubtest.ExactPathMatcher("/orgs/testorg/members/ttest"),
 		"testdata/responses/membership_testorg_ttest.yml",
 	)
 
@@ -430,7 +431,7 @@ func TestIsOrgMember(t *testing.T) {
 }
 
 func TestBranches(t *testing.T) {
-	rp := &ResponsePlayer{}
+	rp := &githubtest.ResponsePlayer{}
 	ctx := makeContext(t, rp, nil, nil)
 
 	base, head := ctx.Branches()
@@ -439,7 +440,7 @@ func TestBranches(t *testing.T) {
 }
 
 func TestCrossRepoBranches(t *testing.T) {
-	rp := &ResponsePlayer{}
+	rp := &githubtest.ResponsePlayer{}
 
 	// change the source repo to a forked repo
 	crossRepoPr := defaultTestPR()
@@ -459,7 +460,7 @@ func TestCrossRepoBranches(t *testing.T) {
 }
 
 func TestCollaboratorPermission(t *testing.T) {
-	rp := &ResponsePlayer{}
+	rp := &githubtest.ResponsePlayer{}
 	rule := rp.AddRule(
 		GraphQLNodePrefixMatcher("repository.collaborators"),
 		"testdata/responses/repo_collaborator_permission.yml",
@@ -490,31 +491,31 @@ func TestCollaboratorPermission(t *testing.T) {
 }
 
 func TestRepositoryCollaborators(t *testing.T) {
-	rp := &ResponsePlayer{}
+	rp := &githubtest.ResponsePlayer{}
 	rp.AddRule(
-		PathAndQueryMatcher{
+		githubtest.PathAndQueryMatcher{
 			Path:  "/repos/testorg/testrepo/collaborators",
 			Query: url.Values{"affiliation": []string{"direct"}, "per_page": []string{"100"}},
 		},
 		"testdata/responses/repo_collaborators_direct.yml",
 	)
 	rp.AddRule(
-		PathAndQueryMatcher{
+		githubtest.PathAndQueryMatcher{
 			Path:  "/repos/testorg/testrepo/collaborators",
 			Query: url.Values{"affiliation": []string{"all"}, "per_page": []string{"100"}},
 		},
 		"testdata/responses/repo_collaborators_all.yml",
 	)
 	rp.AddRule(
-		ExactPathMatcher("/repos/testorg/testrepo/teams"),
+		githubtest.ExactPathMatcher("/repos/testorg/testrepo/teams"),
 		"testdata/responses/repo_teams.yml",
 	)
 	rp.AddRule(
-		ExactPathMatcher("/orgs/testorg/teams/maintainers/members"),
+		githubtest.ExactPathMatcher("/orgs/testorg/teams/maintainers/members"),
 		"testdata/responses/repo_team_members_maintainers.yml",
 	)
 	rp.AddRule(
-		ExactPathMatcher("/orgs/testorg/teams/admins/members"),
+		githubtest.ExactPathMatcher("/orgs/testorg/teams/admins/members"),
 		"testdata/responses/repo_team_members_admins.yml",
 	)
 
@@ -578,21 +579,21 @@ func TestRepositoryCollaborators(t *testing.T) {
 }
 
 func TestPushedAt(t *testing.T) {
-	rp := &ResponsePlayer{}
+	rp := &githubtest.ResponsePlayer{}
 	commitsRule := rp.AddRule(
 		GraphQLNodePrefixMatcher("repository.pullRequest.commits"),
 		"testdata/responses/pull_commits_comments_reviews.yml",
 	)
 	statusRuleA6F := rp.AddRule(
-		ExactPathMatcher("/repos/testorg/testrepo/commits/a6f3f69b64eaafece5a0d854eb4af11c0d64394c/statuses"),
+		githubtest.ExactPathMatcher("/repos/testorg/testrepo/commits/a6f3f69b64eaafece5a0d854eb4af11c0d64394c/statuses"),
 		"testdata/responses/repo_statuses_none.yml",
 	)
 	statusRule1FC := rp.AddRule(
-		ExactPathMatcher("/repos/testorg/testrepo/commits/1fc89f1cedf8e3f3ce516ab75b5952295c8ea5e9/statuses"),
+		githubtest.ExactPathMatcher("/repos/testorg/testrepo/commits/1fc89f1cedf8e3f3ce516ab75b5952295c8ea5e9/statuses"),
 		"testdata/responses/repo_statuses_none.yml",
 	)
 	statusRuleE05 := rp.AddRule(
-		ExactPathMatcher("/repos/testorg/testrepo/commits/e05fcae367230ee709313dd2720da527d178ce43/statuses"),
+		githubtest.ExactPathMatcher("/repos/testorg/testrepo/commits/e05fcae367230ee709313dd2720da527d178ce43/statuses"),
 		"testdata/responses/repo_statuses_e05fcae367230ee709313dd2720da527d178ce43.yml",
 	)
 
@@ -654,9 +655,9 @@ func TestPushedAt(t *testing.T) {
 }
 
 func TestLatestWorkflowRunsNoRuns(t *testing.T) {
-	rp := &ResponsePlayer{}
+	rp := &githubtest.ResponsePlayer{}
 	noRunsRule := rp.AddRule(
-		ExactPathMatcher("/repos/testorg/testrepo/actions/runs"),
+		githubtest.ExactPathMatcher("/repos/testorg/testrepo/actions/runs"),
 		"testdata/responses/pull_no_workflow_runs.yml",
 	)
 
@@ -669,9 +670,9 @@ func TestLatestWorkflowRunsNoRuns(t *testing.T) {
 }
 
 func TestLatestWorkflowRuns(t *testing.T) {
-	rp := &ResponsePlayer{}
+	rp := &githubtest.ResponsePlayer{}
 	runsRule := rp.AddRule(
-		ExactPathMatcher("/repos/testorg/testrepo/actions/runs"),
+		githubtest.ExactPathMatcher("/repos/testorg/testrepo/actions/runs"),
 		"testdata/responses/pull_workflow_runs.yml",
 	)
 
@@ -696,13 +697,13 @@ func TestLatestWorkflowRuns(t *testing.T) {
 func TestLatestStatuses(t *testing.T) {
 	pr := defaultTestPR()
 
-	rp := &ResponsePlayer{}
+	rp := &githubtest.ResponsePlayer{}
 	rp.AddRule(
-		ExactPathMatcher("/repos/testorg/testrepo/commits/"+pr.Head.GetSHA()+"/status"),
+		githubtest.ExactPathMatcher("/repos/testorg/testrepo/commits/"+pr.Head.GetSHA()+"/status"),
 		"testdata/responses/combined_status_for_ref.yml",
 	)
 	rp.AddRule(
-		ExactPathMatcher("/repos/testorg/testrepo/commits/"+pr.Head.GetSHA()+"/check-runs"),
+		githubtest.ExactPathMatcher("/repos/testorg/testrepo/commits/"+pr.Head.GetSHA()+"/check-runs"),
 		"testdata/responses/check_runs_for_ref.yml",
 	)
 
@@ -717,7 +718,7 @@ func TestLatestStatuses(t *testing.T) {
 	assert.Equal(t, statuses["check-run-b"], "failure", "incorrect conclusion for 'check-run-b' status")
 }
 
-func makeContext(t *testing.T, rp *ResponsePlayer, pr *github.PullRequest, gc GlobalCache) Context {
+func makeContext(t *testing.T, rp *githubtest.ResponsePlayer, pr *github.PullRequest, gc GlobalCache) Context {
 	ctx := context.Background()
 	baseURL := "http://github.localhost/"
 	client, err := github.NewClient(

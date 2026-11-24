@@ -17,12 +17,12 @@ package handler
 import (
 	"context"
 	"errors"
-	"net/http"
 	"testing"
 
 	"github.com/google/go-github/v93/github"
 	"github.com/palantir/go-baseapp/baseapp"
 	"github.com/palantir/go-githubapp/appconfig"
+	"github.com/palantir/policy-bot/internal/githubtest"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/palantir/policy-bot/pull/pulltest"
@@ -74,14 +74,6 @@ func (e fakeEvaluator) Evaluate(ctx context.Context, prctx pull.Context) common.
 	return common.Result{Status: e.status, StatusDescription: "evaluated"}
 }
 
-func statusContextsOf(statuses []github.RepoStatus) []string {
-	var contexts []string
-	for _, s := range statuses {
-		contexts = append(contexts, s.GetContext())
-	}
-	return contexts
-}
-
 func TestPostStatus(t *testing.T) {
 	tests := map[string]struct {
 		StatusChecks []StatusCheckType
@@ -120,26 +112,23 @@ func TestPostStatus(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			gh := newFakeGitHub(t)
+			rp := &githubtest.ResponsePlayer{}
+			statuses := recordStatuses(rp, statusesPath)
 
 			ec := makeEvalContext(true)
 			ec.SkipPostStatus = false
-			ec.Client = gh.Client()
+			ec.Client = newTestClient(t, rp)
 			ec.Options.StatusChecks = test.StatusChecks
 			ec.RulesetChecks = test.Rulesets
 
 			registry := metrics.NewRegistry()
 			ec.PostStatus(baseapp.WithMetricsCtx(context.Background(), registry), "success", "approved")
 
-			statuses := gh.Statuses()
-			assert.Equal(t, test.Expected, statusContextsOf(statuses))
-			for _, s := range statuses {
+			assert.Equal(t, test.Expected, statuses.contexts())
+			for _, s := range statuses.statuses {
 				assert.Equal(t, "success", s.GetState())
 				assert.Equal(t, "approved", s.GetDescription())
 				assert.Equal(t, "https://policy-bot.example.com/details/testorg/testrepo/42", s.GetTargetURL())
-			}
-			for _, r := range gh.Requests() {
-				assert.Equal(t, "POST /repos/testorg/testrepo/statuses/abc123", r)
 			}
 
 			var expectedRulesets int64
@@ -178,144 +167,126 @@ func TestPostStatusSkipPostStatus(t *testing.T) {
 }
 
 func TestPostStatusClosedPullRequest(t *testing.T) {
-	gh := newFakeGitHub(t)
+	rp := &githubtest.ResponsePlayer{}
+	statuses := recordStatuses(rp, statusesPath)
 	rulesets := &fakeRulesetChecks{checks: []string{"policy-bot: ruleset:release"}}
 
 	ec := makeEvalContext(true)
 	ec.SkipPostStatus = false
-	ec.Client = gh.Client()
+	ec.Client = newTestClient(t, rp)
 	ec.Options.StatusChecks = []StatusCheckType{StatusCheckBranch, StatusCheckRuleset}
 	ec.RulesetChecks = rulesets
 	ec.PullContext.(*pulltest.Context).StateValue = "closed"
 
 	ec.PostStatus(context.Background(), "success", "approved")
 
-	assert.Empty(t, gh.Requests())
+	assert.Empty(t, statuses.statuses)
 	assert.Zero(t, rulesets.calls, "rulesets should not be looked up for closed pull requests")
 }
 
 func TestPostStatusRulesetLookupError(t *testing.T) {
-	const rulesPath = "/repos/testorg/testrepo/rules/branches/main"
 	const combinedPath = "/repos/testorg/testrepo/commits/abc123/status"
-
-	combinedStatus := func(contexts ...string) map[string]any {
-		var statuses []map[string]any
-		for _, c := range contexts {
-			statuses = append(statuses, map[string]any{"context": c, "state": "success"})
-		}
-		return map[string]any{"state": "success", "statuses": statuses}
-	}
 
 	tests := map[string]struct {
 		StatusChecks []StatusCheckType
 		State        string
-		Combined     map[int]fakeResponse // by page
+		Combined     string
 		Expected     []string
 	}{
 		"successPostsOnlyBranch": {
 			StatusChecks: []StatusCheckType{StatusCheckBranch, StatusCheckRuleset},
 			State:        "success",
-			Combined:     map[int]fakeResponse{0: {body: combinedStatus("policy-bot: ruleset:a")}},
+			Combined:     "combined_status_ruleset_a.yml",
 			Expected:     []string{"policy-bot: main"},
 		},
 		"successRulesetOnlyPostsNothing": {
 			StatusChecks: []StatusCheckType{StatusCheckRuleset},
 			State:        "success",
-			Combined:     map[int]fakeResponse{0: {body: combinedStatus("policy-bot: ruleset:a")}},
+			Combined:     "combined_status_ruleset_a.yml",
 		},
 		"pendingDowngradesPrevious": {
 			StatusChecks: []StatusCheckType{StatusCheckBranch, StatusCheckRuleset},
 			State:        "pending",
-			Combined: map[int]fakeResponse{0: {body: combinedStatus(
-				"ci/build",
-				"policy-bot: main",
-				"policy-bot: ruleset:b",
-				"policy-bot: ruleset:a",
-				"other-bot: ruleset:c",
-			)}},
-			Expected: []string{"policy-bot: main", "policy-bot: ruleset:a", "policy-bot: ruleset:b"},
+			Combined:     "combined_status_mixed.yml",
+			Expected:     []string{"policy-bot: main", "policy-bot: ruleset:a", "policy-bot: ruleset:b"},
 		},
 		"failureRulesetOnlyDowngradesPrevious": {
 			StatusChecks: []StatusCheckType{StatusCheckRuleset},
 			State:        "failure",
-			Combined:     map[int]fakeResponse{0: {body: combinedStatus("policy-bot: ruleset:a")}},
+			Combined:     "combined_status_ruleset_a.yml",
 			Expected:     []string{"policy-bot: ruleset:a"},
 		},
 		"errorDowngradesAllPages": {
 			StatusChecks: []StatusCheckType{StatusCheckRuleset},
 			State:        "error",
-			Combined: map[int]fakeResponse{
-				0: {body: combinedStatus("policy-bot: ruleset:a"), nextPage: 2},
-				2: {body: combinedStatus("policy-bot: ruleset:b")},
-			},
-			Expected: []string{"policy-bot: ruleset:a", "policy-bot: ruleset:b"},
+			Combined:     "combined_status_paginated.yml",
+			Expected:     []string{"policy-bot: ruleset:a", "policy-bot: ruleset:b"},
 		},
 		"noPrevious": {
 			StatusChecks: []StatusCheckType{StatusCheckRuleset},
 			State:        "failure",
-			Combined:     map[int]fakeResponse{0: {body: combinedStatus("ci/build")}},
+			Combined:     "combined_status_ci_only.yml",
 		},
 		"combinedStatusError": {
 			StatusChecks: []StatusCheckType{StatusCheckBranch, StatusCheckRuleset},
 			State:        "failure",
-			Combined:     map[int]fakeResponse{0: {status: http.StatusInternalServerError, body: map[string]any{}}},
+			Combined:     "server_error.yml",
 			Expected:     []string{"policy-bot: main"},
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			gh := newFakeGitHub(t)
-			gh.Respond(rulesPath, 0, fakeResponse{status: http.StatusInternalServerError, body: map[string]any{}})
-			for page, res := range test.Combined {
-				gh.Respond(combinedPath, page, res)
-			}
+			rp := &githubtest.ResponsePlayer{}
+			statuses := recordStatuses(rp, statusesPath)
+			rulesRule := rp.AddRule(githubtest.ExactPathMatcher(rulesPath), testResponses+"server_error.yml")
+			combinedRule := rp.AddRule(githubtest.ExactPathMatcher(combinedPath), testResponses+test.Combined)
 
 			ec := makeEvalContext(true)
 			ec.SkipPostStatus = false
-			ec.Client = gh.Client()
+			ec.Client = newTestClient(t, rp)
 			ec.Options.StatusChecks = test.StatusChecks
 			ec.RulesetChecks = newTestFinder(t)
 
 			ec.PostStatus(context.Background(), test.State, "message")
 
-			statuses := gh.Statuses()
-			assert.Equal(t, test.Expected, statusContextsOf(statuses))
-			for _, s := range statuses {
+			assert.Equal(t, test.Expected, statuses.contexts())
+			for _, s := range statuses.statuses {
 				assert.Equal(t, test.State, s.GetState())
 			}
 
-			requests := gh.Requests()
-			rulesRequest := "GET " + rulesPath
-			require.GreaterOrEqual(t, len(requests), 4)
-			assert.Equal(t, []string{rulesRequest, rulesRequest, rulesRequest, rulesRequest}, requests[:4], "rules lookup should be retried 3 times")
+			assert.Equal(t, 4, rulesRule.Count, "rules lookup should be retried 3 times")
 			if test.State == "success" {
-				assert.NotContains(t, requests, "GET "+combinedPath, "success should not read previous statuses")
+				assert.Zero(t, combinedRule.Count, "success should not read previous statuses")
 			}
 		})
 	}
 }
 
 func TestPostStatusRulesetLookupErrorSkipPostStatus(t *testing.T) {
-	gh := newFakeGitHub(t)
+	rp := &githubtest.ResponsePlayer{}
+	statuses := recordStatuses(rp, statusesPath)
+	combinedRule := rp.AddRule(githubtest.ExactPathMatcher("/repos/testorg/testrepo/commits/abc123/status"), testResponses+"combined_status_ruleset_a.yml")
 
 	ec := makeEvalContext(true)
-	ec.Client = gh.Client()
+	ec.Client = newTestClient(t, rp)
 	ec.Options.StatusChecks = []StatusCheckType{StatusCheckBranch, StatusCheckRuleset}
 	ec.RulesetChecks = &fakeRulesetChecks{err: errors.New("lookup failed")}
 
 	ec.PostStatus(context.Background(), "failure", "message")
 
 	assert.Equal(t, []string{"policy-bot: main"}, ec.StatusContexts)
-	assert.Empty(t, gh.Requests(), "details evaluations should not read previous statuses")
+	assert.Empty(t, statuses.statuses)
+	assert.Zero(t, combinedRule.Count, "skipped statuses should not read previous statuses")
 }
 
 func TestEvaluateWithoutStatusContexts(t *testing.T) {
-	gh := newFakeGitHub(t)
+	rp := &githubtest.ResponsePlayer{}
+	statuses := recordStatuses(rp, statusesPath)
 
 	ec := makeEvalContext(true)
 	ec.SkipPostStatus = false
-	ec.Client = gh.Client()
+	ec.Client = newTestClient(t, rp)
 	ec.Options.StatusChecks = []StatusCheckType{StatusCheckRuleset}
 	ec.RulesetChecks = &fakeRulesetChecks{}
 
@@ -323,7 +294,7 @@ func TestEvaluateWithoutStatusContexts(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, common.StatusApproved, result.Status)
 	assert.Equal(t, "evaluated", result.StatusDescription)
-	assert.Empty(t, gh.Requests())
+	assert.Empty(t, statuses.statuses)
 }
 
 func TestExtensionPolicyErrorSources(t *testing.T) {

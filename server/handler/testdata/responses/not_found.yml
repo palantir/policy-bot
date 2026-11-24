@@ -1,0 +1,5 @@
+- status: 404
+  body: |
+    {
+      "message": "Not Found"
+    }

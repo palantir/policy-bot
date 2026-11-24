@@ -1,0 +1,27 @@
+- status: 200
+  body: |
+    {
+      "state": "success",
+      "statuses": [
+        {
+          "context": "ci/build",
+          "state": "success"
+        },
+        {
+          "context": "policy-bot: main",
+          "state": "success"
+        },
+        {
+          "context": "policy-bot: ruleset:b",
+          "state": "success"
+        },
+        {
+          "context": "policy-bot: ruleset:a",
+          "state": "success"
+        },
+        {
+          "context": "other-bot: ruleset:c",
+          "state": "success"
+        }
+      ]
+    }

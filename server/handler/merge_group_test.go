@@ -21,6 +21,7 @@ import (
 	"github.com/google/go-github/v93/github"
 	"github.com/palantir/go-githubapp/appconfig"
 	"github.com/palantir/go-githubapp/githubapp"
+	"github.com/palantir/policy-bot/internal/githubtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -64,11 +65,12 @@ func TestMergeGroup(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			gh := newFakeGitHub(t)
+			rp := &githubtest.ResponsePlayer{}
+			statuses := recordStatuses(rp, statusesPath)
 			rulesets := &fakeRulesetChecks{checks: []string{"policy-bot: ruleset:release"}}
 
 			h := MergeGroup{Base: Base{
-				ClientCreator: fakeClientCreator{client: gh.Client()},
+				ClientCreator: fakeClientCreator{client: newTestClient(t, rp)},
 				PullOpts: &PullEvaluationOptions{
 					StatusCheckContext: "policy-bot",
 					StatusChecks:       test.StatusChecks,
@@ -91,7 +93,7 @@ func TestMergeGroup(t *testing.T) {
 			err := h.Handle(context.Background(), "merge_group", "delivery", []byte(mergeGroupPayload))
 			require.NoError(t, err)
 
-			assert.Equal(t, test.Expected, statusContextsOf(gh.Statuses()))
+			assert.Equal(t, test.Expected, statuses.contexts())
 			assert.Zero(t, rulesets.calls, "merge groups must never look up ruleset checks")
 		})
 	}

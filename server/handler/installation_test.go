@@ -18,6 +18,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/palantir/policy-bot/internal/githubtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -48,13 +49,14 @@ func TestInstallation(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			gh := newFakeGitHub(t)
-			gh.Respond("/repos/testorg/testrepo", 0, fakeResponse{body: map[string]any{"default_branch": "release/1.0"}})
-			gh.Respond("/repos/testorg/testrepo/branches/release%2F1.0", 0, fakeResponse{body: map[string]any{"commit": map[string]any{"sha": "abc123"}}})
+			rp := &githubtest.ResponsePlayer{}
+			statuses := recordStatuses(rp, statusesPath)
+			rp.AddRule(githubtest.ExactPathMatcher("/repos/testorg/testrepo"), testResponses+"repository.yml")
+			rp.AddRule(githubtest.EscapedPathMatcher("/repos/testorg/testrepo/branches/release%2F1.0"), testResponses+"branch_release.yml")
 			rulesets := &fakeRulesetChecks{checks: []string{"policy-bot: ruleset:release"}}
 
 			h := Installation{Base: Base{
-				ClientCreator: fakeClientCreator{client: gh.Client()},
+				ClientCreator: fakeClientCreator{client: newTestClient(t, rp)},
 				PullOpts: &PullEvaluationOptions{
 					StatusCheckContext: "policy-bot",
 					StatusChecks:       test.StatusChecks,
@@ -66,7 +68,7 @@ func TestInstallation(t *testing.T) {
 			err := h.Handle(context.Background(), "installation", "delivery", []byte(installationPayload))
 			require.NoError(t, err)
 
-			assert.Equal(t, test.Expected, statusContextsOf(gh.Statuses()))
+			assert.Equal(t, test.Expected, statuses.contexts())
 			assert.Zero(t, rulesets.calls, "installation must never look up ruleset checks")
 		})
 	}
