@@ -1331,6 +1331,46 @@ As a result, only enable this feature if all users with access to `policy-bot`
 are allowed to view the members and permissions of any organization that uses
 `policy-bot`.
 
+#### Posting Approval Reviews <!-- omit in toc -->
+
+By default, `policy-bot` only reports its result as a status check, and the
+recommended setup is to make that check required *instead of* GitHub's
+"required approvals" setting. Some organizations can't drop required
+approvals, for example because a ruleset or an external standard mandates
+them, or because they want human review to remain the fallback if
+`policy-bot` is unavailable.
+
+When the `options.post_approval_review` server option is set, `policy-bot`
+also mirrors its status as a pull request review:
+
+- When the status is `success`, `policy-bot` submits an approving review on
+  the head commit, unless it has already approved that commit.
+- When the status is anything else (`pending`, `failure`, or `error`),
+  `policy-bot` dismisses every approving review it previously submitted on
+  the pull request.
+
+Because a non-success status always dismisses the approval, an approval can't
+outlive a policy that stops passing, including when evaluation fails.
+`policy-bot` always ignores reviews submitted by its own bot user when
+evaluating policies, so its approval can never satisfy one of its own rules.
+
+Keep the following in mind when enabling this option:
+
+- **Keep the status check required.** The review satisfies a "required
+  approvals" rule, but the status check is still the authoritative result.
+  Requiring both means a forged or stale approval alone can't merge a pull
+  request.
+- **Code owner review is not satisfied.** GitHub only counts reviews from code
+  owners toward "require review from Code Owners", and GitHub Apps generally
+  can't be code owners.
+- **Dismissal restrictions.** If branch protection restricts who can dismiss
+  reviews, the GitHub App must be allowed to dismiss reviews, or stale
+  approvals will remain until a new commit is pushed (with "dismiss stale
+  approvals" enabled).
+- **Missing policies.** If a repository's policy is deleted after an approval
+  was posted, `policy-bot` stops evaluating the pull request and won't dismiss
+  the earlier approval.
+
 ## Security
 
 While `policy-bot` can be used to implement security controls on GitHub

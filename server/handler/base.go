@@ -88,7 +88,9 @@ func (b *Base) NewEvalContext(ctx context.Context, installationID int64, loc pul
 		Options:   b.PullOpts,
 		PublicURL: b.BaseConfig.PublicURL,
 
-		PullContext: prctx,
+		AppName: b.AppName,
+
+		PullContext: excludeReviewsBy(prctx, b.AppName+"[bot]"),
 		Config:      fetchedConfig,
 	}, nil
 }

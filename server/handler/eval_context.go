@@ -39,6 +39,9 @@ type EvalContext struct {
 	Options   *PullEvaluationOptions
 	PublicURL string
 
+	// AppName is the slug of the GitHub App. Its bot user is AppName+"[bot]".
+	AppName string
+
 	PullContext pull.Context
 	Config      FetchedConfig
 
@@ -194,6 +197,11 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 
 	if err := PostStatus(ctx, ec.Client, owner, repo, sha, status); err != nil {
 		logger.Err(err).Msg("Failed to post repo status")
+	}
+	if ec.Options.PostApprovalReview {
+		if err := ec.syncApprovalReview(ctx, state, message); err != nil {
+			logger.Err(err).Msg("Failed to sync approval review with status")
+		}
 	}
 	if ec.Options.PostInsecureStatusChecks {
 		status.Context = new(ec.Options.StatusCheckContext)
