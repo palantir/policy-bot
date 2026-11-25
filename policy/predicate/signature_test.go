@@ -346,6 +346,119 @@ func TestHasValidSignaturesByKeys(t *testing.T) {
 	})
 }
 
+func TestHasValidSignaturesByKeysSSH(t *testing.T) {
+	sshCommit := func(fingerprint string) *pulltest.Context {
+		return &pulltest.Context{
+			AuthorValue: "mhaypenny",
+			CommitsValue: []*pull.Commit{
+				{
+					SHA:       "abcdef123456789",
+					Author:    "ttest",
+					Committer: "ttest",
+					Signature: &pull.Signature{
+						Type:           pull.SignatureSSH,
+						IsValid:        true,
+						Signer:         "mhaypenny",
+						State:          "VALID",
+						KeyFingerprint: fingerprint,
+					},
+				},
+			},
+		}
+	}
+
+	p := &HasValidSignaturesByKeys{
+		KeyIDs:          []string{"3AA5C34371567BD2"},
+		KeyFingerprints: []string{"G1vnm2b/ss6q0py/vSA2GXmeRqCWaxbvGwkLEs6erdQ"},
+	}
+	allowed := []string{"3AA5C34371567BD2", "G1vnm2b/ss6q0py/vSA2GXmeRqCWaxbvGwkLEs6erdQ"}
+
+	runSignatureTests(t, p, []SignatureTestCase{
+		{
+			"ValidSignatureByValidKey",
+			sshCommit("G1vnm2b/ss6q0py/vSA2GXmeRqCWaxbvGwkLEs6erdQ"),
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"abcdef123456789"},
+				ConditionValues: allowed,
+			},
+		},
+		{
+			"ValidSignatureByInvalidKey",
+			sshCommit("nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8"),
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8"},
+				ConditionValues: allowed,
+			},
+		},
+		{
+			"MixedGpgAndSshSignaturesByValidKeys",
+			&pulltest.Context{
+				AuthorValue: "mhaypenny",
+				CommitsValue: []*pull.Commit{
+					{
+						SHA: "abcdef123456789",
+						Signature: &pull.Signature{
+							Type:    pull.SignatureGpg,
+							IsValid: true,
+							State:   "VALID",
+							KeyID:   "3AA5C34371567BD2",
+						},
+					},
+					{
+						SHA: "123456789abcdef",
+						Signature: &pull.Signature{
+							Type:           pull.SignatureSSH,
+							IsValid:        true,
+							State:          "VALID",
+							KeyFingerprint: "G1vnm2b/ss6q0py/vSA2GXmeRqCWaxbvGwkLEs6erdQ",
+						},
+					},
+				},
+			},
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"abcdef123456789", "123456789abcdef"},
+				ConditionValues: allowed,
+			},
+		},
+	})
+
+	// Fingerprints copied from `ssh-keygen -lf` carry a SHA256: prefix that
+	// GitHub omits; both forms match.
+	prefixed := &HasValidSignaturesByKeys{
+		KeyFingerprints: []string{"SHA256:G1vnm2b/ss6q0py/vSA2GXmeRqCWaxbvGwkLEs6erdQ"},
+	}
+	runSignatureTests(t, prefixed, []SignatureTestCase{
+		{
+			"PrefixedFingerprintMatches",
+			sshCommit("G1vnm2b/ss6q0py/vSA2GXmeRqCWaxbvGwkLEs6erdQ"),
+			&common.PredicateResult{
+				Satisfied:       true,
+				Values:          []string{"abcdef123456789"},
+				ConditionValues: []string{"SHA256:G1vnm2b/ss6q0py/vSA2GXmeRqCWaxbvGwkLEs6erdQ"},
+			},
+		},
+	})
+
+	// A GPG key ID never matches an SSH fingerprint, and vice versa.
+	gpgOnly := &HasValidSignaturesByKeys{
+		KeyIDs: []string{"G1vnm2b/ss6q0py/vSA2GXmeRqCWaxbvGwkLEs6erdQ"},
+	}
+	runSignatureTests(t, gpgOnly, []SignatureTestCase{
+		{
+			"SshSignatureNotMatchedByKeyIDs",
+			sshCommit("G1vnm2b/ss6q0py/vSA2GXmeRqCWaxbvGwkLEs6erdQ"),
+			&common.PredicateResult{
+				Satisfied:       false,
+				Values:          []string{"G1vnm2b/ss6q0py/vSA2GXmeRqCWaxbvGwkLEs6erdQ"},
+				ConditionValues: []string{"G1vnm2b/ss6q0py/vSA2GXmeRqCWaxbvGwkLEs6erdQ"},
+			},
+		},
+	})
+}
+
 type SignatureTestCase struct {
 	Name                    string
 	Context                 pull.Context

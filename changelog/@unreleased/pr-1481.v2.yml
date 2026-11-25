@@ -1,0 +1,5 @@
+type: feature
+feature:
+  description: 'Add a `key_fingerprints` option to `has_valid_signatures_by_keys`, so policies can require commits signed by specific SSH keys. GPG signatures are matched against `key_ids` and SSH signatures against `key_fingerprints`.'
+  links:
+  - https://github.com/palantir/policy-bot/pull/1481
