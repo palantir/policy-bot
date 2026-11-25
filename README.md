@@ -1433,6 +1433,10 @@ ruleset check also being configured to:
   is restricted.
 - **Restrict tags** too, if automation creates branches from tags.
 
+Every branch in the ruleset also needs a `policy-bot` policy, which a shared
+policy makes easy. Pull requests into a branch without one get an error on the
+ruleset check.
+
 #### Migrating from branch protection <!-- omit in toc -->
 
 1. Set `status_checks: [branch, ruleset]` so both checks are posted.

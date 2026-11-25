@@ -103,9 +103,12 @@ func (ec *EvalContext) ParseConfig(ctx context.Context, trigger common.Trigger) 
 		logger.Warn().Err(fc.LoadError).Bool("seen_policy", fc.SeenPolicy).Msgf("Error loading %s", fc.PolicyLocation())
 
 		// If policy-bot has never seen a policy file for this base branch
-		// then suppress the failing status.
+		// then suppress the failing status, except for shared ruleset checks.
+		msg := fmt.Sprintf("Error loading policy from %s", fc.Sources[0].Source)
 		if fc.SeenPolicy {
-			ec.PostStatus(ctx, "error", fmt.Sprintf("Error loading policy from %s", fc.Sources[0].Source))
+			ec.PostStatus(ctx, "error", msg)
+		} else {
+			ec.postRulesetError(ctx, msg)
 		}
 		return nil, errors.Wrapf(fc.LoadError, "failed to load %s", fc.PolicyLocation())
 
@@ -117,6 +120,8 @@ func (ec *EvalContext) ParseConfig(ctx context.Context, trigger common.Trigger) 
 
 	case fc.Policy == nil:
 		logger.Debug().Msg("No policy defined for repository")
+		base, _ := ec.PullContext.Branches()
+		ec.postRulesetError(ctx, fmt.Sprintf("No policy found for %s", base))
 		return nil, nil
 	}
 
@@ -192,11 +197,6 @@ func (ec *EvalContext) RunPostEvaluateActions(ctx context.Context, result common
 func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 	logger := zerolog.Ctx(ctx)
 
-	owner := ec.PullContext.RepositoryOwner()
-	repo := ec.PullContext.RepositoryName()
-	sha := ec.PullContext.HeadSHA()
-	base, _ := ec.PullContext.Branches()
-
 	if !ec.SkipPostStatus && !ec.PullContext.IsOpen() {
 		logger.Info().Msg("Skipping status update because PR state is not open")
 		return
@@ -211,6 +211,48 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 			contexts = ec.addPreviousRulesetContexts(ctx, contexts)
 		}
 	}
+
+	ec.postToContexts(ctx, state, message, contexts)
+}
+
+// postRulesetError posts an error to the ruleset checks of a base branch that
+// has no usable policy. Ruleset checks are shared by all branches in a ruleset,
+// so otherwise a success posted for another branch on the same commit could
+// satisfy this one. The per-branch check is not posted.
+func (ec *EvalContext) postRulesetError(ctx context.Context, message string) {
+	logger := zerolog.Ctx(ctx)
+
+	if !ec.Options.HasStatusCheck(StatusCheckRuleset) {
+		return
+	}
+	if !ec.SkipPostStatus && !ec.PullContext.IsOpen() {
+		logger.Info().Msg("Skipping status update because PR state is not open")
+		return
+	}
+
+	contexts, err := ec.rulesetContexts(ctx)
+	if err != nil {
+		logger.Error().Err(err).Msg("Failed to find ruleset status checks")
+		if !ec.SkipPostStatus {
+			contexts = ec.addPreviousRulesetContexts(ctx, contexts)
+		}
+	}
+	if len(contexts) == 0 {
+		return
+	}
+
+	ec.postToContexts(ctx, "error", message, contexts)
+}
+
+// postToContexts posts a status for the evaluated PR to each context, or
+// stores it if SkipPostStatus is set.
+func (ec *EvalContext) postToContexts(ctx context.Context, state, message string, contexts []string) {
+	logger := zerolog.Ctx(ctx)
+
+	owner := ec.PullContext.RepositoryOwner()
+	repo := ec.PullContext.RepositoryName()
+	sha := ec.PullContext.HeadSHA()
+	base, _ := ec.PullContext.Branches()
 
 	publicURL := strings.TrimSuffix(ec.PublicURL, "/")
 	detailsURL := fmt.Sprintf("%s/details/%s/%s/%d", publicURL, owner, repo, ec.PullContext.Number())
@@ -261,12 +303,7 @@ func (ec *EvalContext) statusContexts(ctx context.Context) ([]string, error) {
 		contexts = append(contexts, ec.Options.BranchStatusContext(base))
 	}
 	if ec.Options.HasStatusCheck(StatusCheckRuleset) {
-		if ec.RulesetChecks == nil {
-			return contexts, errors.New("ruleset status checks are enabled but no ruleset lookup is configured")
-		}
-		owner := ec.PullContext.RepositoryOwner()
-		repo := ec.PullContext.RepositoryName()
-		checks, err := ec.RulesetChecks.RequiredChecks(ctx, ec.Client, owner, repo, base)
+		checks, err := ec.rulesetContexts(ctx)
 		if err != nil {
 			return contexts, err
 		}
@@ -277,6 +314,18 @@ func (ec *EvalContext) statusContexts(ctx context.Context) ([]string, error) {
 		}
 	}
 	return contexts, nil
+}
+
+// rulesetContexts returns the ruleset checks to post for the pull request's
+// base branch.
+func (ec *EvalContext) rulesetContexts(ctx context.Context) ([]string, error) {
+	if ec.RulesetChecks == nil {
+		return nil, errors.New("ruleset status checks are enabled but no ruleset lookup is configured")
+	}
+	owner := ec.PullContext.RepositoryOwner()
+	repo := ec.PullContext.RepositoryName()
+	base, _ := ec.PullContext.Branches()
+	return ec.RulesetChecks.RequiredChecks(ctx, ec.Client, owner, repo, base)
 }
 
 // addPreviousRulesetContexts adds the ruleset contexts that already have a
