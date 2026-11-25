@@ -39,12 +39,10 @@ func TestWorkflowRunEvaluatesFork(t *testing.T) {
 		conclusion          string
 		expectedStatus      string
 	}{
-		"pull_request fork":         {trigger: "pull_request", pullRequestResponse: "workflow_pull_request_open.yml", conclusion: "success", expectedStatus: "success"},
-		"pull_request_target fork":  {trigger: "pull_request_target", pullRequestResponse: "workflow_pull_request_open.yml", conclusion: "success", expectedStatus: "success"},
-		"failed workflow":           {trigger: "pull_request", pullRequestResponse: "workflow_pull_request_open.yml", conclusion: "failure", expectedStatus: "pending"},
-		"closed after lookup":       {trigger: "pull_request", pullRequestResponse: "workflow_pull_request_closed.yml", conclusion: "success"},
-		"head changed after lookup": {trigger: "pull_request", pullRequestResponse: "workflow_pull_request_moved.yml", conclusion: "success"},
-		"push with association":     {trigger: "push", withAssociation: true, pullRequestResponse: "workflow_pull_request_open.yml", conclusion: "success", expectedStatus: "success"},
+		"pull_request fork":        {trigger: "pull_request", pullRequestResponse: "workflow_pull_request_open.yml", conclusion: "success", expectedStatus: "success"},
+		"pull_request_target fork": {trigger: "pull_request_target", pullRequestResponse: "workflow_pull_request_open.yml", conclusion: "success", expectedStatus: "success"},
+		"failed workflow":          {trigger: "pull_request", pullRequestResponse: "workflow_pull_request_open.yml", conclusion: "failure", expectedStatus: "pending"},
+		"push with association":    {trigger: "push", withAssociation: true, pullRequestResponse: "workflow_pull_request_open.yml", conclusion: "success", expectedStatus: "success"},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -53,7 +51,7 @@ func TestWorkflowRunEvaluatesFork(t *testing.T) {
 				responsetest.ExactPathMatcher("/repos/owner/repo/commits/head/pulls"),
 				"testdata/responses/completion_pull_requests.yml",
 			)
-			// The lookup still reports an open PR at head; GraphQL supplies its newer state.
+			// GraphQL supplies additional PR fields needed for evaluation.
 			details := rp.AddRule(
 				responsetest.ExactPathMatcher("/graphql"),
 				"testdata/responses/"+tt.pullRequestResponse,

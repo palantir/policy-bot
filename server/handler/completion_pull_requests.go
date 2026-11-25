@@ -21,17 +21,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (b *Base) completionPullRequests(ctx context.Context, installationID int64, repo *github.Repository, sha string, prs []*github.PullRequest) ([]*github.PullRequest, error) {
-	if len(prs) > 0 || sha == "" {
-		return prs, nil
-	}
-	client, err := b.NewInstallationClient(installationID)
-	if err != nil {
-		return nil, err
-	}
-	return pullRequestsForHead(ctx, client, repo, sha)
-}
-
 func pullRequestsForHead(ctx context.Context, client *github.Client, repo *github.Repository, sha string) ([]*github.PullRequest, error) {
 	// Fork completion events can omit associated PRs. Resolve them by commit,
 	// excluding closed PRs and PRs that only contain this commit in their history.
@@ -48,20 +37,12 @@ func pullRequestsForHead(ctx context.Context, client *github.Client, repo *githu
 	return matches, nil
 }
 
-// pullRequestsForCommit retrieves all associations, including historical commits.
+// pullRequestsForCommit retrieves up to 100 associations, including historical commits.
 // Callers apply the filtering appropriate to their event type.
 func pullRequestsForCommit(ctx context.Context, client *github.Client, repo *github.Repository, sha string) ([]*github.PullRequest, error) {
-	opts := &github.ListOptions{PerPage: 100}
-	var matches []*github.PullRequest
-	for {
-		prs, response, err := client.PullRequests.ListPullRequestsWithCommit(ctx, repo.GetOwner().GetLogin(), repo.GetName(), sha, opts)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to list pull requests for SHA %s", sha)
-		}
-		matches = append(matches, prs...)
-		if response.NextPage == 0 {
-			return matches, nil
-		}
-		opts.Page = response.NextPage
+	prs, _, err := client.PullRequests.ListPullRequestsWithCommit(ctx, repo.GetOwner().GetLogin(), repo.GetName(), sha, &github.ListOptions{PerPage: 100})
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to list pull requests for SHA %s", sha)
 	}
+	return prs, nil
 }

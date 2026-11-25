@@ -53,15 +53,14 @@ func (h *WorkflowRun) Handle(ctx context.Context, eventType, deliveryID string, 
 	ctx, logger := githubapp.PrepareRepoContext(ctx, installationID, repo)
 
 	prs := event.GetWorkflowRun().PullRequests
-	fallback := len(prs) == 0
-	if fallback {
+	if len(prs) == 0 {
 		switch event.GetWorkflowRun().GetEvent() {
 		case "pull_request", "pull_request_target":
 		default:
 			return nil
 		}
 		var err error
-		prs, err = h.completionPullRequests(ctx, installationID, repo, commitSHA, nil)
+		prs, err = h.findPullRequestsForHead(ctx, installationID, repo, commitSHA)
 		if err != nil {
 			return err
 		}
@@ -81,18 +80,11 @@ func (h *WorkflowRun) Handle(ctx context.Context, eventType, deliveryID string, 
 			continue
 		}
 
-		value := pr
-		if fallback {
-			// The PR can close or move to another head after the commit lookup.
-			// Reload it so evaluation can reject an association that is now stale.
-			value = nil
-		}
-
-		if err := h.evaluateWorkflowPullRequest(ctx, installationID, commitSHA, pull.Locator{
+		if err := h.Evaluate(ctx, installationID, common.TriggerWorkflowRun, pull.Locator{
 			Owner:  ownerName,
 			Repo:   repoName,
 			Number: pr.GetNumber(),
-			Value:  value,
+			Value:  pr,
 		}); err != nil {
 			evaluationFailures++
 			logger.Error().Err(err).Msgf("Failed to evaluate pull request '%d' for SHA '%s'", pr.GetNumber(), commitSHA)
@@ -105,17 +97,13 @@ func (h *WorkflowRun) Handle(ctx context.Context, eventType, deliveryID string, 
 	return errors.Errorf("failed to evaluate %d pull requests", evaluationFailures)
 }
 
-func (h *WorkflowRun) evaluateWorkflowPullRequest(ctx context.Context, installationID int64, sha string, loc pull.Locator) error {
-	if loc.Value != nil {
-		return h.Evaluate(ctx, installationID, common.TriggerWorkflowRun, loc)
+func (h *WorkflowRun) findPullRequestsForHead(ctx context.Context, installationID int64, repo *github.Repository, sha string) ([]*github.PullRequest, error) {
+	if sha == "" {
+		return nil, nil
 	}
-	evalCtx, err := h.NewEvalContext(ctx, installationID, loc)
+	client, err := h.NewInstallationClient(installationID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	// A discovered PR may have closed or moved since the lookup.
-	if !evalCtx.PullContext.IsOpen() || evalCtx.PullContext.HeadSHA() != sha {
-		return nil
-	}
-	return evalCtx.Evaluate(ctx, common.TriggerWorkflowRun)
+	return pullRequestsForHead(ctx, client, repo, sha)
 }

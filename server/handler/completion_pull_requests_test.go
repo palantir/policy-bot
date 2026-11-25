@@ -35,8 +35,8 @@ func TestPullRequestsForHead(t *testing.T) {
 		want          []int
 		wantError     bool
 	}{
-		"filters closed historical and foreign associations across pages": {
-			responseFile: "completion_pull_requests_paginated.yml", expectedPages: 2, want: []int{1, 5},
+		"filters closed historical and foreign associations on first page": {
+			responseFile: "completion_pull_requests_paginated.yml", expectedPages: 1, want: []int{1},
 		},
 		"no associations": {responseFile: "completion_pull_requests_empty.yml", expectedPages: 1},
 		"lookup failure":  {responseFile: "completion_pull_requests_forbidden.yml", expectedPages: 1, wantError: true},
@@ -62,28 +62,15 @@ func TestPullRequestsForHead(t *testing.T) {
 				numbers = append(numbers, pr.GetNumber())
 			}
 			assert.Equal(t, tt.want, numbers, "only current open PRs in this repository should match")
-			assert.Equal(t, tt.expectedPages, rule.Count, "all pages should be read")
+			assert.Equal(t, tt.expectedPages, rule.Count, "only the first page should be read")
 		})
 	}
 }
 
-func TestCompletionPullRequestsSkipsLookup(t *testing.T) {
-	prs := []*github.PullRequest{{Number: new(1)}}
-	tests := map[string]struct {
-		sha string
-		prs []*github.PullRequest
-	}{
-		"associated":  {sha: "head", prs: prs},
-		"missing SHA": {},
-	}
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			// A zero Base fails if a client is requested.
-			got, err := (&Base{}).completionPullRequests(context.Background(), 0, nil, tt.sha, tt.prs)
-			require.NoError(t, err)
-			assert.Equal(t, tt.prs, got, "existing associations should be preserved")
-		})
-	}
+func TestWorkflowRunFindPullRequestsForHeadSkipsMissingSHA(t *testing.T) {
+	got, err := (&WorkflowRun{}).findPullRequestsForHead(context.Background(), 0, nil, "")
+	require.NoError(t, err)
+	assert.Empty(t, got)
 }
 
 type mockCompletionClientCreator struct {
@@ -109,10 +96,10 @@ func TestCompletionPullRequestsLookup(t *testing.T) {
 	)
 	client, err := github.NewClient(github.WithHTTPClient(&http.Client{Transport: rp}))
 	require.NoError(t, err)
-	b := Base{ClientCreator: mockCompletionClientCreator{client: client}}
+	b := WorkflowRun{Base: Base{ClientCreator: mockCompletionClientCreator{client: client}}}
 	repo := &github.Repository{ID: new(int64(1)), Name: new("repo"), Owner: &github.User{Login: new("owner")}}
 	for range 2 {
-		prs, err := b.completionPullRequests(context.Background(), 1, repo, "head", nil)
+		prs, err := b.findPullRequestsForHead(context.Background(), 1, repo, "head")
 		require.NoError(t, err)
 		if assert.Len(t, prs, 1, "matching PR should be returned") {
 			assert.Equal(t, 42, prs[0].GetNumber(), "matching PR number")
@@ -120,7 +107,7 @@ func TestCompletionPullRequestsLookup(t *testing.T) {
 	}
 	assert.Equal(t, 2, rule.Count, "each completion should perform a fresh lookup")
 	b.ClientCreator = mockCompletionClientCreator{err: errors.New("client failure")}
-	_, err = b.completionPullRequests(context.Background(), 1, repo, "other", nil)
+	_, err = b.findPullRequestsForHead(context.Background(), 1, repo, "other")
 	require.ErrorContains(t, err, "client failure")
 }
 
@@ -141,6 +128,6 @@ func TestPullRequestsForCommit(t *testing.T) {
 	for _, pr := range prs {
 		numbers = append(numbers, pr.GetNumber())
 	}
-	assert.Equal(t, []int{1, 2, 3, 4, 5}, numbers, "shared lookup must preserve all associations")
-	assert.Equal(t, 2, rule.Count, "all pages should be read")
+	assert.Equal(t, []int{1, 2, 3, 4}, numbers, "shared lookup must preserve all associations")
+	assert.Equal(t, 1, rule.Count, "only the first page should be read")
 }
