@@ -202,7 +202,7 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 		return
 	}
 
-	contexts, err := statusContexts(ctx, ec.Options, ec.RulesetChecks, ec.Client, owner, repo, base)
+	contexts, err := ec.statusContexts(ctx)
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to find ruleset status checks")
 		// if the ruleset lookup fails, post a non-success result to the ruleset checks previously on the commit if
@@ -247,6 +247,36 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 			logger.Err(err).Msg("Failed to post insecure repo status")
 		}
 	}
+}
+
+// statusContexts returns the de-duplicated status contexts to post for the pull
+// request, based on the enabled status check types. If the ruleset lookup
+// fails, the returned contexts exclude all ruleset checks and the error is
+// returned with them.
+func (ec *EvalContext) statusContexts(ctx context.Context) ([]string, error) {
+	base, _ := ec.PullContext.Branches()
+
+	var contexts []string
+	if ec.Options.HasStatusCheck(StatusCheckBranch) {
+		contexts = append(contexts, ec.Options.BranchStatusContext(base))
+	}
+	if ec.Options.HasStatusCheck(StatusCheckRuleset) {
+		if ec.RulesetChecks == nil {
+			return contexts, errors.New("ruleset status checks are enabled but no ruleset lookup is configured")
+		}
+		owner := ec.PullContext.RepositoryOwner()
+		repo := ec.PullContext.RepositoryName()
+		checks, err := ec.RulesetChecks.RequiredChecks(ctx, ec.Client, owner, repo, base)
+		if err != nil {
+			return contexts, err
+		}
+		for _, c := range checks {
+			if !slices.Contains(contexts, c) {
+				contexts = append(contexts, c)
+			}
+		}
+	}
+	return contexts, nil
 }
 
 // addPreviousRulesetContexts adds the ruleset contexts that already have a
