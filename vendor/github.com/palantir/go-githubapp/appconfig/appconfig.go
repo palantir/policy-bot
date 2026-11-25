@@ -163,6 +163,16 @@ func (ld *Loader) LoadConfig(ctx context.Context, client *github.Client, owner, 
 	return Config{}, nil
 }
 
+// LoadRemoteRef loads the file identified by remote. Unlike LoadConfig, it
+// does not follow remote references, try other paths, or fall back to owner
+// defaults. A missing file is an error.
+//
+// clientOwner is the owner of the installation for that client.
+// It determines whether WithPrivateRemotes selects a different installation.
+func (ld *Loader) LoadRemoteRef(ctx context.Context, client *github.Client, clientOwner string, remote RemoteRef) (Config, error) {
+	return ld.loadRemoteConfig(ctx, client, clientOwner, remote, Config{})
+}
+
 func (ld *Loader) loadRemoteConfig(ctx context.Context, client *github.Client, sourceOwner string, remote RemoteRef, c Config) (Config, error) {
 	logger := zerolog.Ctx(ctx)
 	notFoundErr := fmt.Errorf("invalid remote reference: file does not exist")

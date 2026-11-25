@@ -23,8 +23,22 @@ import (
 	"github.com/rs/zerolog"
 )
 
+type Evaluator interface {
+	common.Evaluator
+
+	// FindRule searches the named slot. An empty slot name searches outside slots.
+	FindRule(slot, name string) *Rule
+}
+
 type evaluator struct {
-	root common.Evaluator
+	root Evaluator
+}
+
+func (eval *evaluator) FindRule(slot, name string) *Rule {
+	if eval.root != nil {
+		return eval.root.FindRule(slot, name)
+	}
+	return nil
 }
 
 func (eval *evaluator) Trigger() common.Trigger {
@@ -48,8 +62,49 @@ func (eval *evaluator) Evaluate(ctx context.Context, prctx pull.Context) (res co
 	return
 }
 
+type SlotRule struct {
+	Name     string
+	Required bool
+	Child    Evaluator
+}
+
+func (r *SlotRule) FindRule(slot, name string) *Rule {
+	if slot != r.Name || r.Child == nil {
+		return nil
+	}
+	return r.Child.FindRule("", name)
+}
+
+func (r *SlotRule) Trigger() common.Trigger {
+	if r.Child != nil {
+		return r.Child.Trigger()
+	}
+	return common.TriggerStatic
+}
+
+func (r *SlotRule) Evaluate(ctx context.Context, prctx pull.Context) common.Result {
+	if r.Child == nil {
+		return common.Result{
+			Name:              r.Name,
+			Status:            common.StatusSkipped,
+			StatusDescription: "Slot is empty",
+			Slot:              &common.SlotResult{Name: r.Name, Empty: true},
+		}
+	}
+	result := r.Child.Evaluate(ctx, prctx)
+	result.Slot = &common.SlotResult{Name: r.Name}
+	return result
+}
+
 type RuleRequirement struct {
 	rule *Rule
+}
+
+func (r *RuleRequirement) FindRule(slot, name string) *Rule {
+	if slot == "" && r.rule.Name == name {
+		return r.rule
+	}
+	return nil
 }
 
 func (r *RuleRequirement) Trigger() common.Trigger {
@@ -77,7 +132,16 @@ func (r *RuleRequirement) Evaluate(ctx context.Context, prctx pull.Context) comm
 }
 
 type OrRequirement struct {
-	requirements []common.Evaluator
+	requirements []Evaluator
+}
+
+func (r *OrRequirement) FindRule(slot, name string) *Rule {
+	for _, child := range r.requirements {
+		if rule := child.FindRule(slot, name); rule != nil {
+			return rule
+		}
+	}
+	return nil
 }
 
 func (r *OrRequirement) Trigger() common.Trigger {
@@ -137,7 +201,16 @@ func (r *OrRequirement) Evaluate(ctx context.Context, prctx pull.Context) common
 }
 
 type AndRequirement struct {
-	requirements []common.Evaluator
+	requirements []Evaluator
+}
+
+func (r *AndRequirement) FindRule(slot, name string) *Rule {
+	for _, child := range r.requirements {
+		if rule := child.FindRule(slot, name); rule != nil {
+			return rule
+		}
+	}
+	return nil
 }
 
 func (r *AndRequirement) Trigger() common.Trigger {

@@ -21,7 +21,6 @@ import (
 
 	"github.com/google/go-github/v93/github"
 	"github.com/palantir/go-githubapp/githubapp"
-	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/pkg/errors"
@@ -77,9 +76,8 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 	switch {
 	case evalCtx.Config.LoadError != nil || evalCtx.Config.ParseError != nil:
 		logger.Warn().Str(LogKeyAudit, "issue_comment").Msg("Skipping tampering check because the policy is not valid")
-	case evalCtx.Config.Config != nil:
-		tampered := h.detectAndLogTampering(ctx, evalCtx, event)
-		if tampered {
+	case evalCtx.Config.Policy != nil:
+		if h.detectAndLogTampering(ctx, evalCtx, event) {
 			return nil
 		}
 	}
@@ -91,8 +89,7 @@ func (h *IssueComment) Handle(ctx context.Context, eventType, deliveryID string,
 	if evaluator == nil {
 		return nil
 	}
-
-	if !h.affectsApproval(event, evalCtx.Config.Config) {
+	if !h.affectsApproval(event, evaluator.Methods()) {
 		logger.Debug().Msg("Skipping evaluation because this comment does not impact approval")
 		return nil
 	}
@@ -119,7 +116,7 @@ func (h *IssueComment) detectAndLogTampering(ctx context.Context, evalCtx *EvalC
 		return false
 	}
 
-	if h.affectsApproval(event, evalCtx.Config.Config) {
+	if h.affectsApproval(event, evalCtx.Config.Policy.Methods()) {
 		msg := fmt.Sprintf("Entity %s edited approval comment by %s", eventAuthor, commentAuthor)
 		logger.Warn().Str(LogKeyAudit, "issue_comment").Msg(msg)
 
@@ -131,7 +128,7 @@ func (h *IssueComment) detectAndLogTampering(ctx context.Context, evalCtx *EvalC
 	return true
 }
 
-func (h *IssueComment) affectsApproval(event github.IssueCommentEvent, config *policy.Config) bool {
+func (h *IssueComment) affectsApproval(event github.IssueCommentEvent, methods []*common.Methods) bool {
 	var body, originalBody string
 	switch event.GetAction() {
 	case "edited":
@@ -140,15 +137,6 @@ func (h *IssueComment) affectsApproval(event github.IssueCommentEvent, config *p
 	default:
 		body = event.GetComment().GetBody()
 		originalBody = body
-	}
-
-	var methods []*common.Methods
-	for _, rule := range config.ApprovalRules {
-		methods = append(methods, rule.Options.GetMethods())
-	}
-	if disapproval := config.Policy.Disapproval; disapproval != nil {
-		methods = append(methods, disapproval.Options.GetDisapproveMethods())
-		methods = append(methods, disapproval.Options.GetRevokeMethods())
 	}
 
 	for _, m := range methods {
