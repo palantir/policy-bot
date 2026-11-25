@@ -577,6 +577,45 @@ func TestRepositoryCollaborators(t *testing.T) {
 	}, c7.Permissions)
 }
 
+func TestRequestedReviewers(t *testing.T) {
+	rp := &ResponsePlayer{}
+	matcher := &GraphQLVariableRecorder{
+		RequestMatcher: GraphQLNodePrefixMatcher("repository.pullRequest.reviewRequests"),
+	}
+	dataRule := rp.AddRule(matcher, "testdata/responses/pull_requested_reviewers.yml")
+
+	ctx := makeContext(t, rp, nil, nil)
+
+	reviewers, err := ctx.RequestedReviewers()
+	require.NoError(t, err)
+
+	require.Len(t, reviewers, 3, "incorrect number of reviewers")
+	assert.Equal(t, 2, dataRule.Count, "incorrect number of http requests")
+
+	assert.Equal(t, &Reviewer{Type: ReviewerUser, Name: "mhaypenny"}, reviewers[0])
+	assert.Equal(t, &Reviewer{Type: ReviewerTeam, Name: "team-reviewers", Removed: true}, reviewers[1])
+	assert.Equal(t, &Reviewer{Type: ReviewerUser, Name: "ttest", Removed: true}, reviewers[2])
+
+	// The second request must only send the cursors used by the query. The
+	// client declares all variables it sends and GitHub rejects queries that
+	// declare unused variables.
+	require.Len(t, matcher.Variables, 2, "incorrect number of recorded requests")
+	assert.Equal(t, map[string]any{
+		"owner":          "testorg",
+		"name":           "testrepo",
+		"number":         float64(123),
+		"requestCursor":  "r1",
+		"timelineCursor": "t1",
+	}, matcher.Variables[1], "incorrect variables for second page")
+
+	// verify that the reviewer list is cached
+	reviewers, err = ctx.RequestedReviewers()
+	require.NoError(t, err)
+
+	require.Len(t, reviewers, 3, "incorrect number of reviewers")
+	assert.Equal(t, 2, dataRule.Count, "cached reviewers were not used")
+}
+
 func TestPushedAt(t *testing.T) {
 	rp := &ResponsePlayer{}
 	commitsRule := rp.AddRule(

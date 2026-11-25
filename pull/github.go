@@ -736,7 +736,7 @@ func (ghc *GitHubContext) loadRequestedReviewers() error {
 		for _, n := range q.Repository.PullRequest.ReviewRequests.Nodes {
 			reviewers = append(reviewers, n.RequestedReviewer.ToReviewer(false))
 		}
-		if !q.Repository.PullRequest.ReviewRequests.PageInfo.UpdateCursor(qvars, "reviewCursor") {
+		if !q.Repository.PullRequest.ReviewRequests.PageInfo.UpdateCursor(qvars, "requestCursor") {
 			complete++
 		}
 
