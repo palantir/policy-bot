@@ -78,7 +78,7 @@ func (pred HasStatus) Evaluate(ctx context.Context, prctx pull.Context) (*common
 
 	if len(failingStatuses) > 0 {
 		predicateResult.Values = failingStatuses
-		predicateResult.Description = fmt.Sprintf("One or more statuses has not concluded with %s: %s", pred.Conclusions.joinWithOr(), strings.Join(failingStatuses, ","))
+		predicateResult.Description = fmt.Sprintf("One or more statuses has not concluded with %s: %s", conclusions.joinWithOr(), strings.Join(failingStatuses, ","))
 		predicateResult.Satisfied = false
 		return &predicateResult, nil
 	}
