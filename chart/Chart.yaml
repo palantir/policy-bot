@@ -1,0 +1,12 @@
+apiVersion: v2
+name: policy-bot
+description: GitHub App for enforcing approval policies on pull requests
+type: application
+version: 0.1.0
+appVersion: "1.40.0"
+maintainers:
+  - name: Palantir Technologies
+    url: https://github.com/palantir/policy-bot
+home: https://github.com/palantir/policy-bot
+sources:
+  - https://github.com/palantir/policy-bot
