@@ -237,7 +237,7 @@ func TestPostStatusRulesetLookupError(t *testing.T) {
 			ec.SkipPostStatus = false
 			ec.Client = newTestClient(t, rp)
 			ec.Options.StatusChecks = test.StatusChecks
-			ec.RulesetChecks = newTestFinder(t)
+			ec.RulesetChecks = newTestFinder()
 
 			ec.PostStatus(context.Background(), test.State, "message")
 

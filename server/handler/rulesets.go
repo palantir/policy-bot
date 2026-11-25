@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/google/go-github/v93/github"
 	"github.com/pkg/errors"
@@ -76,12 +77,15 @@ func RulesetContext(statusCheckContext, rulesetName string) string {
 type RulesetCheckFinder struct {
 	AppID              int64
 	StatusCheckContext string
+
+	retryDelay time.Duration
 }
 
 func NewRulesetCheckFinder(appID int64, statusCheckContext string) *RulesetCheckFinder {
 	return &RulesetCheckFinder{
 		AppID:              appID,
 		StatusCheckContext: statusCheckContext,
+		retryDelay:         defaultRetryDelay,
 	}
 }
 
@@ -184,7 +188,7 @@ func (f *RulesetCheckFinder) getRules(ctx context.Context, client *github.Client
 	for {
 		var page *github.BranchRules
 		var res *github.Response
-		err := withRetry(ctx, func() (err error) {
+		err := withRetry(ctx, f.retryDelay, func() (err error) {
 			// the client escapes the branch name in the path
 			page, res, err = client.Repositories.ListRulesForBranch(ctx, owner, repo, branch, opts)
 			return err
@@ -213,7 +217,7 @@ func (f *RulesetCheckFinder) getRulesets(ctx context.Context, client *github.Cli
 	for {
 		var rulesets []*github.RepositoryRuleset
 		var res *github.Response
-		err := withRetry(ctx, func() (err error) {
+		err := withRetry(ctx, f.retryDelay, func() (err error) {
 			rulesets, res, err = client.Repositories.GetAllRulesets(ctx, owner, repo, opts)
 			return err
 		})

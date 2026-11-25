@@ -141,21 +141,19 @@ func (cf *ConfigFetcher) ConfigForRepositoryBranch(ctx context.Context, client *
 
 func loadConfigWithRetry(ctx context.Context, load func() (appconfig.Config, error)) (appconfig.Config, error) {
 	var c appconfig.Config
-	err := withRetry(ctx, func() (err error) {
+	err := withRetry(ctx, defaultRetryDelay, func() (err error) {
 		c, err = load()
 		return err
 	})
 	return c, err
 }
 
-// retryDelay is the delay before the first retry of a GitHub request. It
-// doubles after each retry.
-var retryDelay = time.Second
+const defaultRetryDelay = time.Second
 
 // withRetry calls fn until it succeeds, returns an error that is not a timeout
-// or server error, or fails after 3 retries.
-func withRetry(ctx context.Context, fn func() error) error {
-	delay := retryDelay
+// or server error, or fails after 3 retries. The delay before the first retry
+// doubles after each retry.
+func withRetry(ctx context.Context, delay time.Duration, fn func() error) error {
 	for retries := 0; ; retries++ {
 		err := fn()
 		retryable := os.IsTimeout(err) || isServerError(err)

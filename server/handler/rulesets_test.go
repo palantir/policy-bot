@@ -80,16 +80,10 @@ func recordStatuses(rp *githubtest.ResponsePlayer, path string) *statusRecorder 
 	return recorder
 }
 
-func newTestFinder(t *testing.T) *RulesetCheckFinder {
-	setTestRetryDelay(t)
-	return NewRulesetCheckFinder(testAppID, "policy-bot")
-}
-
-// setTestRetryDelay shortens retries of GitHub requests for the test.
-func setTestRetryDelay(t *testing.T) {
-	delay := retryDelay
-	retryDelay = time.Millisecond
-	t.Cleanup(func() { retryDelay = delay })
+func newTestFinder() *RulesetCheckFinder {
+	f := NewRulesetCheckFinder(testAppID, "policy-bot")
+	f.retryDelay = time.Millisecond
+	return f
 }
 
 // ignoredReasons counts the reasons of the ignored checks logged to buf.
@@ -175,7 +169,7 @@ func TestRulesetCheckFinder(t *testing.T) {
 			var logs bytes.Buffer
 			ctx := zerolog.New(&logs).WithContext(context.Background())
 
-			checks, err := newTestFinder(t).RequiredChecks(ctx, newTestClient(t, rp), "testorg", "testrepo", "main")
+			checks, err := newTestFinder().RequiredChecks(ctx, newTestClient(t, rp), "testorg", "testrepo", "main")
 			require.NoError(t, err)
 			assert.Equal(t, test.Expected, checks)
 			assert.Equal(t, 1, rulesetsRule.Count, "rulesets should be fetched once")
@@ -193,7 +187,7 @@ func TestRulesetCheckFinderSkipsRulesetsWithoutPolicyBotChecks(t *testing.T) {
 	rp.AddRule(githubtest.ExactPathMatcher(rulesPath), testResponses+"rules_non_policy_bot.yml")
 	rulesetsRule := rp.AddRule(githubtest.ExactPathMatcher(rulesetsPath), testResponses+"rulesets.yml")
 
-	checks, err := newTestFinder(t).RequiredChecks(context.Background(), newTestClient(t, rp), "testorg", "testrepo", "main")
+	checks, err := newTestFinder().RequiredChecks(context.Background(), newTestClient(t, rp), "testorg", "testrepo", "main")
 	require.NoError(t, err)
 	assert.Empty(t, checks)
 	assert.Zero(t, rulesetsRule.Count, "rulesets should not be fetched without policy-bot checks")
@@ -204,7 +198,7 @@ func TestRulesetCheckFinderPagination(t *testing.T) {
 	rulesRule := rp.AddRule(githubtest.ExactPathMatcher(rulesPath), testResponses+"rules_paginated.yml")
 	rulesetsRule := rp.AddRule(githubtest.ExactPathMatcher(rulesetsPath), testResponses+"rulesets_paginated.yml")
 
-	checks, err := newTestFinder(t).RequiredChecks(context.Background(), newTestClient(t, rp), "testorg", "testrepo", "main")
+	checks, err := newTestFinder().RequiredChecks(context.Background(), newTestClient(t, rp), "testorg", "testrepo", "main")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"policy-bot: ruleset:first", "policy-bot: ruleset:second"}, checks)
 	assert.Equal(t, 2, rulesRule.Count)
@@ -219,7 +213,7 @@ func TestRulesetCheckFinderEscapesBranch(t *testing.T) {
 	)
 	rp.AddRule(githubtest.ExactPathMatcher(rulesetsPath), testResponses+"rulesets.yml")
 
-	checks, err := newTestFinder(t).RequiredChecks(context.Background(), newTestClient(t, rp), "testorg", "testrepo", "release/1.0")
+	checks, err := newTestFinder().RequiredChecks(context.Background(), newTestClient(t, rp), "testorg", "testrepo", "release/1.0")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"policy-bot: ruleset:release-branches"}, checks)
 	assert.Equal(t, 1, rulesRule.Count)
@@ -230,7 +224,7 @@ func TestRulesetCheckFinderRetriesServerErrors(t *testing.T) {
 	rulesRule := rp.AddRule(githubtest.ExactPathMatcher(rulesPath), testResponses+"rules_retry.yml")
 	rulesetsRule := rp.AddRule(githubtest.ExactPathMatcher(rulesetsPath), testResponses+"rulesets_retry.yml")
 
-	checks, err := newTestFinder(t).RequiredChecks(context.Background(), newTestClient(t, rp), "testorg", "testrepo", "main")
+	checks, err := newTestFinder().RequiredChecks(context.Background(), newTestClient(t, rp), "testorg", "testrepo", "main")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"policy-bot: ruleset:release-branches"}, checks)
 	assert.Equal(t, 2, rulesRule.Count)
@@ -266,7 +260,7 @@ func TestRulesetCheckFinderErrors(t *testing.T) {
 				rp.AddRule(githubtest.ExactPathMatcher(rulesetsPath), testResponses+test.Rulesets)
 			}
 
-			checks, err := newTestFinder(t).RequiredChecks(context.Background(), newTestClient(t, rp), "testorg", "testrepo", "main")
+			checks, err := newTestFinder().RequiredChecks(context.Background(), newTestClient(t, rp), "testorg", "testrepo", "main")
 			require.Error(t, err)
 			assert.Nil(t, checks)
 			assert.Equal(t, test.RulesRequests, rulesRule.Count)
