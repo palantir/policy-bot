@@ -256,3 +256,20 @@ func runWorkflowTestCase(t *testing.T, cases []WorkflowTestCase) {
 		})
 	}
 }
+
+func TestHasWorkflowResult_DefaultConclusionDescription(t *testing.T) {
+	ctx := context.Background()
+	pred := HasWorkflowResult{
+		Workflows: []string{".github/workflows/ci.yml"},
+	}
+	prctx := &pulltest.Context{
+		LatestWorkflowRunsValue: map[string][]string{
+			".github/workflows/ci.yml": {"failure"},
+		},
+	}
+	result, err := pred.Evaluate(ctx, prctx)
+	if assert.NoError(t, err) {
+		assert.False(t, result.Satisfied)
+		assert.Equal(t, "One or more workflow runs have not concluded with success: .github/workflows/ci.yml", result.Description)
+	}
+}
