@@ -1,15 +1,24 @@
 package parser
 
 import (
-	"github.com/vektah/gqlparser/gqlerror"
-	"github.com/vektah/gqlparser/lexer"
+	"slices"
 
-	. "github.com/vektah/gqlparser/ast"
+	. "github.com/vektah/gqlparser/v2/ast" //nolint:staticcheck // bad, yeah
+	"github.com/vektah/gqlparser/v2/lexer"
 )
 
-func ParseQuery(source *Source) (*QueryDocument, *gqlerror.Error) {
+func ParseQuery(source *Source) (*QueryDocument, error) {
 	p := parser{
-		lexer: lexer.New(source),
+		lexer:         lexer.New(source),
+		maxTokenLimit: 0, // 0 means unlimited
+	}
+	return p.parseQueryDocument(), p.err
+}
+
+func ParseQueryWithTokenLimit(source *Source, maxTokenLimit int) (*QueryDocument, error) {
+	p := parser{
+		lexer:         lexer.New(source),
+		maxTokenLimit: maxTokenLimit,
 	}
 	return p.parseQueryDocument(), p.err
 }
@@ -21,18 +30,19 @@ func (p *parser) parseQueryDocument() *QueryDocument {
 			return &doc
 		}
 		doc.Position = p.peekPos()
+		description := p.parseDescription()
 		switch p.peek().Kind {
 		case lexer.Name:
 			switch p.peek().Value {
 			case "query", "mutation", "subscription":
-				doc.Operations = append(doc.Operations, p.parseOperationDefinition())
+				doc.Operations = append(doc.Operations, p.parseOperationDefinition(description))
 			case "fragment":
-				doc.Fragments = append(doc.Fragments, p.parseFragmentDefinition())
+				doc.Fragments = append(doc.Fragments, p.parseFragmentDefinition(description))
 			default:
 				p.unexpectedError()
 			}
 		case lexer.BraceL:
-			doc.Operations = append(doc.Operations, p.parseOperationDefinition())
+			doc.Operations = append(doc.Operations, p.parseOperationDefinition(description))
 		default:
 			p.unexpectedError()
 		}
@@ -41,17 +51,24 @@ func (p *parser) parseQueryDocument() *QueryDocument {
 	return &doc
 }
 
-func (p *parser) parseOperationDefinition() *OperationDefinition {
+func (p *parser) parseOperationDefinition(description descriptionWithComment) *OperationDefinition {
 	if p.peek().Kind == lexer.BraceL {
+		// The query shorthand takes no description.
+		if description.present {
+			p.unexpectedToken(p.prev)
+		}
 		return &OperationDefinition{
 			Position:     p.peekPos(),
+			Comment:      p.comment,
 			Operation:    Query,
 			SelectionSet: p.parseRequiredSelectionSet(),
 		}
 	}
 
 	var od OperationDefinition
+	od.Description = description.text
 	od.Position = p.peekPos()
+	od.Comment = joinComments(description.comment, p.comment)
 	od.Operation = p.parseOperationType()
 
 	if p.peek().Kind == lexer.Name {
@@ -81,7 +98,7 @@ func (p *parser) parseOperationType() Operation {
 
 func (p *parser) parseVariableDefinitions() VariableDefinitionList {
 	var defs []*VariableDefinition
-	p.many(lexer.ParenL, lexer.ParenR, func() {
+	p.some(lexer.ParenL, lexer.ParenR, func() {
 		defs = append(defs, p.parseVariableDefinition())
 	})
 
@@ -90,7 +107,10 @@ func (p *parser) parseVariableDefinitions() VariableDefinitionList {
 
 func (p *parser) parseVariableDefinition() *VariableDefinition {
 	var def VariableDefinition
+	description := p.parseDescription()
+	def.Description = description.text
 	def.Position = p.peekPos()
+	def.Comment = joinComments(description.comment, p.comment)
 	def.Variable = p.parseVariable()
 
 	p.expect(lexer.Colon)
@@ -101,6 +121,8 @@ func (p *parser) parseVariableDefinition() *VariableDefinition {
 		def.DefaultValue = p.parseValueLiteral(true)
 	}
 
+	def.Directives = p.parseDirectives(false)
+
 	return &def
 }
 
@@ -110,12 +132,17 @@ func (p *parser) parseVariable() string {
 }
 
 func (p *parser) parseOptionalSelectionSet() SelectionSet {
+	if !p.enterNested() {
+		return nil
+	}
+	defer p.leaveNested()
+
 	var selections []Selection
 	p.some(lexer.BraceL, lexer.BraceR, func() {
 		selections = append(selections, p.parseSelection())
 	})
 
-	return SelectionSet(selections)
+	return selections
 }
 
 func (p *parser) parseRequiredSelectionSet() SelectionSet {
@@ -123,13 +150,7 @@ func (p *parser) parseRequiredSelectionSet() SelectionSet {
 		p.error(p.peek(), "Expected %s, found %s", lexer.BraceL, p.peek().Kind.String())
 		return nil
 	}
-
-	var selections []Selection
-	p.some(lexer.BraceL, lexer.BraceR, func() {
-		selections = append(selections, p.parseSelection())
-	})
-
-	return SelectionSet(selections)
+	return p.parseOptionalSelectionSet()
 }
 
 func (p *parser) parseSelection() Selection {
@@ -142,6 +163,7 @@ func (p *parser) parseSelection() Selection {
 func (p *parser) parseField() *Field {
 	var field Field
 	field.Position = p.peekPos()
+	field.Comment = p.comment
 	field.Alias = p.parseName()
 
 	if p.skip(lexer.Colon) {
@@ -161,7 +183,7 @@ func (p *parser) parseField() *Field {
 
 func (p *parser) parseArguments(isConst bool) ArgumentList {
 	var arguments ArgumentList
-	p.many(lexer.ParenL, lexer.ParenR, func() {
+	p.some(lexer.ParenL, lexer.ParenR, func() {
 		arguments = append(arguments, p.parseArgument(isConst))
 	})
 
@@ -171,6 +193,7 @@ func (p *parser) parseArguments(isConst bool) ArgumentList {
 func (p *parser) parseArgument(isConst bool) *Argument {
 	arg := Argument{}
 	arg.Position = p.peekPos()
+	arg.Comment = p.comment
 	arg.Name = p.parseName()
 	p.expect(lexer.Colon)
 
@@ -179,11 +202,12 @@ func (p *parser) parseArgument(isConst bool) *Argument {
 }
 
 func (p *parser) parseFragment() Selection {
-	p.expect(lexer.Spread)
+	_, comment := p.expect(lexer.Spread)
 
 	if peek := p.peek(); peek.Kind == lexer.Name && peek.Value != "on" {
 		return &FragmentSpread{
 			Position:   p.peekPos(),
+			Comment:    comment,
 			Name:       p.parseFragmentName(),
 			Directives: p.parseDirectives(false),
 		}
@@ -191,6 +215,7 @@ func (p *parser) parseFragment() Selection {
 
 	var def InlineFragment
 	def.Position = p.peekPos()
+	def.Comment = comment
 	if p.peek().Value == "on" {
 		p.next() // "on"
 
@@ -202,9 +227,11 @@ func (p *parser) parseFragment() Selection {
 	return &def
 }
 
-func (p *parser) parseFragmentDefinition() *FragmentDefinition {
+func (p *parser) parseFragmentDefinition(description descriptionWithComment) *FragmentDefinition {
 	var def FragmentDefinition
+	def.Description = description.text
 	def.Position = p.peekPos()
+	def.Comment = joinComments(description.comment, p.comment)
 	p.expectKeyword("fragment")
 
 	def.Name = p.parseFragmentName()
@@ -216,6 +243,19 @@ func (p *parser) parseFragmentDefinition() *FragmentDefinition {
 	def.Directives = p.parseDirectives(false)
 	def.SelectionSet = p.parseRequiredSelectionSet()
 	return &def
+}
+
+// joinComments returns the comments before a description followed by the
+// comments between the description and its definition, so a definition
+// with a description keeps both groups.
+func joinComments(before, after *CommentGroup) *CommentGroup {
+	switch {
+	case before == nil:
+		return after
+	case after == nil:
+		return before
+	}
+	return &CommentGroup{List: slices.Concat(before.List, after.List)}
 }
 
 func (p *parser) parseFragmentName() string {
@@ -241,7 +281,12 @@ func (p *parser) parseValueLiteral(isConst bool) *Value {
 			p.unexpectedError()
 			return nil
 		}
-		return &Value{Position: &token.Pos, Raw: p.parseVariable(), Kind: Variable}
+		return &Value{
+			Position: &token.Pos,
+			Comment:  p.comment,
+			Raw:      p.parseVariable(),
+			Kind:     Variable,
+		}
 	case lexer.Int:
 		kind = IntValue
 	case lexer.Float:
@@ -266,32 +311,45 @@ func (p *parser) parseValueLiteral(isConst bool) *Value {
 
 	p.next()
 
-	return &Value{Position: &token.Pos, Raw: token.Value, Kind: kind}
+	return &Value{Position: &token.Pos, Comment: p.comment, Raw: token.Value, Kind: kind}
 }
 
 func (p *parser) parseList(isConst bool) *Value {
+	if !p.enterNested() {
+		return nil
+	}
+	defer p.leaveNested()
+
 	var values ChildValueList
 	pos := p.peekPos()
+	comment := p.comment
 	p.many(lexer.BracketL, lexer.BracketR, func() {
 		values = append(values, &ChildValue{Value: p.parseValueLiteral(isConst)})
 	})
 
-	return &Value{Children: values, Kind: ListValue, Position: pos}
+	return &Value{Children: values, Kind: ListValue, Position: pos, Comment: comment}
 }
 
 func (p *parser) parseObject(isConst bool) *Value {
+	if !p.enterNested() {
+		return nil
+	}
+	defer p.leaveNested()
+
 	var fields ChildValueList
 	pos := p.peekPos()
+	comment := p.comment
 	p.many(lexer.BraceL, lexer.BraceR, func() {
 		fields = append(fields, p.parseObjectField(isConst))
 	})
 
-	return &Value{Children: fields, Kind: ObjectValue, Position: pos}
+	return &Value{Children: fields, Kind: ObjectValue, Position: pos, Comment: comment}
 }
 
 func (p *parser) parseObjectField(isConst bool) *ChildValue {
 	field := ChildValue{}
 	field.Position = p.peekPos()
+	field.Comment = p.comment
 	field.Name = p.parseName()
 
 	p.expect(lexer.Colon)
@@ -326,6 +384,11 @@ func (p *parser) parseTypeReference() *Type {
 	var typ Type
 
 	if p.skip(lexer.BracketL) {
+		if !p.enterNested() {
+			return nil
+		}
+		defer p.leaveNested()
+
 		typ.Position = p.peekPos()
 		typ.Elem = p.parseTypeReference()
 		p.expect(lexer.BracketR)
@@ -335,14 +398,13 @@ func (p *parser) parseTypeReference() *Type {
 	}
 
 	if p.skip(lexer.Bang) {
-		typ.Position = p.peekPos()
 		typ.NonNull = true
 	}
 	return &typ
 }
 
 func (p *parser) parseName() string {
-	token := p.expect(lexer.Name)
+	token, _ := p.expect(lexer.Name)
 
 	return token.Value
 }

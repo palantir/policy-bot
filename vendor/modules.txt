@@ -122,8 +122,6 @@ github.com/rs/zerolog/hlog/internal/mutil
 github.com/rs/zerolog/internal/cbor
 github.com/rs/zerolog/internal/json
 github.com/rs/zerolog/log
-# github.com/sergi/go-diff v1.4.5
-## explicit; go 1.13
 # github.com/shurcooL/githubv4 v0.0.0-20260209031235-2402fdf4a9ed
 ## explicit; go 1.19
 github.com/shurcooL/githubv4
@@ -145,12 +143,12 @@ github.com/stretchr/testify/assert/yaml
 github.com/stretchr/testify/internal/difflib
 github.com/stretchr/testify/internal/spew
 github.com/stretchr/testify/require
-# github.com/vektah/gqlparser v1.3.1
-## explicit; go 1.12
-github.com/vektah/gqlparser/ast
-github.com/vektah/gqlparser/gqlerror
-github.com/vektah/gqlparser/lexer
-github.com/vektah/gqlparser/parser
+# github.com/vektah/gqlparser/v2 v2.5.64
+## explicit; go 1.25
+github.com/vektah/gqlparser/v2/ast
+github.com/vektah/gqlparser/v2/gqlerror
+github.com/vektah/gqlparser/v2/lexer
+github.com/vektah/gqlparser/v2/parser
 # go.yaml.in/yaml/v3 v3.0.6
 ## explicit; go 1.16
 go.yaml.in/yaml/v3
