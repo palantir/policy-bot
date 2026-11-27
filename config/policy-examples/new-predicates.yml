@@ -1,0 +1,76 @@
+# Example policy demonstrating the three new predicates:
+# - changed_files_count: Count changed files with filters
+# - commit_count: Count total commits in a PR
+# - commit_messages: Match commit message patterns
+
+policy:
+  approval:
+    - name: Small changes auto-approve
+      description: PRs with fewer than 20 files are automatically approved
+      requires:
+        count: 0  # Auto-approve
+      if:
+        changed_files_count:
+          total: "< 20"
+
+    - name: Large changes with exception label
+      description: PRs with 20+ files but have exception label are approved
+      requires:
+        count: 0  # Auto-approve with label
+      if:
+        has_labels:
+          labels:
+            - "exception"
+        changed_files_count:
+          total: ">= 20"
+
+    - name: Large changes without exception need approval
+      description: PRs with 20+ files without exception label need admin approval
+      requires:
+        count: 1
+        admins: true
+      if:
+        changed_files_count:
+          total: ">= 20"
+
+    - name: Keep PRs small - auto approve
+      description: PRs with 10 or fewer commits are automatically approved
+      requires:
+        count: 0  # Auto-approve
+      if:
+        commit_count:
+          total: "<= 10"
+
+    - name: General approval not requiring JIRA
+      description: Standard PRs don't need JIRA tickets in commits
+      requires:
+        count: 1
+        admins: true
+
+    - name: Check for breaking changes
+      description: PRs with breaking changes need special review
+      requires:
+        count: 2
+        teams:
+          - "org/breaking-change-reviewers"
+      if:
+        commit_messages:
+          mode: any
+          scope: body
+          matches:
+            - "(?i)breaking change"
+
+    - name: Documentation changes need fewer reviews
+      description: Documentation-only changes need just one approval
+      requires:
+        count: 1
+        admins: true
+      if:
+        changed_files_count:
+          total: "< 100"
+          files:
+            include:
+              - "^docs/.*"
+            exclude:
+              - "^src/.*"
+              - "^test/.*"
