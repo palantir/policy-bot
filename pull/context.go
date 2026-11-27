@@ -167,6 +167,12 @@ type Commit struct {
 	// committer is not a real user.
 	Committer string
 
+	// MessageHeadline is the first line of the commit message (subject).
+	MessageHeadline string
+
+	// MessageBody is the commit message body (everything after the subject).
+	MessageBody string
+
 	// Signature is the signature and details that was extracted from the commit.
 	// It is nil if the commit has no signature
 	Signature *Signature
