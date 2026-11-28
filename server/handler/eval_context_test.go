@@ -21,10 +21,12 @@ import (
 
 	"github.com/google/go-github/v93/github"
 	"github.com/palantir/go-githubapp/appconfig"
+	"github.com/palantir/policy-bot/policy"
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull/pulltest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
 )
 
 func TestParseConfigSuppressesStatusForUnseenPolicy(t *testing.T) {
@@ -106,5 +108,47 @@ func makeEvalContext(seenPolicy bool) *EvalContext {
 			Sources:    []PolicyLocation{{Source: "testorg/testrepo@main", Path: ".policy.yml"}},
 			SeenPolicy: seenPolicy,
 		},
+	}
+}
+
+func TestWorkflowCompletionPolicyStatus(t *testing.T) {
+	tests := map[string]struct {
+		conclusion string
+		want       string
+	}{
+		"successful workflow": {conclusion: "success", want: "success"},
+		"failed workflow":     {conclusion: "failure", want: "pending"},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			var config policy.Config
+			require.NoError(t, yaml.UnmarshalStrict([]byte(`policy:
+  approval: [CI passes]
+approval_rules:
+  - name: CI passes
+    requires:
+      conditions:
+        has_workflow_result:
+          workflows: [.github/workflows/ci.yml]
+`), &config))
+			parsed, err := policy.ParsePolicy(&config, nil)
+			require.NoError(t, err)
+			ec := &EvalContext{
+				Options:   &PullEvaluationOptions{StatusCheckContext: "policy-bot"},
+				PublicURL: "https://policy.example.com",
+				PullContext: &pulltest.Context{
+					OwnerValue: "owner", RepoValue: "repo", NumberValue: 42,
+					StateValue: "open", HeadSHAValue: "head", BranchBaseName: "main",
+					LatestWorkflowRunsValue: map[string][]string{".github/workflows/ci.yml": {tt.conclusion}},
+				},
+				Config:         FetchedConfig{Config: &config, Policy: parsed, Sources: []PolicyLocation{{Source: "owner/repo@main", Path: ".policy.yml"}}},
+				SkipPostStatus: true,
+			}
+			require.NoError(t, ec.Evaluate(context.Background(), common.TriggerWorkflowRun))
+			if assert.NotNil(t, ec.Status, "workflow completion should produce a policy status") {
+				assert.Equal(t, tt.want, ec.Status.GetState(), "workflow result determines policy status")
+				assert.Equal(t, "policy-bot: main", ec.Status.GetContext(), "policy status context")
+			}
+		})
 	}
 }

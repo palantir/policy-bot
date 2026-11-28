@@ -52,8 +52,22 @@ func (h *WorkflowRun) Handle(ctx context.Context, eventType, deliveryID string, 
 
 	ctx, logger := githubapp.PrepareRepoContext(ctx, installationID, repo)
 
+	prs := event.GetWorkflowRun().PullRequests
+	if len(prs) == 0 {
+		switch event.GetWorkflowRun().GetEvent() {
+		case "pull_request", "pull_request_target":
+		default:
+			return nil
+		}
+		var err error
+		prs, err = h.findPullRequestsForHead(ctx, installationID, repo, commitSHA)
+		if err != nil {
+			return err
+		}
+	}
+
 	evaluationFailures := 0
-	for _, pr := range event.GetWorkflowRun().PullRequests {
+	for _, pr := range prs {
 		// The `workflow_run` event includes pull requests that contain the SHA
 		// which is being checked. These can be pull requests _from_ our
 		// repository _to_ another one, for example if it's been forked and
@@ -81,4 +95,15 @@ func (h *WorkflowRun) Handle(ctx context.Context, eventType, deliveryID string, 
 	}
 
 	return errors.Errorf("failed to evaluate %d pull requests", evaluationFailures)
+}
+
+func (h *WorkflowRun) findPullRequestsForHead(ctx context.Context, installationID int64, repo *github.Repository, sha string) ([]*github.PullRequest, error) {
+	if sha == "" {
+		return nil, nil
+	}
+	client, err := h.NewInstallationClient(installationID)
+	if err != nil {
+		return nil, err
+	}
+	return pullRequestsForHead(ctx, client, repo, sha)
 }

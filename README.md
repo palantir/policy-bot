@@ -1481,6 +1481,21 @@ generated values:
 standard metrics and structured log keys. Please see those projects for
 details.
 
+#### Pull requests from forks <!-- omit in toc -->
+
+For fork pull requests, policies using `has_workflow_result` are reevaluated
+when workflows triggered by `pull_request` or `pull_request_target` complete,
+even when GitHub omits the pull request association.
+
+Without that association, completion events from third-party checks or workflows
+triggered by `push`, schedules, manual dispatch, or `workflow_run` do not trigger
+reevaluation. Policies using only `has_status` are not reevaluated by workflow
+completion events.
+
+If CI has finished but the policy status is stale, an authorized user can open
+the policy-bot status check's **Details** link to trigger a fresh evaluation.
+This does not bypass any policy requirements.
+
 ## Development
 
 To develop `policy-bot`, you will need a [Go installation](https://golang.org/doc/install).
