@@ -127,11 +127,12 @@ func (h *Status) processOthers(ctx context.Context, event github.StatusEvent) er
 	if err != nil {
 		return errors.Wrapf(err, "failed to list pull requests for SHA %s", commitSHA)
 	}
-	logger.Debug().Msgf("Status event is for '%s', found %d PRs", event.GetContext(), len(prs))
+	logger.Debug().Msgf("Status event for context '%s' at SHA '%s' is associated with %d pull requests", event.GetContext(), commitSHA, len(prs))
 
 	evaluationFailures := 0
 	for _, pr := range prs {
 		if pr.GetState() == "open" {
+			ctx, logger := githubapp.PreparePRContext(ctx, installationID, repo, pr.GetNumber())
 			err = h.Evaluate(ctx, installationID, common.TriggerStatus, pull.Locator{
 				Owner:  ownerName,
 				Repo:   repoName,
