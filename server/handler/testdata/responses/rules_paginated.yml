@@ -1,0 +1,40 @@
+- status: 200
+  headers:
+    Link: <http://github.localhost/repos/testorg/testrepo/rules/branches/main?page=2>; rel="next"
+  body: |
+    [
+      {
+        "type": "required_status_checks",
+        "ruleset_source_type": "Repository",
+        "ruleset_source": "testorg/testrepo",
+        "ruleset_id": 1,
+        "parameters": {
+          "required_status_checks": [
+            {
+              "context": "policy-bot: ruleset:first",
+              "integration_id": 1234
+            }
+          ],
+          "strict_required_status_checks_policy": false
+        }
+      }
+    ]
+- status: 200
+  body: |
+    [
+      {
+        "type": "required_status_checks",
+        "ruleset_source_type": "Repository",
+        "ruleset_source": "testorg/testrepo",
+        "ruleset_id": 2,
+        "parameters": {
+          "required_status_checks": [
+            {
+              "context": "policy-bot: ruleset:second",
+              "integration_id": 1234
+            }
+          ],
+          "strict_required_status_checks_policy": false
+        }
+      }
+    ]

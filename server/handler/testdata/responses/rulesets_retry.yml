@@ -1,0 +1,16 @@
+- status: 500
+  body: |
+    {
+      "message": "Server Error"
+    }
+- status: 200
+  body: |
+    [
+      {
+        "id": 1,
+        "name": "release-branches",
+        "source_type": "Repository",
+        "source": "testorg/testrepo",
+        "enforcement": "active"
+      }
+    ]

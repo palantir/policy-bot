@@ -1,0 +1,18 @@
+- status: 200
+  body: |
+    [
+      {
+        "id": 1,
+        "name": "release-branches",
+        "source_type": "Organization",
+        "source": "testorg/testrepo",
+        "enforcement": "active"
+      },
+      {
+        "id": 2,
+        "name": "release-branches",
+        "source_type": "Repository",
+        "source": "testorg/testrepo",
+        "enforcement": "active"
+      }
+    ]

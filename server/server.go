@@ -170,13 +170,16 @@ func New(c *Config) (*Server, error) {
 		loaderOptions = append(loaderOptions, appconfig.WithPrivateRemotes(cc, installations))
 	}
 
+	rulesetChecks := handler.NewRulesetCheckFinder(c.Github.App.IntegrationID, c.Options.StatusCheckContext)
+
 	basePolicyHandler := handler.Base{
 		ClientCreator: cc,
 		BaseConfig:    &c.Server,
 		Installations: installations,
 		GlobalCache:   globalCache,
 
-		PullOpts: &c.Options,
+		PullOpts:      &c.Options,
+		RulesetChecks: rulesetChecks,
 		ConfigFetcher: &handler.ConfigFetcher{
 			Options: &policy.GlobalOptions{
 				IgnoreEditedComments: c.Options.IgnoreEditedComments,

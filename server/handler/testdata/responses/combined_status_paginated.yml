@@ -1,0 +1,24 @@
+- status: 200
+  headers:
+    Link: <http://github.localhost/repos/testorg/testrepo/commits/abc123/status?page=2>; rel="next"
+  body: |
+    {
+      "state": "success",
+      "statuses": [
+        {
+          "context": "policy-bot: ruleset:a",
+          "state": "success"
+        }
+      ]
+    }
+- status: 200
+  body: |
+    {
+      "state": "success",
+      "statuses": [
+        {
+          "context": "policy-bot: ruleset:b",
+          "state": "success"
+        }
+      ]
+    }

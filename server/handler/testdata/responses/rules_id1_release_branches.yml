@@ -1,0 +1,19 @@
+- status: 200
+  body: |
+    [
+      {
+        "type": "required_status_checks",
+        "ruleset_source_type": "Repository",
+        "ruleset_source": "testorg/testrepo",
+        "ruleset_id": 1,
+        "parameters": {
+          "required_status_checks": [
+            {
+              "context": "policy-bot: ruleset:release-branches",
+              "integration_id": 1234
+            }
+          ],
+          "strict_required_status_checks_policy": false
+        }
+      }
+    ]

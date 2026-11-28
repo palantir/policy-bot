@@ -33,12 +33,14 @@ func TestPullRequestTrigger(t *testing.T) {
 		Trigger     common.Trigger
 		Handled     bool
 		MatchPolicy bool
+		BaseChange  bool
 	}{
 		"editedBase": {
 			Payload:     `{"action": "edited", "changes": {"base": {"ref": {"from": "main"}, "sha": {"from": "abc123"}}}}`,
 			Trigger:     common.TriggerAll,
 			Handled:     true,
 			MatchPolicy: true,
+			BaseChange:  true,
 		},
 		"editedTitleAndBody": {
 			Payload: `{"action": "edited", "changes": {"title": {"from": "old"}, "body": {"from": "old"}}}`,
@@ -71,6 +73,8 @@ func TestPullRequestTrigger(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var event github.PullRequestEvent
 			require.NoError(t, json.Unmarshal([]byte(test.Payload), &event))
+
+			assert.Equal(t, test.BaseChange, isBaseChange(&event))
 
 			trigger, ok := pullRequestTrigger(&event)
 			assert.Equal(t, test.Handled, ok)

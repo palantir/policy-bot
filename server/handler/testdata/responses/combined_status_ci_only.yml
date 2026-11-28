@@ -1,0 +1,11 @@
+- status: 200
+  body: |
+    {
+      "state": "success",
+      "statuses": [
+        {
+          "context": "ci/build",
+          "state": "success"
+        }
+      ]
+    }

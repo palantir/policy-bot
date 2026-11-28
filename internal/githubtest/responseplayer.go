@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pull
+// Package githubtest provides an HTTP transport that replays saved GitHub API
+// responses in tests.
+package githubtest
 
 import (
 	"fmt"
@@ -35,6 +37,14 @@ type ExactPathMatcher string
 
 func (m ExactPathMatcher) Matches(r *http.Request, body []byte) bool {
 	return r.URL.Path == string(m)
+}
+
+// EscapedPathMatcher matches the escaped request path, so that it can
+// distinguish escaped characters like "%2F" from path separators.
+type EscapedPathMatcher string
+
+func (m EscapedPathMatcher) Matches(r *http.Request, body []byte) bool {
+	return r.URL.EscapedPath() == string(m)
 }
 
 // PathAndQueryMatcher matches both path and query parameters

@@ -47,12 +47,25 @@ func (h *PullRequest) Handle(ctx context.Context, eventType, deliveryID string, 
 		return nil
 	}
 
-	return h.Evaluate(ctx, installationID, t, pull.Locator{
+	loc := pull.Locator{
 		Owner:  event.GetRepo().GetOwner().GetLogin(),
 		Repo:   event.GetRepo().GetName(),
 		Number: event.GetPullRequest().GetNumber(),
 		Value:  event.GetPullRequest(),
-	})
+	}
+
+	if isBaseChange(&event) {
+		evalCtx, err := h.NewEvalContext(ctx, installationID, loc)
+		if err != nil {
+			return errors.Wrap(err, "failed to create evaluation context")
+		}
+		return evalCtx.EvaluateBaseChange(ctx)
+	}
+	return h.Evaluate(ctx, installationID, t, loc)
+}
+
+func isBaseChange(event *github.PullRequestEvent) bool {
+	return event.GetAction() == "edited" && event.GetChanges().GetBase() != nil
 }
 
 // pullRequestTrigger returns the trigger for a pull_request event and false if
@@ -65,7 +78,7 @@ func pullRequestTrigger(event *github.PullRequestEvent) (common.Trigger, bool) {
 		return common.TriggerCommit, true
 	case "edited":
 		// a base change alters the diff and policy but only produces an edited event
-		if event.GetChanges().GetBase() != nil {
+		if isBaseChange(event) {
 			return common.TriggerAll, true
 		}
 		return common.TriggerPullRequest, true

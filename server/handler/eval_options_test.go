@@ -22,6 +22,8 @@ import (
 	"github.com/palantir/policy-bot/policy/common"
 	"github.com/palantir/policy-bot/pull"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
 )
 
 func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
@@ -51,6 +53,24 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 			Env: map[string]string{"PEO_STATUS_CHECK_CONTEXT": "custom-policy-bot"},
 			SetExpected: func(opts *PullEvaluationOptions) {
 				opts.StatusCheckContext = "custom-policy-bot"
+			},
+		},
+		"StatusChecks": {
+			Env: map[string]string{"PEO_STATUS_CHECKS": "ruleset,branch"},
+			SetExpected: func(opts *PullEvaluationOptions) {
+				opts.StatusChecks = []StatusCheckType{StatusCheckRuleset, StatusCheckBranch}
+			},
+		},
+		"StatusChecks_Deduplicated": {
+			Env: map[string]string{"PEO_STATUS_CHECKS": "ruleset, ruleset,Branch"},
+			SetExpected: func(opts *PullEvaluationOptions) {
+				opts.StatusChecks = []StatusCheckType{StatusCheckRuleset, StatusCheckBranch}
+			},
+		},
+		"StatusChecks_Empty": {
+			Env: map[string]string{"PEO_STATUS_CHECKS": ""},
+			SetExpected: func(opts *PullEvaluationOptions) {
+				opts.StatusChecks = []StatusCheckType{}
 			},
 		},
 		"ForceSharedPolicy": {
@@ -416,10 +436,65 @@ func TestPullEvaluationOptions_SetValuesFromEnv(t *testing.T) {
 				SharedRepository:   new(DefaultSharedRepository),
 				SharedPolicyPath:   new(DefaultSharedPolicyPath),
 				StatusCheckContext: DefaultStatusCheckContext,
+				StatusChecks:       []StatusCheckType{StatusCheckBranch},
 			}
 			test.SetExpected(&expected)
 
 			assert.Equal(t, expected, opts, "incorrect options set from environment")
+		})
+	}
+}
+
+func TestPullEvaluationOptions_StatusChecks(t *testing.T) {
+	tests := map[string]struct {
+		YAML     string
+		Expected []StatusCheckType
+		Error    string
+	}{
+		"default": {
+			YAML:     "{}",
+			Expected: []StatusCheckType{StatusCheckBranch},
+		},
+		"both": {
+			YAML:     "status_checks: [branch, ruleset]",
+			Expected: []StatusCheckType{StatusCheckBranch, StatusCheckRuleset},
+		},
+		"rulesetOnly": {
+			YAML:     "status_checks: [ruleset, ruleset]",
+			Expected: []StatusCheckType{StatusCheckRuleset},
+		},
+		"empty": {
+			YAML:  "status_checks: []",
+			Error: "status_checks must contain at least one value",
+		},
+		"unknown": {
+			YAML:  "status_checks: [branch, rulesets]",
+			Error: `invalid status_checks value "rulesets"`,
+		},
+		"insecureWithRuleset": {
+			YAML:  "status_checks: [branch, ruleset]\npost_insecure_status_checks: true",
+			Error: "post_insecure_status_checks is incompatible",
+		},
+		"insecureWithBranch": {
+			YAML:     "status_checks: [branch]\npost_insecure_status_checks: true",
+			Expected: []StatusCheckType{StatusCheckBranch},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			var opts PullEvaluationOptions
+			require.NoError(t, yaml.UnmarshalStrict([]byte(test.YAML), &opts))
+			opts.SetValuesFromEnv("PEO_")
+
+			err := opts.Validate()
+			if test.Error != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), test.Error)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, test.Expected, opts.StatusChecks)
 		})
 	}
 }

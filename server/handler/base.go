@@ -38,6 +38,7 @@ type Base struct {
 	ConfigFetcher *ConfigFetcher
 	BaseConfig    *baseapp.HTTPConfig
 	PullOpts      *PullEvaluationOptions
+	RulesetChecks RulesetChecks
 
 	AppName string
 }
@@ -85,8 +86,9 @@ func (b *Base) NewEvalContext(ctx context.Context, installationID int64, loc pul
 		Client:   client,
 		V4Client: v4client,
 
-		Options:   b.PullOpts,
-		PublicURL: b.BaseConfig.PublicURL,
+		Options:       b.PullOpts,
+		PublicURL:     b.BaseConfig.PublicURL,
+		RulesetChecks: b.RulesetChecks,
 
 		PullContext: prctx,
 		Config:      fetchedConfig,
